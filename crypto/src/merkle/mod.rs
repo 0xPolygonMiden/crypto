@@ -37,6 +37,3 @@ pub enum MerkleError {
     InvalidPath(Vec<Word>),
     NodeNotInSet(u64),
 }
-
-// UTILITY FUNCTIONS
-// ================================================================================================
