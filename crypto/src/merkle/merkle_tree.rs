@@ -1,12 +1,9 @@
 use core::slice;
-
-use super::Digest;
 use winter_utils::uninit_vector;
 use winterfell::math::log2;
 
-use crate::{Felt, FieldElement, Word};
-
-use super::{merge, MerkleError};
+use crate::{Felt, FieldElement, Word, hash::{merge,Digest}};
+use super::MerkleError;
 
 // MERKLE TREE
 // ================================================================================================

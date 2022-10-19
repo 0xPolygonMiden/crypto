@@ -1,6 +1,7 @@
-use std::collections::BTreeMap;
+use winter_utils::collections::BTreeMap;
 
-use super::{merge, Felt, FieldElement, MerkleError, Word};
+use super::{Felt, FieldElement, MerkleError, Word};
+use crate::hash::merge;
 
 // MERKLE PATH SET
 // ================================================================================================

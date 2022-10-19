@@ -1,28 +1,8 @@
 pub mod merkle_path_set;
 pub mod merkle_tree;
 
-use winterfell::crypto::Hasher as HashFn;
+use crate::{Felt, FieldElement, Word};
 
-pub use winterfell::crypto::hashers::Rp64_256 as Hasher;
-pub use winterfell::math::{
-    fields::{f64::BaseElement as Felt, QuadExtension},
-    ExtensionOf, FieldElement, StarkField,
-};
-
-// TYPE ALIASES
-// ================================================================================================
-
-pub type Word = [Felt; 4];
-pub type Digest = <Hasher as HashFn>::Digest;
-
-// PASS-THROUGH FUNCTIONS
-// ================================================================================================
-
-/// Returns a hash of two digests. This method is intended for use in construction of Merkle trees.
-#[inline(always)]
-pub fn merge(values: &[Digest; 2]) -> Digest {
-    Hasher::merge(values)
-}
 
 // ERRORS
 // ================================================================================================
