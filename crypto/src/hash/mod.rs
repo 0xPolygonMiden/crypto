@@ -1,17 +1,15 @@
-use winterfell::crypto::{ElementHasher};
-use winterfell::math::StarkField;
-use winterfell::crypto::Hasher as HashFn;
 use winterfell::crypto::hashers::Rp64_256 as Hasher;
+use winterfell::crypto::ElementHasher;
+use winterfell::crypto::Hasher as HashFn;
+use winterfell::math::StarkField;
 
 mod rpo;
 pub use rpo::Rpo;
-
 
 // TYPE ALIASES
 // ================================================================================================
 
 pub type Digest = <Hasher as HashFn>::Digest;
-
 
 // HELPER FUNCTIONS
 // ================================================================================================
