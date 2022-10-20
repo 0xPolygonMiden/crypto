@@ -11,7 +11,7 @@ pub type Digest = <Hasher as HashFn>::Digest;
 // ================================================================================================
 
 #[inline(always)]
-fn exp_acc<B: StarkField, const N: usize, const M: usize>(base: [B; N], tail: [B; N]) -> [B; N] {
+fn _exp_acc<B: StarkField, const N: usize, const M: usize>(base: [B; N], tail: [B; N]) -> [B; N] {
     let mut result = base;
     for _ in 0..M {
         result.iter_mut().for_each(|r| *r = r.square());
