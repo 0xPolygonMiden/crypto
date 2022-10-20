@@ -1,9 +1,9 @@
-use super::{exp_acc, ElementHasher, HashFn};
+use super::{ElementHasher, HashFn};
+use crate::{Felt, FieldElement, StarkField, ONE, ZERO};
 use core::{convert::TryInto, ops::Range};
-use winterfell::math::{fields::f64::BaseElement, FieldElement, StarkField};
 
 mod digest;
-pub use digest::ElementDigest;
+pub use digest::RpoDigest256;
 
 #[cfg(test)]
 mod tests;
@@ -14,7 +14,7 @@ use mds_freq::mds_multiply_freq;
 // CONSTANTS
 // ================================================================================================
 
-/// Sponge state is set to 12 field elements or 768 bytes; 8 elements are reserved for rate and
+/// Sponge state is set to 12 field elements or 96 bytes; 8 elements are reserved for rate and
 /// the remaining 4 elements are reserved for capacity.
 const STATE_WIDTH: usize = 12;
 
@@ -89,7 +89,7 @@ const INV_ALPHA: u64 = 10540996611094048183;
 pub struct Rpo();
 
 impl HashFn for Rpo {
-    type Digest = ElementDigest;
+    type Digest = RpoDigest256;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
         // compute the number of elements required to represent the string; we will be processing
@@ -104,8 +104,8 @@ impl HashFn for Rpo {
         // initialize state to all zeros, except for the first element of the capacity part, which
         // is set to the number of elements to be hashed. this is done so that adding zero elements
         // at the end of the list always results in a different hash.
-        let mut state = [BaseElement::ZERO; STATE_WIDTH];
-        state[CAPACITY_RANGE.start] = BaseElement::new(num_elements as u64);
+        let mut state = [ZERO; STATE_WIDTH];
+        state[CAPACITY_RANGE.start] = Felt::new(num_elements as u64);
 
         // break the string into 7-byte chunks, convert each chunk into a field element, and
         // absorb the element into the rate portion of the state. we use 7-byte chunks because
@@ -129,7 +129,7 @@ impl HashFn for Rpo {
             // convert the bytes into a field element and absorb it into the rate portion of the
             // state; if the rate is filled up, apply the Rescue permutation and start absorbing
             // again from zero index.
-            state[RATE_RANGE.start + i] += BaseElement::new(u64::from_le_bytes(buf));
+            state[RATE_RANGE.start + i] += Felt::new(u64::from_le_bytes(buf));
             i += 1;
             if i % RATE_WIDTH == 0 {
                 Self::apply_permutation(&mut state);
@@ -146,49 +146,50 @@ impl HashFn for Rpo {
         }
 
         // return the first 4 elements of the state as hash result
-        ElementDigest::new(state[DIGEST_RANGE].try_into().unwrap())
+        RpoDigest256::new(state[DIGEST_RANGE].try_into().unwrap())
     }
 
     fn merge(values: &[Self::Digest; 2]) -> Self::Digest {
         // initialize the state by copying the digest elements into the rate portion of the state
         // (8 total elements), and set the capacity elements to 0.
-        let mut state = [BaseElement::ZERO; STATE_WIDTH];
+        let mut state = [ZERO; STATE_WIDTH];
         state[RATE_RANGE].copy_from_slice(Self::Digest::digests_as_elements(values));
 
         // apply the RPO permutation and return the first four elements of the state
         Self::apply_permutation(&mut state);
-        ElementDigest::new(state[DIGEST_RANGE].try_into().unwrap())
+        RpoDigest256::new(state[DIGEST_RANGE].try_into().unwrap())
     }
 
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
         // initialize the state as follows:
         // - seed is copied into the first 4 elements of the rate portion of the state.
         // - if the value fits into a single field element, copy it into the fifth rate element
-        //   and set the sixth rate element and first capacity element to 1.
+        //   and set the sixth rate element to 1.
         // - if the value doesn't fit into a single field element, split it into two field
         //   elements, copy them into rate elements 5 and 6, and set the seventh rate element
-        //   and first capacity element to 1.
-        let mut state = [BaseElement::ZERO; STATE_WIDTH];
+        //   to 1.
+        // - set the first capacity element to 1
+        let mut state = [ZERO; STATE_WIDTH];
         state[INPUT1_RANGE].copy_from_slice(seed.as_elements());
-        state[INPUT2_RANGE.start] = BaseElement::new(value);
-        if value < BaseElement::MODULUS {
-            state[INPUT2_RANGE.start + 1] = BaseElement::ONE;
+        state[INPUT2_RANGE.start] = Felt::new(value);
+        if value < Felt::MODULUS {
+            state[INPUT2_RANGE.start + 1] = ONE;
         } else {
-            state[INPUT2_RANGE.start + 1] = BaseElement::new(value / BaseElement::MODULUS);
-            state[INPUT2_RANGE.start + 2] = BaseElement::ONE;            
+            state[INPUT2_RANGE.start + 1] = Felt::new(value / Felt::MODULUS);
+            state[INPUT2_RANGE.start + 2] = ONE;
         }
 
         // common padding for both cases
-        state[CAPACITY_RANGE.start] = BaseElement::ONE;
-        
+        state[CAPACITY_RANGE.start] = ONE;
+
         // apply the RPO permutation and return the first four elements of the state
         Self::apply_permutation(&mut state);
-        ElementDigest::new(state[DIGEST_RANGE].try_into().unwrap())
+        RpoDigest256::new(state[DIGEST_RANGE].try_into().unwrap())
     }
 }
 
 impl ElementHasher for Rpo {
-    type BaseField = BaseElement;
+    type BaseField = Felt;
 
     fn hash_elements<E: FieldElement<BaseField = Self::BaseField>>(elements: &[E]) -> Self::Digest {
         // convert the elements into a list of base field elements
@@ -196,9 +197,9 @@ impl ElementHasher for Rpo {
 
         // initialize state to all zeros, except for the first element of the capacity part, which
         // is set to 1 if the number of elements is not a multiple of RATE_WIDTH.
-        let mut state = [BaseElement::ZERO; STATE_WIDTH];
+        let mut state = [ZERO; STATE_WIDTH];
         if elements.len() % RATE_WIDTH != 0 {
-            state[CAPACITY_RANGE.start] = BaseElement::ONE;
+            state[CAPACITY_RANGE.start] = ONE;
         }
 
         // absorb elements into the state one by one until the rate portion of the state is filled
@@ -219,17 +220,17 @@ impl ElementHasher for Rpo {
         // padding by appending a 1 followed by as many 0 as necessary to make the input length a
         // multiple of the RATE_WIDTH.
         if i > 0 {
-            state[RATE_RANGE.start + i] = BaseElement::ONE;
+            state[RATE_RANGE.start + i] = ONE;
             i += 1;
             while i != RATE_WIDTH {
-                state[RATE_RANGE.start + i] = BaseElement::ZERO;
+                state[RATE_RANGE.start + i] = ZERO;
                 i += 1;
             }
             Self::apply_permutation(&mut state);
         }
 
         // return the first 4 elements of the state as hash result
-        ElementDigest::new(state[DIGEST_RANGE].try_into().unwrap())
+        RpoDigest256::new(state[DIGEST_RANGE].try_into().unwrap())
     }
 }
 
@@ -241,7 +242,7 @@ impl Rpo {
     // --------------------------------------------------------------------------------------------
 
     /// Applies RPO permutation to the provided state.
-    pub fn apply_permutation(state: &mut [BaseElement; STATE_WIDTH]) {
+    pub fn apply_permutation(state: &mut [Felt; STATE_WIDTH]) {
         for i in 0..NUM_ROUNDS {
             Self::apply_round(state, i);
         }
@@ -249,7 +250,7 @@ impl Rpo {
 
     /// RPO round function.
     #[inline(always)]
-    pub fn apply_round(state: &mut [BaseElement; STATE_WIDTH], round: usize) {
+    pub fn apply_round(state: &mut [Felt; STATE_WIDTH], round: usize) {
         // apply first half of RPO round
         Self::apply_mds(state);
         Self::add_constants(state, &ARK1[round]);
@@ -265,8 +266,8 @@ impl Rpo {
     // --------------------------------------------------------------------------------------------
 
     #[inline(always)]
-    fn apply_mds(state: &mut [BaseElement; STATE_WIDTH]) {
-        let mut result = [BaseElement::ZERO; STATE_WIDTH];
+    fn apply_mds(state: &mut [Felt; STATE_WIDTH]) {
+        let mut result = [ZERO; STATE_WIDTH];
 
         // Using the linearity of the operations we can split the state into a low||high decomposition
         // and operate on each with no overflow and then combine/reduce the result to a field element.
@@ -291,19 +292,18 @@ impl Rpo {
             let z = (s_hi << 32) - s_hi;
             let (res, over) = s_lo.overflowing_add(z);
 
-            result[r] =
-                BaseElement::from_mont(res.wrapping_add(0u32.wrapping_sub(over as u32) as u64));
+            result[r] = Felt::from_mont(res.wrapping_add(0u32.wrapping_sub(over as u32) as u64));
         }
         *state = result;
     }
 
     #[inline(always)]
-    fn add_constants(state: &mut [BaseElement; STATE_WIDTH], ark: &[BaseElement; STATE_WIDTH]) {
+    fn add_constants(state: &mut [Felt; STATE_WIDTH], ark: &[Felt; STATE_WIDTH]) {
         state.iter_mut().zip(ark).for_each(|(s, &k)| *s += k);
     }
 
     #[inline(always)]
-    fn apply_sbox(state: &mut [BaseElement; STATE_WIDTH]) {
+    fn apply_sbox(state: &mut [Felt; STATE_WIDTH]) {
         state[0] = state[0].exp7();
         state[1] = state[1].exp7();
         state[2] = state[2].exp7();
@@ -319,7 +319,7 @@ impl Rpo {
     }
 
     #[inline(always)]
-    fn apply_inv_sbox(state: &mut [BaseElement; STATE_WIDTH]) {
+    fn apply_inv_sbox(state: &mut [Felt; STATE_WIDTH]) {
         // compute base^10540996611094048183 using 72 multiplications per array element
         // 10540996611094048183 = b1001001001001001001001001001000110110110110110110110110110110111
 
@@ -332,19 +332,19 @@ impl Rpo {
         t2.iter_mut().for_each(|t| *t = t.square());
 
         // compute base^100100
-        let t3 = exp_acc::<BaseElement, STATE_WIDTH, 3>(t2, t2);
+        let t3 = Self::exp_acc::<Felt, STATE_WIDTH, 3>(t2, t2);
 
         // compute base^100100100100
-        let t4 = exp_acc::<BaseElement, STATE_WIDTH, 6>(t3, t3);
+        let t4 = Self::exp_acc::<Felt, STATE_WIDTH, 6>(t3, t3);
 
         // compute base^100100100100100100100100
-        let t5 = exp_acc::<BaseElement, STATE_WIDTH, 12>(t4, t4);
+        let t5 = Self::exp_acc::<Felt, STATE_WIDTH, 12>(t4, t4);
 
         // compute base^100100100100100100100100100100
-        let t6 = exp_acc::<BaseElement, STATE_WIDTH, 6>(t5, t3);
+        let t6 = Self::exp_acc::<Felt, STATE_WIDTH, 6>(t5, t3);
 
         // compute base^1001001001001001001001001001000100100100100100100100100100100
-        let t7 = exp_acc::<BaseElement, STATE_WIDTH, 31>(t6, t6);
+        let t7 = Self::exp_acc::<Felt, STATE_WIDTH, 31>(t6, t6);
 
         // compute base^1001001001001001001001001001000110110110110110110110110110110111
         for (i, s) in state.iter_mut().enumerate() {
@@ -353,351 +353,364 @@ impl Rpo {
             *s = a * b;
         }
     }
+
+    #[inline(always)]
+    fn exp_acc<B: StarkField, const N: usize, const M: usize>(
+        base: [B; N],
+        tail: [B; N],
+    ) -> [B; N] {
+        let mut result = base;
+        for _ in 0..M {
+            result.iter_mut().for_each(|r| *r = r.square());
+        }
+        result.iter_mut().zip(tail).for_each(|(r, t)| *r *= t);
+        result
+    }
 }
 
 // MDS
 // ================================================================================================
 /// RPO MDS matrix
-const MDS: [[BaseElement; STATE_WIDTH]; STATE_WIDTH] = [
+const MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
     [
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
     ],
     [
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
     ],
     [
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
     ],
     [
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
     ],
     [
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
     ],
     [
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
     ],
     [
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
     ],
     [
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
     ],
     [
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
     ],
     [
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
-        BaseElement::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
+        Felt::new(8),
     ],
     [
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
-        BaseElement::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
+        Felt::new(23),
     ],
     [
-        BaseElement::new(23),
-        BaseElement::new(8),
-        BaseElement::new(26),
-        BaseElement::new(13),
-        BaseElement::new(10),
-        BaseElement::new(9),
-        BaseElement::new(7),
-        BaseElement::new(6),
-        BaseElement::new(22),
-        BaseElement::new(21),
-        BaseElement::new(8),
-        BaseElement::new(7),
+        Felt::new(23),
+        Felt::new(8),
+        Felt::new(26),
+        Felt::new(13),
+        Felt::new(10),
+        Felt::new(9),
+        Felt::new(7),
+        Felt::new(6),
+        Felt::new(22),
+        Felt::new(21),
+        Felt::new(8),
+        Felt::new(7),
     ],
 ];
 
 /// RPO Inverse MDS matrix
-const INV_MDS: [[BaseElement; STATE_WIDTH]; STATE_WIDTH] = [
+const INV_MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
     [
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
     ],
     [
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
     ],
     [
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
     ],
     [
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
     ],
     [
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
     ],
     [
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
     ],
     [
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
     ],
     [
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
     ],
     [
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
     ],
     [
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
     ],
     [
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
-        BaseElement::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
+        Felt::new(13278298489594233127),
     ],
     [
-        BaseElement::new(13278298489594233127),
-        BaseElement::new(389999932707070822),
-        BaseElement::new(9782021734907796003),
-        BaseElement::new(4829905704463175582),
-        BaseElement::new(7567822018949214430),
-        BaseElement::new(14205019324568680367),
-        BaseElement::new(15489674211196160593),
-        BaseElement::new(17636013826542227504),
-        BaseElement::new(16254215311946436093),
-        BaseElement::new(3641486184877122796),
-        BaseElement::new(11069068059762973582),
-        BaseElement::new(14868391535953158196),
+        Felt::new(13278298489594233127),
+        Felt::new(389999932707070822),
+        Felt::new(9782021734907796003),
+        Felt::new(4829905704463175582),
+        Felt::new(7567822018949214430),
+        Felt::new(14205019324568680367),
+        Felt::new(15489674211196160593),
+        Felt::new(17636013826542227504),
+        Felt::new(16254215311946436093),
+        Felt::new(3641486184877122796),
+        Felt::new(11069068059762973582),
+        Felt::new(14868391535953158196),
     ],
 ];
 
@@ -709,204 +722,204 @@ const INV_MDS: [[BaseElement; STATE_WIDTH]; STATE_WIDTH] = [
 ///
 /// The constants are broken up into two arrays ARK1 and ARK2; ARK1 contains the constants for the
 /// first half of RPO round, and ARK2 contains constants for the second half of RPO round.
-const ARK1: [[BaseElement; STATE_WIDTH]; NUM_ROUNDS] = [
+const ARK1: [[Felt; STATE_WIDTH]; NUM_ROUNDS] = [
     [
-        BaseElement::new(5789762306288267392),
-        BaseElement::new(6522564764413701783),
-        BaseElement::new(17809893479458208203),
-        BaseElement::new(107145243989736508),
-        BaseElement::new(6388978042437517382),
-        BaseElement::new(15844067734406016715),
-        BaseElement::new(9975000513555218239),
-        BaseElement::new(3344984123768313364),
-        BaseElement::new(9959189626657347191),
-        BaseElement::new(12960773468763563665),
-        BaseElement::new(9602914297752488475),
-        BaseElement::new(16657542370200465908),
+        Felt::new(5789762306288267392),
+        Felt::new(6522564764413701783),
+        Felt::new(17809893479458208203),
+        Felt::new(107145243989736508),
+        Felt::new(6388978042437517382),
+        Felt::new(15844067734406016715),
+        Felt::new(9975000513555218239),
+        Felt::new(3344984123768313364),
+        Felt::new(9959189626657347191),
+        Felt::new(12960773468763563665),
+        Felt::new(9602914297752488475),
+        Felt::new(16657542370200465908),
     ],
     [
-        BaseElement::new(12987190162843096997),
-        BaseElement::new(653957632802705281),
-        BaseElement::new(4441654670647621225),
-        BaseElement::new(4038207883745915761),
-        BaseElement::new(5613464648874830118),
-        BaseElement::new(13222989726778338773),
-        BaseElement::new(3037761201230264149),
-        BaseElement::new(16683759727265180203),
-        BaseElement::new(8337364536491240715),
-        BaseElement::new(3227397518293416448),
-        BaseElement::new(8110510111539674682),
-        BaseElement::new(2872078294163232137),
+        Felt::new(12987190162843096997),
+        Felt::new(653957632802705281),
+        Felt::new(4441654670647621225),
+        Felt::new(4038207883745915761),
+        Felt::new(5613464648874830118),
+        Felt::new(13222989726778338773),
+        Felt::new(3037761201230264149),
+        Felt::new(16683759727265180203),
+        Felt::new(8337364536491240715),
+        Felt::new(3227397518293416448),
+        Felt::new(8110510111539674682),
+        Felt::new(2872078294163232137),
     ],
     [
-        BaseElement::new(18072785500942327487),
-        BaseElement::new(6200974112677013481),
-        BaseElement::new(17682092219085884187),
-        BaseElement::new(10599526828986756440),
-        BaseElement::new(975003873302957338),
-        BaseElement::new(8264241093196931281),
-        BaseElement::new(10065763900435475170),
-        BaseElement::new(2181131744534710197),
-        BaseElement::new(6317303992309418647),
-        BaseElement::new(1401440938888741532),
-        BaseElement::new(8884468225181997494),
-        BaseElement::new(13066900325715521532),
+        Felt::new(18072785500942327487),
+        Felt::new(6200974112677013481),
+        Felt::new(17682092219085884187),
+        Felt::new(10599526828986756440),
+        Felt::new(975003873302957338),
+        Felt::new(8264241093196931281),
+        Felt::new(10065763900435475170),
+        Felt::new(2181131744534710197),
+        Felt::new(6317303992309418647),
+        Felt::new(1401440938888741532),
+        Felt::new(8884468225181997494),
+        Felt::new(13066900325715521532),
     ],
     [
-        BaseElement::new(5674685213610121970),
-        BaseElement::new(5759084860419474071),
-        BaseElement::new(13943282657648897737),
-        BaseElement::new(1352748651966375394),
-        BaseElement::new(17110913224029905221),
-        BaseElement::new(1003883795902368422),
-        BaseElement::new(4141870621881018291),
-        BaseElement::new(8121410972417424656),
-        BaseElement::new(14300518605864919529),
-        BaseElement::new(13712227150607670181),
-        BaseElement::new(17021852944633065291),
-        BaseElement::new(6252096473787587650),
+        Felt::new(5674685213610121970),
+        Felt::new(5759084860419474071),
+        Felt::new(13943282657648897737),
+        Felt::new(1352748651966375394),
+        Felt::new(17110913224029905221),
+        Felt::new(1003883795902368422),
+        Felt::new(4141870621881018291),
+        Felt::new(8121410972417424656),
+        Felt::new(14300518605864919529),
+        Felt::new(13712227150607670181),
+        Felt::new(17021852944633065291),
+        Felt::new(6252096473787587650),
     ],
     [
-        BaseElement::new(4887609836208846458),
-        BaseElement::new(3027115137917284492),
-        BaseElement::new(9595098600469470675),
-        BaseElement::new(10528569829048484079),
-        BaseElement::new(7864689113198939815),
-        BaseElement::new(17533723827845969040),
-        BaseElement::new(5781638039037710951),
-        BaseElement::new(17024078752430719006),
-        BaseElement::new(109659393484013511),
-        BaseElement::new(7158933660534805869),
-        BaseElement::new(2955076958026921730),
-        BaseElement::new(7433723648458773977),
+        Felt::new(4887609836208846458),
+        Felt::new(3027115137917284492),
+        Felt::new(9595098600469470675),
+        Felt::new(10528569829048484079),
+        Felt::new(7864689113198939815),
+        Felt::new(17533723827845969040),
+        Felt::new(5781638039037710951),
+        Felt::new(17024078752430719006),
+        Felt::new(109659393484013511),
+        Felt::new(7158933660534805869),
+        Felt::new(2955076958026921730),
+        Felt::new(7433723648458773977),
     ],
     [
-        BaseElement::new(16308865189192447297),
-        BaseElement::new(11977192855656444890),
-        BaseElement::new(12532242556065780287),
-        BaseElement::new(14594890931430968898),
-        BaseElement::new(7291784239689209784),
-        BaseElement::new(5514718540551361949),
-        BaseElement::new(10025733853830934803),
-        BaseElement::new(7293794580341021693),
-        BaseElement::new(6728552937464861756),
-        BaseElement::new(6332385040983343262),
-        BaseElement::new(13277683694236792804),
-        BaseElement::new(2600778905124452676),
+        Felt::new(16308865189192447297),
+        Felt::new(11977192855656444890),
+        Felt::new(12532242556065780287),
+        Felt::new(14594890931430968898),
+        Felt::new(7291784239689209784),
+        Felt::new(5514718540551361949),
+        Felt::new(10025733853830934803),
+        Felt::new(7293794580341021693),
+        Felt::new(6728552937464861756),
+        Felt::new(6332385040983343262),
+        Felt::new(13277683694236792804),
+        Felt::new(2600778905124452676),
     ],
     [
-        BaseElement::new(7123075680859040534),
-        BaseElement::new(1034205548717903090),
-        BaseElement::new(7717824418247931797),
-        BaseElement::new(3019070937878604058),
-        BaseElement::new(11403792746066867460),
-        BaseElement::new(10280580802233112374),
-        BaseElement::new(337153209462421218),
-        BaseElement::new(13333398568519923717),
-        BaseElement::new(3596153696935337464),
-        BaseElement::new(8104208463525993784),
-        BaseElement::new(14345062289456085693),
-        BaseElement::new(17036731477169661256),
+        Felt::new(7123075680859040534),
+        Felt::new(1034205548717903090),
+        Felt::new(7717824418247931797),
+        Felt::new(3019070937878604058),
+        Felt::new(11403792746066867460),
+        Felt::new(10280580802233112374),
+        Felt::new(337153209462421218),
+        Felt::new(13333398568519923717),
+        Felt::new(3596153696935337464),
+        Felt::new(8104208463525993784),
+        Felt::new(14345062289456085693),
+        Felt::new(17036731477169661256),
     ],
 ];
 
-const ARK2: [[BaseElement; STATE_WIDTH]; NUM_ROUNDS] = [
+const ARK2: [[Felt; STATE_WIDTH]; NUM_ROUNDS] = [
     [
-        BaseElement::new(6077062762357204287),
-        BaseElement::new(15277620170502011191),
-        BaseElement::new(5358738125714196705),
-        BaseElement::new(14233283787297595718),
-        BaseElement::new(13792579614346651365),
-        BaseElement::new(11614812331536767105),
-        BaseElement::new(14871063686742261166),
-        BaseElement::new(10148237148793043499),
-        BaseElement::new(4457428952329675767),
-        BaseElement::new(15590786458219172475),
-        BaseElement::new(10063319113072092615),
-        BaseElement::new(14200078843431360086),
+        Felt::new(6077062762357204287),
+        Felt::new(15277620170502011191),
+        Felt::new(5358738125714196705),
+        Felt::new(14233283787297595718),
+        Felt::new(13792579614346651365),
+        Felt::new(11614812331536767105),
+        Felt::new(14871063686742261166),
+        Felt::new(10148237148793043499),
+        Felt::new(4457428952329675767),
+        Felt::new(15590786458219172475),
+        Felt::new(10063319113072092615),
+        Felt::new(14200078843431360086),
     ],
     [
-        BaseElement::new(6202948458916099932),
-        BaseElement::new(17690140365333231091),
-        BaseElement::new(3595001575307484651),
-        BaseElement::new(373995945117666487),
-        BaseElement::new(1235734395091296013),
-        BaseElement::new(14172757457833931602),
-        BaseElement::new(707573103686350224),
-        BaseElement::new(15453217512188187135),
-        BaseElement::new(219777875004506018),
-        BaseElement::new(17876696346199469008),
-        BaseElement::new(17731621626449383378),
-        BaseElement::new(2897136237748376248),
+        Felt::new(6202948458916099932),
+        Felt::new(17690140365333231091),
+        Felt::new(3595001575307484651),
+        Felt::new(373995945117666487),
+        Felt::new(1235734395091296013),
+        Felt::new(14172757457833931602),
+        Felt::new(707573103686350224),
+        Felt::new(15453217512188187135),
+        Felt::new(219777875004506018),
+        Felt::new(17876696346199469008),
+        Felt::new(17731621626449383378),
+        Felt::new(2897136237748376248),
     ],
     [
-        BaseElement::new(8023374565629191455),
-        BaseElement::new(15013690343205953430),
-        BaseElement::new(4485500052507912973),
-        BaseElement::new(12489737547229155153),
-        BaseElement::new(9500452585969030576),
-        BaseElement::new(2054001340201038870),
-        BaseElement::new(12420704059284934186),
-        BaseElement::new(355990932618543755),
-        BaseElement::new(9071225051243523860),
-        BaseElement::new(12766199826003448536),
-        BaseElement::new(9045979173463556963),
-        BaseElement::new(12934431667190679898),
+        Felt::new(8023374565629191455),
+        Felt::new(15013690343205953430),
+        Felt::new(4485500052507912973),
+        Felt::new(12489737547229155153),
+        Felt::new(9500452585969030576),
+        Felt::new(2054001340201038870),
+        Felt::new(12420704059284934186),
+        Felt::new(355990932618543755),
+        Felt::new(9071225051243523860),
+        Felt::new(12766199826003448536),
+        Felt::new(9045979173463556963),
+        Felt::new(12934431667190679898),
     ],
     [
-        BaseElement::new(18389244934624494276),
-        BaseElement::new(16731736864863925227),
-        BaseElement::new(4440209734760478192),
-        BaseElement::new(17208448209698888938),
-        BaseElement::new(8739495587021565984),
-        BaseElement::new(17000774922218161967),
-        BaseElement::new(13533282547195532087),
-        BaseElement::new(525402848358706231),
-        BaseElement::new(16987541523062161972),
-        BaseElement::new(5466806524462797102),
-        BaseElement::new(14512769585918244983),
-        BaseElement::new(10973956031244051118),
+        Felt::new(18389244934624494276),
+        Felt::new(16731736864863925227),
+        Felt::new(4440209734760478192),
+        Felt::new(17208448209698888938),
+        Felt::new(8739495587021565984),
+        Felt::new(17000774922218161967),
+        Felt::new(13533282547195532087),
+        Felt::new(525402848358706231),
+        Felt::new(16987541523062161972),
+        Felt::new(5466806524462797102),
+        Felt::new(14512769585918244983),
+        Felt::new(10973956031244051118),
     ],
     [
-        BaseElement::new(6982293561042362913),
-        BaseElement::new(14065426295947720331),
-        BaseElement::new(16451845770444974180),
-        BaseElement::new(7139138592091306727),
-        BaseElement::new(9012006439959783127),
-        BaseElement::new(14619614108529063361),
-        BaseElement::new(1394813199588124371),
-        BaseElement::new(4635111139507788575),
-        BaseElement::new(16217473952264203365),
-        BaseElement::new(10782018226466330683),
-        BaseElement::new(6844229992533662050),
-        BaseElement::new(7446486531695178711),
+        Felt::new(6982293561042362913),
+        Felt::new(14065426295947720331),
+        Felt::new(16451845770444974180),
+        Felt::new(7139138592091306727),
+        Felt::new(9012006439959783127),
+        Felt::new(14619614108529063361),
+        Felt::new(1394813199588124371),
+        Felt::new(4635111139507788575),
+        Felt::new(16217473952264203365),
+        Felt::new(10782018226466330683),
+        Felt::new(6844229992533662050),
+        Felt::new(7446486531695178711),
     ],
     [
-        BaseElement::new(3736792340494631448),
-        BaseElement::new(577852220195055341),
-        BaseElement::new(6689998335515779805),
-        BaseElement::new(13886063479078013492),
-        BaseElement::new(14358505101923202168),
-        BaseElement::new(7744142531772274164),
-        BaseElement::new(16135070735728404443),
-        BaseElement::new(12290902521256031137),
-        BaseElement::new(12059913662657709804),
-        BaseElement::new(16456018495793751911),
-        BaseElement::new(4571485474751953524),
-        BaseElement::new(17200392109565783176),
+        Felt::new(3736792340494631448),
+        Felt::new(577852220195055341),
+        Felt::new(6689998335515779805),
+        Felt::new(13886063479078013492),
+        Felt::new(14358505101923202168),
+        Felt::new(7744142531772274164),
+        Felt::new(16135070735728404443),
+        Felt::new(12290902521256031137),
+        Felt::new(12059913662657709804),
+        Felt::new(16456018495793751911),
+        Felt::new(4571485474751953524),
+        Felt::new(17200392109565783176),
     ],
     [
-        BaseElement::new(17130398059294018733),
-        BaseElement::new(519782857322261988),
-        BaseElement::new(9625384390925085478),
-        BaseElement::new(1664893052631119222),
-        BaseElement::new(7629576092524553570),
-        BaseElement::new(3485239601103661425),
-        BaseElement::new(9755891797164033838),
-        BaseElement::new(15218148195153269027),
-        BaseElement::new(16460604813734957368),
-        BaseElement::new(9643968136937729763),
-        BaseElement::new(3611348709641382851),
-        BaseElement::new(18256379591337759196),
+        Felt::new(17130398059294018733),
+        Felt::new(519782857322261988),
+        Felt::new(9625384390925085478),
+        Felt::new(1664893052631119222),
+        Felt::new(7629576092524553570),
+        Felt::new(3485239601103661425),
+        Felt::new(9755891797164033838),
+        Felt::new(15218148195153269027),
+        Felt::new(16460604813734957368),
+        Felt::new(9643968136937729763),
+        Felt::new(3611348709641382851),
+        Felt::new(18256379591337759196),
     ],
 ];

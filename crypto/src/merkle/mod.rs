@@ -16,3 +16,10 @@ pub enum MerkleError {
     InvalidPath(Vec<Word>),
     NodeNotInSet(u64),
 }
+
+// HELPER FUNCTIONS
+// ================================================================================================
+
+const fn int_to_node(value: u64) -> Word {
+    [Felt::new(value), Felt::ZERO, Felt::ZERO, Felt::ZERO]
+}

@@ -1,32 +1,31 @@
 use super::DIGEST_SIZE;
+use crate::{Digest, Felt, StarkField};
 use core::slice;
-use winterfell::crypto::Digest;
-use winterfell::math::{fields::f64::BaseElement, StarkField};
 use winterfell::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct ElementDigest([BaseElement; DIGEST_SIZE]);
+pub struct RpoDigest256([Felt; DIGEST_SIZE]);
 
-impl ElementDigest {
-    pub fn new(value: [BaseElement; DIGEST_SIZE]) -> Self {
+impl RpoDigest256 {
+    pub fn new(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
     }
 
-    pub fn as_elements(&self) -> &[BaseElement] {
+    pub fn as_elements(&self) -> &[Felt] {
         &self.0
     }
 
-    pub fn digests_as_elements(digests: &[Self]) -> &[BaseElement] {
+    pub fn digests_as_elements(digests: &[Self]) -> &[Felt] {
         let p = digests.as_ptr();
         let len = digests.len() * DIGEST_SIZE;
-        unsafe { slice::from_raw_parts(p as *const BaseElement, len) }
+        unsafe { slice::from_raw_parts(p as *const Felt, len) }
     }
 }
 
-impl Digest for ElementDigest {
+impl Digest for RpoDigest256 {
     fn as_bytes(&self) -> [u8; 32] {
         let mut result = [0; 32];
 
@@ -39,44 +38,44 @@ impl Digest for ElementDigest {
     }
 }
 
-impl Default for ElementDigest {
+impl Default for RpoDigest256 {
     fn default() -> Self {
-        ElementDigest([BaseElement::default(); DIGEST_SIZE])
+        RpoDigest256([Felt::default(); DIGEST_SIZE])
     }
 }
 
-impl Serializable for ElementDigest {
+impl Serializable for RpoDigest256 {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_u8_slice(&self.as_bytes());
     }
 }
 
-impl Deserializable for ElementDigest {
+impl Deserializable for RpoDigest256 {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         // TODO: check if the field elements are valid?
-        let e1 = BaseElement::new(source.read_u64()?);
-        let e2 = BaseElement::new(source.read_u64()?);
-        let e3 = BaseElement::new(source.read_u64()?);
-        let e4 = BaseElement::new(source.read_u64()?);
+        let e1 = Felt::new(source.read_u64()?);
+        let e2 = Felt::new(source.read_u64()?);
+        let e3 = Felt::new(source.read_u64()?);
+        let e4 = Felt::new(source.read_u64()?);
 
         Ok(Self([e1, e2, e3, e4]))
     }
 }
 
-impl From<[BaseElement; DIGEST_SIZE]> for ElementDigest {
-    fn from(value: [BaseElement; DIGEST_SIZE]) -> Self {
+impl From<[Felt; DIGEST_SIZE]> for RpoDigest256 {
+    fn from(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
     }
 }
 
-impl From<ElementDigest> for [BaseElement; DIGEST_SIZE] {
-    fn from(value: ElementDigest) -> Self {
+impl From<RpoDigest256> for [Felt; DIGEST_SIZE] {
+    fn from(value: RpoDigest256) -> Self {
         value.0
     }
 }
 
-impl From<ElementDigest> for [u8; 32] {
-    fn from(value: ElementDigest) -> Self {
+impl From<RpoDigest256> for [u8; 32] {
+    fn from(value: RpoDigest256) -> Self {
         value.as_bytes()
     }
 }
@@ -87,25 +86,26 @@ impl From<ElementDigest> for [u8; 32] {
 #[cfg(test)]
 mod tests {
 
-    use super::ElementDigest;
+    use super::RpoDigest256;
+    use crate::Felt;
     use rand_utils::rand_value;
-    use winterfell::{math::fields::f64::BaseElement, Deserializable, Serializable, SliceReader};
+    use winterfell::{Deserializable, Serializable, SliceReader};
 
     #[test]
     fn digest_serialization() {
-        let e1 = BaseElement::new(rand_value());
-        let e2 = BaseElement::new(rand_value());
-        let e3 = BaseElement::new(rand_value());
-        let e4 = BaseElement::new(rand_value());
+        let e1 = Felt::new(rand_value());
+        let e2 = Felt::new(rand_value());
+        let e3 = Felt::new(rand_value());
+        let e4 = Felt::new(rand_value());
 
-        let d1 = ElementDigest([e1, e2, e3, e4]);
+        let d1 = RpoDigest256([e1, e2, e3, e4]);
 
         let mut bytes = vec![];
         d1.write_into(&mut bytes);
         assert_eq!(32, bytes.len());
 
         let mut reader = SliceReader::new(&bytes);
-        let d2 = ElementDigest::read_from(&mut reader).unwrap();
+        let d2 = RpoDigest256::read_from(&mut reader).unwrap();
 
         assert_eq!(d1, d2);
     }
