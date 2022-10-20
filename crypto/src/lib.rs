@@ -3,8 +3,8 @@ pub use winterfell::math::{
     ExtensionOf, FieldElement, StarkField,
 };
 
-pub(crate) mod hash;
-pub(crate) mod merkle;
+pub mod hash;
+pub mod merkle;
 
 // TYPE ALIASES
 // ================================================================================================
