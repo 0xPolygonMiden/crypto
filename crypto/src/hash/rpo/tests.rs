@@ -2,9 +2,7 @@ use super::{
     ElementHasher, Felt, FieldElement, HashFn, Rpo, RpoDigest256, StarkField, ALPHA, INV_ALPHA,
     INV_MDS, MDS, STATE_WIDTH, ZERO,
 };
-
 use core::convert::TryInto;
-
 use rand_utils::rand_value;
 
 #[test]
