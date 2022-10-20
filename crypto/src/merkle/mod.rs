@@ -1,7 +1,7 @@
+use crate::{Felt, FieldElement, Word};
+
 pub mod merkle_path_set;
 pub mod merkle_tree;
-
-use crate::{Felt, FieldElement, Word};
 
 // ERRORS
 // ================================================================================================

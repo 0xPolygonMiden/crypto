@@ -1,10 +1,6 @@
-use winterfell::crypto::hashers::Rp64_256 as Hasher;
-use winterfell::crypto::ElementHasher;
-use winterfell::crypto::Hasher as HashFn;
-use winterfell::math::StarkField;
-
-mod rpo;
-pub use rpo::Rpo;
+use crate::StarkField;
+pub use winterfell::crypto::hashers::Rp64_256 as Hasher;
+pub use winterfell::crypto::{ElementHasher, Hasher as HashFn};
 
 // TYPE ALIASES
 // ================================================================================================

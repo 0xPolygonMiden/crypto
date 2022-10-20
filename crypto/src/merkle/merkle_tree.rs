@@ -1,12 +1,11 @@
-use core::slice;
-use winter_utils::uninit_vector;
-use winterfell::math::log2;
-
 use super::MerkleError;
 use crate::{
     hash::{merge, Digest},
     Felt, FieldElement, Word,
 };
+use core::slice;
+use winter_utils::uninit_vector;
+use winterfell::math::log2;
 
 // MERKLE TREE
 // ================================================================================================
@@ -147,7 +146,7 @@ impl MerkleTree {
 #[cfg(test)]
 mod tests {
     use super::{Felt, FieldElement, Word};
-    use winterfell::crypto::{hashers::Rp64_256, ElementHasher, Hasher};
+    use crate::hash::{ElementHasher, HashFn, Hasher};
 
     const LEAVES4: [Word; 4] = [
         int_to_node(1),
@@ -248,9 +247,9 @@ mod tests {
     // --------------------------------------------------------------------------------------------
 
     fn compute_internal_nodes() -> (Word, Word, Word) {
-        let node2 = Rp64_256::hash_elements(&[LEAVES4[0], LEAVES4[1]].concat());
-        let node3 = Rp64_256::hash_elements(&[LEAVES4[2], LEAVES4[3]].concat());
-        let root = Rp64_256::merge(&[node2, node3]);
+        let node2 = Hasher::hash_elements(&[LEAVES4[0], LEAVES4[1]].concat());
+        let node3 = Hasher::hash_elements(&[LEAVES4[2], LEAVES4[3]].concat());
+        let root = Hasher::merge(&[node2, node3]);
 
         (root.into(), node2.into(), node3.into())
     }

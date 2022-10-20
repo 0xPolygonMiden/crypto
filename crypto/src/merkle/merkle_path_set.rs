@@ -1,7 +1,6 @@
-use winter_utils::collections::BTreeMap;
-
 use super::{Felt, FieldElement, MerkleError, Word};
 use crate::hash::merge;
+use winter_utils::collections::{BTreeMap, Vec};
 
 // MERKLE PATH SET
 // ================================================================================================
@@ -255,9 +254,7 @@ fn compute_path_root(path: &[Word], depth: u32, index: u64) -> Word {
 
 #[cfg(test)]
 mod tests {
-    use super::calculate_parent_hash;
-
-    use super::{Felt, FieldElement, Word};
+    use super::{calculate_parent_hash, Felt, FieldElement, Word};
 
     #[test]
     fn get_root() {
