@@ -1,7 +1,7 @@
 use crate::{ElementHasher, HashFn};
 
 mod rpo;
-pub use rpo::Rpo as Hasher;
+pub use rpo::Rpo256 as Hasher;
 
 // TYPE ALIASES
 // ================================================================================================

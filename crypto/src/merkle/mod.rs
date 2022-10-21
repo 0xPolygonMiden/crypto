@@ -1,4 +1,4 @@
-use crate::{Felt, FieldElement, Word};
+use crate::{Felt, Word, ZERO};
 
 pub mod merkle_path_set;
 pub mod merkle_tree;
@@ -20,6 +20,7 @@ pub enum MerkleError {
 // HELPER FUNCTIONS
 // ================================================================================================
 
+#[cfg(test)]
 const fn int_to_node(value: u64) -> Word {
-    [Felt::new(value), Felt::ZERO, Felt::ZERO, Felt::ZERO]
+    [Felt::new(value), ZERO, ZERO, ZERO]
 }

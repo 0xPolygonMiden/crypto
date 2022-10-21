@@ -156,7 +156,7 @@ fn block3(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
 
 #[cfg(test)]
 mod tests {
-    use super::super::Rpo;
+    use super::super::Rpo256;
     use crate::hash::rpo::MDS;
     use proptest::prelude::*;
     use winterfell::math::{fields::f64::BaseElement, FieldElement};
@@ -187,7 +187,7 @@ mod tests {
             v2 = v1.clone();
 
             apply_mds_naive(&mut v1);
-            Rpo::apply_mds(&mut v2);
+            Rpo256::apply_mds(&mut v2);
 
             prop_assert_eq!(v1, v2);
         }

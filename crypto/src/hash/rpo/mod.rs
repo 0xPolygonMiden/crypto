@@ -50,10 +50,10 @@ const INV_ALPHA: u64 = 10540996611094048183;
 // HASHER IMPLEMENTATION
 // ================================================================================================
 
-/// Implementation of [Hasher] trait for Rescue Prime Optimized (RPO) hash function with 256-bit output.
+/// Implementation of [Hasher] trait for Rescue Prime Optimized (Rpo256) hash function with 256-bit output.
 ///
 /// The hash function is implemented according to the Rescue Prime Optimized
-/// [specifications](https://github.org/aszepieniec/rpo/)
+/// [specifications](https://github.com/ASDiscreteMathematics/rpo)
 ///
 /// The parameters used to instantiate the function are:
 /// * Field: 64-bit prime field with modulus 2^64 - 2^32 + 1.
@@ -66,29 +66,29 @@ const INV_ALPHA: u64 = 10540996611094048183;
 /// and it can be serialized into 32 bytes (256 bits).
 ///
 /// ## Hash output consistency
-/// Functions [hash_elements()](Rpo::hash_elements), [merge()](Rpo::merge), and
-/// [merge_with_int()](Rpo::merge_with_int) are internally consistent. That is, computing
+/// Functions [hash_elements()](Rpo256::hash_elements), [merge()](Rpo256::merge), and
+/// [merge_with_int()](Rpo256::merge_with_int) are internally consistent. That is, computing
 /// a hash for the same set of elements using these functions will always produce the same
-/// result. For example, merging two digests using [merge()](Rpo::merge) will produce the
+/// result. For example, merging two digests using [merge()](Rpo256::merge) will produce the
 /// same result as hashing 8 elements which make up these digests using
-/// [hash_elements()](Rpo::hash_elements) function.
+/// [hash_elements()](Rpo256::hash_elements) function.
 ///
-/// However, [hash()](Rpo::hash) function is not consistent with functions mentioned above.
+/// However, [hash()](Rpo256::hash) function is not consistent with functions mentioned above.
 /// For example, if we take two field elements, serialize them to bytes and hash them using
-/// [hash()](Rpo::hash), the result will differ from the result obtained by hashing these
-/// elements directly using [hash_elements()](Rpo::hash_elements) function. The reason for
-/// this difference is that [hash()](Rpo::hash) function needs to be able to handle
+/// [hash()](Rpo256::hash), the result will differ from the result obtained by hashing these
+/// elements directly using [hash_elements()](Rpo256::hash_elements) function. The reason for
+/// this difference is that [hash()](Rpo256::hash) function needs to be able to handle
 /// arbitrary binary strings, which may or may not encode valid field elements - and thus,
 /// deserialization procedure used by this function is different from the procedure used to
 /// deserialize valid field elements.
 ///
 /// Thus, if the underlying data consists of valid field elements, it might make more sense
 /// to deserialize them into field elements and then hash them using
-/// [hash_elements()](Rpo::hash_elements) function rather then hashing the serialized bytes
-/// using [hash()](Rpo::hash) function.
-pub struct Rpo();
+/// [hash_elements()](Rpo256::hash_elements) function rather then hashing the serialized bytes
+/// using [hash()](Rpo256::hash) function.
+pub struct Rpo256();
 
-impl HashFn for Rpo {
+impl HashFn for Rpo256 {
     type Digest = RpoDigest256;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
@@ -188,7 +188,7 @@ impl HashFn for Rpo {
     }
 }
 
-impl ElementHasher for Rpo {
+impl ElementHasher for Rpo256 {
     type BaseField = Felt;
 
     fn hash_elements<E: FieldElement<BaseField = Self::BaseField>>(elements: &[E]) -> Self::Digest {
@@ -237,7 +237,7 @@ impl ElementHasher for Rpo {
 // HASH FUNCTION IMPLEMENTATION
 // ================================================================================================
 
-impl Rpo {
+impl Rpo256 {
     // RESCUE PERMUTATION
     // --------------------------------------------------------------------------------------------
 
@@ -718,7 +718,7 @@ const INV_MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
 // ================================================================================================
 
 /// Rescue round constants;
-/// computed as in section ?? from [specifications](https://github.org/aszepieniec/rpo/)
+/// computed as in [specifications](https://github.com/ASDiscreteMathematics/rpo)
 ///
 /// The constants are broken up into two arrays ARK1 and ARK2; ARK1 contains the constants for the
 /// first half of RPO round, and ARK2 contains constants for the second half of RPO round.
