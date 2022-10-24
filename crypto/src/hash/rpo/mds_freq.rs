@@ -26,7 +26,7 @@ const MDS_FREQ_BLOCK_THREE: [i64; 3] = [-8, 1, 1];
 
 // We use split 3 x 4 FFT transform in order to transform our vectors into the frequency domain.
 #[inline(always)]
-pub(crate) fn mds_multiply_freq(state: [u64; 12]) -> [u64; 12] {
+pub(crate) const fn mds_multiply_freq(state: [u64; 12]) -> [u64; 12] {
     let [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11] = state;
 
     let (u0, u1, u2) = fft4_real([s0, s3, s6, s9]);
@@ -56,18 +56,18 @@ pub(crate) fn mds_multiply_freq(state: [u64; 12]) -> [u64; 12] {
 
 // We use the real FFT to avoid redundant computations. See https://www.mdpi.com/2076-3417/12/9/4700
 #[inline(always)]
-fn fft2_real(x: [u64; 2]) -> [i64; 2] {
+const fn fft2_real(x: [u64; 2]) -> [i64; 2] {
     [(x[0] as i64 + x[1] as i64), (x[0] as i64 - x[1] as i64)]
 }
 
 #[inline(always)]
-fn ifft2_real(y: [i64; 2]) -> [u64; 2] {
+const fn ifft2_real(y: [i64; 2]) -> [u64; 2] {
     // We avoid divisions by 2 by appropriately scaling the MDS matrix constants.
     [(y[0] + y[1]) as u64, (y[0] - y[1]) as u64]
 }
 
 #[inline(always)]
-fn fft4_real(x: [u64; 4]) -> (i64, (i64, i64), i64) {
+const fn fft4_real(x: [u64; 4]) -> (i64, (i64, i64), i64) {
     let [z0, z2] = fft2_real([x[0], x[2]]);
     let [z1, z3] = fft2_real([x[1], x[3]]);
     let y0 = z0 + z1;
@@ -77,7 +77,7 @@ fn fft4_real(x: [u64; 4]) -> (i64, (i64, i64), i64) {
 }
 
 #[inline(always)]
-fn ifft4_real(y: (i64, (i64, i64), i64)) -> [u64; 4] {
+const fn ifft4_real(y: (i64, (i64, i64), i64)) -> [u64; 4] {
     // In calculating 'z0' and 'z1', division by 2 is avoided by appropriately scaling
     // the MDS matrix constants.
     let z0 = y.0 + y.2;
@@ -92,7 +92,7 @@ fn ifft4_real(y: (i64, (i64, i64), i64)) -> [u64; 4] {
 }
 
 #[inline(always)]
-fn block1(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
+const fn block1(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
     let [x0, x1, x2] = x;
     let [y0, y1, y2] = y;
     let z0 = x0 * y0 + x1 * y2 + x2 * y1;
@@ -103,7 +103,7 @@ fn block1(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
 }
 
 #[inline(always)]
-fn block2(x: [(i64, i64); 3], y: [(i64, i64); 3]) -> [(i64, i64); 3] {
+const fn block2(x: [(i64, i64); 3], y: [(i64, i64); 3]) -> [(i64, i64); 3] {
     let [(x0r, x0i), (x1r, x1i), (x2r, x2i)] = x;
     let [(y0r, y0i), (y1r, y1i), (y2r, y2i)] = y;
     let x0s = x0r + x0i;
@@ -141,7 +141,7 @@ fn block2(x: [(i64, i64); 3], y: [(i64, i64); 3]) -> [(i64, i64); 3] {
 }
 
 #[inline(always)]
-fn block3(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
+const fn block3(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
     let [x0, x1, x2] = x;
     let [y0, y1, y2] = y;
     let z0 = x0 * y0 - x1 * y2 - x2 * y1;

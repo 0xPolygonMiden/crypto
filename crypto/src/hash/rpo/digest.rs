@@ -1,6 +1,7 @@
 use super::DIGEST_SIZE;
 use crate::{Digest, Felt, StarkField};
-use core::slice;
+use core::ops::Deref;
+
 use winterfell::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 // DIGEST TRAIT IMPLEMENTATIONS
@@ -15,13 +16,14 @@ impl RpoDigest256 {
     }
 
     pub fn as_elements(&self) -> &[Felt] {
-        &self.0
+        self.as_ref()
     }
 
-    pub fn digests_as_elements(digests: &[Self]) -> &[Felt] {
-        let p = digests.as_ptr();
-        let len = digests.len() * DIGEST_SIZE;
-        unsafe { slice::from_raw_parts(p as *const Felt, len) }
+    pub fn digests_as_elements<'a, I>(digests: I) -> impl Iterator<Item = &'a Felt>
+    where
+        I: Iterator<Item = &'a Self>,
+    {
+        digests.map(|d| d.0.iter()).flatten()
     }
 }
 
@@ -52,7 +54,6 @@ impl Serializable for RpoDigest256 {
 
 impl Deserializable for RpoDigest256 {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        // TODO: check if the field elements are valid?
         let e1 = Felt::new(source.read_u64()?);
         let e2 = Felt::new(source.read_u64()?);
         let e3 = Felt::new(source.read_u64()?);
@@ -77,6 +78,41 @@ impl From<RpoDigest256> for [Felt; DIGEST_SIZE] {
 impl From<RpoDigest256> for [u8; 32] {
     fn from(value: RpoDigest256) -> Self {
         value.as_bytes()
+    }
+}
+
+impl Deref for RpoDigest256 {
+    type Target = [Felt; DIGEST_SIZE];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl RpoDigest256 {
+    fn iter(&self) -> RpoDigest256Iter<'_> {
+        RpoDigest256Iter {
+            values: &self.0,
+            index: 0,
+        }
+    }
+}
+
+pub struct RpoDigest256Iter<'a> {
+    values: &'a [Felt; DIGEST_SIZE],
+    index: usize,
+}
+
+impl<'a> Iterator for RpoDigest256Iter<'a> {
+    type Item = &'a Felt;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.values.len() {
+            return None;
+        }
+
+        self.index += 1;
+        Some(&self.values[self.index - 1])
     }
 }
 

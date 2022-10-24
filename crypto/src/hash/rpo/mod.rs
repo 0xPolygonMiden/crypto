@@ -153,7 +153,10 @@ impl HashFn for Rpo256 {
         // initialize the state by copying the digest elements into the rate portion of the state
         // (8 total elements), and set the capacity elements to 0.
         let mut state = [ZERO; STATE_WIDTH];
-        state[RATE_RANGE].copy_from_slice(Self::Digest::digests_as_elements(values));
+        let it = Self::Digest::digests_as_elements(values.into_iter());
+        for (i, v) in it.enumerate() {
+            state[RATE_RANGE.start + i] = *v;
+        }
 
         // apply the RPO permutation and return the first four elements of the state
         Self::apply_permutation(&mut state);
