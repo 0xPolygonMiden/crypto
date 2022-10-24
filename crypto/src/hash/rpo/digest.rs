@@ -1,7 +1,6 @@
 use super::DIGEST_SIZE;
-use crate::{Digest, Felt, StarkField};
+use crate::{Digest, Felt, StarkField, ZERO};
 use core::ops::Deref;
-
 use winterfell::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 // DIGEST TRAIT IMPLEMENTATIONS
@@ -54,12 +53,18 @@ impl Serializable for RpoDigest256 {
 
 impl Deserializable for RpoDigest256 {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        let e1 = Felt::new(source.read_u64()?);
-        let e2 = Felt::new(source.read_u64()?);
-        let e3 = Felt::new(source.read_u64()?);
-        let e4 = Felt::new(source.read_u64()?);
+        let mut inner: [Felt; DIGEST_SIZE] = [ZERO; DIGEST_SIZE];
+        for inner in inner.iter_mut() {
+            let e = source.read_u64()?;
+            if e >= Felt::MODULUS {
+                return Err(DeserializationError::InvalidValue(
+                    "Value not in the appropriate range".to_owned(),
+                ));
+            }
+            *inner = Felt::new(e);
+        }
 
-        Ok(Self([e1, e2, e3, e4]))
+        Ok(Self(inner))
     }
 }
 
