@@ -1,6 +1,5 @@
 use super::{MerkleError, Word};
-use crate::{hash::merge, ZERO};
-use winter_utils::collections::{BTreeMap, Vec};
+use crate::{hash::merge, BTreeMap, Vec, ZERO};
 
 // MERKLE PATH SET
 // ================================================================================================

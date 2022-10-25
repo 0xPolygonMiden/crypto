@@ -158,14 +158,14 @@ const fn block3(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
 mod tests {
     use super::super::Rpo256;
     use crate::hash::rpo::MDS;
+    use crate::{Felt, FieldElement};
     use proptest::prelude::*;
-    use winterfell::math::{fields::f64::BaseElement, FieldElement};
 
     const STATE_WIDTH: usize = 12;
 
     #[inline(always)]
-    fn apply_mds_naive(state: &mut [BaseElement; STATE_WIDTH]) {
-        let mut result = [BaseElement::ZERO; STATE_WIDTH];
+    fn apply_mds_naive(state: &mut [Felt; STATE_WIDTH]) {
+        let mut result = [Felt::ZERO; STATE_WIDTH];
         result.iter_mut().zip(MDS).for_each(|(r, mds_row)| {
             state.iter().zip(mds_row).for_each(|(&s, m)| {
                 *r += m * s;
@@ -178,11 +178,11 @@ mod tests {
         #[test]
         fn mds_freq_proptest(a in any::<[u64;STATE_WIDTH]>()) {
 
-            let mut v1 = [BaseElement::ZERO;STATE_WIDTH];
+            let mut v1 = [Felt::ZERO;STATE_WIDTH];
             let mut v2;
 
             for i in 0..STATE_WIDTH {
-                v1[i] = BaseElement::new(a[i]);
+                v1[i] = Felt::new(a[i]);
             }
             v2 = v1.clone();
 

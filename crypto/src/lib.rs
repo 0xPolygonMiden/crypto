@@ -1,10 +1,12 @@
-pub use winter_utils::{
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
-};
-pub use winterfell::crypto::{Digest, ElementHasher, Hasher as HashFn};
-pub use winterfell::math::{
+pub use winter_crypto::{Digest, ElementHasher, Hasher as HashFn};
+pub use winter_math::{
     fields::{f64::BaseElement as Felt, QuadExtension},
-    ExtensionOf, FieldElement, StarkField,
+    log2, ExtensionOf, FieldElement, StarkField,
+};
+pub use winter_utils::{
+    collections::{BTreeMap, Vec},
+    uninit_vector, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
+    SliceReader,
 };
 
 pub mod hash;

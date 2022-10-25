@@ -1,11 +1,9 @@
 use super::MerkleError;
 use crate::{
     hash::{merge, Digest},
-    Felt, FieldElement, Word,
+    log2, uninit_vector, Felt, FieldElement, Word,
 };
 use core::slice;
-use winter_utils::uninit_vector;
-use winterfell::math::log2;
 
 // MERKLE TREE
 // ================================================================================================

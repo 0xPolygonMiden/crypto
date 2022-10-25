@@ -153,7 +153,7 @@ impl HashFn for Rpo256 {
         // initialize the state by copying the digest elements into the rate portion of the state
         // (8 total elements), and set the capacity elements to 0.
         let mut state = [ZERO; STATE_WIDTH];
-        let it = Self::Digest::digests_as_elements(values.into_iter());
+        let it = Self::Digest::digests_as_elements(values.iter());
         for (i, v) in it.enumerate() {
             state[RATE_RANGE.start + i] = *v;
         }

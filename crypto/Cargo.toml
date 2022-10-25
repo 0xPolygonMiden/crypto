@@ -11,8 +11,9 @@ keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
 
 [dependencies]
-winterfell = { git = "https://github.com/novifinancial/winterfell"}
-winter_utils = { version = "0.4", package = "winter-utils" }
+winter_utils = { version = "0.4.1", package = "winter-utils" }
+winter_math = { version = "0.4.1", package = "winter-math" }
+winter_crypto = { version = "0.4.1", package = "winter-crypto" }
 
 [dev-dependencies]
 proptest = "1.0.0"

@@ -1,7 +1,7 @@
 use super::DIGEST_SIZE;
+use crate::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use crate::{Digest, Felt, StarkField, ZERO};
 use core::ops::Deref;
-use winterfell::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
@@ -22,7 +22,7 @@ impl RpoDigest256 {
     where
         I: Iterator<Item = &'a Self>,
     {
-        digests.map(|d| d.0.iter()).flatten()
+        digests.flat_map(|d| d.0.iter())
     }
 }
 
@@ -128,9 +128,8 @@ impl<'a> Iterator for RpoDigest256Iter<'a> {
 mod tests {
 
     use super::RpoDigest256;
-    use crate::Felt;
+    use crate::{Deserializable, Felt, Serializable, SliceReader};
     use rand_utils::rand_value;
-    use winterfell::{Deserializable, Serializable, SliceReader};
 
     #[test]
     fn digest_serialization() {
