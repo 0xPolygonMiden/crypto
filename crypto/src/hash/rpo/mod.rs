@@ -38,6 +38,9 @@ const DIGEST_SIZE: usize = DIGEST_RANGE.end - DIGEST_RANGE.start;
 /// The number of rounds is set to 7 to target 128-bit security level
 const NUM_ROUNDS: usize = 7;
 
+/// The number of byte chunks defining a field element when hashing a sequence of bytes
+const BINARY_CHUNK_SIZE: usize = 7;
+
 /// S-Box and Inverse S-Box powers;
 ///
 /// The constants are defined for tests only because the exponentiations in the code are unrolled
@@ -93,12 +96,12 @@ impl HashFn for Rpo256 {
 
     fn hash(bytes: &[u8]) -> Self::Digest {
         // compute the number of elements required to represent the string; we will be processing
-        // the string in 7-byte chunks, thus the number of elements will be equal to the number
-        // of such chunks (including a potential partial chunk at the end).
-        let num_elements = if bytes.len() % 7 == 0 {
-            bytes.len() / 7
+        // the string in BINARY_CHUNK_SIZE-byte chunks, thus the number of elements will be equal
+        // to the number of such chunks (including a potential partial chunk at the end).
+        let num_elements = if bytes.len() % BINARY_CHUNK_SIZE == 0 {
+            bytes.len() / BINARY_CHUNK_SIZE
         } else {
-            bytes.len() / 7 + 1
+            bytes.len() / BINARY_CHUNK_SIZE + 1
         };
 
         // initialize state to all zeros, except for the first element of the capacity part, which
@@ -107,19 +110,20 @@ impl HashFn for Rpo256 {
         let mut state = [ZERO; STATE_WIDTH];
         state[CAPACITY_RANGE.start] = Felt::new(num_elements as u64);
 
-        // break the string into 7-byte chunks, convert each chunk into a field element, and
-        // absorb the element into the rate portion of the state. we use 7-byte chunks because
-        // every 7-byte chunk is guaranteed to map to some field element.
+        // break the string into BINARY_CHUNK_SIZE-byte chunks, convert each chunk into a field
+        // element, and absorb the element into the rate portion of the state. we use
+        // BINARY_CHUNK_SIZE-byte chunks because every BINARY_CHUNK_SIZE-byte chunk is guaranteed
+        // to map to some field element.
         let mut i = 0;
         let mut buf = [0_u8; 8];
-        for chunk in bytes.chunks(7) {
+        for chunk in bytes.chunks(BINARY_CHUNK_SIZE) {
             if i < num_elements - 1 {
-                buf[..7].copy_from_slice(chunk);
+                buf[..BINARY_CHUNK_SIZE].copy_from_slice(chunk);
             } else {
-                // if we are dealing with the last chunk, it may be smaller than 7 bytes long, so
-                // we need to handle it slightly differently. we also append a byte with value 1
-                // to the end of the string; this pads the string in such a way that adding
-                // trailing zeros results in different hash
+                // if we are dealing with the last chunk, it may be smaller than BINARY_CHUNK_SIZE
+                // bytes long, so we need to handle it slightly differently. We also append a byte
+                // with value 1 to the end of the string; this pads the string in such a way that
+                // adding trailing zeros results in different hash
                 let chunk_len = chunk.len();
                 buf = [0_u8; 8];
                 buf[..chunk_len].copy_from_slice(chunk);
@@ -129,7 +133,7 @@ impl HashFn for Rpo256 {
             // convert the bytes into a field element and absorb it into the rate portion of the
             // state; if the rate is filled up, apply the Rescue permutation and start absorbing
             // again from zero index.
-            state[RATE_RANGE.start + i] += Felt::new(u64::from_le_bytes(buf));
+            state[RATE_RANGE.start + i] = Felt::new(u64::from_le_bytes(buf));
             i += 1;
             if i % RATE_WIDTH == 0 {
                 Self::apply_permutation(&mut state);
@@ -138,7 +142,7 @@ impl HashFn for Rpo256 {
         }
 
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
-        // the number of elements is not a multiple of RATE_WIDTH), apply the Rescue permutation.
+        // the number of elements is not a multiple of RATE_WIDTH), apply the RPO permutation.
         // we don't need to apply any extra padding because we injected total number of elements
         // in the input list into the capacity portion of the state during initialization.
         if i > 0 {
