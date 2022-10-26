@@ -1,4 +1,7 @@
-use crate::{Felt, FieldElement, Word};
+use crate::Word;
+
+#[cfg(test)]
+use crate::{Felt, ZERO};
 
 pub mod merkle_path_set;
 pub mod merkle_tree;
@@ -15,4 +18,12 @@ pub enum MerkleError {
     InvalidDepth(u32, u32),
     InvalidPath(Vec<Word>),
     NodeNotInSet(u64),
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+
+#[cfg(test)]
+const fn int_to_node(value: u64) -> Word {
+    [Felt::new(value), ZERO, ZERO, ZERO]
 }

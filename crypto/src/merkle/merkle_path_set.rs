@@ -1,6 +1,5 @@
-use super::{Felt, FieldElement, MerkleError, Word};
-use crate::hash::merge;
-use winter_utils::collections::{BTreeMap, Vec};
+use super::{MerkleError, Word};
+use crate::{hash::merge, BTreeMap, Vec, ZERO};
 
 // MERKLE PATH SET
 // ================================================================================================
@@ -21,7 +20,7 @@ impl MerklePathSet {
 
     /// Returns an empty MerklePathSet.
     pub fn new(depth: u32) -> Result<Self, MerkleError> {
-        let root = [Felt::ZERO; 4];
+        let root = [ZERO; 4];
         let paths = BTreeMap::<u64, Vec<Word>>::new();
 
         Ok(Self {
@@ -68,7 +67,7 @@ impl MerklePathSet {
         }
 
         let root_of_current_path = compute_path_root(&extended_path, depth, index);
-        if self.root == [Felt::ZERO; 4] {
+        if self.root == [ZERO; 4] {
             self.root = root_of_current_path;
         } else if self.root != root_of_current_path {
             return Err(MerkleError::InvalidPath(extended_path));
@@ -254,7 +253,8 @@ fn compute_path_root(path: &[Word], depth: u32, index: u64) -> Word {
 
 #[cfg(test)]
 mod tests {
-    use super::{calculate_parent_hash, Felt, FieldElement, Word};
+    use super::calculate_parent_hash;
+    use crate::merkle::int_to_node;
 
     #[test]
     fn get_root() {
@@ -343,12 +343,5 @@ mod tests {
         let new_hash_45 = calculate_parent_hash(new_hash_5, 13u64, hash_4);
         assert_eq!(new_hash_45, new_path_6[1]);
         assert_eq!(new_hash_5, new_path_4[0]);
-    }
-
-    // HELPER FUNCTIONS
-    // --------------------------------------------------------------------------------------------
-
-    const fn int_to_node(value: u64) -> Word {
-        [Felt::new(value), Felt::ZERO, Felt::ZERO, Felt::ZERO]
     }
 }
