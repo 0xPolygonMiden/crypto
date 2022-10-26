@@ -378,7 +378,7 @@ impl Rpo256 {
 // MDS
 // ================================================================================================
 /// RPO MDS matrix
-const MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
+pub const MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
     [
         Felt::new(7),
         Felt::new(23),
@@ -550,7 +550,7 @@ const MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
 ];
 
 /// RPO Inverse MDS matrix
-const INV_MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
+pub const INV_MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
     [
         Felt::new(14868391535953158196),
         Felt::new(13278298489594233127),

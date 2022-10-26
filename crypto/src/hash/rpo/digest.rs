@@ -94,33 +94,6 @@ impl Deref for RpoDigest256 {
     }
 }
 
-impl RpoDigest256 {
-    fn iter(&self) -> RpoDigest256Iter<'_> {
-        RpoDigest256Iter {
-            values: &self.0,
-            index: 0,
-        }
-    }
-}
-
-pub struct RpoDigest256Iter<'a> {
-    values: &'a [Felt; DIGEST_SIZE],
-    index: usize,
-}
-
-impl<'a> Iterator for RpoDigest256Iter<'a> {
-    type Item = &'a Felt;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.values.len() {
-            return None;
-        }
-
-        self.index += 1;
-        Some(&self.values[self.index - 1])
-    }
-}
-
 // TESTS
 // ================================================================================================
 

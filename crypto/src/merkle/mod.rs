@@ -1,4 +1,7 @@
-use crate::{Felt, Word, ZERO};
+use crate::Word;
+
+#[cfg(test)]
+use crate::{Felt, ZERO};
 
 pub mod merkle_path_set;
 pub mod merkle_tree;

@@ -2,6 +2,7 @@ use crate::{ElementHasher, HashFn};
 
 mod rpo;
 pub use rpo::Rpo256 as Hasher;
+pub use rpo::{INV_MDS, MDS};
 
 // TYPE ALIASES
 // ================================================================================================
