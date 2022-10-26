@@ -6,6 +6,7 @@ use core::convert::TryInto;
 use rand_utils::rand_value;
 
 #[test]
+#[allow(clippy::needless_range_loop)]
 fn mds_inv_test() {
     let mut mul_result = [[Felt::new(0); STATE_WIDTH]; STATE_WIDTH];
     for i in 0..STATE_WIDTH {
@@ -29,7 +30,7 @@ fn mds_inv_test() {
 #[test]
 fn test_alphas() {
     let e: Felt = Felt::new(rand_value());
-    let e_exp = e.exp(ALPHA.into());
+    let e_exp = e.exp(ALPHA);
     assert_eq!(e, e_exp.exp(INV_ALPHA));
 }
 
@@ -181,7 +182,7 @@ fn hash_test_vectors() {
     ];
 
     for i in 0..elements.len() {
-        let expected = RpoDigest256::new(EXPECTED[i].try_into().unwrap());
+        let expected = RpoDigest256::new(EXPECTED[i]);
         let result = Rpo256::hash_elements(&elements[..(i + 1)]);
         assert_eq!(result, expected);
     }

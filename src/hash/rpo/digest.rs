@@ -1,6 +1,8 @@
 use super::DIGEST_SIZE;
-use crate::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
-use crate::{Digest, Felt, StarkField, ZERO};
+use crate::{
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Digest, Felt, Serializable,
+    StarkField, ZERO,
+};
 use core::ops::Deref;
 
 // DIGEST TRAIT IMPLEMENTATIONS

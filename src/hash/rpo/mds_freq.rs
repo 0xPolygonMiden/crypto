@@ -34,11 +34,11 @@ pub(crate) const fn mds_multiply_freq(state: [u64; 12]) -> [u64; 12] {
     let (u8, u9, u10) = fft4_real([s2, s5, s8, s11]);
 
     // This where the multiplication in frequency domain is done. More precisely, and with
-    // the appropriate permuations in between, the sequence of
+    // the appropriate permutations in between, the sequence of
     // 3-point FFTs --> multiplication by twiddle factors --> Hadamard multiplication -->
     // 3 point iFFTs --> multiplication by (inverse) twiddle factors
     // is "squashed" into one step composed of the functions "block1", "block2" and "block3".
-    // The expressions in the aformentioned functions are the result of explicit computations
+    // The expressions in the aforementioned functions are the result of explicit computations
     // combined with the Karatsuba trick for the multiplication of Complex numbers.
 
     let [v0, v4, v8] = block1([u0, u4, u8], MDS_FREQ_BLOCK_ONE);
@@ -184,7 +184,7 @@ mod tests {
             for i in 0..STATE_WIDTH {
                 v1[i] = Felt::new(a[i]);
             }
-            v2 = v1.clone();
+            v2 = v1;
 
             apply_mds_naive(&mut v1);
             Rpo256::apply_mds(&mut v2);

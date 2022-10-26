@@ -5,11 +5,11 @@ use core::{convert::TryInto, ops::Range};
 mod digest;
 pub use digest::RpoDigest256;
 
-#[cfg(test)]
-mod tests;
-
 mod mds_freq;
 use mds_freq::mds_multiply_freq;
+
+#[cfg(test)]
+mod tests;
 
 // CONSTANTS
 // ================================================================================================

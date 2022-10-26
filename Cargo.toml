@@ -1,4 +1,20 @@
-[workspace]
-members = [
-  "crypto"
-]
+[package]
+name = "miden-crypto"
+version = "0.1.0"
+description="Miden Cryptographic primitives"
+authors = ["miden contributors"]
+readme="README.md"
+license = "MIT"
+repository = "https://github.com/0xPolygonMiden/crypto"
+categories = ["cryptography", "no-std"]
+keywords = ["miden", "crypto", "hash", "merkle"]
+edition = "2021"
+
+[dependencies]
+winter_crypto = { version = "0.4.1", package = "winter-crypto" }
+winter_math = { version = "0.4.1", package = "winter-math" }
+winter_utils = { version = "0.4.1", package = "winter-utils" }
+
+[dev-dependencies]
+proptest = "1.0.0"
+rand_utils = { version = "0.4", package = "winter-rand-utils" }
