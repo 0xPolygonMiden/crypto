@@ -1,4 +1,4 @@
-use crate::Word;
+use crate::{Vec, Word};
 
 #[cfg(test)]
 use crate::{Felt, ZERO};

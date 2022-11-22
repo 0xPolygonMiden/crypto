@@ -10,10 +10,14 @@ categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
 
+[features]
+default = ["std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
+std = ["winter_crypto/std", "winter_math/std", "winter_utils/std"]
+
 [dependencies]
-winter_crypto = { version = "0.4.1", package = "winter-crypto" }
-winter_math = { version = "0.4.1", package = "winter-math" }
-winter_utils = { version = "0.4.1", package = "winter-utils" }
+winter_crypto = { version = "0.4.1", package = "winter-crypto", default-features = false }
+winter_math = { version = "0.4.1", package = "winter-math", default-features = false }
+winter_utils = { version = "0.4.1", package = "winter-utils", default-features = false }
 
 [dev-dependencies]
 proptest = "1.0.0"
