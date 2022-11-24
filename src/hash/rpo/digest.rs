@@ -1,7 +1,7 @@
 use super::DIGEST_SIZE;
 use crate::{
     ByteReader, ByteWriter, Deserializable, DeserializationError, Digest, Felt, Serializable,
-    StarkField, ZERO,
+    StarkField, String, ZERO,
 };
 use core::ops::Deref;
 
@@ -59,9 +59,9 @@ impl Deserializable for RpoDigest256 {
         for inner in inner.iter_mut() {
             let e = source.read_u64()?;
             if e >= Felt::MODULUS {
-                return Err(DeserializationError::InvalidValue(
-                    "Value not in the appropriate range".to_owned(),
-                ));
+                return Err(DeserializationError::InvalidValue(String::from(
+                    "Value not in the appropriate range",
+                )));
             }
             *inner = Felt::new(e);
         }

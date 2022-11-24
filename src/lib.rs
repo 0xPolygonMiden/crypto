@@ -1,3 +1,9 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(not(feature = "std"))]
+#[cfg_attr(test, macro_use)]
+extern crate alloc;
+
 pub use winter_crypto::{Digest, ElementHasher, Hasher as HashFn};
 pub use winter_math::{
     fields::{f64::BaseElement as Felt, QuadExtension},
@@ -5,6 +11,7 @@ pub use winter_math::{
 };
 pub use winter_utils::{
     collections::{BTreeMap, Vec},
+    string::String,
     uninit_vector, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
     SliceReader,
 };
