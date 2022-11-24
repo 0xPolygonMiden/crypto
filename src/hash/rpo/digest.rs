@@ -3,7 +3,7 @@ use crate::{
     ByteReader, ByteWriter, Deserializable, DeserializationError, Digest, Felt, Serializable,
     StarkField, String, ZERO,
 };
-use core::ops::Deref;
+use core::{cmp::Ordering, ops::Deref};
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
@@ -93,6 +93,36 @@ impl Deref for RpoDigest256 {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl Ord for RpoDigest256 {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // compare the inner u64 of both elements.
+        //
+        // it will iterate the elements and will return the first computation different than
+        // `Equal`. Otherwise, the ordering is equal.
+        //
+        // the endianness is irrelevant here because since, this being a cryptographically secure
+        // hash computation, the digest shouldn't have any ordered property of its input.
+        //
+        // finally, we use `Felt::inner` instead of `Felt::as_int` so we avoid performing a
+        // montgomery reduction for every limb. that is safe because every inner element of the
+        // digest is guaranteed to be in its canonical form (that is, `x in [0,p)`).
+        self.0
+            .iter()
+            .map(Felt::inner)
+            .zip(other.0.iter().map(Felt::inner))
+            .fold(Ordering::Equal, |ord, (a, b)| match ord {
+                Ordering::Equal => a.cmp(&b),
+                _ => ord,
+            })
+    }
+}
+
+impl PartialOrd for RpoDigest256 {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
