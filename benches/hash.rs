@@ -1,11 +1,12 @@
-
-
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
-use miden_crypto::{hash::{Hasher, Digest}, HashFn, Felt, ElementHasher};
+use miden_crypto::{
+    hash::{Digest, Hasher},
+    ElementHasher, Felt, HashFn,
+};
 use rand_utils::rand_value;
 
 fn rpo256_2to1(c: &mut Criterion) {
-    let v: [Digest; 2] = [Hasher::hash(&[1u8]), Hasher::hash(&[2u8])];
+    let v: [Digest; 2] = [Hasher::hash(&[1_u8]), Hasher::hash(&[2_u8])];
     c.bench_function("RPO256 2-to-1 hashing (cached)", |bench| {
         bench.iter(|| Hasher::merge(black_box(&v)))
     });
