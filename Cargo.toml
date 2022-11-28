@@ -10,6 +10,10 @@ categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
 
+[[bench]]
+name = "hash"
+harness = false
+
 [features]
 default = ["std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
 std = ["winter_crypto/std", "winter_math/std", "winter_utils/std"]
@@ -22,3 +26,4 @@ winter_utils = { version = "0.4.1", package = "winter-utils", default-features =
 [dev-dependencies]
 proptest = "1.0.0"
 rand_utils = { version = "0.4", package = "winter-rand-utils" }
+criterion = "0.4"
