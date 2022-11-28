@@ -15,10 +15,11 @@ name = "hash"
 harness = false
 
 [features]
-default = ["std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
-std = ["winter_crypto/std", "winter_math/std", "winter_utils/std"]
+default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
+std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
 
 [dependencies]
+blake3 = { version = "1.0", default-features = false }
 winter_crypto = { version = "0.4.1", package = "winter-crypto", default-features = false }
 winter_math = { version = "0.4.1", package = "winter-math", default-features = false }
 winter_utils = { version = "0.4.1", package = "winter-utils", default-features = false }
