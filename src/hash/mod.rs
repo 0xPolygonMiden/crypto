@@ -1,5 +1,8 @@
 use crate::{ElementHasher, HashFn};
 
+mod blake;
+pub use blake::{Blake3Digest, Blake3_160, Blake3_192, Blake3_256};
+
 mod rpo;
 pub use rpo::Rpo256 as Hasher;
 pub use rpo::{INV_MDS, MDS};
