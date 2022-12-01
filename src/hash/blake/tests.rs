@@ -1,5 +1,5 @@
 use super::*;
-use crate::Vec;
+use crate::utils::collections::Vec;
 use proptest::prelude::*;
 
 proptest! {

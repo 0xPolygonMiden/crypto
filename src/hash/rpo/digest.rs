@@ -1,23 +1,26 @@
-use super::DIGEST_SIZE;
-use crate::{
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Digest, Felt, Serializable,
-    StarkField, String, ZERO,
+use super::{Digest, Felt, StarkField, DIGEST_SIZE, ZERO};
+use crate::utils::{
+    string::String, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
 };
 use core::{cmp::Ordering, ops::Deref};
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct RpoDigest256([Felt; DIGEST_SIZE]);
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+pub struct RpoDigest([Felt; DIGEST_SIZE]);
 
-impl RpoDigest256 {
+impl RpoDigest {
     pub fn new(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
     }
 
     pub fn as_elements(&self) -> &[Felt] {
         self.as_ref()
+    }
+
+    pub fn as_bytes(&self) -> [u8; 32] {
+        <Self as Digest>::as_bytes(self)
     }
 
     pub fn digests_as_elements<'a, I>(digests: I) -> impl Iterator<Item = &'a Felt>
@@ -28,7 +31,7 @@ impl RpoDigest256 {
     }
 }
 
-impl Digest for RpoDigest256 {
+impl Digest for RpoDigest {
     fn as_bytes(&self) -> [u8; 32] {
         let mut result = [0; 32];
 
@@ -41,19 +44,13 @@ impl Digest for RpoDigest256 {
     }
 }
 
-impl Default for RpoDigest256 {
-    fn default() -> Self {
-        RpoDigest256([Felt::default(); DIGEST_SIZE])
-    }
-}
-
-impl Serializable for RpoDigest256 {
+impl Serializable for RpoDigest {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_u8_slice(&self.as_bytes());
     }
 }
 
-impl Deserializable for RpoDigest256 {
+impl Deserializable for RpoDigest {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let mut inner: [Felt; DIGEST_SIZE] = [ZERO; DIGEST_SIZE];
         for inner in inner.iter_mut() {
@@ -70,25 +67,25 @@ impl Deserializable for RpoDigest256 {
     }
 }
 
-impl From<[Felt; DIGEST_SIZE]> for RpoDigest256 {
+impl From<[Felt; DIGEST_SIZE]> for RpoDigest {
     fn from(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
     }
 }
 
-impl From<RpoDigest256> for [Felt; DIGEST_SIZE] {
-    fn from(value: RpoDigest256) -> Self {
+impl From<RpoDigest> for [Felt; DIGEST_SIZE] {
+    fn from(value: RpoDigest) -> Self {
         value.0
     }
 }
 
-impl From<RpoDigest256> for [u8; 32] {
-    fn from(value: RpoDigest256) -> Self {
+impl From<RpoDigest> for [u8; 32] {
+    fn from(value: RpoDigest) -> Self {
         value.as_bytes()
     }
 }
 
-impl Deref for RpoDigest256 {
+impl Deref for RpoDigest {
     type Target = [Felt; DIGEST_SIZE];
 
     fn deref(&self) -> &Self::Target {
@@ -96,7 +93,7 @@ impl Deref for RpoDigest256 {
     }
 }
 
-impl Ord for RpoDigest256 {
+impl Ord for RpoDigest {
     fn cmp(&self, other: &Self) -> Ordering {
         // compare the inner u64 of both elements.
         //
@@ -120,7 +117,7 @@ impl Ord for RpoDigest256 {
     }
 }
 
-impl PartialOrd for RpoDigest256 {
+impl PartialOrd for RpoDigest {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -132,8 +129,8 @@ impl PartialOrd for RpoDigest256 {
 #[cfg(test)]
 mod tests {
 
-    use super::RpoDigest256;
-    use crate::{Deserializable, Felt, Serializable, SliceReader};
+    use super::{Deserializable, Felt, RpoDigest, Serializable};
+    use crate::utils::SliceReader;
     use rand_utils::rand_value;
 
     #[test]
@@ -143,14 +140,14 @@ mod tests {
         let e3 = Felt::new(rand_value());
         let e4 = Felt::new(rand_value());
 
-        let d1 = RpoDigest256([e1, e2, e3, e4]);
+        let d1 = RpoDigest([e1, e2, e3, e4]);
 
         let mut bytes = vec![];
         d1.write_into(&mut bytes);
         assert_eq!(32, bytes.len());
 
         let mut reader = SliceReader::new(&bytes);
-        let d2 = RpoDigest256::read_from(&mut reader).unwrap();
+        let d2 = RpoDigest::read_from(&mut reader).unwrap();
 
         assert_eq!(d1, d2);
     }

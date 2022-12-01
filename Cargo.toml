@@ -25,6 +25,6 @@ winter_math = { version = "0.4.1", package = "winter-math", default-features = f
 winter_utils = { version = "0.4.1", package = "winter-utils", default-features = false }
 
 [dev-dependencies]
+criterion = "0.4"
 proptest = "1.0.0"
 rand_utils = { version = "0.4", package = "winter-rand-utils" }
-criterion = "0.4"

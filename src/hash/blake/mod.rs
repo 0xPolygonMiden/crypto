@@ -1,7 +1,5 @@
-use crate::{
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Digest, ElementHasher, Felt,
-    FieldElement, HashFn, Serializable, StarkField,
-};
+use super::{Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField};
+use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::{
     mem::{size_of, transmute, transmute_copy},
     ops::Deref,
@@ -10,6 +8,13 @@ use core::{
 
 #[cfg(test)]
 mod tests;
+
+// CONSTANTS
+// ================================================================================================
+
+const DIGEST32_BYTES: usize = 32;
+const DIGEST24_BYTES: usize = 24;
+const DIGEST20_BYTES: usize = 20;
 
 // BLAKE3 N-BIT OUTPUT
 // ================================================================================================
@@ -32,6 +37,18 @@ impl<const N: usize> Deref for Blake3Digest<N> {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<const N: usize> From<Blake3Digest<N>> for [u8; N] {
+    fn from(value: Blake3Digest<N>) -> Self {
+        value.0
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for Blake3Digest<N> {
+    fn from(value: [u8; N]) -> Self {
+        Self(value)
     }
 }
 
@@ -61,7 +78,7 @@ impl<const N: usize> Digest for Blake3Digest<N> {
 /// 256-bit output blake3 hasher.
 pub struct Blake3_256;
 
-impl HashFn for Blake3_256 {
+impl Hasher for Blake3_256 {
     type Digest = Blake3Digest<32>;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
@@ -91,13 +108,37 @@ impl ElementHasher for Blake3_256 {
     }
 }
 
+impl Blake3_256 {
+    /// Returns a hash of the provided sequence of bytes.
+    #[inline(always)]
+    pub fn hash(bytes: &[u8]) -> Blake3Digest<DIGEST32_BYTES> {
+        <Self as Hasher>::hash(bytes)
+    }
+
+    /// Returns a hash of two digests. This method is intended for use in construction of
+    /// Merkle trees and verification of Merkle paths.
+    #[inline(always)]
+    pub fn merge(values: &[Blake3Digest<DIGEST32_BYTES>; 2]) -> Blake3Digest<DIGEST32_BYTES> {
+        <Self as Hasher>::merge(values)
+    }
+
+    /// Returns a hash of the provided field elements.
+    #[inline(always)]
+    pub fn hash_elements<E>(elements: &[E]) -> Blake3Digest<DIGEST32_BYTES>
+    where
+        E: FieldElement<BaseField = Felt>,
+    {
+        <Self as ElementHasher>::hash_elements(elements)
+    }
+}
+
 // BLAKE3 192-BIT OUTPUT
 // ================================================================================================
 
 /// 192-bit output blake3 hasher.
 pub struct Blake3_192;
 
-impl HashFn for Blake3_192 {
+impl Hasher for Blake3_192 {
     type Digest = Blake3Digest<24>;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
@@ -127,13 +168,37 @@ impl ElementHasher for Blake3_192 {
     }
 }
 
+impl Blake3_192 {
+    /// Returns a hash of the provided sequence of bytes.
+    #[inline(always)]
+    pub fn hash(bytes: &[u8]) -> Blake3Digest<DIGEST24_BYTES> {
+        <Self as Hasher>::hash(bytes)
+    }
+
+    /// Returns a hash of two digests. This method is intended for use in construction of
+    /// Merkle trees and verification of Merkle paths.
+    #[inline(always)]
+    pub fn merge(values: &[Blake3Digest<DIGEST24_BYTES>; 2]) -> Blake3Digest<DIGEST24_BYTES> {
+        <Self as Hasher>::merge(values)
+    }
+
+    /// Returns a hash of the provided field elements.
+    #[inline(always)]
+    pub fn hash_elements<E>(elements: &[E]) -> Blake3Digest<DIGEST24_BYTES>
+    where
+        E: FieldElement<BaseField = Felt>,
+    {
+        <Self as ElementHasher>::hash_elements(elements)
+    }
+}
+
 // BLAKE3 160-BIT OUTPUT
 // ================================================================================================
 
 /// 160-bit output blake3 hasher.
 pub struct Blake3_160;
 
-impl HashFn for Blake3_160 {
+impl Hasher for Blake3_160 {
     type Digest = Blake3Digest<20>;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
@@ -160,6 +225,30 @@ impl ElementHasher for Blake3_160 {
         E: FieldElement<BaseField = Self::BaseField>,
     {
         Blake3Digest(hash_elements(elements))
+    }
+}
+
+impl Blake3_160 {
+    /// Returns a hash of the provided sequence of bytes.
+    #[inline(always)]
+    pub fn hash(bytes: &[u8]) -> Blake3Digest<DIGEST20_BYTES> {
+        <Self as Hasher>::hash(bytes)
+    }
+
+    /// Returns a hash of two digests. This method is intended for use in construction of
+    /// Merkle trees and verification of Merkle paths.
+    #[inline(always)]
+    pub fn merge(values: &[Blake3Digest<DIGEST20_BYTES>; 2]) -> Blake3Digest<DIGEST20_BYTES> {
+        <Self as Hasher>::merge(values)
+    }
+
+    /// Returns a hash of the provided field elements.
+    #[inline(always)]
+    pub fn hash_elements<E>(elements: &[E]) -> Blake3Digest<DIGEST20_BYTES>
+    where
+        E: FieldElement<BaseField = Felt>,
+    {
+        <Self as ElementHasher>::hash_elements(elements)
     }
 }
 

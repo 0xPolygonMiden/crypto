@@ -1,25 +1,25 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 use miden_crypto::{
-    hash::{Digest, Hasher},
-    ElementHasher, Felt, HashFn,
+    hash::rpo::{Rpo256, RpoDigest},
+    Felt,
 };
 use rand_utils::rand_value;
 
 fn rpo256_2to1(c: &mut Criterion) {
-    let v: [Digest; 2] = [Hasher::hash(&[1_u8]), Hasher::hash(&[2_u8])];
+    let v: [RpoDigest; 2] = [Rpo256::hash(&[1_u8]), Rpo256::hash(&[2_u8])];
     c.bench_function("RPO256 2-to-1 hashing (cached)", |bench| {
-        bench.iter(|| Hasher::merge(black_box(&v)))
+        bench.iter(|| Rpo256::merge(black_box(&v)))
     });
 
     c.bench_function("RPO256 2-to-1 hashing (random)", |bench| {
         bench.iter_batched(
             || {
                 [
-                    Hasher::hash(&rand_value::<u64>().to_le_bytes()),
-                    Hasher::hash(&rand_value::<u64>().to_le_bytes()),
+                    Rpo256::hash(&rand_value::<u64>().to_le_bytes()),
+                    Rpo256::hash(&rand_value::<u64>().to_le_bytes()),
                 ]
             },
-            |state| Hasher::merge(&state),
+            |state| Rpo256::merge(&state),
             BatchSize::SmallInput,
         )
     });
@@ -33,7 +33,7 @@ fn rpo256_sequential(c: &mut Criterion) {
         .try_into()
         .expect("should not fail");
     c.bench_function("RPO256 sequential hashing (cached)", |bench| {
-        bench.iter(|| Hasher::hash_elements(black_box(&v)))
+        bench.iter(|| Rpo256::hash_elements(black_box(&v)))
     });
 
     c.bench_function("RPO256 sequential hashing (random)", |bench| {
@@ -47,7 +47,7 @@ fn rpo256_sequential(c: &mut Criterion) {
                     .expect("should not fail");
                 v
             },
-            |state| Hasher::hash_elements(&state),
+            |state| Rpo256::hash_elements(&state),
             BatchSize::SmallInput,
         )
     });
