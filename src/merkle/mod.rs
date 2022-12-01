@@ -1,10 +1,14 @@
-use crate::{Vec, Word};
+use super::{
+    hash::rpo::{Rpo256, RpoDigest as Digest},
+    utils::collections::{BTreeMap, Vec},
+    Felt, Word, ZERO,
+};
 
-#[cfg(test)]
-use crate::{Felt, ZERO};
+mod merkle_tree;
+pub use merkle_tree::MerkleTree;
 
-pub mod merkle_path_set;
-pub mod merkle_tree;
+mod merkle_path_set;
+pub use merkle_path_set::MerklePathSet;
 
 // ERRORS
 // ================================================================================================

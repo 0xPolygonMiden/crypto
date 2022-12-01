@@ -156,9 +156,7 @@ const fn block3(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
 
 #[cfg(test)]
 mod tests {
-    use super::super::Rpo256;
-    use crate::hash::rpo::MDS;
-    use crate::{Felt, FieldElement};
+    use super::super::{Felt, FieldElement, Rpo256, MDS};
     use proptest::prelude::*;
 
     const STATE_WIDTH: usize = 12;

@@ -1,32 +1,9 @@
 use super::{
-    ElementHasher, Felt, FieldElement, HashFn, Rpo256, RpoDigest256, StarkField, ALPHA, INV_ALPHA,
-    INV_MDS, MDS, STATE_WIDTH, ZERO,
+    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, INV_ALPHA, STATE_WIDTH, ZERO,
 };
 use core::convert::TryInto;
 use rand_utils::rand_value;
 
-#[test]
-#[allow(clippy::needless_range_loop)]
-fn mds_inv_test() {
-    let mut mul_result = [[Felt::new(0); STATE_WIDTH]; STATE_WIDTH];
-    for i in 0..STATE_WIDTH {
-        for j in 0..STATE_WIDTH {
-            let result = {
-                let mut result = Felt::new(0);
-                for k in 0..STATE_WIDTH {
-                    result += MDS[i][k] * INV_MDS[k][j]
-                }
-                result
-            };
-            mul_result[i][j] = result;
-            if i == j {
-                assert_eq!(result, Felt::new(1));
-            } else {
-                assert_eq!(result, Felt::new(0));
-            }
-        }
-    }
-}
 #[test]
 fn test_alphas() {
     let e: Felt = Felt::new(rand_value());
@@ -64,9 +41,9 @@ fn test_inv_sbox() {
 fn hash_elements_vs_merge() {
     let elements = [Felt::new(rand_value()); 8];
 
-    let digests: [RpoDigest256; 2] = [
-        RpoDigest256::new(elements[..4].try_into().unwrap()),
-        RpoDigest256::new(elements[4..].try_into().unwrap()),
+    let digests: [RpoDigest; 2] = [
+        RpoDigest::new(elements[..4].try_into().unwrap()),
+        RpoDigest::new(elements[4..].try_into().unwrap()),
     ];
 
     let m_result = Rpo256::merge(&digests);
@@ -77,7 +54,7 @@ fn hash_elements_vs_merge() {
 #[test]
 fn hash_elements_vs_merge_with_int() {
     let tmp = [Felt::new(rand_value()); 4];
-    let seed = RpoDigest256::new(tmp);
+    let seed = RpoDigest::new(tmp);
 
     // ----- value fits into a field element ------------------------------------------------------
     let val: Felt = Felt::new(rand_value());
@@ -147,9 +124,9 @@ fn hash_elements() {
         Felt::new(7),
     ];
 
-    let digests: [RpoDigest256; 2] = [
-        RpoDigest256::new(elements[..4].try_into().unwrap()),
-        RpoDigest256::new(elements[4..8].try_into().unwrap()),
+    let digests: [RpoDigest; 2] = [
+        RpoDigest::new(elements[..4].try_into().unwrap()),
+        RpoDigest::new(elements[4..8].try_into().unwrap()),
     ];
 
     let m_result = Rpo256::merge(&digests);
@@ -182,7 +159,7 @@ fn hash_test_vectors() {
     ];
 
     for i in 0..elements.len() {
-        let expected = RpoDigest256::new(EXPECTED[i]);
+        let expected = RpoDigest::new(EXPECTED[i]);
         let result = Rpo256::hash_elements(&elements[..(i + 1)]);
         assert_eq!(result, expected);
     }
