@@ -1,16 +1,12 @@
-use super::MerkleError;
-use crate::{
-    hash::{merge, Digest},
-    log2, uninit_vector, Felt, FieldElement, Word,
-};
+use super::{Digest, Felt, MerkleError, Rpo256, Vec, Word};
+use crate::{utils::uninit_vector, FieldElement};
 use core::slice;
+use winter_math::log2;
 
 // MERKLE TREE
 // ================================================================================================
 
 /// A fully-balanced binary Merkle tree (i.e., a tree where the number of leaves is a power of two).
-///
-/// This struct is intended to be used as one of the variants of the MerkleSet enum.
 #[derive(Clone, Debug)]
 pub struct MerkleTree {
     nodes: Vec<Word>,
@@ -43,7 +39,7 @@ impl MerkleTree {
 
         // calculate all internal tree nodes
         for i in (1..n).rev() {
-            nodes[i] = merge(&two_nodes[i]).into();
+            nodes[i] = Rpo256::merge(&two_nodes[i]).into();
         }
 
         Ok(Self { nodes })
@@ -80,7 +76,7 @@ impl MerkleTree {
             return Err(MerkleError::InvalidIndex(depth, index));
         }
 
-        let pos = 2usize.pow(depth as u32) + (index as usize);
+        let pos = 2_usize.pow(depth) + (index as usize);
         Ok(self.nodes[pos])
     }
 
@@ -102,7 +98,7 @@ impl MerkleTree {
         }
 
         let mut path = Vec::with_capacity(depth as usize);
-        let mut pos = 2usize.pow(depth as u32) + (index as usize);
+        let mut pos = 2_usize.pow(depth) + (index as usize);
 
         while pos > 1 {
             path.push(self.nodes[pos ^ 1]);
@@ -131,7 +127,7 @@ impl MerkleTree {
 
         for _ in 0..depth {
             index /= 2;
-            self.nodes[index] = merge(&two_nodes[index]).into();
+            self.nodes[index] = Rpo256::merge(&two_nodes[index]).into();
         }
 
         Ok(())
@@ -143,7 +139,10 @@ impl MerkleTree {
 
 #[cfg(test)]
 mod tests {
-    use crate::{hash::Hasher, merkle::int_to_node, ElementHasher, HashFn, Word};
+    use super::{
+        super::{int_to_node, Rpo256},
+        Word,
+    };
 
     const LEAVES4: [Word; 4] = [
         int_to_node(1),
@@ -244,9 +243,9 @@ mod tests {
     // --------------------------------------------------------------------------------------------
 
     fn compute_internal_nodes() -> (Word, Word, Word) {
-        let node2 = Hasher::hash_elements(&[LEAVES4[0], LEAVES4[1]].concat());
-        let node3 = Hasher::hash_elements(&[LEAVES4[2], LEAVES4[3]].concat());
-        let root = Hasher::merge(&[node2, node3]);
+        let node2 = Rpo256::hash_elements(&[LEAVES4[0], LEAVES4[1]].concat());
+        let node3 = Rpo256::hash_elements(&[LEAVES4[2], LEAVES4[3]].concat());
+        let root = Rpo256::merge(&[node2, node3]);
 
         (root.into(), node2.into(), node3.into())
     }

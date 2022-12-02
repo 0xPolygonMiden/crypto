@@ -10,11 +10,21 @@ categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
 
+[[bench]]
+name = "hash"
+harness = false
+
+[features]
+default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
+std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
+
 [dependencies]
-winter_crypto = { version = "0.4.1", package = "winter-crypto" }
-winter_math = { version = "0.4.1", package = "winter-math" }
-winter_utils = { version = "0.4.1", package = "winter-utils" }
+blake3 = { version = "1.0", default-features = false }
+winter_crypto = { version = "0.4.1", package = "winter-crypto", default-features = false }
+winter_math = { version = "0.4.1", package = "winter-math", default-features = false }
+winter_utils = { version = "0.4.1", package = "winter-utils", default-features = false }
 
 [dev-dependencies]
+criterion = "0.4"
 proptest = "1.0.0"
 rand_utils = { version = "0.4", package = "winter-rand-utils" }

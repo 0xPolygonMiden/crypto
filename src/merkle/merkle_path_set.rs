@@ -1,12 +1,9 @@
-use super::{MerkleError, Word};
-use crate::{hash::merge, BTreeMap, Vec, ZERO};
+use super::{BTreeMap, MerkleError, Rpo256, Vec, Word, ZERO};
 
 // MERKLE PATH SET
 // ================================================================================================
 
 /// A set of Merkle paths.
-///
-/// This struct is intended to be used as one of the variants of the MerkleSet enum.
 #[derive(Clone, Debug)]
 pub struct MerklePathSet {
     root: Word,
@@ -57,7 +54,7 @@ impl MerklePathSet {
         let pos = 2u64.pow(self.total_depth) + index;
 
         // Index of the leaf path in map. Paths of neighboring leaves are stored in one key-value pair
-        let half_pos = (pos / 2) as u64;
+        let half_pos = pos / 2;
 
         let mut extended_path = path;
         if is_even(pos) {
@@ -104,7 +101,7 @@ impl MerklePathSet {
         }
 
         let pos = 2u64.pow(depth) + index;
-        let index = (pos / 2) as u64;
+        let index = pos / 2;
 
         match self.paths.get(&index) {
             None => Err(MerkleError::NodeNotInSet(index)),
@@ -208,9 +205,9 @@ fn is_even(pos: u64) -> bool {
 /// - sibling — neighboring vertex in the tree
 fn calculate_parent_hash(node: Word, node_pos: u64, sibling: Word) -> Word {
     if is_even(node_pos) {
-        merge(&[node.into(), sibling.into()]).into()
+        Rpo256::merge(&[node.into(), sibling.into()]).into()
     } else {
-        merge(&[sibling.into(), node.into()]).into()
+        Rpo256::merge(&[sibling.into(), node.into()]).into()
     }
 }
 
@@ -220,7 +217,7 @@ fn compute_path_trace(path: &[Word], depth: u32, index: u64) -> (Vec<Word>, Word
 
     let mut computed_hashes = Vec::<Word>::new();
 
-    let mut comp_hash = merge(&[path[0].into(), path[1].into()]).into();
+    let mut comp_hash = Rpo256::merge(&[path[0].into(), path[1].into()]).into();
 
     if path.len() != 2 {
         for path_hash in path.iter().skip(2) {
@@ -238,7 +235,7 @@ fn compute_path_root(path: &[Word], depth: u32, index: u64) -> Word {
     let mut pos = 2u64.pow(depth) + index;
 
     // hash that is obtained after calculating the current hash and path hash
-    let mut comp_hash = merge(&[path[0].into(), path[1].into()]).into();
+    let mut comp_hash = Rpo256::merge(&[path[0].into(), path[1].into()]).into();
 
     for path_hash in path.iter().skip(2) {
         pos /= 2;

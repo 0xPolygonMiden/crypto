@@ -1,9 +1,8 @@
-use super::{ElementHasher, HashFn};
-use crate::{Felt, FieldElement, StarkField, ONE, ZERO};
+use super::{Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField, ONE, ZERO};
 use core::{convert::TryInto, ops::Range};
 
 mod digest;
-pub use digest::RpoDigest256;
+pub use digest::RpoDigest;
 
 mod mds_freq;
 use mds_freq::mds_multiply_freq;
@@ -53,10 +52,10 @@ const INV_ALPHA: u64 = 10540996611094048183;
 // HASHER IMPLEMENTATION
 // ================================================================================================
 
-/// Implementation of [Hasher] trait for Rescue Prime Optimized (Rpo256) hash function with 256-bit output.
+/// Implementation of the Rescue Prime Optimized hash function with 256-bit output.
 ///
 /// The hash function is implemented according to the Rescue Prime Optimized
-/// [specifications](https://github.com/ASDiscreteMathematics/rpo)
+/// [specifications](https://eprint.iacr.org/2022/1577)
 ///
 /// The parameters used to instantiate the function are:
 /// * Field: 64-bit prime field with modulus 2^64 - 2^32 + 1.
@@ -91,8 +90,8 @@ const INV_ALPHA: u64 = 10540996611094048183;
 /// using [hash()](Rpo256::hash) function.
 pub struct Rpo256();
 
-impl HashFn for Rpo256 {
-    type Digest = RpoDigest256;
+impl Hasher for Rpo256 {
+    type Digest = RpoDigest;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
         // compute the number of elements required to represent the string; we will be processing
@@ -150,7 +149,7 @@ impl HashFn for Rpo256 {
         }
 
         // return the first 4 elements of the state as hash result
-        RpoDigest256::new(state[DIGEST_RANGE].try_into().unwrap())
+        RpoDigest::new(state[DIGEST_RANGE].try_into().unwrap())
     }
 
     fn merge(values: &[Self::Digest; 2]) -> Self::Digest {
@@ -164,7 +163,7 @@ impl HashFn for Rpo256 {
 
         // apply the RPO permutation and return the first four elements of the state
         Self::apply_permutation(&mut state);
-        RpoDigest256::new(state[DIGEST_RANGE].try_into().unwrap())
+        RpoDigest::new(state[DIGEST_RANGE].try_into().unwrap())
     }
 
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
@@ -191,7 +190,7 @@ impl HashFn for Rpo256 {
 
         // apply the RPO permutation and return the first four elements of the state
         Self::apply_permutation(&mut state);
-        RpoDigest256::new(state[DIGEST_RANGE].try_into().unwrap())
+        RpoDigest::new(state[DIGEST_RANGE].try_into().unwrap())
     }
 }
 
@@ -237,7 +236,7 @@ impl ElementHasher for Rpo256 {
         }
 
         // return the first 4 elements of the state as hash result
-        RpoDigest256::new(state[DIGEST_RANGE].try_into().unwrap())
+        RpoDigest::new(state[DIGEST_RANGE].try_into().unwrap())
     }
 }
 
@@ -245,10 +244,61 @@ impl ElementHasher for Rpo256 {
 // ================================================================================================
 
 impl Rpo256 {
+    // CONSTANTS
+    // --------------------------------------------------------------------------------------------
+
+    /// The number of rounds is set to 7 to target 128-bit security level.
+    pub const NUM_ROUNDS: usize = NUM_ROUNDS;
+
+    /// Sponge state is set to 12 field elements or 768 bytes; 8 elements are reserved for rate and
+    /// the remaining 4 elements are reserved for capacity.
+    pub const STATE_WIDTH: usize = STATE_WIDTH;
+
+    /// The rate portion of the state is located in elements 4 through 11 (inclusive).
+    pub const RATE_RANGE: Range<usize> = RATE_RANGE;
+
+    /// The capacity portion of the state is located in elements 0, 1, 2, and 3.
+    pub const CAPACITY_RANGE: Range<usize> = CAPACITY_RANGE;
+
+    /// The output of the hash function can be read from state elements 4, 5, 6, and 7.
+    pub const DIGEST_RANGE: Range<usize> = DIGEST_RANGE;
+
+    /// MDS matrix used for computing the linear layer in a RPO round.
+    pub const MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = MDS;
+
+    /// Round constants added to the hasher state in the first half of the RPO round.
+    pub const ARK1: [[Felt; STATE_WIDTH]; NUM_ROUNDS] = ARK1;
+
+    /// Round constants added to the hasher state in the second half of the RPO round.
+    pub const ARK2: [[Felt; STATE_WIDTH]; NUM_ROUNDS] = ARK2;
+
+    // TRAIT PASS-THROUGH FUNCTIONS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns a hash of the provided sequence of bytes.
+    #[inline(always)]
+    pub fn hash(bytes: &[u8]) -> RpoDigest {
+        <Self as Hasher>::hash(bytes)
+    }
+
+    /// Returns a hash of two digests. This method is intended for use in construction of
+    /// Merkle trees and verification of Merkle paths.
+    #[inline(always)]
+    pub fn merge(values: &[RpoDigest; 2]) -> RpoDigest {
+        <Self as Hasher>::merge(values)
+    }
+
+    /// Returns a hash of the provided field elements.
+    #[inline(always)]
+    pub fn hash_elements<E: FieldElement<BaseField = Felt>>(elements: &[E]) -> RpoDigest {
+        <Self as ElementHasher>::hash_elements(elements)
+    }
+
     // RESCUE PERMUTATION
     // --------------------------------------------------------------------------------------------
 
     /// Applies RPO permutation to the provided state.
+    #[inline(always)]
     pub fn apply_permutation(state: &mut [Felt; STATE_WIDTH]) {
         for i in 0..NUM_ROUNDS {
             Self::apply_round(state, i);
@@ -378,7 +428,7 @@ impl Rpo256 {
 // MDS
 // ================================================================================================
 /// RPO MDS matrix
-pub const MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
+const MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
     [
         Felt::new(7),
         Felt::new(23),
@@ -546,178 +596,6 @@ pub const MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
         Felt::new(21),
         Felt::new(8),
         Felt::new(7),
-    ],
-];
-
-/// RPO Inverse MDS matrix
-pub const INV_MDS: [[Felt; STATE_WIDTH]; STATE_WIDTH] = [
-    [
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-    ],
-    [
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-    ],
-    [
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-    ],
-    [
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-    ],
-    [
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-    ],
-    [
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-    ],
-    [
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-    ],
-    [
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-    ],
-    [
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-    ],
-    [
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-    ],
-    [
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
-        Felt::new(13278298489594233127),
-    ],
-    [
-        Felt::new(13278298489594233127),
-        Felt::new(389999932707070822),
-        Felt::new(9782021734907796003),
-        Felt::new(4829905704463175582),
-        Felt::new(7567822018949214430),
-        Felt::new(14205019324568680367),
-        Felt::new(15489674211196160593),
-        Felt::new(17636013826542227504),
-        Felt::new(16254215311946436093),
-        Felt::new(3641486184877122796),
-        Felt::new(11069068059762973582),
-        Felt::new(14868391535953158196),
     ],
 ];
 
