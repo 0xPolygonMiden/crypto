@@ -55,7 +55,7 @@ const INV_ALPHA: u64 = 10540996611094048183;
 /// Implementation of the Rescue Prime Optimized hash function with 256-bit output.
 ///
 /// The hash function is implemented according to the Rescue Prime Optimized
-/// [specifications](https://github.com/ASDiscreteMathematics/rpo)
+/// [specifications](https://eprint.iacr.org/2022/1577)
 ///
 /// The parameters used to instantiate the function are:
 /// * Field: 64-bit prime field with modulus 2^64 - 2^32 + 1.
