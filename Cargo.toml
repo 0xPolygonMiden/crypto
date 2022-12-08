@@ -14,6 +14,10 @@ edition = "2021"
 name = "hash"
 harness = false
 
+[[bench]]
+name = "smt"
+harness = false
+
 [features]
 default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
 std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
@@ -25,6 +29,6 @@ winter_math = { version = "0.4.1", package = "winter-math", default-features = f
 winter_utils = { version = "0.4.1", package = "winter-utils", default-features = false }
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = { version = "0.4", features = ["html_reports"] }
 proptest = "1.0.0"
 rand_utils = { version = "0.4", package = "winter-rand-utils" }
