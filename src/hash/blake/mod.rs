@@ -276,13 +276,11 @@ where
     let digest = if Felt::IS_CANONICAL {
         blake3::hash(E::elements_as_bytes(elements))
     } else {
-        E::as_base_elements(elements)
-            .iter()
-            .fold(blake3::Hasher::new(), |mut hasher, felt| {
-                hasher.update(&felt.as_int().to_le_bytes());
-                hasher
-            })
-            .finalize()
+        let mut hasher = blake3::Hasher::new();
+        for element in E::as_base_elements(elements) {
+            hasher.update(&element.as_int().to_le_bytes());
+        }
+        hasher.finalize()
     };
     *shrink_bytes(&digest.into())
 }
