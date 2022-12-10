@@ -5,6 +5,7 @@ use core::{
     ops::Deref,
     slice::from_raw_parts,
 };
+use winter_utils::collections::Vec;
 
 #[cfg(test)]
 mod tests;
@@ -277,7 +278,12 @@ where
         blake3::hash(E::elements_as_bytes(elements))
     } else {
         let blen = elements.len() << 3;
-        let mut bytes = vec![0u8; blen];
+
+        let mut bytes = Vec::with_capacity(blen);
+        #[allow(clippy::uninit_vec)]
+        unsafe {
+            bytes.set_len(blen)
+        }
 
         for (idx, element) in E::as_base_elements(elements).iter().enumerate() {
             bytes[idx * 8..(idx + 1) * 8].copy_from_slice(&element.as_int().to_le_bytes());
