@@ -276,10 +276,15 @@ where
     let digest = if Felt::IS_CANONICAL {
         blake3::hash(E::elements_as_bytes(elements))
     } else {
-        let mut hasher = blake3::Hasher::new();
-        for element in E::as_base_elements(elements) {
-            hasher.update(&element.as_int().to_le_bytes());
+        let blen = elements.len() << 3;
+        let mut bytes = vec![0u8; blen];
+
+        for (idx, element) in E::as_base_elements(elements).iter().enumerate() {
+            bytes[idx * 8..(idx + 1) * 8].copy_from_slice(&element.as_int().to_le_bytes());
         }
+
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(&bytes);
         hasher.finalize()
     };
     *shrink_bytes(&digest.into())
