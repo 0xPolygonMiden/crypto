@@ -1,5 +1,7 @@
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField};
-use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use crate::utils::{
+    uninit_vector, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
+};
 use core::{
     mem::{size_of, transmute, transmute_copy},
     ops::Deref,
@@ -276,11 +278,15 @@ where
     let digest = if Felt::IS_CANONICAL {
         blake3::hash(E::elements_as_bytes(elements))
     } else {
-        let mut hasher = blake3::Hasher::new();
-        for element in E::as_base_elements(elements) {
-            hasher.update(&element.as_int().to_le_bytes());
+        let base_elements = E::as_base_elements(elements);
+        let blen = base_elements.len() << 3;
+
+        let mut bytes = unsafe { uninit_vector(blen) };
+        for (idx, element) in base_elements.iter().enumerate() {
+            bytes[idx * 8..(idx + 1) * 8].copy_from_slice(&element.as_int().to_le_bytes());
         }
-        hasher.finalize()
+
+        blake3::hash(&bytes)
     };
     *shrink_bytes(&digest.into())
 }
