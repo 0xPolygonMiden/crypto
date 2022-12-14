@@ -1,4 +1,4 @@
-use super::{Digest, Felt, MerkleError, Rpo256, Vec, Word};
+use super::{Felt, MerkleError, Rpo256, RpoDigest, Vec, Word};
 use crate::{utils::uninit_vector, FieldElement};
 use core::slice;
 use winter_math::log2;
@@ -22,7 +22,7 @@ impl MerkleTree {
     pub fn new(leaves: Vec<Word>) -> Result<Self, MerkleError> {
         let n = leaves.len();
         if n <= 1 {
-            return Err(MerkleError::DepthTooSmall);
+            return Err(MerkleError::DepthTooSmall(n as u32));
         } else if !n.is_power_of_two() {
             return Err(MerkleError::NumLeavesNotPowerOfTwo(n));
         }
@@ -35,7 +35,8 @@ impl MerkleTree {
         nodes[n..].copy_from_slice(&leaves);
 
         // re-interpret nodes as an array of two nodes fused together
-        let two_nodes = unsafe { slice::from_raw_parts(nodes.as_ptr() as *const [Digest; 2], n) };
+        let two_nodes =
+            unsafe { slice::from_raw_parts(nodes.as_ptr() as *const [RpoDigest; 2], n) };
 
         // calculate all internal tree nodes
         for i in (1..n).rev() {
@@ -68,7 +69,7 @@ impl MerkleTree {
     /// * The specified index not valid for the specified depth.
     pub fn get_node(&self, depth: u32, index: u64) -> Result<Word, MerkleError> {
         if depth == 0 {
-            return Err(MerkleError::DepthTooSmall);
+            return Err(MerkleError::DepthTooSmall(depth));
         } else if depth > self.depth() {
             return Err(MerkleError::DepthTooBig(depth));
         }
@@ -89,7 +90,7 @@ impl MerkleTree {
     /// * The specified index not valid for the specified depth.
     pub fn get_path(&self, depth: u32, index: u64) -> Result<Vec<Word>, MerkleError> {
         if depth == 0 {
-            return Err(MerkleError::DepthTooSmall);
+            return Err(MerkleError::DepthTooSmall(depth));
         } else if depth > self.depth() {
             return Err(MerkleError::DepthTooBig(depth));
         }
@@ -123,7 +124,7 @@ impl MerkleTree {
 
         let n = self.nodes.len() / 2;
         let two_nodes =
-            unsafe { slice::from_raw_parts(self.nodes.as_ptr() as *const [Digest; 2], n) };
+            unsafe { slice::from_raw_parts(self.nodes.as_ptr() as *const [RpoDigest; 2], n) };
 
         for _ in 0..depth {
             index /= 2;

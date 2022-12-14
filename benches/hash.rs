@@ -1,9 +1,13 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 use miden_crypto::{
-    hash::rpo::{Rpo256, RpoDigest},
+    hash::{
+        blake::Blake3_256,
+        rpo::{Rpo256, RpoDigest},
+    },
     Felt,
 };
 use rand_utils::rand_value;
+use winter_crypto::Hasher;
 
 fn rpo256_2to1(c: &mut Criterion) {
     let v: [RpoDigest; 2] = [Rpo256::hash(&[1_u8]), Rpo256::hash(&[2_u8])];
@@ -53,5 +57,60 @@ fn rpo256_sequential(c: &mut Criterion) {
     });
 }
 
-criterion_group!(hash_group, rpo256_sequential, rpo256_2to1);
+fn blake3_2to1(c: &mut Criterion) {
+    let v: [<Blake3_256 as Hasher>::Digest; 2] =
+        [Blake3_256::hash(&[1_u8]), Blake3_256::hash(&[2_u8])];
+    c.bench_function("Blake3 2-to-1 hashing (cached)", |bench| {
+        bench.iter(|| Blake3_256::merge(black_box(&v)))
+    });
+
+    c.bench_function("Blake3 2-to-1 hashing (random)", |bench| {
+        bench.iter_batched(
+            || {
+                [
+                    Blake3_256::hash(&rand_value::<u64>().to_le_bytes()),
+                    Blake3_256::hash(&rand_value::<u64>().to_le_bytes()),
+                ]
+            },
+            |state| Blake3_256::merge(&state),
+            BatchSize::SmallInput,
+        )
+    });
+}
+
+fn blake3_sequential(c: &mut Criterion) {
+    let v: [Felt; 100] = (0..100)
+        .into_iter()
+        .map(Felt::new)
+        .collect::<Vec<Felt>>()
+        .try_into()
+        .expect("should not fail");
+    c.bench_function("Blake3 sequential hashing (cached)", |bench| {
+        bench.iter(|| Blake3_256::hash_elements(black_box(&v)))
+    });
+
+    c.bench_function("Blake3 sequential hashing (random)", |bench| {
+        bench.iter_batched(
+            || {
+                let v: [Felt; 100] = (0..100)
+                    .into_iter()
+                    .map(|_| Felt::new(rand_value()))
+                    .collect::<Vec<Felt>>()
+                    .try_into()
+                    .expect("should not fail");
+                v
+            },
+            |state| Blake3_256::hash_elements(&state),
+            BatchSize::SmallInput,
+        )
+    });
+}
+
+criterion_group!(
+    hash_group,
+    rpo256_2to1,
+    rpo256_sequential,
+    blake3_2to1,
+    blake3_sequential
+);
 criterion_main!(hash_group);
