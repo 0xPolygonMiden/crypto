@@ -4,7 +4,7 @@ use super::{BTreeMap, MerkleError, Rpo256, Vec, Word, ZERO};
 // ================================================================================================
 
 /// A set of Merkle paths.
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerklePathSet {
     root: Word,
     total_depth: u32,

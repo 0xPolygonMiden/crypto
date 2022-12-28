@@ -7,7 +7,7 @@ use winter_math::log2;
 // ================================================================================================
 
 /// A fully-balanced binary Merkle tree (i.e., a tree where the number of leaves is a power of two).
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerkleTree {
     nodes: Vec<Word>,
 }

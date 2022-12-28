@@ -9,7 +9,7 @@ mod tests;
 /// A sparse Merkle tree with 63-bit keys and 4-element leaf values, without compaction.
 /// Manipulation and retrieval of leaves and internal nodes is provided by its internal `Store`.
 /// The root of the tree is recomputed on each new leaf update.
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimpleSmt {
     root: Word,
     depth: u32,
@@ -186,7 +186,7 @@ impl SimpleSmt {
 /// Leaves and branch nodes are stored separately in B-tree maps, indexed by key and (key, depth)
 /// respectively. Hashes for blank subtrees at each layer are stored in `empty_hashes`, beginning
 /// with the root hash of an empty tree, and ending with the zero value of a leaf node.
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Store {
     branches: BTreeMap<(u64, u32), BranchNode>,
     leaves: BTreeMap<u64, Word>,
@@ -194,7 +194,7 @@ struct Store {
     depth: u32,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 struct BranchNode {
     left: RpoDigest,
     right: RpoDigest,
