@@ -1,4 +1,4 @@
-use super::{BTreeMap, MerkleError, Rpo256, RpoDigest, Vec, Word};
+use super::{empty_merkle_subtrees, BTreeMap, MerkleError, Rpo256, RpoDigest, Vec, Word};
 
 #[cfg(test)]
 mod tests;
@@ -204,18 +204,7 @@ impl Store {
     fn new(depth: u32) -> (Self, Word) {
         let branches = BTreeMap::new();
         let leaves = BTreeMap::new();
-
-        // Construct empty node digests for each layer of the tree
-        let empty_hashes: Vec<RpoDigest> = (0..depth + 1)
-            .scan(Word::default().into(), |state, _| {
-                let value = *state;
-                *state = Rpo256::merge(&[value, value]);
-                Some(value)
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect();
+        let empty_hashes = empty_merkle_subtrees::<RpoDigest>(depth as u8);
 
         let root = empty_hashes[0].into();
         let store = Self {

@@ -1,7 +1,7 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{BTreeMap, Vec},
-    Felt, Word, ZERO,
+    utils::collections::{vec, BTreeMap, Vec},
+    Felt, StarkField, Word, WORD_SIZE, ZERO,
 };
 use core::fmt;
 
@@ -13,6 +13,9 @@ pub use merkle_path_set::MerklePathSet;
 
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
+
+mod tiered_smt;
+pub use tiered_smt::TieredSmt;
 
 // ERRORS
 // ================================================================================================
@@ -62,4 +65,34 @@ impl std::error::Error for MerkleError {}
 #[cfg(test)]
 const fn int_to_node(value: u64) -> Word {
     [Felt::new(value), ZERO, ZERO, ZERO]
+}
+
+/// Computes a set of sub-trees of an empty merkle tree.
+///
+/// The returned vector is indexed by the depth and will contain the correspondent hash.
+fn empty_merkle_subtrees<T>(depth: u8) -> Vec<T>
+where
+    T: From<RpoDigest>,
+{
+    (0..depth as u16 + 1)
+        .scan(RpoDigest::default(), |state, _| {
+            let value = *state;
+            *state = Rpo256::merge(&[value, value]);
+            Some(value)
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .map(T::from)
+        .collect()
+}
+
+#[test]
+fn empty_merkle_subtrees_is_calculated_correctly() {
+    let null = empty_merkle_subtrees(u8::MAX);
+    let mut root = RpoDigest::default();
+    for _ in 0..u8::MAX {
+        root = Rpo256::merge(&[root, root]);
+    }
+    assert_eq!(root, null[0]);
 }
