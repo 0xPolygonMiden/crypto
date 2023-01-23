@@ -1,6 +1,9 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{BTreeMap, Vec},
+    utils::{
+        collections::{BTreeMap, Vec},
+        Serializable,
+    },
     Felt, Word, ZERO,
 };
 use core::fmt;
@@ -13,6 +16,9 @@ pub use merkle_path_set::MerklePathSet;
 
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
+
+mod tiered_smt;
+pub use tiered_smt::TieredSmt;
 
 // ERRORS
 // ================================================================================================
