@@ -18,6 +18,7 @@ fn append_to_bottom_level_is_consistent() {
     // `16. should produce an empty path until the last element.
     let raw_b = 0b_11101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
     let key_b = [Felt::new(raw_b); WORD_SIZE];
+    let checkpoint_1 = *test.root();
     test.insert(key_b, Word::default())
         .expect_path_with_depth(key_a, 16)
         .expect_path_with_depth(key_b, 16);
@@ -26,6 +27,7 @@ fn append_to_bottom_level_is_consistent() {
     // they diverge. both `a` and `c` should be on the depth `32` after this mutation.
     let raw_c = 0b_01101001_01101100_10011111_11111111_10010110_10010011_11100000_00000000_u64;
     let key_c = [Felt::new(raw_c); WORD_SIZE];
+    let checkpoint_2 = *test.root();
     // expect the path of `a` to be mutated as well.
     test.insert(key_c, Word::default())
         .expect_path_with_depth(key_a, 32)
@@ -36,6 +38,7 @@ fn append_to_bottom_level_is_consistent() {
     // they diverge. both `c` and `d` should be on the depth `48` after this mutation.
     let raw_d = 0b_01101001_01101100_10011111_11111111_00010110_10010011_11100000_00000000_u64;
     let key_d = [Felt::new(raw_d); WORD_SIZE];
+    let checkpoint_3 = *test.root();
     // expect the path of `c` to be mutated as well.
     test.insert(key_d, Word::default())
         .expect_path_with_depth(key_a, 32)
@@ -47,6 +50,7 @@ fn append_to_bottom_level_is_consistent() {
     // they will diverge. both `d` and `e` should be on the depth `64` after this mutation.
     let raw_e = 0b_01101001_01101100_10011111_11111111_00010110_10010011_01100000_00000000_u64;
     let key_e = [Felt::new(raw_e); WORD_SIZE];
+    let checkpoint_4 = *test.root();
     // expect the path of `d` to be mutated as well.
     test.insert(key_e, Word::default())
         .expect_path_with_depth(key_a, 32)
@@ -59,6 +63,7 @@ fn append_to_bottom_level_is_consistent() {
     // should be inserted as ordered list of the bottom level, and will have the same path.
     let mut key_f = key_e;
     key_f[0] += ONE;
+    let checkpoint_5 = *test.root();
     // expect both `e` and `f` to have the same path.
     test.insert(key_f, Word::default())
         .expect_path_with_depth(key_a, 32)
@@ -67,6 +72,15 @@ fn append_to_bottom_level_is_consistent() {
         .expect_path_with_depth(key_d, 64)
         .expect_path_with_depth(key_e, 64)
         .expect_path_with_depth(key_f, 64);
+
+    assert_eq!(test.remove(key_f).unwrap(), &checkpoint_5);
+    assert_eq!(test.remove(key_e).unwrap(), &checkpoint_4);
+    assert_eq!(test.remove(key_d).unwrap(), &checkpoint_3);
+    assert_eq!(test.remove(key_c).unwrap(), &checkpoint_2);
+    assert_eq!(test.remove(key_b).unwrap(), &checkpoint_1);
+    assert_eq!(test.remove(key_a).unwrap(), &Word::from(EMPTY_SUBTREES[0]));
+    assert!(test.storage.get_type(&NodeIndex::root()).unwrap().is_none());
+    assert!(test.storage.get_node(&NodeIndex::root()).unwrap().is_none());
 }
 
 proptest! {

@@ -255,6 +255,137 @@ impl TieredSmt {
         Ok(self.root())
     }
 
+    /// Removes a key-value from the tree.
+    ///
+    /// Returns the new root state.
+    pub fn remove<K>(&mut self, key: K) -> Result<&Word, StorageError>
+    where
+        CanonicalWord: From<K>,
+    {
+        let key = CanonicalWord::from(key);
+        let mut node = match self.storage.get_leaf_index(&key)? {
+            Some(node) => node,
+            None => return Ok(self.root()),
+        };
+
+        // clean the key-value mappings
+        self.storage.take_key(&key)?;
+        self.storage.take_leaf_key(&node)?;
+        self.storage.take_leaf_value(&key)?;
+
+        // if bottom leaf, remove it from the ordered leaves. if the resulting list is empty,
+        // proceed cleaning the path.
+        if node.is_max_depth() {
+            let mut leaves = self
+                .storage
+                .take_ordered_leaves(node.index())?
+                .unwrap_or_default();
+            match leaves
+                .iter()
+                .enumerate()
+                .find_map(|(i, k)| (k == &key).then_some(i))
+            {
+                Some(i) => leaves.remove(i),
+                None => unreachable!("a key-index mapping was found for this node"),
+            };
+            if !leaves.is_empty() {
+                self.replace_ordered_leaves(node, leaves)?;
+                return Ok(self.root());
+            }
+        }
+
+        // clear the current node
+        self.storage.take_type(&node)?;
+        self.storage.take_node(&node)?;
+        node.backtrack();
+
+        // backtrack the path, clearing all nodes, until a non-empty sibling is found.
+        while node.depth() > 0 && self.get_type(&node.sibling())?.is_empty() {
+            self.storage.take_type(&node)?;
+            self.storage.take_node(&node)?;
+            node.backtrack();
+        }
+
+        // clear the last node of the path
+        self.storage.take_type(&node)?;
+        self.storage.take_node(&node)?;
+
+        // if we are inside the first tier, then we don't need to promote any leaf
+        if node.depth() == 0 {
+            self.root = EMPTY_SUBTREES[0].into();
+            return Ok(self.root());
+        } else if node.depth() <= Self::TIER_DEPTH {
+            self.update_path_to_root(node)?;
+            return Ok(self.root());
+        }
+
+        // traverse until a leaf. if the path doesn't diverge, then the leaf needs to be promoted.
+        let base = node;
+        node.backtrack();
+        while self.get_type(&node)?.is_internal() {
+            let left = self.get_type(node.clone().traverse(false))?;
+            let right = self.get_type(node.clone().traverse(true))?;
+            match (left, right) {
+                (NodeType::Empty, NodeType::Empty) => {
+                    unreachable!("at least one path exists for this branch")
+                }
+                (NodeType::Empty, NodeType::Internal) => node.traverse(true),
+                (NodeType::Empty, NodeType::Leaf) => {
+                    node.traverse(true);
+                    break;
+                }
+                (NodeType::Internal, NodeType::Empty) => node.traverse(false),
+                (NodeType::Leaf, NodeType::Empty) => {
+                    node.traverse(false);
+                    break;
+                }
+                _ => {
+                    // a divergent path was found; no leaf can be promoted
+                    self.update_path_to_root(base)?;
+                    return Ok(self.root());
+                }
+            };
+        }
+
+        // build a leaf from the storage key-value pair of the current node
+        let key = if node.is_max_depth() {
+            let leaves = self
+                .storage
+                .get_ordered_leaves(node.index())?
+                .unwrap_or_default();
+            // multiple leaves exists for this branch, they cannot be promoted
+            if leaves.len() > 1 {
+                self.update_path_to_root(base)?;
+                return Ok(self.root());
+            }
+            match self.storage.take_ordered_leaves(node.index())? {
+                Some(leaves) => leaves[0],
+                None => unreachable!("the list exists"),
+            }
+        } else {
+            match self.storage.take_leaf_key(&node)? {
+                Some(key) => key,
+                None => unreachable!("the node type is leaf, so a key must exist here."),
+            }
+        };
+        let leaf = match self.storage.get_leaf_value(&key)? {
+            Some(value) => Leaf::new(key, value),
+            None => unreachable!("a key exists, so a value pair must exist as well"),
+        };
+
+        // backtrack to previous tier, cleaning the path
+        let target = node.depth() - Self::TIER_DEPTH;
+        while node.depth() > target {
+            self.storage.take_type(&node)?;
+            self.storage.take_node(&node)?;
+            node.backtrack();
+        }
+
+        // update the current node with the promoted leaf
+        self.replace_upper_leaf(node, leaf)?;
+        Ok(self.root())
+    }
+
     // HELPERS
     // --------------------------------------------------------------------------------------------
 
