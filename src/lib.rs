@@ -10,6 +10,8 @@ pub mod merkle;
 // RE-EXPORTS
 // ================================================================================================
 
+pub use winter_crypto::{RandomCoin, RandomCoinError};
+
 pub use winter_math::{fields::f64::BaseElement as Felt, FieldElement, StarkField};
 
 pub mod utils {
