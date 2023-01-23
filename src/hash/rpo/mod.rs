@@ -294,6 +294,28 @@ impl Rpo256 {
         <Self as ElementHasher>::hash_elements(elements)
     }
 
+    // DOMAIN IDENTIFIER
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns a hash of two digests and a domain separator.
+    pub fn merge_in_domain(values: &[RpoDigest; 2], domain: Felt) -> RpoDigest {
+        // initialize the state by copying the digest elements into the rate portion of the state
+        // (8 total elements), and set the capacity elements to 0.
+        let mut state = [ZERO; STATE_WIDTH];
+        let it = RpoDigest::digests_as_elements(values.iter());
+        for (i, v) in it.enumerate() {
+            state[RATE_RANGE.start + i] = *v;
+        }
+
+        // set the second capacity element to the domain value. The first capacity element is used
+        // for padding purposes.
+        state[CAPACITY_RANGE.start + 1] = domain;
+
+        // apply the RPO permutation and return the first four elements of the state
+        Self::apply_permutation(&mut state);
+        RpoDigest::new(state[DIGEST_RANGE].try_into().unwrap())
+    }
+
     // RESCUE PERMUTATION
     // --------------------------------------------------------------------------------------------
 
