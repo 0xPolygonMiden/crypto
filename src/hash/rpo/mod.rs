@@ -297,7 +297,7 @@ impl Rpo256 {
     // DOMAIN IDENTIFIER
     // --------------------------------------------------------------------------------------------
 
-    /// Returns a hash of two digests and a domain separator.
+    /// Returns a hash of two digests and a domain identifier.
     pub fn merge_in_domain(values: &[RpoDigest; 2], domain: Felt) -> RpoDigest {
         // initialize the state by copying the digest elements into the rate portion of the state
         // (8 total elements), and set the capacity elements to 0.

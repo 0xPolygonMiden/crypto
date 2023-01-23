@@ -1,5 +1,6 @@
 use super::{
-    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, INV_ALPHA, STATE_WIDTH, ZERO,
+    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, CAPACITY_RANGE, DIGEST_RANGE,
+    INV_ALPHA, RATE_RANGE, STATE_WIDTH, ZERO,
 };
 use core::convert::TryInto;
 use rand_utils::rand_value;
@@ -48,6 +49,40 @@ fn hash_elements_vs_merge() {
 
     let m_result = Rpo256::merge(&digests);
     let h_result = Rpo256::hash_elements(&elements);
+    assert_eq!(m_result, h_result);
+}
+
+#[test]
+fn hash_elements_vs_merge_in_domain() {
+    let elements = [Felt::new(rand_value()); 8];
+
+    let digests: [RpoDigest; 2] = [
+        RpoDigest::new(elements[..4].try_into().unwrap()),
+        RpoDigest::new(elements[4..].try_into().unwrap()),
+    ];
+
+    // pick a random domain value.
+    let domain = Felt::new(rand_value());
+
+    // convert the elements into a list of base field elements
+    let elements = Felt::as_base_elements(&elements);
+
+    // initialize state to all zeros.
+    let mut state = [ZERO; STATE_WIDTH];
+
+    // set the second capacity element to the domain.
+    state[CAPACITY_RANGE.start + 1] = domain;
+
+    // absorb elements into the state.
+    state[RATE_RANGE.start..RATE_RANGE.end].copy_from_slice(elements);
+
+    // apply permutation to the state.
+    Rpo256::apply_permutation(&mut state);
+
+    // return the first 4 elements of the state as hash result
+    let h_result = RpoDigest::new(state[DIGEST_RANGE].try_into().unwrap());
+
+    let m_result = Rpo256::merge_in_domain(&digests, domain);
     assert_eq!(m_result, h_result);
 }
 
