@@ -1,6 +1,6 @@
 use super::{
-    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, CAPACITY_RANGE, DIGEST_RANGE,
-    INV_ALPHA, RATE_RANGE, STATE_WIDTH, ZERO,
+    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, INV_ALPHA, ONE, STATE_WIDTH,
+    ZERO,
 };
 use core::convert::TryInto;
 use rand_utils::rand_value;
@@ -53,37 +53,30 @@ fn hash_elements_vs_merge() {
 }
 
 #[test]
-fn hash_elements_vs_merge_in_domain() {
+fn merge_vs_merge_in_domain() {
     let elements = [Felt::new(rand_value()); 8];
 
     let digests: [RpoDigest; 2] = [
         RpoDigest::new(elements[..4].try_into().unwrap()),
         RpoDigest::new(elements[4..].try_into().unwrap()),
     ];
+    let merge_result = Rpo256::merge(&digests);
 
-    // pick a random domain value.
-    let domain = Felt::new(rand_value());
+    // ------------- merge with domain = 0 ----------------------------------------------------------
 
-    // convert the elements into a list of base field elements
-    let elements = Felt::as_base_elements(&elements);
+    // set domain to ZERO. This should not change the result.
+    let domain = ZERO;
 
-    // initialize state to all zeros.
-    let mut state = [ZERO; STATE_WIDTH];
+    let merge_in_domain_result = Rpo256::merge_in_domain(&digests, domain);
+    assert_eq!(merge_result, merge_in_domain_result);
 
-    // set the second capacity element to the domain.
-    state[CAPACITY_RANGE.start + 1] = domain;
+    // ------------- merge with domain = 1 ----------------------------------------------------------
 
-    // absorb elements into the state.
-    state[RATE_RANGE.start..RATE_RANGE.end].copy_from_slice(elements);
+    // set domain to ONE. This should change the result.
+    let domain = ONE;
 
-    // apply permutation to the state.
-    Rpo256::apply_permutation(&mut state);
-
-    // return the first 4 elements of the state as hash result
-    let h_result = RpoDigest::new(state[DIGEST_RANGE].try_into().unwrap());
-
-    let m_result = Rpo256::merge_in_domain(&digests, domain);
-    assert_eq!(m_result, h_result);
+    let merge_in_domain_result = Rpo256::merge_in_domain(&digests, domain);
+    assert_ne!(merge_result, merge_in_domain_result);
 }
 
 #[test]
