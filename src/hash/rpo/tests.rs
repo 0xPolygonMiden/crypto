@@ -1,5 +1,6 @@
 use super::{
-    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, INV_ALPHA, STATE_WIDTH, ZERO,
+    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, INV_ALPHA, ONE, STATE_WIDTH,
+    ZERO,
 };
 use core::convert::TryInto;
 use rand_utils::rand_value;
@@ -49,6 +50,33 @@ fn hash_elements_vs_merge() {
     let m_result = Rpo256::merge(&digests);
     let h_result = Rpo256::hash_elements(&elements);
     assert_eq!(m_result, h_result);
+}
+
+#[test]
+fn merge_vs_merge_in_domain() {
+    let elements = [Felt::new(rand_value()); 8];
+
+    let digests: [RpoDigest; 2] = [
+        RpoDigest::new(elements[..4].try_into().unwrap()),
+        RpoDigest::new(elements[4..].try_into().unwrap()),
+    ];
+    let merge_result = Rpo256::merge(&digests);
+
+    // ------------- merge with domain = 0 ----------------------------------------------------------
+
+    // set domain to ZERO. This should not change the result.
+    let domain = ZERO;
+
+    let merge_in_domain_result = Rpo256::merge_in_domain(&digests, domain);
+    assert_eq!(merge_result, merge_in_domain_result);
+
+    // ------------- merge with domain = 1 ----------------------------------------------------------
+
+    // set domain to ONE. This should change the result.
+    let domain = ONE;
+
+    let merge_in_domain_result = Rpo256::merge_in_domain(&digests, domain);
+    assert_ne!(merge_result, merge_in_domain_result);
 }
 
 #[test]
