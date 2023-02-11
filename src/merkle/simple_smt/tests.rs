@@ -1,6 +1,6 @@
 use super::{
     super::{MerkleTree, RpoDigest, SimpleSmt},
-    Rpo256, Vec, Word,
+    NodeIndex, Rpo256, Vec, Word,
 };
 use crate::{Felt, FieldElement};
 use core::iter;
@@ -62,7 +62,10 @@ fn build_sparse_tree() {
         .expect("Failed to insert leaf");
     let mt2 = MerkleTree::new(values.clone()).unwrap();
     assert_eq!(mt2.root(), smt.root());
-    assert_eq!(mt2.get_path(3, 6).unwrap(), smt.get_path(3, 6).unwrap());
+    assert_eq!(
+        mt2.get_path(NodeIndex::new(3, 6)).unwrap(),
+        smt.get_path(NodeIndex::new(3, 6)).unwrap()
+    );
 
     // insert second value at distinct leaf branch
     let key = 2;
@@ -72,7 +75,10 @@ fn build_sparse_tree() {
         .expect("Failed to insert leaf");
     let mt3 = MerkleTree::new(values).unwrap();
     assert_eq!(mt3.root(), smt.root());
-    assert_eq!(mt3.get_path(3, 2).unwrap(), smt.get_path(3, 2).unwrap());
+    assert_eq!(
+        mt3.get_path(NodeIndex::new(3, 2)).unwrap(),
+        smt.get_path(NodeIndex::new(3, 2)).unwrap()
+    );
 }
 
 #[test]
@@ -81,8 +87,8 @@ fn build_full_tree() {
 
     let (root, node2, node3) = compute_internal_nodes();
     assert_eq!(root, tree.root());
-    assert_eq!(node2, tree.get_node(1, 0).unwrap());
-    assert_eq!(node3, tree.get_node(1, 1).unwrap());
+    assert_eq!(node2, tree.get_node(&NodeIndex::new(1, 0)).unwrap());
+    assert_eq!(node3, tree.get_node(&NodeIndex::new(1, 1)).unwrap());
 }
 
 #[test]
@@ -90,10 +96,10 @@ fn get_values() {
     let tree = SimpleSmt::new(KEYS4.into_iter().zip(VALUES4.into_iter()), 2).unwrap();
 
     // check depth 2
-    assert_eq!(VALUES4[0], tree.get_node(2, 0).unwrap());
-    assert_eq!(VALUES4[1], tree.get_node(2, 1).unwrap());
-    assert_eq!(VALUES4[2], tree.get_node(2, 2).unwrap());
-    assert_eq!(VALUES4[3], tree.get_node(2, 3).unwrap());
+    assert_eq!(VALUES4[0], tree.get_node(&NodeIndex::new(2, 0)).unwrap());
+    assert_eq!(VALUES4[1], tree.get_node(&NodeIndex::new(2, 1)).unwrap());
+    assert_eq!(VALUES4[2], tree.get_node(&NodeIndex::new(2, 2)).unwrap());
+    assert_eq!(VALUES4[3], tree.get_node(&NodeIndex::new(2, 3)).unwrap());
 }
 
 #[test]
@@ -103,14 +109,26 @@ fn get_path() {
     let (_, node2, node3) = compute_internal_nodes();
 
     // check depth 2
-    assert_eq!(vec![VALUES4[1], node3], *tree.get_path(2, 0).unwrap());
-    assert_eq!(vec![VALUES4[0], node3], *tree.get_path(2, 1).unwrap());
-    assert_eq!(vec![VALUES4[3], node2], *tree.get_path(2, 2).unwrap());
-    assert_eq!(vec![VALUES4[2], node2], *tree.get_path(2, 3).unwrap());
+    assert_eq!(
+        vec![VALUES4[1], node3],
+        *tree.get_path(NodeIndex::new(2, 0)).unwrap()
+    );
+    assert_eq!(
+        vec![VALUES4[0], node3],
+        *tree.get_path(NodeIndex::new(2, 1)).unwrap()
+    );
+    assert_eq!(
+        vec![VALUES4[3], node2],
+        *tree.get_path(NodeIndex::new(2, 2)).unwrap()
+    );
+    assert_eq!(
+        vec![VALUES4[2], node2],
+        *tree.get_path(NodeIndex::new(2, 3)).unwrap()
+    );
 
     // check depth 1
-    assert_eq!(vec![node3], *tree.get_path(1, 0).unwrap());
-    assert_eq!(vec![node2], *tree.get_path(1, 1).unwrap());
+    assert_eq!(vec![node3], *tree.get_path(NodeIndex::new(1, 0)).unwrap());
+    assert_eq!(vec![node2], *tree.get_path(NodeIndex::new(1, 1)).unwrap());
 }
 
 #[test]
@@ -175,7 +193,7 @@ fn small_tree_opening_is_consistent() {
 
     assert_eq!(tree.root(), Word::from(k));
 
-    let cases: Vec<(u32, u64, Vec<Word>)> = vec![
+    let cases: Vec<(u8, u64, Vec<Word>)> = vec![
         (3, 0, vec![b, f, j]),
         (3, 1, vec![a, f, j]),
         (3, 4, vec![z, h, i]),
@@ -189,7 +207,7 @@ fn small_tree_opening_is_consistent() {
     ];
 
     for (depth, key, path) in cases {
-        let opening = tree.get_path(depth, key).unwrap();
+        let opening = tree.get_path(NodeIndex::new(depth, key)).unwrap();
 
         assert_eq!(path, *opening);
     }
@@ -213,7 +231,7 @@ proptest! {
         // traverse to root, fetching all paths
         for d in 1..depth {
             let k = key >> (depth - d);
-            tree.get_path(d, k).unwrap();
+            tree.get_path(NodeIndex::new(d, k)).unwrap();
         }
     }
 

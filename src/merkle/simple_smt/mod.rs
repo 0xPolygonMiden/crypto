@@ -1,4 +1,4 @@
-use super::{BTreeMap, MerkleError, MerklePath, Rpo256, RpoDigest, Vec, Word};
+use super::{BTreeMap, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word};
 
 #[cfg(test)]
 mod tests;
@@ -12,7 +12,7 @@ mod tests;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimpleSmt {
     root: Word,
-    depth: u32,
+    depth: u8,
     store: Store,
 }
 
@@ -21,10 +21,10 @@ impl SimpleSmt {
     // --------------------------------------------------------------------------------------------
 
     /// Minimum supported depth.
-    pub const MIN_DEPTH: u32 = 1;
+    pub const MIN_DEPTH: u8 = 1;
 
     /// Maximum supported depth.
-    pub const MAX_DEPTH: u32 = 63;
+    pub const MAX_DEPTH: u8 = 63;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -37,7 +37,7 @@ impl SimpleSmt {
     ///
     /// The function will fail if the provided entries count exceed the maximum tree capacity, that
     /// is `2^{depth}`.
-    pub fn new<R, I>(entries: R, depth: u32) -> Result<Self, MerkleError>
+    pub fn new<R, I>(entries: R, depth: u8) -> Result<Self, MerkleError>
     where
         R: IntoIterator<IntoIter = I>,
         I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
@@ -67,7 +67,7 @@ impl SimpleSmt {
     }
 
     /// Returns the depth of this Merkle tree.
-    pub const fn depth(&self) -> u32 {
+    pub const fn depth(&self) -> u8 {
         self.depth
     }
 
@@ -82,15 +82,15 @@ impl SimpleSmt {
     /// Returns an error if:
     /// * The specified depth is greater than the depth of the tree.
     /// * The specified key does not exist
-    pub fn get_node(&self, depth: u32, key: u64) -> Result<Word, MerkleError> {
-        if depth == 0 {
-            Err(MerkleError::DepthTooSmall(depth))
-        } else if depth > self.depth() {
-            Err(MerkleError::DepthTooBig(depth))
-        } else if depth == self.depth() {
-            self.store.get_leaf_node(key)
+    pub fn get_node(&self, index: &NodeIndex) -> Result<Word, MerkleError> {
+        if index.is_root() {
+            Err(MerkleError::DepthTooSmall(index.depth()))
+        } else if index.depth() > self.depth() {
+            Err(MerkleError::DepthTooBig(index.depth()))
+        } else if index.depth() == self.depth() {
+            self.store.get_leaf_node(index.value())
         } else {
-            let branch_node = self.store.get_branch_node(key, depth)?;
+            let branch_node = self.store.get_branch_node(index)?;
             Ok(Rpo256::merge(&[branch_node.left, branch_node.right]).into())
         }
     }
@@ -102,27 +102,23 @@ impl SimpleSmt {
     /// Returns an error if:
     /// * The specified key does not exist as a branch or leaf node
     /// * The specified depth is greater than the depth of the tree.
-    pub fn get_path(&self, depth: u32, key: u64) -> Result<MerklePath, MerkleError> {
-        if depth == 0 {
-            return Err(MerkleError::DepthTooSmall(depth));
-        } else if depth > self.depth() {
-            return Err(MerkleError::DepthTooBig(depth));
-        } else if depth == self.depth() && !self.store.check_leaf_node_exists(key) {
-            return Err(MerkleError::InvalidIndex(self.depth(), key));
+    pub fn get_path(&self, mut index: NodeIndex) -> Result<MerklePath, MerkleError> {
+        if index.is_root() {
+            return Err(MerkleError::DepthTooSmall(index.depth()));
+        } else if index.depth() > self.depth() {
+            return Err(MerkleError::DepthTooBig(index.depth()));
+        } else if index.depth() == self.depth() && !self.store.check_leaf_node_exists(index.value())
+        {
+            return Err(MerkleError::InvalidIndex(index.with_depth(self.depth())));
         }
 
-        let mut path = Vec::with_capacity(depth as usize);
-        let mut curr_key = key;
-        for n in (0..depth).rev() {
-            let parent_key = curr_key >> 1;
-            let parent_node = self.store.get_branch_node(parent_key, n)?;
-            let sibling_node = if curr_key & 1 == 1 {
-                parent_node.left
-            } else {
-                parent_node.right
-            };
-            path.push(sibling_node.into());
-            curr_key >>= 1;
+        let mut path = Vec::with_capacity(index.depth() as usize);
+        for _ in 0..index.depth() {
+            let is_right = index.is_value_odd();
+            index.move_up();
+            let BranchNode { left, right } = self.store.get_branch_node(&index)?;
+            let value = if is_right { left } else { right };
+            path.push(*value);
         }
         Ok(path.into())
     }
@@ -134,7 +130,7 @@ impl SimpleSmt {
     /// Returns an error if:
     /// * The specified key does not exist as a leaf node.
     pub fn get_leaf_path(&self, key: u64) -> Result<MerklePath, MerkleError> {
-        self.get_path(self.depth(), key)
+        self.get_path(NodeIndex::new(self.depth(), key))
     }
 
     /// Replaces the leaf located at the specified key, and recomputes hashes by walking up the tree
@@ -143,7 +139,7 @@ impl SimpleSmt {
     /// Returns an error if the specified key is not a valid leaf index for this tree.
     pub fn update_leaf(&mut self, key: u64, value: Word) -> Result<(), MerkleError> {
         if !self.store.check_leaf_node_exists(key) {
-            return Err(MerkleError::InvalidIndex(self.depth(), key));
+            return Err(MerkleError::InvalidIndex(NodeIndex::new(self.depth(), key)));
         }
         self.insert_leaf(key, value)?;
 
@@ -154,27 +150,25 @@ impl SimpleSmt {
     pub fn insert_leaf(&mut self, key: u64, value: Word) -> Result<(), MerkleError> {
         self.store.insert_leaf_node(key, value);
 
-        let depth = self.depth();
-        let mut curr_key = key;
-        let mut curr_node: RpoDigest = value.into();
-        for n in (0..depth).rev() {
-            let parent_key = curr_key >> 1;
-            let parent_node = self
+        // TODO consider using a map `index |-> word` instead of `index |-> (word, word)`
+        let mut index = NodeIndex::new(self.depth(), key);
+        let mut value = RpoDigest::from(value);
+        for _ in 0..index.depth() {
+            let is_right = index.is_value_odd();
+            index.move_up();
+            let BranchNode { left, right } = self
                 .store
-                .get_branch_node(parent_key, n)
-                .unwrap_or_else(|_| self.store.get_empty_node((n + 1) as usize));
-            let (left, right) = if curr_key & 1 == 1 {
-                (parent_node.left, curr_node)
+                .get_branch_node(&index)
+                .unwrap_or_else(|_| self.store.get_empty_node(index.depth() as usize + 1));
+            let (left, right) = if is_right {
+                (left, value)
             } else {
-                (curr_node, parent_node.right)
+                (value, right)
             };
-
-            self.store.insert_branch_node(parent_key, n, left, right);
-            curr_key = parent_key;
-            curr_node = Rpo256::merge(&[left, right]);
+            self.store.insert_branch_node(index, left, right);
+            value = Rpo256::merge(&[left, right]);
         }
-        self.root = curr_node.into();
-
+        self.root = value.into();
         Ok(())
     }
 }
@@ -188,10 +182,10 @@ impl SimpleSmt {
 /// with the root hash of an empty tree, and ending with the zero value of a leaf node.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Store {
-    branches: BTreeMap<(u64, u32), BranchNode>,
+    branches: BTreeMap<NodeIndex, BranchNode>,
     leaves: BTreeMap<u64, Word>,
     empty_hashes: Vec<RpoDigest>,
-    depth: u32,
+    depth: u8,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -201,7 +195,7 @@ struct BranchNode {
 }
 
 impl Store {
-    fn new(depth: u32) -> (Self, Word) {
+    fn new(depth: u8) -> (Self, Word) {
         let branches = BTreeMap::new();
         let leaves = BTreeMap::new();
 
@@ -244,23 +238,23 @@ impl Store {
         self.leaves
             .get(&key)
             .cloned()
-            .ok_or(MerkleError::InvalidIndex(self.depth, key))
+            .ok_or(MerkleError::InvalidIndex(NodeIndex::new(self.depth, key)))
     }
 
     fn insert_leaf_node(&mut self, key: u64, node: Word) {
         self.leaves.insert(key, node);
     }
 
-    fn get_branch_node(&self, key: u64, depth: u32) -> Result<BranchNode, MerkleError> {
+    fn get_branch_node(&self, index: &NodeIndex) -> Result<BranchNode, MerkleError> {
         self.branches
-            .get(&(key, depth))
+            .get(index)
             .cloned()
-            .ok_or(MerkleError::InvalidIndex(depth, key))
+            .ok_or(MerkleError::InvalidIndex(*index))
     }
 
-    fn insert_branch_node(&mut self, key: u64, depth: u32, left: RpoDigest, right: RpoDigest) {
-        let node = BranchNode { left, right };
-        self.branches.insert((key, depth), node);
+    fn insert_branch_node(&mut self, index: NodeIndex, left: RpoDigest, right: RpoDigest) {
+        let branch = BranchNode { left, right };
+        self.branches.insert(index, branch);
     }
 
     fn leaves_count(&self) -> usize {

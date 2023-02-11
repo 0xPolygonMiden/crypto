@@ -25,5 +25,21 @@ Both of these features imply the use of [alloc](https://doc.rust-lang.org/alloc/
 
 To compile with `no_std`, disable default features via `--no-default-features` flag.
 
+## Testing
+
+You can use cargo defaults to test the library:
+
+```shell
+cargo test
+```
+
+However, some of the functions are heavy and might take a while for the tests to complete. In order to test in release mode, we have to replicate the same test conditions of the development mode so all debug assertions can be verified.
+
+We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation.
+
+```shell
+RUSTFLAGS="-C debug-assertions -C overflow-checks -C debuginfo=2" cargo test --release
+```
+
 ## License
 This project is [MIT licensed](./LICENSE).

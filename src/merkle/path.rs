@@ -1,4 +1,4 @@
-use super::{vec, Rpo256, Vec, Word};
+use super::{vec, NodeIndex, Rpo256, Vec, Word};
 use core::ops::{Deref, DerefMut};
 
 // MERKLE PATH
@@ -23,17 +23,12 @@ impl MerklePath {
     // --------------------------------------------------------------------------------------------
 
     /// Computes the merkle root for this opening.
-    pub fn compute_root(&self, mut index: u64, node: Word) -> Word {
+    pub fn compute_root(&self, index_value: u64, node: Word) -> Word {
+        let mut index = NodeIndex::new(self.depth(), index_value);
         self.nodes.iter().copied().fold(node, |node, sibling| {
-            // build the input node, considering the parity of the current index.
-            let is_right_sibling = (index & 1) == 1;
-            let input = if is_right_sibling {
-                [sibling.into(), node.into()]
-            } else {
-                [node.into(), sibling.into()]
-            };
             // compute the node and move to the next iteration.
-            index >>= 1;
+            let input = index.build_node(node.into(), sibling.into());
+            index.move_up();
             Rpo256::merge(&input).into()
         })
     }
