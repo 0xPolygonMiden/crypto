@@ -1,4 +1,4 @@
-use super::{BTreeMap, MerkleError, Rpo256, RpoDigest, Vec, Word};
+use super::{BTreeMap, MerkleError, MerklePath, Rpo256, RpoDigest, Vec, Word};
 
 #[cfg(test)]
 mod tests;
@@ -102,7 +102,7 @@ impl SimpleSmt {
     /// Returns an error if:
     /// * The specified key does not exist as a branch or leaf node
     /// * The specified depth is greater than the depth of the tree.
-    pub fn get_path(&self, depth: u32, key: u64) -> Result<Vec<Word>, MerkleError> {
+    pub fn get_path(&self, depth: u32, key: u64) -> Result<MerklePath, MerkleError> {
         if depth == 0 {
             return Err(MerkleError::DepthTooSmall(depth));
         } else if depth > self.depth() {
@@ -124,7 +124,7 @@ impl SimpleSmt {
             path.push(sibling_node.into());
             curr_key >>= 1;
         }
-        Ok(path)
+        Ok(path.into())
     }
 
     /// Return a Merkle path from the leaf at the specified key to the root. The leaf itself is not
@@ -133,7 +133,7 @@ impl SimpleSmt {
     /// # Errors
     /// Returns an error if:
     /// * The specified key does not exist as a leaf node.
-    pub fn get_leaf_path(&self, key: u64) -> Result<Vec<Word>, MerkleError> {
+    pub fn get_leaf_path(&self, key: u64) -> Result<MerklePath, MerkleError> {
         self.get_path(self.depth(), key)
     }
 

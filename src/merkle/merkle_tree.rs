@@ -1,4 +1,4 @@
-use super::{Felt, MerkleError, Rpo256, RpoDigest, Vec, Word};
+use super::{Felt, MerkleError, MerklePath, Rpo256, RpoDigest, Vec, Word};
 use crate::{utils::uninit_vector, FieldElement};
 use core::slice;
 use winter_math::log2;
@@ -88,7 +88,7 @@ impl MerkleTree {
     /// Returns an error if:
     /// * The specified depth is greater than the depth of the tree.
     /// * The specified index not valid for the specified depth.
-    pub fn get_path(&self, depth: u32, index: u64) -> Result<Vec<Word>, MerkleError> {
+    pub fn get_path(&self, depth: u32, index: u64) -> Result<MerklePath, MerkleError> {
         if depth == 0 {
             return Err(MerkleError::DepthTooSmall(depth));
         } else if depth > self.depth() {
@@ -106,7 +106,7 @@ impl MerkleTree {
             pos >>= 1;
         }
 
-        Ok(path)
+        Ok(path.into())
     }
 
     /// Replaces the leaf at the specified index with the provided value.
@@ -206,14 +206,14 @@ mod tests {
         let (_, node2, node3) = compute_internal_nodes();
 
         // check depth 2
-        assert_eq!(vec![LEAVES4[1], node3], tree.get_path(2, 0).unwrap());
-        assert_eq!(vec![LEAVES4[0], node3], tree.get_path(2, 1).unwrap());
-        assert_eq!(vec![LEAVES4[3], node2], tree.get_path(2, 2).unwrap());
-        assert_eq!(vec![LEAVES4[2], node2], tree.get_path(2, 3).unwrap());
+        assert_eq!(vec![LEAVES4[1], node3], *tree.get_path(2, 0).unwrap());
+        assert_eq!(vec![LEAVES4[0], node3], *tree.get_path(2, 1).unwrap());
+        assert_eq!(vec![LEAVES4[3], node2], *tree.get_path(2, 2).unwrap());
+        assert_eq!(vec![LEAVES4[2], node2], *tree.get_path(2, 3).unwrap());
 
         // check depth 1
-        assert_eq!(vec![node3], tree.get_path(1, 0).unwrap());
-        assert_eq!(vec![node2], tree.get_path(1, 1).unwrap());
+        assert_eq!(vec![node3], *tree.get_path(1, 0).unwrap());
+        assert_eq!(vec![node2], *tree.get_path(1, 1).unwrap());
     }
 
     #[test]

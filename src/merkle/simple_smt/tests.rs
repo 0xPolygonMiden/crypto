@@ -103,14 +103,14 @@ fn get_path() {
     let (_, node2, node3) = compute_internal_nodes();
 
     // check depth 2
-    assert_eq!(vec![VALUES4[1], node3], tree.get_path(2, 0).unwrap());
-    assert_eq!(vec![VALUES4[0], node3], tree.get_path(2, 1).unwrap());
-    assert_eq!(vec![VALUES4[3], node2], tree.get_path(2, 2).unwrap());
-    assert_eq!(vec![VALUES4[2], node2], tree.get_path(2, 3).unwrap());
+    assert_eq!(vec![VALUES4[1], node3], *tree.get_path(2, 0).unwrap());
+    assert_eq!(vec![VALUES4[0], node3], *tree.get_path(2, 1).unwrap());
+    assert_eq!(vec![VALUES4[3], node2], *tree.get_path(2, 2).unwrap());
+    assert_eq!(vec![VALUES4[2], node2], *tree.get_path(2, 3).unwrap());
 
     // check depth 1
-    assert_eq!(vec![node3], tree.get_path(1, 0).unwrap());
-    assert_eq!(vec![node2], tree.get_path(1, 1).unwrap());
+    assert_eq!(vec![node3], *tree.get_path(1, 0).unwrap());
+    assert_eq!(vec![node2], *tree.get_path(1, 1).unwrap());
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn small_tree_opening_is_consistent() {
     for (depth, key, path) in cases {
         let opening = tree.get_path(depth, key).unwrap();
 
-        assert_eq!(path, opening);
+        assert_eq!(path, *opening);
     }
 }
 
