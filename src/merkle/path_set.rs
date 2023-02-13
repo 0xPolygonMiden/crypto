@@ -1,4 +1,4 @@
-use super::{BTreeMap, MerkleError, Rpo256, Vec, Word, ZERO};
+use super::{BTreeMap, MerkleError, MerklePath, Rpo256, Vec, Word, ZERO};
 
 // MERKLE PATH SET
 // ================================================================================================
@@ -8,7 +8,7 @@ use super::{BTreeMap, MerkleError, Rpo256, Vec, Word, ZERO};
 pub struct MerklePathSet {
     root: Word,
     total_depth: u32,
-    paths: BTreeMap<u64, Vec<Word>>,
+    paths: BTreeMap<u64, MerklePath>,
 }
 
 impl MerklePathSet {
@@ -18,7 +18,7 @@ impl MerklePathSet {
     /// Returns an empty MerklePathSet.
     pub fn new(depth: u32) -> Result<Self, MerkleError> {
         let root = [ZERO; 4];
-        let paths = BTreeMap::<u64, Vec<Word>>::new();
+        let paths = BTreeMap::new();
 
         Ok(Self {
             root,
@@ -30,59 +30,15 @@ impl MerklePathSet {
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
-    /// Adds the specified Merkle path to this [MerklePathSet]. The `index` and `value` parameters
-    /// specify the leaf node at which the path starts.
-    ///
-    /// # Errors
-    /// Returns an error if:
-    /// - The specified index is not valid in the context of this Merkle path set (i.e., the index
-    ///   implies a greater depth than is specified for this set).
-    /// - The specified path is not consistent with other paths in the set (i.e., resolves to a
-    ///   different root).
-    pub fn add_path(
-        &mut self,
-        index: u64,
-        value: Word,
-        path: Vec<Word>,
-    ) -> Result<(), MerkleError> {
-        let depth = (path.len() + 1) as u32;
-        if depth != self.total_depth {
-            return Err(MerkleError::InvalidDepth(self.total_depth, depth));
-        }
-
-        // Actual number of node in tree
-        let pos = 2u64.pow(self.total_depth) + index;
-
-        // Index of the leaf path in map. Paths of neighboring leaves are stored in one key-value pair
-        let half_pos = pos / 2;
-
-        let mut extended_path = path;
-        if is_even(pos) {
-            extended_path.insert(0, value);
-        } else {
-            extended_path.insert(1, value);
-        }
-
-        let root_of_current_path = compute_path_root(&extended_path, depth, index);
-        if self.root == [ZERO; 4] {
-            self.root = root_of_current_path;
-        } else if self.root != root_of_current_path {
-            return Err(MerkleError::InvalidPath(extended_path));
-        }
-        self.paths.insert(half_pos, extended_path);
-
-        Ok(())
-    }
-
     /// Returns the root to which all paths in this set resolve.
-    pub fn root(&self) -> Word {
+    pub const fn root(&self) -> Word {
         self.root
     }
 
     /// Returns the depth of the Merkle tree implied by the paths stored in this set.
     ///
     /// Merkle tree of depth 1 has two leaves, depth 2 has four leaves etc.
-    pub fn depth(&self) -> u32 {
+    pub const fn depth(&self) -> u32 {
         self.total_depth
     }
 
@@ -106,7 +62,7 @@ impl MerklePathSet {
         match self.paths.get(&index) {
             None => Err(MerkleError::NodeNotInSet(index)),
             Some(path) => {
-                if is_even(pos) {
+                if Self::is_even(pos) {
                     Ok(path[0])
                 } else {
                     Ok(path[1])
@@ -122,7 +78,7 @@ impl MerklePathSet {
     /// Returns an error if:
     /// * The specified index not valid for the depth of structure.
     /// * Node of the requested path does not exist in the set.
-    pub fn get_path(&self, depth: u32, index: u64) -> Result<Vec<Word>, MerkleError> {
+    pub fn get_path(&self, depth: u32, index: u64) -> Result<MerklePath, MerkleError> {
         if index >= 2u64.pow(self.total_depth) {
             return Err(MerkleError::InvalidIndex(self.total_depth, index));
         }
@@ -137,7 +93,7 @@ impl MerklePathSet {
             None => Err(MerkleError::NodeNotInSet(index)),
             Some(path) => {
                 let mut local_path = path.clone();
-                if is_even(pos) {
+                if Self::is_even(pos) {
                     local_path.remove(0);
                     Ok(local_path)
                 } else {
@@ -146,6 +102,53 @@ impl MerklePathSet {
                 }
             }
         }
+    }
+
+    // STATE MUTATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Adds the specified Merkle path to this [MerklePathSet]. The `index` and `value` parameters
+    /// specify the leaf node at which the path starts.
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - The specified index is not valid in the context of this Merkle path set (i.e., the index
+    ///   implies a greater depth than is specified for this set).
+    /// - The specified path is not consistent with other paths in the set (i.e., resolves to a
+    ///   different root).
+    pub fn add_path(
+        &mut self,
+        index: u64,
+        value: Word,
+        path: MerklePath,
+    ) -> Result<(), MerkleError> {
+        let depth = (path.len() + 1) as u32;
+        if depth != self.total_depth {
+            return Err(MerkleError::InvalidDepth(self.total_depth, depth));
+        }
+
+        // Actual number of node in tree
+        let pos = 2u64.pow(self.total_depth) + index;
+
+        // Index of the leaf path in map. Paths of neighboring leaves are stored in one key-value pair
+        let half_pos = pos / 2;
+
+        let mut extended_path = path;
+        if Self::is_even(pos) {
+            extended_path.insert(0, value);
+        } else {
+            extended_path.insert(1, value);
+        }
+
+        let root_of_current_path = Self::compute_path_root(&extended_path, depth, index);
+        if self.root == [ZERO; 4] {
+            self.root = root_of_current_path;
+        } else if self.root != root_of_current_path {
+            return Err(MerkleError::InvalidPath(extended_path));
+        }
+        self.paths.insert(half_pos, extended_path);
+
+        Ok(())
     }
 
     /// Replaces the leaf at the specified index with the provided value.
@@ -166,16 +169,16 @@ impl MerklePathSet {
         };
 
         // Fill old_hashes vector -----------------------------------------------------------------
-        let (old_hashes, _) = compute_path_trace(path, depth, index);
+        let (old_hashes, _) = Self::compute_path_trace(path, depth, index);
 
         // Fill new_hashes vector -----------------------------------------------------------------
-        if is_even(pos) {
+        if Self::is_even(pos) {
             path[0] = value;
         } else {
             path[1] = value;
         }
 
-        let (new_hashes, new_root) = compute_path_trace(path, depth, index);
+        let (new_hashes, new_root) = Self::compute_path_trace(path, depth, index);
         self.root = new_root;
 
         // update paths ---------------------------------------------------------------------------
@@ -190,59 +193,59 @@ impl MerklePathSet {
 
         Ok(())
     }
-}
 
-// HELPER FUNCTIONS
-// --------------------------------------------------------------------------------------------
+    // HELPER FUNCTIONS
+    // --------------------------------------------------------------------------------------------
 
-fn is_even(pos: u64) -> bool {
-    pos & 1 == 0
-}
-
-/// Calculates the hash of the parent node by two sibling ones
-/// - node — current node
-/// - node_pos — position of the current node
-/// - sibling — neighboring vertex in the tree
-fn calculate_parent_hash(node: Word, node_pos: u64, sibling: Word) -> Word {
-    if is_even(node_pos) {
-        Rpo256::merge(&[node.into(), sibling.into()]).into()
-    } else {
-        Rpo256::merge(&[sibling.into(), node.into()]).into()
+    const fn is_even(pos: u64) -> bool {
+        pos & 1 == 0
     }
-}
 
-/// Returns vector of hashes from current to the root
-fn compute_path_trace(path: &[Word], depth: u32, index: u64) -> (Vec<Word>, Word) {
-    let mut pos = 2u64.pow(depth) + index;
+    /// Returns hash of the root
+    fn compute_path_root(path: &[Word], depth: u32, index: u64) -> Word {
+        let mut pos = 2u64.pow(depth) + index;
 
-    let mut computed_hashes = Vec::<Word>::new();
+        // hash that is obtained after calculating the current hash and path hash
+        let mut comp_hash = Rpo256::merge(&[path[0].into(), path[1].into()]).into();
 
-    let mut comp_hash = Rpo256::merge(&[path[0].into(), path[1].into()]).into();
-
-    if path.len() != 2 {
         for path_hash in path.iter().skip(2) {
-            computed_hashes.push(comp_hash);
             pos /= 2;
-            comp_hash = calculate_parent_hash(comp_hash, pos, *path_hash);
+            comp_hash = Self::calculate_parent_hash(comp_hash, pos, *path_hash);
+        }
+
+        comp_hash
+    }
+
+    /// Calculates the hash of the parent node by two sibling ones
+    /// - node — current node
+    /// - node_pos — position of the current node
+    /// - sibling — neighboring vertex in the tree
+    fn calculate_parent_hash(node: Word, node_pos: u64, sibling: Word) -> Word {
+        if Self::is_even(node_pos) {
+            Rpo256::merge(&[node.into(), sibling.into()]).into()
+        } else {
+            Rpo256::merge(&[sibling.into(), node.into()]).into()
         }
     }
 
-    (computed_hashes, comp_hash)
-}
+    /// Returns vector of hashes from current to the root
+    fn compute_path_trace(path: &[Word], depth: u32, index: u64) -> (MerklePath, Word) {
+        let mut pos = 2u64.pow(depth) + index;
 
-/// Returns hash of the root
-fn compute_path_root(path: &[Word], depth: u32, index: u64) -> Word {
-    let mut pos = 2u64.pow(depth) + index;
+        let mut computed_hashes = Vec::<Word>::new();
 
-    // hash that is obtained after calculating the current hash and path hash
-    let mut comp_hash = Rpo256::merge(&[path[0].into(), path[1].into()]).into();
+        let mut comp_hash = Rpo256::merge(&[path[0].into(), path[1].into()]).into();
 
-    for path_hash in path.iter().skip(2) {
-        pos /= 2;
-        comp_hash = calculate_parent_hash(comp_hash, pos, *path_hash);
+        if path.len() != 2 {
+            for path_hash in path.iter().skip(2) {
+                computed_hashes.push(comp_hash);
+                pos /= 2;
+                comp_hash = Self::calculate_parent_hash(comp_hash, pos, *path_hash);
+            }
+        }
+
+        (computed_hashes.into(), comp_hash)
     }
-
-    comp_hash
 }
 
 // TESTS
@@ -250,7 +253,7 @@ fn compute_path_root(path: &[Word], depth: u32, index: u64) -> Word {
 
 #[cfg(test)]
 mod tests {
-    use super::calculate_parent_hash;
+    use super::*;
     use crate::merkle::int_to_node;
 
     #[test]
@@ -260,14 +263,14 @@ mod tests {
         let leaf2 = int_to_node(2);
         let leaf3 = int_to_node(3);
 
-        let parent0 = calculate_parent_hash(leaf0, 0, leaf1);
-        let parent1 = calculate_parent_hash(leaf2, 2, leaf3);
+        let parent0 = MerklePathSet::calculate_parent_hash(leaf0, 0, leaf1);
+        let parent1 = MerklePathSet::calculate_parent_hash(leaf2, 2, leaf3);
 
-        let root_exp = calculate_parent_hash(parent0, 0, parent1);
+        let root_exp = MerklePathSet::calculate_parent_hash(parent0, 0, parent1);
 
         let mut set = super::MerklePathSet::new(3).unwrap();
 
-        set.add_path(0, leaf0, vec![leaf1, parent1]).unwrap();
+        set.add_path(0, leaf0, vec![leaf1, parent1].into()).unwrap();
 
         assert_eq!(set.root(), root_exp);
     }
@@ -280,10 +283,10 @@ mod tests {
         let depth = 4u32;
         let mut set = super::MerklePathSet::new(depth).unwrap();
 
-        set.add_path(index, hash_6, path_6.clone()).unwrap();
+        set.add_path(index, hash_6, path_6.clone().into()).unwrap();
         let stored_path_6 = set.get_path(depth, index).unwrap();
 
-        assert_eq!(path_6, stored_path_6);
+        assert_eq!(path_6, *stored_path_6);
         assert!(set.get_path(depth, 15u64).is_err())
     }
 
@@ -295,7 +298,7 @@ mod tests {
         let depth = 4u32;
         let mut set = super::MerklePathSet::new(depth).unwrap();
 
-        set.add_path(index, hash_6, path_6).unwrap();
+        set.add_path(index, hash_6, path_6.into()).unwrap();
 
         assert_eq!(int_to_node(6u64), set.get_node(depth, index).unwrap());
         assert!(set.get_node(depth, 15u64).is_err());
@@ -307,8 +310,8 @@ mod tests {
         let hash_5 = int_to_node(5);
         let hash_6 = int_to_node(6);
         let hash_7 = int_to_node(7);
-        let hash_45 = calculate_parent_hash(hash_4, 12u64, hash_5);
-        let hash_67 = calculate_parent_hash(hash_6, 14u64, hash_7);
+        let hash_45 = MerklePathSet::calculate_parent_hash(hash_4, 12u64, hash_5);
+        let hash_67 = MerklePathSet::calculate_parent_hash(hash_6, 14u64, hash_7);
 
         let hash_0123 = int_to_node(123);
 
@@ -322,22 +325,22 @@ mod tests {
         let depth = 4u32;
         let mut set = super::MerklePathSet::new(depth).unwrap();
 
-        set.add_path(index_6, hash_6, path_6).unwrap();
-        set.add_path(index_5, hash_5, path_5).unwrap();
-        set.add_path(index_4, hash_4, path_4).unwrap();
+        set.add_path(index_6, hash_6, path_6.into()).unwrap();
+        set.add_path(index_5, hash_5, path_5.into()).unwrap();
+        set.add_path(index_4, hash_4, path_4.into()).unwrap();
 
         let new_hash_6 = int_to_node(100);
         let new_hash_5 = int_to_node(55);
 
         set.update_leaf(index_6, new_hash_6).unwrap();
         let new_path_4 = set.get_path(depth, index_4).unwrap();
-        let new_hash_67 = calculate_parent_hash(new_hash_6, 14u64, hash_7);
+        let new_hash_67 = MerklePathSet::calculate_parent_hash(new_hash_6, 14u64, hash_7);
         assert_eq!(new_hash_67, new_path_4[1]);
 
         set.update_leaf(index_5, new_hash_5).unwrap();
         let new_path_4 = set.get_path(depth, index_4).unwrap();
         let new_path_6 = set.get_path(depth, index_6).unwrap();
-        let new_hash_45 = calculate_parent_hash(new_hash_5, 13u64, hash_4);
+        let new_hash_45 = MerklePathSet::calculate_parent_hash(new_hash_5, 13u64, hash_4);
         assert_eq!(new_hash_45, new_path_6[1]);
         assert_eq!(new_hash_5, new_path_4[0]);
     }

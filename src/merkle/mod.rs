@@ -1,6 +1,6 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{BTreeMap, Vec},
+    utils::collections::{vec, BTreeMap, Vec},
     Felt, Word, ZERO,
 };
 use core::fmt;
@@ -8,8 +8,11 @@ use core::fmt;
 mod merkle_tree;
 pub use merkle_tree::MerkleTree;
 
-mod merkle_path_set;
-pub use merkle_path_set::MerklePathSet;
+mod path;
+pub use path::MerklePath;
+
+mod path_set;
+pub use path_set::MerklePathSet;
 
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
@@ -24,7 +27,7 @@ pub enum MerkleError {
     NumLeavesNotPowerOfTwo(usize),
     InvalidIndex(u32, u64),
     InvalidDepth(u32, u32),
-    InvalidPath(Vec<Word>),
+    InvalidPath(MerklePath),
     InvalidEntriesCount(usize, usize),
     NodeNotInSet(u64),
 }
