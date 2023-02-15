@@ -1,5 +1,6 @@
 use super::{Felt, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word};
 use crate::{utils::uninit_vector, FieldElement};
+use core::borrow::Borrow;
 use core::slice;
 use winter_math::log2;
 
@@ -19,8 +20,11 @@ impl MerkleTree {
     ///
     /// # Errors
     /// Returns an error if the number of leaves is smaller than two or is not a power of two.
-    pub fn new(leaves: Vec<Word>) -> Result<Self, MerkleError> {
-        let n = leaves.len();
+    pub fn new<T>(leaves: T) -> Result<Self, MerkleError>
+    where
+        T: Borrow<Vec<Word>>,
+    {
+        let n = leaves.borrow().len();
         if n <= 1 {
             return Err(MerkleError::DepthTooSmall(n as u8));
         } else if !n.is_power_of_two() {
@@ -32,7 +36,7 @@ impl MerkleTree {
         nodes[0] = [Felt::ZERO; 4];
 
         // copy leaves into the second part of the nodes vector
-        nodes[n..].copy_from_slice(&leaves);
+        nodes[n..].copy_from_slice(leaves.borrow());
 
         // re-interpret nodes as an array of two nodes fused together
         // Safety: `nodes` will never move here as it is not bound to an external lifetime (i.e.
