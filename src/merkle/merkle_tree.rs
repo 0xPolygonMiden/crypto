@@ -1,5 +1,5 @@
 use super::{Felt, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word};
-use crate::{utils::uninit_vector, FieldElement};
+use crate::FieldElement;
 use core::borrow::Borrow;
 use core::slice;
 use winter_math::log2;
@@ -20,34 +20,65 @@ impl MerkleTree {
     ///
     /// # Errors
     /// Returns an error if the number of leaves is smaller than two or is not a power of two.
-    pub fn new<T>(leaves: T) -> Result<Self, MerkleError>
+    pub fn new<T, I, V>(leaves: T) -> Result<Self, MerkleError>
     where
-        T: Borrow<Vec<Word>>,
+        T: IntoIterator<IntoIter = I>,
+        I: ExactSizeIterator + Iterator<Item = V>,
+        V: Borrow<Word>,
     {
-        let n = leaves.borrow().len();
+        let leaves = leaves.into_iter();
+        let n = leaves.len();
         if n <= 1 {
             return Err(MerkleError::DepthTooSmall(n as u8));
         } else if !n.is_power_of_two() {
             return Err(MerkleError::NumLeavesNotPowerOfTwo(n));
         }
 
-        // create un-initialized vector to hold all tree nodes
-        let mut nodes = unsafe { uninit_vector(2 * n) };
-        nodes[0] = [Felt::ZERO; 4];
+        // The tree contains `n` leaves, which is a power of two. The depth of the tree is `d`
+        // defined as `2^d=n` or `d=lb(n)`. The total number of elements in the tree is
+        // `2**(d+1)-1` or `2n-1` (since `n=2**d`).
+        //
+        // Below we compute the tree size `+1`, the first element is set to `0`, so that the length
+        // of `nodes` will be a power of two.
+        let final_capacity = 2 * n;
 
-        // copy leaves into the second part of the nodes vector
-        nodes[n..].copy_from_slice(leaves.borrow());
+        // Allocate data to accomodate all the elements, and get a reference to the underlying
+        // buffer
+        let mut nodes: Vec<Word> = Vec::with_capacity(final_capacity);
+        let buffer = nodes.spare_capacity_mut();
 
-        // re-interpret nodes as an array of two nodes fused together
-        // Safety: `nodes` will never move here as it is not bound to an external lifetime (i.e.
-        // `self`).
-        let ptr = nodes.as_ptr() as *const [RpoDigest; 2];
-        let pairs = unsafe { slice::from_raw_parts(ptr, n) };
-
-        // calculate all internal tree nodes
-        for i in (1..n).rev() {
-            nodes[i] = Rpo256::merge(&pairs[i]).into();
+        // The bottom layer goes to the higher indeces (at the end of the vector)
+        let last_layer = &mut buffer[n..];
+        for (pos, el) in leaves.enumerate() {
+            last_layer[pos].write(*el.borrow());
         }
+
+        let mut pos = n - 1;
+        let mut parent = final_capacity - 2;
+        while pos > 0 {
+            let left = unsafe { buffer[parent].assume_init() };
+            let right = unsafe { buffer[parent + 1].assume_init() };
+            let hash = Rpo256::hash_elements(&[left, right].concat()).into();
+            buffer[pos].write(hash);
+            parent -= 2;
+            pos -= 1;
+        }
+
+        buffer[0].write([Felt::ZERO; 4]);
+
+        // This is correct because:
+        // 1. Leaves are checked not to be an empty set
+        // 2. Leaves is a power of two (i.e. we can construct a complete tree out of the leaves)
+        // 3. The end of the buffer has been initialized before the write loop starts
+        // 4. The write loop reads from end-to-front, starting at initialized memory, and writing
+        //    to the rest of the buffer as it goes, so uninitilaized memory is never read.
+        // 5. This code never alias
+        unsafe { nodes.set_len(final_capacity) };
+
+        debug_assert!(
+            nodes.len().is_power_of_two(),
+            "The final result must have a power of two size"
+        );
 
         Ok(Self { nodes })
     }
