@@ -1,4 +1,4 @@
-use super::RpoDigest;
+use super::{Felt, MerkleError, RpoDigest, StarkField};
 
 // NODE INDEX
 // ================================================================================================
@@ -17,6 +17,18 @@ impl NodeIndex {
     /// Creates a new node index.
     pub const fn new(depth: u8, value: u64) -> Self {
         Self { depth, value }
+    }
+
+    /// Creates a node index from a pair of field elements representing the depth and value.
+    ///
+    /// # Errors
+    ///
+    /// Will error if the `u64` representation of the depth doesn't fit a `u8`.
+    pub fn from_elements(depth: &Felt, value: &Felt) -> Result<Self, MerkleError> {
+        let depth = depth.as_int();
+        let depth = u8::try_from(depth).map_err(|_| MerkleError::DepthTooBig(depth))?;
+        let value = value.as_int();
+        Ok(Self::new(depth, value))
     }
 
     /// Creates a new node index pointing to the root of the tree.

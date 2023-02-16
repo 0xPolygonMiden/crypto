@@ -1,7 +1,7 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::collections::{vec, BTreeMap, Vec},
-    Felt, Word, ZERO,
+    Felt, StarkField, Word, ZERO,
 };
 use core::fmt;
 
@@ -26,7 +26,7 @@ pub use simple_smt::SimpleSmt;
 #[derive(Clone, Debug)]
 pub enum MerkleError {
     DepthTooSmall(u8),
-    DepthTooBig(u8),
+    DepthTooBig(u64),
     NumLeavesNotPowerOfTwo(usize),
     InvalidIndex(NodeIndex),
     InvalidDepth { expected: u8, provided: u8 },
