@@ -73,7 +73,7 @@ impl MerkleTree {
         if index.is_root() {
             return Err(MerkleError::DepthTooSmall(index.depth()));
         } else if index.depth() > self.depth() {
-            return Err(MerkleError::DepthTooBig(index.depth()));
+            return Err(MerkleError::DepthTooBig(index.depth() as u64));
         } else if !index.is_valid() {
             return Err(MerkleError::InvalidIndex(index));
         }
@@ -93,7 +93,7 @@ impl MerkleTree {
         if index.is_root() {
             return Err(MerkleError::DepthTooSmall(index.depth()));
         } else if index.depth() > self.depth() {
-            return Err(MerkleError::DepthTooBig(index.depth()));
+            return Err(MerkleError::DepthTooBig(index.depth() as u64));
         } else if !index.is_valid() {
             return Err(MerkleError::InvalidIndex(index));
         }

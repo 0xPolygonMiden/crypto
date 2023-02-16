@@ -49,7 +49,7 @@ impl SimpleSmt {
         if depth < Self::MIN_DEPTH {
             return Err(MerkleError::DepthTooSmall(depth));
         } else if Self::MAX_DEPTH < depth {
-            return Err(MerkleError::DepthTooBig(depth));
+            return Err(MerkleError::DepthTooBig(depth as u64));
         } else if entries.len() > max {
             return Err(MerkleError::InvalidEntriesCount(max, entries.len()));
         }
@@ -86,7 +86,7 @@ impl SimpleSmt {
         if index.is_root() {
             Err(MerkleError::DepthTooSmall(index.depth()))
         } else if index.depth() > self.depth() {
-            Err(MerkleError::DepthTooBig(index.depth()))
+            Err(MerkleError::DepthTooBig(index.depth() as u64))
         } else if index.depth() == self.depth() {
             self.store.get_leaf_node(index.value())
         } else {
@@ -106,7 +106,7 @@ impl SimpleSmt {
         if index.is_root() {
             return Err(MerkleError::DepthTooSmall(index.depth()));
         } else if index.depth() > self.depth() {
-            return Err(MerkleError::DepthTooBig(index.depth()));
+            return Err(MerkleError::DepthTooBig(index.depth() as u64));
         } else if index.depth() == self.depth() && !self.store.check_leaf_node_exists(index.value())
         {
             return Err(MerkleError::InvalidIndex(index.with_depth(self.depth())));
