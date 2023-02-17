@@ -12,10 +12,11 @@ For performance benchmarks of these hash functions and their comparison to other
 ## Merkle
 [Merkle module](./src/merkle/) provides a set of data structures related to Merkle trees. All these data structures are implemented using the RPO hash function described above. The data structures are:
 
-* `MerklePathSet`: a collection of Merkle authentication paths all resolving to the same root. The length of the paths can be at most 64.
 * `MerkleTree`: a regular fully-balanced binary Merkle tree. The depth of this tree can be at most 64.
 * `SimpleSmt`: a Sparse Merkle Tree, mapping 63-bit keys to 4-element leaf values.
-* `MerkleError`, `MerklePath`, and `NodeIndex` are Merkle wrappers to assist tree indexation, opening proofs, and report inconsistent arguments/state.
+* `MerklePathSet`: a collection of Merkle authentication paths all resolving to the same root. The length of the paths can be at most 64.
+
+The module also contains additional supporting components such as `NodeIndex`, `MerklePath`,  and `MerkleError`  to assist with tree indexation, opening proofs, and reporting inconsistent arguments/state.
 
 ## Extra
 [Root module](./src/lib.rs) provides a set of constants, types, aliases, and utils required to use the primitives of this library.
@@ -38,7 +39,7 @@ You can use cargo defaults to test the library:
 cargo test
 ```
 
-However, some of the functions are heavy and might take a while for the tests to complete. In order to test in release mode, we have to replicate the same test conditions of the development mode so all debug assertions can be verified.
+However, some of the functions are heavy and might take a while for the tests to complete. In order to test in release mode, we have to replicate the test conditions of the development mode so all debug assertions can be verified.
 
 We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation.
 

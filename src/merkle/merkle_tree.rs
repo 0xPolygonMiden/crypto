@@ -68,7 +68,7 @@ impl MerkleTree {
     /// # Errors
     /// Returns an error if:
     /// * The specified depth is greater than the depth of the tree.
-    /// * The specified index not valid for the specified depth.
+    /// * The specified index is not valid for the specified depth.
     pub fn get_node(&self, index: NodeIndex) -> Result<Word, MerkleError> {
         if index.is_root() {
             return Err(MerkleError::DepthTooSmall(index.depth()));
@@ -88,7 +88,7 @@ impl MerkleTree {
     /// # Errors
     /// Returns an error if:
     /// * The specified depth is greater than the depth of the tree.
-    /// * The specified value not valid for the specified depth.
+    /// * The specified value is not valid for the specified depth.
     pub fn get_path(&self, mut index: NodeIndex) -> Result<MerklePath, MerkleError> {
         if index.is_root() {
             return Err(MerkleError::DepthTooSmall(index.depth()));

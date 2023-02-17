@@ -46,7 +46,7 @@ impl MerklePathSet {
     ///
     /// # Errors
     /// Returns an error if:
-    /// * The specified index not valid for the depth of structure.
+    /// * The specified index is not valid for the depth of structure.
     /// * Requested node does not exist in the set.
     pub fn get_node(&self, index: NodeIndex) -> Result<Word, MerkleError> {
         if !index.with_depth(self.total_depth).is_valid() {
@@ -75,7 +75,7 @@ impl MerklePathSet {
     ///
     /// # Errors
     /// Returns an error if:
-    /// * The specified index not valid for the depth of structure.
+    /// * The specified index is not valid for the depth of structure.
     /// * Node of the requested path does not exist in the set.
     pub fn get_path(&self, index: NodeIndex) -> Result<MerklePath, MerkleError> {
         if !index.with_depth(self.total_depth).is_valid() {
@@ -108,8 +108,8 @@ impl MerklePathSet {
     ///
     /// # Errors
     /// Returns an error if:
-    /// - The specified index is not valid in the context of this Merkle path set (i.e., the index
-    ///   implies a greater depth than is specified for this set).
+    /// - The specified index is is not valid in the context of this Merkle path set (i.e., the
+    ///   index implies a greater depth than is specified for this set).
     /// - The specified path is not consistent with other paths in the set (i.e., resolves to a
     ///   different root).
     pub fn add_path(
@@ -140,7 +140,8 @@ impl MerklePathSet {
             Rpo256::merge(&index.build_node(root.into(), hash.into())).into()
         });
 
-        // TODO review and document this logic
+        // if the path set is empty (the root is all ZEROs), set the root to the root of the added
+        // path; otherwise, the root of the added path must be identical to the current root
         if self.root == [ZERO; 4] {
             self.root = root;
         } else if self.root != root {
