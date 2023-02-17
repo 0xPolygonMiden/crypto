@@ -2,7 +2,9 @@ use super::{
     Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, INV_ALPHA, ONE, STATE_WIDTH,
     ZERO,
 };
+use crate::utils::collections::{BTreeSet, Vec};
 use core::convert::TryInto;
+use proptest::prelude::*;
 use rand_utils::rand_value;
 
 #[test]
@@ -190,6 +192,43 @@ fn hash_test_vectors() {
         let expected = RpoDigest::new(EXPECTED[i]);
         let result = Rpo256::hash_elements(&elements[..(i + 1)]);
         assert_eq!(result, expected);
+    }
+}
+
+#[test]
+fn sponge_bytes_with_remainder_length_wont_panic() {
+    // this test targets to assert that no panic will happen with the edge case of having an inputs
+    // with length that is not divisible by the used binary chunk size. 113 is a non-negligible
+    // input length that is prime; hence guaranteed to not be divisible by any choice of chunk
+    // size.
+    //
+    // this is a preliminary test to the fuzzy-stress of proptest.
+    Rpo256::hash(&vec![0; 113]);
+}
+
+#[test]
+fn sponge_collision_for_wrapped_field_element() {
+    let a = Rpo256::hash(&[0; 8]);
+    let b = Rpo256::hash(&Felt::MODULUS.to_le_bytes());
+    assert_ne!(a, b);
+}
+
+#[test]
+fn sponge_zeroes_collision() {
+    let mut zeroes = Vec::with_capacity(255);
+    let mut set = BTreeSet::new();
+    (0..255).for_each(|_| {
+        let hash = Rpo256::hash(&zeroes);
+        zeroes.push(0);
+        // panic if a collision was found
+        assert!(set.insert(hash));
+    });
+}
+
+proptest! {
+    #[test]
+    fn rpo256_wont_panic_with_arbitrary_input(ref vec in any::<Vec<u8>>()) {
+        Rpo256::hash(&vec);
     }
 }
 

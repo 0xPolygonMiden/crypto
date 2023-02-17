@@ -1,15 +1,21 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{BTreeMap, Vec},
-    Felt, Word, ZERO,
+    utils::collections::{vec, BTreeMap, Vec},
+    Felt, StarkField, Word, ZERO,
 };
 use core::fmt;
+
+mod index;
+pub use index::NodeIndex;
 
 mod merkle_tree;
 pub use merkle_tree::MerkleTree;
 
-mod merkle_path_set;
-pub use merkle_path_set::MerklePathSet;
+mod path;
+pub use path::MerklePath;
+
+mod path_set;
+pub use path_set::MerklePathSet;
 
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
@@ -19,12 +25,12 @@ pub use simple_smt::SimpleSmt;
 
 #[derive(Clone, Debug)]
 pub enum MerkleError {
-    DepthTooSmall(u32),
-    DepthTooBig(u32),
+    DepthTooSmall(u8),
+    DepthTooBig(u64),
     NumLeavesNotPowerOfTwo(usize),
-    InvalidIndex(u32, u64),
-    InvalidDepth(u32, u32),
-    InvalidPath(Vec<Word>),
+    InvalidIndex(NodeIndex),
+    InvalidDepth { expected: u8, provided: u8 },
+    InvalidPath(MerklePath),
     InvalidEntriesCount(usize, usize),
     NodeNotInSet(u64),
 }
@@ -38,11 +44,11 @@ impl fmt::Display for MerkleError {
             NumLeavesNotPowerOfTwo(leaves) => {
                 write!(f, "the leaves count {leaves} is not a power of 2")
             }
-            InvalidIndex(depth, index) => write!(
+            InvalidIndex(index) => write!(
                 f,
-                "the leaf index {index} is not valid for the depth {depth}"
+                "the index value {} is not valid for the depth {}", index.value(), index.depth()
             ),
-            InvalidDepth(expected, provided) => write!(
+            InvalidDepth { expected, provided } => write!(
                 f,
                 "the provided depth {provided} is not valid for {expected}"
             ),
