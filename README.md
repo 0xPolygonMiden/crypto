@@ -12,8 +12,13 @@ For performance benchmarks of these hash functions and their comparison to other
 ## Merkle
 [Merkle module](./src/merkle/) provides a set of data structures related to Merkle trees. All these data structures are implemented using the RPO hash function described above. The data structures are:
 
-* `MerkleTree`: a regular fully-balanced binary Merkle tree. The depth of this tree can be at most 64.
 * `MerklePathSet`: a collection of Merkle authentication paths all resolving to the same root. The length of the paths can be at most 64.
+* `MerkleTree`: a regular fully-balanced binary Merkle tree. The depth of this tree can be at most 64.
+* `SimpleSmt`: a Sparse Merkle Tree, mapping 63-bit keys to 4-element leaf values.
+* `MerkleError`, `MerklePath`, and `NodeIndex` are Merkle wrappers to assist tree indexation, opening proofs, and report inconsistent arguments/state.
+
+## Extra
+[Root module](./src/lib.rs) provides a set of constants, types, aliases, and utils required to use the primitives of this library.
 
 ## Crate features
 This crate can be compiled with the following features:
