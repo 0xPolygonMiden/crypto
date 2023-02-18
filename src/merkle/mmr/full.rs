@@ -11,7 +11,7 @@
 //! merged, creating a new tree with depth d+1, this process is continued until the property is
 //! restabilished.
 use super::bit::TrueBitPositionIterator;
-use super::{super::Vec, MmrPeaks, MmrProof, Rpo256, Word};
+use super::{super::Vec, MmrPartial, MmrPeaks, MmrProof, Rpo256, Word};
 use crate::merkle::MerklePath;
 use core::fmt::{Display, Formatter};
 
@@ -118,7 +118,7 @@ impl Mmr {
         Ok(MmrProof {
             forest: self.forest,
             position: pos,
-            merkle_path: MerklePath::new(path),
+            merkle_path: path,
         })
     }
 
@@ -148,6 +148,44 @@ impl Mmr {
             self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset, index);
 
         Ok(value)
+    }
+
+    /// Given a leaf position, returns a partial view of the MMR for this leaf. This partial view
+    /// can be updated in-place without needing to track all the tree values.
+    ///
+    /// Note: The leaf position is the 0-indexed number corresponding to the order the leaves were
+    /// added, this corresponds to the MMR size _prior_ to adding the element. So the 1st alement
+    /// has position 0, the second position 1, and so on.
+    pub fn partial(&self, pos: usize) -> Result<MmrPartial, MmrError> {
+        // find the target tree responsible for the MMR position
+        let tree_bit =
+            leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::InvalidPosition(pos))?;
+        let forest_target = 1usize << tree_bit;
+
+        // collect all the tree roots to the left and including the target
+        let peaks_partial: Vec<Word> = TrueBitPositionIterator::new(self.forest)
+            .rev()
+            .map(|bit| nodes_in_forest(1 << bit))
+            .take_while(|tree_left| *tree_left >= forest_target)
+            .scan(0, |offset, el| {
+                *offset += el;
+                Some(*offset)
+            })
+            .map(|offset| self.nodes[offset - 1])
+            .collect();
+
+        // from global to target index/position
+        let forest_before = self.forest & high_bitmask(tree_bit + 1);
+        let index_offset = nodes_in_forest(forest_before);
+        let index = nodes_in_forest(forest_target) - 1;
+        let relative_pos = pos - forest_before;
+
+        let (value, path) =
+            self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset, index);
+
+        let forest_partial = self.forest & high_bitmask(tree_bit);
+        MmrPartial::new(peaks_partial, forest_partial, path, value)
+            .or(Err(MmrError::InvalidPosition(pos)))
     }
 
     /// Adds a new element to the MMR.
@@ -200,7 +238,7 @@ impl Mmr {
         relative_pos: usize,
         index_offset: usize,
         mut index: usize,
-    ) -> (Word, Vec<Word>) {
+    ) -> (Word, MerklePath) {
         // collect the Merkle path
         let mut tree_depth = tree_bit as usize;
         let mut path = Vec::with_capacity(tree_depth + 1);
@@ -229,7 +267,7 @@ impl Mmr {
         path.reverse();
 
         let value = self.nodes[index_offset + index];
-        (value, path)
+        (value, MerklePath::new(path))
     }
 }
 

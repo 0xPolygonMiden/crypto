@@ -333,6 +333,123 @@ fn test_mmr_get() {
 }
 
 #[test]
+fn test_partial_view() {
+    let h01: Word = Rpo256::hash_elements(&LEAVES[0..2].concat()).into();
+    let h23: Word = Rpo256::hash_elements(&LEAVES[2..4].concat()).into();
+    let h45: Word = Rpo256::hash_elements(&LEAVES[4..6].concat()).into();
+    let h0123: Word = Rpo256::hash_elements(&[h01, h23].concat()).into();
+
+    let mut mmr = Mmr::new();
+    assert!(
+        mmr.partial(0).is_err(),
+        "cant create a view from an empty MMR"
+    );
+
+    mmr.add(LEAVES[0]);
+    let partial0 = mmr
+        .partial(0)
+        .expect("should be able to construct partial for new entry");
+    assert_eq!(partial0.peaks_partial, [LEAVES[0]]);
+    assert_eq!(partial0.forest_partial, 0b1);
+    assert_eq!(partial0.path, MerklePath::new(Vec::<Word>::new()));
+    assert_eq!(partial0.value, LEAVES[0]);
+    assert_eq!(partial0.update_offset(), 1);
+
+    mmr.add(LEAVES[1]);
+    let partial1 = mmr
+        .partial(1)
+        .expect("should be able to construct partial for new entry");
+    assert_eq!(partial1.peaks_partial, [h01]);
+    assert_eq!(partial1.forest_partial, 0b10);
+    assert_eq!(partial1.path, MerklePath::new([LEAVES[0]].to_vec()));
+    assert_eq!(partial1.value, LEAVES[1]);
+    assert_eq!(partial1.update_offset(), 5);
+
+    mmr.add(LEAVES[2]);
+    let partial2 = mmr
+        .partial(2)
+        .expect("should be able to construct partial for new entry");
+    assert_eq!(partial2.peaks_partial, [h01, LEAVES[2]]);
+    assert_eq!(partial2.forest_partial, 0b11);
+    assert_eq!(partial2.path, MerklePath::new(Vec::<Word>::new()));
+    assert_eq!(partial2.value, LEAVES[2]);
+    assert_eq!(partial2.update_offset(), 4);
+
+    mmr.add(LEAVES[3]);
+    let partial3 = mmr
+        .partial(3)
+        .expect("should be able to construct partial for new entry");
+    assert_eq!(partial3.peaks_partial, [h0123]);
+    assert_eq!(partial3.forest_partial, 0b100);
+    assert_eq!(partial3.path, MerklePath::new([LEAVES[2], h01].to_vec()));
+    assert_eq!(partial3.value, LEAVES[3]);
+    assert_eq!(partial3.update_offset(), 13);
+
+    mmr.add(LEAVES[4]);
+    let partial4 = mmr
+        .partial(4)
+        .expect("should be able to construct partial for new entry");
+    assert_eq!(partial4.peaks_partial, [h0123, LEAVES[4]]);
+    assert_eq!(partial4.forest_partial, 0b101);
+    assert_eq!(partial4.path, MerklePath::new(Vec::<Word>::new()));
+    assert_eq!(partial4.value, LEAVES[4]);
+    assert_eq!(partial4.update_offset(), 8);
+
+    mmr.add(LEAVES[5]);
+    let partial5 = mmr
+        .partial(5)
+        .expect("should be able to construct partial for new entry");
+    assert_eq!(partial5.peaks_partial, [h0123, h45]);
+    assert_eq!(partial5.forest_partial, 0b110);
+    assert_eq!(partial5.path, MerklePath::new([LEAVES[4]].to_vec()));
+    assert_eq!(partial5.value, LEAVES[5]);
+    assert_eq!(partial5.update_offset(), 12);
+
+    mmr.add(LEAVES[6]);
+    let partial6 = mmr
+        .partial(6)
+        .expect("should be able to construct partial for new entry");
+    assert_eq!(partial6.peaks_partial, [h0123, h45, LEAVES[6]]);
+    assert_eq!(partial6.forest_partial, 0b111);
+    assert_eq!(partial6.path, MerklePath::new(Vec::<Word>::new()));
+    assert_eq!(partial6.value, LEAVES[6]);
+    assert_eq!(partial6.update_offset(), 11);
+}
+
+#[test]
+fn test_partial_view_update() {
+    let h01: Word = Rpo256::hash_elements(&LEAVES[0..2].concat()).into();
+    let h23: Word = Rpo256::hash_elements(&LEAVES[2..4].concat()).into();
+    let h45: Word = Rpo256::hash_elements(&LEAVES[4..6].concat()).into();
+    let h0123: Word = Rpo256::hash_elements(&[h01, h23].concat()).into();
+
+    let mut mmr = Mmr::new();
+    mmr.add(LEAVES[0]);
+    mmr.add(LEAVES[1]);
+    mmr.add(LEAVES[2]);
+    mmr.add(LEAVES[3]);
+    mmr.add(LEAVES[4]);
+
+    let mut partial4 = mmr
+        .partial(4)
+        .expect("should be able to construct partial for new entry");
+
+    assert_eq!(partial4.peaks_partial, [h0123, LEAVES[4]]);
+    assert_eq!(partial4.forest_partial, 0b101);
+    assert_eq!(partial4.path, MerklePath::new(Vec::<Word>::new()));
+    assert_eq!(partial4.value, LEAVES[4]);
+    assert_eq!(partial4.update_offset(), 8);
+
+    partial4.update(LEAVES[5]);
+
+    assert_eq!(partial4.peaks_partial, [h0123, h45]);
+    assert_eq!(partial4.forest_partial, 0b110);
+    assert_eq!(partial4.path, MerklePath::new([LEAVES[5]].to_vec()));
+    assert_eq!(partial4.value, LEAVES[4]);
+    assert_eq!(partial4.update_offset(), 12);
+}
+
+#[test]
 fn test_mmr_invariants() {
     let mut mmr = Mmr::new();
     for v in 1..=1028 {
@@ -408,6 +525,51 @@ fn test_bit_position_iterator() {
             .collect::<Vec<u32>>(),
         vec![7, 6, 4, 2, 0],
     );
+}
+
+#[test]
+fn test_mmr_partial_and_full_match() {
+    let mut mmr = Mmr::new();
+
+    // creates a largish tree with many peaks to merge
+    for i in 1..=0b11111 {
+        mmr.add(int_to_node(i));
+    }
+
+    let idx = mmr.forest - 1;
+    let mut partial = mmr
+        .partial(idx)
+        .expect("must be able to create a partial view of the last element");
+
+    // merge all existing peaks and then add some nodes
+    let size = mmr.nodes.len() as u64;
+    for i in size..=0b100111 {
+        mmr.add(int_to_node(i));
+
+        if partial.update_offset() == mmr.nodes.len() {
+            partial.update(mmr.nodes[partial.update_offset()]);
+
+            let acc = mmr.accumulator();
+            assert!(
+                acc.peaks.starts_with(&partial.peaks_partial),
+                "partial peaks must correspond to the tree's peaks"
+            );
+
+            let mut second = mmr
+                .partial(idx)
+                .expect("must be able to create partial view for an old node");
+
+            while second.update_offset() <= mmr.nodes.len() {
+                second.update(mmr.nodes[partial.update_offset()]);
+
+                let acc = mmr.accumulator();
+                assert!(
+                    acc.peaks.starts_with(&partial.peaks_partial),
+                    "partial peaks must correspond to the tree's peaks"
+                );
+            }
+        }
+    }
 }
 
 mod property_tests {
