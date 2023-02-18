@@ -1,8 +1,7 @@
 use super::{
-    super::{MerkleTree, RpoDigest, SimpleSmt},
+    super::{int_to_node, MerkleTree, RpoDigest, SimpleSmt},
     NodeIndex, Rpo256, Vec, Word,
 };
-use crate::{Felt, FieldElement};
 use core::iter;
 use proptest::prelude::*;
 use rand_utils::prng_array;
@@ -274,8 +273,4 @@ fn compute_internal_nodes() -> (Word, Word, Word) {
     let root = Rpo256::merge(&[node2, node3]);
 
     (root.into(), node2.into(), node3.into())
-}
-
-const fn int_to_node(value: u64) -> Word {
-    [Felt::new(value), Felt::ZERO, Felt::ZERO, Felt::ZERO]
 }
