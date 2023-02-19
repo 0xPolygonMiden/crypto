@@ -7,6 +7,9 @@ extern crate alloc;
 pub mod hash;
 pub mod merkle;
 
+mod word;
+pub use word::{CanonicalWord, Word, WORD_SIZE};
+
 // RE-EXPORTS
 // ================================================================================================
 
@@ -21,17 +24,8 @@ pub mod utils {
     };
 }
 
-// TYPE ALIASES
-// ================================================================================================
-
-/// A group of four field elements in the Miden base field.
-pub type Word = [Felt; WORD_SIZE];
-
 // CONSTANTS
 // ================================================================================================
-
-/// Number of field elements in a word.
-pub const WORD_SIZE: usize = 4;
 
 /// Field element representing ZERO in the Miden base filed.
 pub const ZERO: Felt = Felt::ZERO;

@@ -1,9 +1,12 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::collections::{vec, BTreeMap, Vec},
-    Felt, StarkField, Word, ZERO,
+    CanonicalWord, Felt, StarkField, Word, WORD_SIZE, ZERO,
 };
 use core::fmt;
+
+mod empty_nodes;
+pub use empty_nodes::EmptyNodesSubtrees;
 
 mod index;
 pub use index::NodeIndex;
@@ -19,6 +22,9 @@ pub use path_set::MerklePathSet;
 
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
+
+mod tiered_smt;
+pub use tiered_smt::TieredSmt;
 
 // ERRORS
 // ================================================================================================

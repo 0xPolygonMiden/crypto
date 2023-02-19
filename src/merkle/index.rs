@@ -103,6 +103,13 @@ impl NodeIndex {
         self.value >>= 1;
         self
     }
+
+    /// Traverse one level towards the root, decrementing the depth by `n`.
+    pub fn move_up_by(&mut self, n: u8) -> &mut Self {
+        self.depth = self.depth.saturating_sub(n);
+        self.value >>= n;
+        self
+    }
 }
 
 #[cfg(test)]
