@@ -1,12 +1,16 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::collections::{vec, BTreeMap, Vec},
-    Felt, StarkField, Word, ZERO,
+    Felt, StarkField, Word, WORD_SIZE, ZERO,
 };
 use core::fmt;
 
 // REEXPORTS
 // ================================================================================================
+
+mod empty_roots;
+pub use empty_roots::EmptySubtreeRoots;
+
 mod index;
 pub use index::NodeIndex;
 

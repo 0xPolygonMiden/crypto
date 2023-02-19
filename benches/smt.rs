@@ -18,7 +18,7 @@ fn smt_rpo(c: &mut Criterion) {
                     (i, word)
                 })
                 .collect();
-            let tree = SimpleSmt::new(entries, depth).unwrap();
+            let tree = SimpleSmt::new(depth).unwrap().with_leaves(entries).unwrap();
             trees.push(tree);
         }
     }
