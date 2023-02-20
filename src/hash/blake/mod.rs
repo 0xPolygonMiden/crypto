@@ -56,13 +56,13 @@ impl<const N: usize> From<[u8; N]> for Blake3Digest<N> {
 
 impl<const N: usize> Serializable for Blake3Digest<N> {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        target.write_u8_slice(&self.0);
+        target.write_bytes(&self.0);
     }
 }
 
 impl<const N: usize> Deserializable for Blake3Digest<N> {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        source.read_u8_array().map(Self)
+        source.read_array().map(Self)
     }
 }
 
@@ -81,6 +81,9 @@ impl<const N: usize> Digest for Blake3Digest<N> {
 pub struct Blake3_256;
 
 impl Hasher for Blake3_256 {
+    /// Blake3 collision resistance is 128-bits for 32-bytes output.
+    const COLLISION_RESISTANCE: u32 = 128;
+
     type Digest = Blake3Digest<32>;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
@@ -141,6 +144,9 @@ impl Blake3_256 {
 pub struct Blake3_192;
 
 impl Hasher for Blake3_192 {
+    /// Blake3 collision resistance is 96-bits for 24-bytes output.
+    const COLLISION_RESISTANCE: u32 = 96;
+
     type Digest = Blake3Digest<24>;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
@@ -201,6 +207,9 @@ impl Blake3_192 {
 pub struct Blake3_160;
 
 impl Hasher for Blake3_160 {
+    /// Blake3 collision resistance is 80-bits for 20-bytes output.
+    const COLLISION_RESISTANCE: u32 = 80;
+
     type Digest = Blake3Digest<20>;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
