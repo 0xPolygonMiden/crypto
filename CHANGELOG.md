@@ -1,3 +1,7 @@
+## 0.1.3 (2023-02-20)
+
+- Updated Winterfell dependency to v0.5.1 (#68)
+
 ## 0.1.2 (2023-02-17)
 
 - Fixed `Rpo256::hash` pad that was panicking on input (#44)

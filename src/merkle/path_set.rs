@@ -16,15 +16,30 @@ impl MerklePathSet {
     // --------------------------------------------------------------------------------------------
 
     /// Returns an empty MerklePathSet.
-    pub fn new(depth: u8) -> Result<Self, MerkleError> {
+    pub fn new(depth: u8) -> Self {
         let root = [ZERO; 4];
         let paths = BTreeMap::new();
 
-        Ok(Self {
+        Self {
             root,
             total_depth: depth,
             paths,
-        })
+        }
+    }
+
+    /// Appends the provided paths iterator into the set.
+    ///
+    /// Analogous to `[Self::add_path]`.
+    pub fn with_paths<I>(self, paths: I) -> Result<Self, MerkleError>
+    where
+        I: IntoIterator<Item = (u64, Word, MerklePath)>,
+    {
+        paths
+            .into_iter()
+            .try_fold(self, |mut set, (index, value, path)| {
+                set.add_path(index, value, path)?;
+                Ok(set)
+            })
     }
 
     // PUBLIC ACCESSORS
@@ -232,9 +247,9 @@ mod tests {
 
         let root_exp = calculate_parent_hash(parent0, 0, parent1);
 
-        let mut set = super::MerklePathSet::new(3).unwrap();
-
-        set.add_path(0, leaf0, vec![leaf1, parent1].into()).unwrap();
+        let set = super::MerklePathSet::new(3)
+            .with_paths([(0, leaf0, vec![leaf1, parent1].into())])
+            .unwrap();
 
         assert_eq!(set.root(), root_exp);
     }
@@ -245,9 +260,9 @@ mod tests {
         let hash_6 = int_to_node(6);
         let index = 6_u64;
         let depth = 4_u8;
-        let mut set = super::MerklePathSet::new(depth).unwrap();
-
-        set.add_path(index, hash_6, path_6.clone().into()).unwrap();
+        let set = super::MerklePathSet::new(depth)
+            .with_paths([(index, hash_6, path_6.clone().into())])
+            .unwrap();
         let stored_path_6 = set.get_path(NodeIndex::new(depth, index)).unwrap();
 
         assert_eq!(path_6, *stored_path_6);
@@ -260,9 +275,9 @@ mod tests {
         let hash_6 = int_to_node(6);
         let index = 6_u64;
         let depth = 4_u8;
-        let mut set = MerklePathSet::new(depth).unwrap();
-
-        set.add_path(index, hash_6, path_6.into()).unwrap();
+        let set = MerklePathSet::new(depth)
+            .with_paths([(index, hash_6, path_6.into())])
+            .unwrap();
 
         assert_eq!(
             int_to_node(6u64),
@@ -290,11 +305,13 @@ mod tests {
         let index_5 = 5_u64;
         let index_4 = 4_u64;
         let depth = 4_u8;
-        let mut set = MerklePathSet::new(depth).unwrap();
-
-        set.add_path(index_6, hash_6, path_6.into()).unwrap();
-        set.add_path(index_5, hash_5, path_5.into()).unwrap();
-        set.add_path(index_4, hash_4, path_4.into()).unwrap();
+        let mut set = MerklePathSet::new(depth)
+            .with_paths([
+                (index_6, hash_6, path_6.into()),
+                (index_5, hash_5, path_5.into()),
+                (index_4, hash_4, path_4.into()),
+            ])
+            .unwrap();
 
         let new_hash_6 = int_to_node(100);
         let new_hash_5 = int_to_node(55);
