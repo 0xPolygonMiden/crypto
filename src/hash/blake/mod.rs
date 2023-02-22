@@ -78,6 +78,7 @@ impl<const N: usize> Digest for Blake3Digest<N> {
 // ================================================================================================
 
 /// 256-bit output blake3 hasher.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Blake3_256;
 
 impl Hasher for Blake3_256 {
@@ -141,6 +142,7 @@ impl Blake3_256 {
 // ================================================================================================
 
 /// 192-bit output blake3 hasher.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Blake3_192;
 
 impl Hasher for Blake3_192 {
@@ -204,6 +206,7 @@ impl Blake3_192 {
 // ================================================================================================
 
 /// 160-bit output blake3 hasher.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Blake3_160;
 
 impl Hasher for Blake3_160 {
