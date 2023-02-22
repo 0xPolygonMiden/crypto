@@ -4,6 +4,9 @@ use super::{Felt, MerkleError, RpoDigest, StarkField};
 // ================================================================================================
 
 /// A Merkle tree address to an arbitrary node.
+///
+/// The position is relative to a tree in level order, where for a given depth `d` elements are
+/// numbered from $0..2^d$.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct NodeIndex {
     depth: u8,
