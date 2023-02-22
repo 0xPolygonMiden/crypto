@@ -88,6 +88,7 @@ const INV_ALPHA: u64 = 10540996611094048183;
 /// to deserialize them into field elements and then hash them using
 /// [hash_elements()](Rpo256::hash_elements) function rather then hashing the serialized bytes
 /// using [hash()](Rpo256::hash) function.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rpo256();
 
 impl Hasher for Rpo256 {

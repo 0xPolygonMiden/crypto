@@ -1,3 +1,7 @@
+## 0.1.4 (2023-02-22)
+
+- Re-export winter-crypto Hasher, Digest & ElementHasher (#72)
+
 ## 0.1.3 (2023-02-20)
 
 - Updated Winterfell dependency to v0.5.1 (#68)

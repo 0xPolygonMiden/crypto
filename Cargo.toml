@@ -1,7 +1,7 @@
 [package]
 name = "miden-crypto"
-version = "0.1.3"
-description = "Miden Cryptographic primitives"
+version = "0.1.5"
+description="Miden Cryptographic primitives"
 authors = ["miden contributors"]
 readme = "README.md"
 license = "MIT"
