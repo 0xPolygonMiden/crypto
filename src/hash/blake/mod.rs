@@ -1,7 +1,5 @@
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField};
-use crate::utils::{
-    uninit_vector, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
-};
+use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::{
     mem::{size_of, transmute, transmute_copy},
     ops::Deref,
@@ -290,15 +288,25 @@ where
     let digest = if Felt::IS_CANONICAL {
         blake3::hash(E::elements_as_bytes(elements))
     } else {
-        let base_elements = E::slice_as_base_elements(elements);
-        let blen = base_elements.len() << 3;
+        let mut hasher = blake3::Hasher::new();
 
-        let mut bytes = unsafe { uninit_vector(blen) };
-        for (idx, element) in base_elements.iter().enumerate() {
-            bytes[idx * 8..(idx + 1) * 8].copy_from_slice(&element.as_int().to_le_bytes());
+        // BLAKE3 state is 64 bytes - so, we can absorb 64 bytes into the state in a single
+        // permutation. we move the elements into the hasher via the buffer to give the CPU
+        // a chance to process multiple element-to-byte conversions in parallel
+        let mut buf = [0_u8; 64];
+        let mut chunk_iter = E::slice_as_base_elements(elements).chunks_exact(8);
+        for chunk in chunk_iter.by_ref() {
+            for i in 0..8 {
+                buf[i * 8..(i + 1) * 8].copy_from_slice(&chunk[i].as_int().to_le_bytes());
+            }
+            hasher.update(&buf);
         }
 
-        blake3::hash(&bytes)
+        for element in chunk_iter.remainder() {
+            hasher.update(&element.as_int().to_le_bytes());
+        }
+
+        hasher.finalize()
     };
     *shrink_bytes(&digest.into())
 }
