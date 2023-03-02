@@ -5,6 +5,8 @@ use super::{
 };
 use core::fmt;
 
+// REEXPORTS
+// ================================================================================================
 mod index;
 pub use index::NodeIndex;
 
@@ -19,6 +21,9 @@ pub use path_set::MerklePathSet;
 
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
+
+mod mmr;
+pub use mmr::{Mmr, MmrPeaks};
 
 // ERRORS
 // ================================================================================================
