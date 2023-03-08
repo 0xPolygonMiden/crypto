@@ -14,7 +14,7 @@ For performance benchmarks of these hash functions and their comparison to other
 
 * `MerkleTree`: a regular fully-balanced binary Merkle tree. The depth of this tree can be at most 64.
 * `SimpleSmt`: a Sparse Merkle Tree, mapping 63-bit keys to 4-element leaf values.
-* `MerklePathSet`: a collection of Merkle authentication paths all resolving to the same root. The length of the paths can be at most 64.
+* `PartialMerkleTree`: a collection of Merkle authentication paths all resolving to the same root. The length of the paths can be at most 64.
 
 The module also contains additional supporting components such as `NodeIndex`, `MerklePath`,  and `MerkleError`  to assist with tree indexation, opening proofs, and reporting inconsistent arguments/state.
 

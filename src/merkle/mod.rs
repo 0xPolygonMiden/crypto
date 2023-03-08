@@ -20,8 +20,8 @@ pub use merkle_tree::MerkleTree;
 mod path;
 pub use path::MerklePath;
 
-mod path_set;
-pub use path_set::MerklePathSet;
+mod partial_merkle_tree;
+pub use partial_merkle_tree::PartialMerkleTree;
 
 mod simple_smt;
 pub use simple_smt::SimpleSmt;

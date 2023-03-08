@@ -5,17 +5,17 @@ use super::{BTreeMap, MerkleError, MerklePath, NodeIndex, Rpo256, Vec, Word, ZER
 
 /// A set of Merkle paths.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MerklePathSet {
+pub struct PartialMerkleTree {
     root: Word,
     total_depth: u8,
     paths: BTreeMap<u64, MerklePath>,
 }
 
-impl MerklePathSet {
+impl PartialMerkleTree {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
 
-    /// Returns an empty MerklePathSet.
+    /// Returns an empty PartialMerkleTree.
     pub fn new(depth: u8) -> Self {
         let root = [ZERO; 4];
         let paths = BTreeMap::new();
@@ -118,7 +118,7 @@ impl MerklePathSet {
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
-    /// Adds the specified Merkle path to this [MerklePathSet]. The `index` and `value` parameters
+    /// Adds the specified Merkle path to this [PartialMerkleTree]. The `index` and `value` parameters
     /// specify the leaf node at which the path starts.
     ///
     /// # Errors
@@ -247,7 +247,7 @@ mod tests {
 
         let root_exp = calculate_parent_hash(parent0, 0, parent1);
 
-        let set = super::MerklePathSet::new(3)
+        let set = super::PartialMerkleTree::new(3)
             .with_paths([(0, leaf0, vec![leaf1, parent1].into())])
             .unwrap();
 
@@ -260,7 +260,7 @@ mod tests {
         let hash_6 = int_to_node(6);
         let index = 6_u64;
         let depth = 4_u8;
-        let set = super::MerklePathSet::new(depth)
+        let set = super::PartialMerkleTree::new(depth)
             .with_paths([(index, hash_6, path_6.clone().into())])
             .unwrap();
         let stored_path_6 = set.get_path(NodeIndex::new(depth, index)).unwrap();
@@ -275,7 +275,7 @@ mod tests {
         let hash_6 = int_to_node(6);
         let index = 6_u64;
         let depth = 4_u8;
-        let set = MerklePathSet::new(depth)
+        let set = PartialMerkleTree::new(depth)
             .with_paths([(index, hash_6, path_6.into())])
             .unwrap();
 
@@ -305,7 +305,7 @@ mod tests {
         let index_5 = 5_u64;
         let index_4 = 4_u64;
         let depth = 4_u8;
-        let mut set = MerklePathSet::new(depth)
+        let mut set = PartialMerkleTree::new(depth)
             .with_paths([
                 (index_6, hash_6, path_6.into()),
                 (index_5, hash_5, path_5.into()),

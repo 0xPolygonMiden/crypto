@@ -1,3 +1,7 @@
+## Next
+
+- Renamed MerklePathSet to PartialMerkleTree (#88)
+
 ## 0.1.4 (2023-02-22)
 
 - Re-export winter-crypto Hasher, Digest & ElementHasher (#72)
