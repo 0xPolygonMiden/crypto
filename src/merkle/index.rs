@@ -4,10 +4,21 @@ use crate::bit::BitIterator;
 // NODE INDEX
 // ================================================================================================
 
-/// A Merkle tree address to an arbitrary node.
+/// Address to an arbitrary node in a binary tree using level order form.
 ///
-/// The position is relative to a tree in level order, where for a given depth `d` elements are
-/// numbered from $0..2^d$.
+/// The position is represented by the pair `(depth, pos)`, where for a given depth `d` elements
+/// are numbered from $0..(2^d)-1$. Example:
+///
+/// ```ignore
+/// depth
+/// 0             0
+/// 1         0        1
+/// 2      0    1    2    3
+/// 3     0 1  2 3  4 5  6 7
+/// ```
+///
+/// The root is represented by the pair $(0, 0)$, its left child is $(1, 0)$ and its right child
+/// $(1, 1)$.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct NodeIndex {
     depth: u8,
