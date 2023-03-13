@@ -15,7 +15,7 @@ mod tests;
 pub struct SimpleSmt {
     root: Word,
     depth: u8,
-    store: Store,
+    pub(crate) store: Store,
 }
 
 impl SimpleSmt {
@@ -207,17 +207,17 @@ impl SimpleSmt {
 /// respectively. Hashes for blank subtrees at each layer are stored in `empty_hashes`, beginning
 /// with the root hash of an empty tree, and ending with the zero value of a leaf node.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Store {
-    branches: BTreeMap<NodeIndex, BranchNode>,
+pub(crate) struct Store {
+    pub(crate) branches: BTreeMap<NodeIndex, BranchNode>,
     leaves: BTreeMap<u64, Word>,
-    empty_hashes: Vec<RpoDigest>,
+    pub(crate) empty_hashes: Vec<RpoDigest>,
     depth: u8,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-struct BranchNode {
-    left: RpoDigest,
-    right: RpoDigest,
+pub(crate) struct BranchNode {
+    pub(crate) left: RpoDigest,
+    pub(crate) right: RpoDigest,
 }
 
 impl Store {

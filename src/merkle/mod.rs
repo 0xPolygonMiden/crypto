@@ -1,6 +1,6 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{vec, BTreeMap, Vec},
+    utils::collections::{vec, BTreeMap, BTreeSet, Vec},
     Felt, StarkField, Word, WORD_SIZE, ZERO,
 };
 use core::fmt;
@@ -29,13 +29,18 @@ pub use simple_smt::SimpleSmt;
 mod mmr;
 pub use mmr::{Mmr, MmrPeaks};
 
+mod store;
+pub use store::MerkleStore;
+
 // ERRORS
 // ================================================================================================
 
 #[derive(Clone, Debug)]
 pub enum MerkleError {
+    ConflictingRoots(Vec<Word>),
     DepthTooSmall(u8),
     DepthTooBig(u64),
+    NodeNotInStorage(Word, NodeIndex),
     NumLeavesNotPowerOfTwo(usize),
     InvalidIndex(NodeIndex),
     InvalidDepth { expected: u8, provided: u8 },
@@ -48,6 +53,7 @@ impl fmt::Display for MerkleError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use MerkleError::*;
         match self {
+            ConflictingRoots(roots) => write!(f, "the merkle paths roots do not match {roots:?}"),
             DepthTooSmall(depth) => write!(f, "the provided depth {depth} is too small"),
             DepthTooBig(depth) => write!(f, "the provided depth {depth} is too big"),
             NumLeavesNotPowerOfTwo(leaves) => {
@@ -64,6 +70,7 @@ impl fmt::Display for MerkleError {
             InvalidPath(_path) => write!(f, "the provided path is not valid"),
             InvalidEntriesCount(max, provided) => write!(f, "the provided number of entries is {provided}, but the maximum for the given depth is {max}"),
             NodeNotInSet(index) => write!(f, "the node indexed by {index} is not in the set"),
+            NodeNotInStorage(hash, index) => write!(f, "the node {:?} indexed by {} and depth {} is not in the storage", hash, index.value(), index.depth(),),
         }
     }
 }
