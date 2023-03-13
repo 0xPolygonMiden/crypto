@@ -23,11 +23,12 @@ pub struct Node {
 ///
 /// ```rust
 /// # use miden_crypto::{ZERO, Felt, Word};
-/// # use miden_crypto::merkle::{NodeIndex, MerkleStore, MerkleTree};
+/// # use miden_crypto::merkle::{NodeIndex, MerkleStore, MerkleTree, MerkleError};
 /// # use miden_crypto::hash::rpo::Rpo256;
 /// # const fn int_to_node(value: u64) -> Word {
 /// #     [Felt::new(value), ZERO, ZERO, ZERO]
 /// # }
+/// # fn main() -> Result<(), MerkleError> {
 /// # let A = int_to_node(1);
 /// # let B = int_to_node(2);
 /// # let C = int_to_node(3);
@@ -52,21 +53,23 @@ pub struct Node {
 ///
 /// // every leaf except the last are the same
 /// for i in 0..7 {
-///     let d0 = store.get_node(ROOT0, NodeIndex::new(3, i)).unwrap();
-///     let d1 = store.get_node(ROOT1, NodeIndex::new(3, i)).unwrap();
+///     let d0 = store.get_node(ROOT0, NodeIndex::new_checked(3, i)?).unwrap();
+///     let d1 = store.get_node(ROOT1, NodeIndex::new_checked(3, i)?).unwrap();
 ///     assert_eq!(d0, d1, "Both trees have the same leaf at pos {i}");
 /// }
 ///
 /// // The leafs A-B-C-D are the same for both trees, so are their 2 immediate parents
 /// for i in 0..4 {
-///     let d0 = store.get_path(ROOT0, NodeIndex::new(3, i)).unwrap();
-///     let d1 = store.get_path(ROOT1, NodeIndex::new(3, i)).unwrap();
+///     let d0 = store.get_path(ROOT0, NodeIndex::new_checked(3, i)?).unwrap();
+///     let d1 = store.get_path(ROOT1, NodeIndex::new_checked(3, i)?).unwrap();
 ///     assert_eq!(d0.path[0..2], d1.path[0..2], "Both sub-trees are equal up to two levels");
 /// }
 ///
 /// // Common internal nodes are shared, the two added trees have a total of 30, but the store has
 /// // only 10 new entries, corresponding to the 10 unique internal nodes of these trees.
 /// assert_eq!(store.num_internal_nodes() - 255, 10);
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct MerkleStore {
@@ -321,7 +324,7 @@ impl MerkleStore {
         mut node: Word,
         path: MerklePath,
     ) -> Result<Word, MerkleError> {
-        let mut index = NodeIndex::new(self.nodes.len() as u8, index_value);
+        let mut index = NodeIndex::new_checked(path.len() as u8, index_value)?;
 
         for sibling in path {
             let (left, right) = match index.is_value_odd() {
@@ -361,10 +364,12 @@ impl MerkleStore {
     {
         let paths: Vec<(u64, Word, MerklePath)> = paths.into_iter().collect();
 
-        let roots: BTreeSet<RpoDigest> = paths
+        let roots: Result<BTreeSet<RpoDigest>, MerkleError> = paths
             .iter()
-            .map(|(index, node, path)| path.compute_root(*index, *node).into())
+            .map(|(index, node, path)| path.compute_root(*index, *node).map(|e| e.into()))
             .collect();
+
+        let roots = roots?;
 
         if roots.len() != 1 {
             return Err(MerkleError::ConflictingRoots(
@@ -421,12 +426,12 @@ impl MerkleStore {
         if !self.nodes.contains_key(&root1) {
             Err(MerkleError::NodeNotInStore(
                 root1.into(),
-                NodeIndex::new(0, 0),
+                NodeIndex::new_checked(0, 0)?,
             ))
         } else if !self.nodes.contains_key(&root1) {
             Err(MerkleError::NodeNotInStore(
                 root2.into(),
-                NodeIndex::new(0, 0),
+                NodeIndex::new_checked(0, 0)?,
             ))
         } else {
             let parent: Word = Rpo256::merge(&[root1, root2]).into();

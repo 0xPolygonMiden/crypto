@@ -1,4 +1,5 @@
 use super::{super::Vec, MmrProof, Rpo256, Word};
+use crate::merkle::MerkleError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MmrPeaks {
@@ -35,7 +36,7 @@ impl MmrPeaks {
         Rpo256::hash_elements(&self.peaks.as_slice().concat()).into()
     }
 
-    pub fn verify(&self, value: Word, opening: MmrProof) -> bool {
+    pub fn verify(&self, value: Word, opening: MmrProof) -> Result<bool, MerkleError> {
         let root = &self.peaks[opening.peak_index()];
         opening
             .merkle_path

@@ -33,7 +33,9 @@ impl SimpleSmt {
     pub const MIN_DEPTH: u8 = 1;
 
     /// Maximum supported depth.
-    pub const MAX_DEPTH: u8 = 64;
+    ///
+    /// Depth is 0-indexed, the current range is 0..64
+    pub const MAX_DEPTH: u8 = 63;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -168,7 +170,8 @@ impl SimpleSmt {
     /// Returns an error if:
     /// * The specified key does not exist as a leaf node.
     pub fn get_leaf_path(&self, key: u64) -> Result<MerklePath, MerkleError> {
-        self.get_path(NodeIndex::new(self.depth(), key))
+        let index = NodeIndex::new_checked(self.depth(), key)?;
+        self.get_path(index)
     }
 
     // STATE MUTATORS
@@ -180,7 +183,8 @@ impl SimpleSmt {
     /// Returns an error if the specified key is not a valid leaf index for this tree.
     pub fn update_leaf(&mut self, key: u64, value: Word) -> Result<(), MerkleError> {
         if !self.check_leaf_node_exists(key) {
-            return Err(MerkleError::InvalidIndex(NodeIndex::new(self.depth(), key)));
+            let index = NodeIndex::new_checked(self.depth(), key)?;
+            return Err(MerkleError::InvalidIndex(index));
         }
         self.insert_leaf(key, value)?;
 
@@ -192,7 +196,7 @@ impl SimpleSmt {
         self.insert_leaf_node(key, value);
 
         // TODO consider using a map `index |-> word` instead of `index |-> (word, word)`
-        let mut index = NodeIndex::new(self.depth(), key);
+        let mut index = NodeIndex::new_checked(self.depth(), key)?;
         let mut value = RpoDigest::from(value);
         for _ in 0..index.depth() {
             let is_right = index.is_value_odd();

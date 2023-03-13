@@ -41,6 +41,7 @@ pub enum MerkleError {
     DepthTooSmall(u8),
     DepthTooBig(u64),
     NodeNotInStore(Word, NodeIndex),
+    ValueTooBig { depth: u8, value: u64 },
     NumLeavesNotPowerOfTwo(usize),
     InvalidIndex(NodeIndex),
     InvalidDepth { expected: u8, provided: u8 },
@@ -57,6 +58,7 @@ impl fmt::Display for MerkleError {
             ConflictingRoots(roots) => write!(f, "the merkle paths roots do not match {roots:?}"),
             DepthTooSmall(depth) => write!(f, "the provided depth {depth} is too small"),
             DepthTooBig(depth) => write!(f, "the provided depth {depth} is too big"),
+            ValueTooBig{depth, value} => write!(f, "the provided pos {value} is too big for the depth {depth}"),
             NumLeavesNotPowerOfTwo(leaves) => {
                 write!(f, "the leaves count {leaves} is not a power of 2")
             }

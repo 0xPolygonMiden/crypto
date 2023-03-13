@@ -1,6 +1,6 @@
 use super::{
     super::{int_to_node, MerkleTree, RpoDigest, SimpleSmt},
-    NodeIndex, Rpo256, Vec, Word,
+    MerkleError, NodeIndex, Rpo256, Vec, Word,
 };
 use proptest::prelude::*;
 use rand_utils::prng_array;
@@ -48,7 +48,7 @@ fn empty_digests_are_consistent() {
 }
 
 #[test]
-fn build_sparse_tree() {
+fn build_sparse_tree() -> Result<(), MerkleError> {
     let mut smt = SimpleSmt::new(3).unwrap();
     let mut values = ZERO_VALUES8.to_vec();
 
@@ -61,8 +61,8 @@ fn build_sparse_tree() {
     let mt2 = MerkleTree::new(values.clone()).unwrap();
     assert_eq!(mt2.root(), smt.root());
     assert_eq!(
-        mt2.get_path(NodeIndex::new(3, 6)).unwrap(),
-        smt.get_path(NodeIndex::new(3, 6)).unwrap()
+        mt2.get_path(NodeIndex::new_checked(3, 6)?).unwrap(),
+        smt.get_path(NodeIndex::new_checked(3, 6)?).unwrap()
     );
 
     // insert second value at distinct leaf branch
@@ -74,13 +74,15 @@ fn build_sparse_tree() {
     let mt3 = MerkleTree::new(values).unwrap();
     assert_eq!(mt3.root(), smt.root());
     assert_eq!(
-        mt3.get_path(NodeIndex::new(3, 2)).unwrap(),
-        smt.get_path(NodeIndex::new(3, 2)).unwrap()
+        mt3.get_path(NodeIndex::new_checked(3, 2)?).unwrap(),
+        smt.get_path(NodeIndex::new_checked(3, 2)?).unwrap()
     );
+
+    Ok(())
 }
 
 #[test]
-fn build_full_tree() {
+fn build_full_tree() -> Result<(), MerkleError> {
     let tree = SimpleSmt::new(2)
         .unwrap()
         .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
@@ -88,26 +90,48 @@ fn build_full_tree() {
 
     let (root, node2, node3) = compute_internal_nodes();
     assert_eq!(root, tree.root());
-    assert_eq!(node2, tree.get_node(&NodeIndex::new(1, 0)).unwrap());
-    assert_eq!(node3, tree.get_node(&NodeIndex::new(1, 1)).unwrap());
+    assert_eq!(
+        node2,
+        tree.get_node(&NodeIndex::new_checked(1, 0)?).unwrap()
+    );
+    assert_eq!(
+        node3,
+        tree.get_node(&NodeIndex::new_checked(1, 1)?).unwrap()
+    );
+
+    Ok(())
 }
 
 #[test]
-fn get_values() {
+fn get_values() -> Result<(), MerkleError> {
     let tree = SimpleSmt::new(2)
         .unwrap()
         .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
         .unwrap();
 
     // check depth 2
-    assert_eq!(VALUES4[0], tree.get_node(&NodeIndex::new(2, 0)).unwrap());
-    assert_eq!(VALUES4[1], tree.get_node(&NodeIndex::new(2, 1)).unwrap());
-    assert_eq!(VALUES4[2], tree.get_node(&NodeIndex::new(2, 2)).unwrap());
-    assert_eq!(VALUES4[3], tree.get_node(&NodeIndex::new(2, 3)).unwrap());
+    assert_eq!(
+        VALUES4[0],
+        tree.get_node(&NodeIndex::new_checked(2, 0)?).unwrap()
+    );
+    assert_eq!(
+        VALUES4[1],
+        tree.get_node(&NodeIndex::new_checked(2, 1)?).unwrap()
+    );
+    assert_eq!(
+        VALUES4[2],
+        tree.get_node(&NodeIndex::new_checked(2, 2)?).unwrap()
+    );
+    assert_eq!(
+        VALUES4[3],
+        tree.get_node(&NodeIndex::new_checked(2, 3)?).unwrap()
+    );
+
+    Ok(())
 }
 
 #[test]
-fn get_path() {
+fn get_path() -> Result<(), MerkleError> {
     let tree = SimpleSmt::new(2)
         .unwrap()
         .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
@@ -118,24 +142,32 @@ fn get_path() {
     // check depth 2
     assert_eq!(
         vec![VALUES4[1], node3],
-        *tree.get_path(NodeIndex::new(2, 0)).unwrap()
+        *tree.get_path(NodeIndex::new_checked(2, 0)?).unwrap()
     );
     assert_eq!(
         vec![VALUES4[0], node3],
-        *tree.get_path(NodeIndex::new(2, 1)).unwrap()
+        *tree.get_path(NodeIndex::new_checked(2, 1)?).unwrap()
     );
     assert_eq!(
         vec![VALUES4[3], node2],
-        *tree.get_path(NodeIndex::new(2, 2)).unwrap()
+        *tree.get_path(NodeIndex::new_checked(2, 2)?).unwrap()
     );
     assert_eq!(
         vec![VALUES4[2], node2],
-        *tree.get_path(NodeIndex::new(2, 3)).unwrap()
+        *tree.get_path(NodeIndex::new_checked(2, 3)?).unwrap()
     );
 
     // check depth 1
-    assert_eq!(vec![node3], *tree.get_path(NodeIndex::new(1, 0)).unwrap());
-    assert_eq!(vec![node2], *tree.get_path(NodeIndex::new(1, 1)).unwrap());
+    assert_eq!(
+        vec![node3],
+        *tree.get_path(NodeIndex::new_checked(1, 0)?).unwrap()
+    );
+    assert_eq!(
+        vec![node2],
+        *tree.get_path(NodeIndex::new_checked(1, 1)?).unwrap()
+    );
+
+    Ok(())
 }
 
 #[test]
@@ -172,7 +204,7 @@ fn update_leaf() {
 }
 
 #[test]
-fn small_tree_opening_is_consistent() {
+fn small_tree_opening_is_consistent() -> Result<(), MerkleError> {
     //        ____k____
     //       /         \
     //     _i_         _j_
@@ -218,10 +250,12 @@ fn small_tree_opening_is_consistent() {
     ];
 
     for (depth, key, path) in cases {
-        let opening = tree.get_path(NodeIndex::new(depth, key)).unwrap();
+        let opening = tree.get_path(NodeIndex::new_checked(depth, key)?).unwrap();
 
         assert_eq!(path, *opening);
     }
+
+    Ok(())
 }
 
 proptest! {
@@ -242,7 +276,7 @@ proptest! {
         // traverse to root, fetching all paths
         for d in 1..depth {
             let k = key >> (depth - d);
-            tree.get_path(NodeIndex::new(d, k)).unwrap();
+            tree.get_path(NodeIndex::new_checked(d, k).unwrap()).unwrap();
         }
     }
 

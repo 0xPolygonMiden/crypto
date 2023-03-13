@@ -90,7 +90,7 @@ impl MerklePathSet {
     /// * The specified index is not valid for the depth of the structure.
     /// * Leaf with the requested path does not exist in the set.
     pub fn get_leaf(&self, index: u64) -> Result<Word, MerkleError> {
-        self.get_node(NodeIndex::new(self.depth(), index))
+        self.get_node(NodeIndex::new_checked(self.depth(), index)?)
     }
 
     /// Returns a Merkle path to the node at the specified index. The node itself is
@@ -166,7 +166,7 @@ impl MerklePathSet {
         mut path: MerklePath,
     ) -> Result<(), MerkleError> {
         let depth = path.len() as u8;
-        let mut index = NodeIndex::new(depth, index_value);
+        let mut index = NodeIndex::new_checked(depth, index_value)?;
         if index.depth() != self.total_depth {
             return Err(MerkleError::InvalidDepth {
                 expected: self.total_depth,
@@ -206,7 +206,7 @@ impl MerklePathSet {
     /// * Requested node does not exist in the set.
     pub fn update_leaf(&mut self, base_index_value: u64, value: Word) -> Result<(), MerkleError> {
         let depth = self.depth();
-        let mut index = NodeIndex::new(depth, base_index_value);
+        let mut index = NodeIndex::new_checked(depth, base_index_value)?;
         if !index.is_valid() {
             return Err(MerkleError::InvalidIndex(index));
         }
@@ -285,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn add_and_get_path() {
+    fn add_and_get_path() -> Result<(), MerkleError> {
         let path_6 = vec![int_to_node(7), int_to_node(45), int_to_node(123)];
         let hash_6 = int_to_node(6);
         let index = 6_u64;
@@ -293,14 +293,16 @@ mod tests {
         let set = super::MerklePathSet::new(depth)
             .with_paths([(index, hash_6, path_6.clone().into())])
             .unwrap();
-        let stored_path_6 = set.get_path(NodeIndex::new(depth, index)).unwrap();
+        let stored_path_6 = set.get_path(NodeIndex::new_checked(depth, index)?).unwrap();
 
         assert_eq!(path_6, *stored_path_6);
-        assert!(set.get_path(NodeIndex::new(depth, 15_u64)).is_err())
+        assert!(NodeIndex::new_checked(depth, 15_u64).is_err());
+
+        Ok(())
     }
 
     #[test]
-    fn get_node() {
+    fn get_node() -> Result<(), MerkleError> {
         let path_6 = vec![int_to_node(7), int_to_node(45), int_to_node(123)];
         let hash_6 = int_to_node(6);
         let index = 6_u64;
@@ -311,13 +313,15 @@ mod tests {
 
         assert_eq!(
             int_to_node(6u64),
-            set.get_node(NodeIndex::new(depth, index)).unwrap()
+            set.get_node(NodeIndex::new_checked(depth, index)?).unwrap()
         );
-        assert!(set.get_node(NodeIndex::new(depth, 15_u64)).is_err());
+        assert!(NodeIndex::new_checked(depth, 15_u64).is_err());
+
+        Ok(())
     }
 
     #[test]
-    fn update_leaf() {
+    fn update_leaf() -> Result<(), MerkleError> {
         let hash_4 = int_to_node(4);
         let hash_5 = int_to_node(5);
         let hash_6 = int_to_node(6);
@@ -347,16 +351,24 @@ mod tests {
         let new_hash_5 = int_to_node(55);
 
         set.update_leaf(index_6, new_hash_6).unwrap();
-        let new_path_4 = set.get_path(NodeIndex::new(depth, index_4)).unwrap();
+        let new_path_4 = set
+            .get_path(NodeIndex::new_checked(depth, index_4)?)
+            .unwrap();
         let new_hash_67 = calculate_parent_hash(new_hash_6, 14_u64, hash_7);
         assert_eq!(new_hash_67, new_path_4[1]);
 
         set.update_leaf(index_5, new_hash_5).unwrap();
-        let new_path_4 = set.get_path(NodeIndex::new(depth, index_4)).unwrap();
-        let new_path_6 = set.get_path(NodeIndex::new(depth, index_6)).unwrap();
+        let new_path_4 = set
+            .get_path(NodeIndex::new_checked(depth, index_4)?)
+            .unwrap();
+        let new_path_6 = set
+            .get_path(NodeIndex::new_checked(depth, index_6)?)
+            .unwrap();
         let new_hash_45 = calculate_parent_hash(new_hash_5, 13_u64, hash_4);
         assert_eq!(new_hash_45, new_path_6[1]);
         assert_eq!(new_hash_5, new_path_4[0]);
+
+        Ok(())
     }
 
     #[test]

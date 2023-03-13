@@ -30,20 +30,30 @@ impl NodeIndex {
     // --------------------------------------------------------------------------------------------
 
     /// Creates a new node index.
-    pub const fn new(depth: u8, value: u64) -> Self {
-        Self { depth, value }
+    ///
+    /// # Errors
+    ///
+    /// Will error if `value` is larger than $2^depth$.
+    pub const fn new_checked(depth: u8, value: u64) -> Result<Self, MerkleError> {
+        if depth > 64 || (depth < 64 && 2u64.pow(depth as u32) <= value) {
+            return Err(MerkleError::ValueTooBig { depth, value });
+        };
+
+        Ok(Self { depth, value })
     }
 
     /// Creates a node index from a pair of field elements representing the depth and value.
     ///
     /// # Errors
     ///
-    /// Will error if the `u64` representation of the depth doesn't fit a `u8`.
+    /// Error when:
+    /// - `depth` doesn't fit a `u8`.
+    /// - `value` is larger than $2^depth$.
+    ///
     pub fn from_elements(depth: &Felt, value: &Felt) -> Result<Self, MerkleError> {
         let depth = depth.as_int();
         let depth = u8::try_from(depth).map_err(|_| MerkleError::DepthTooBig(depth))?;
-        let value = value.as_int();
-        Ok(Self::new(depth, value))
+        NodeIndex::new_checked(depth, value.as_int())
     }
 
     /// Creates a new node index pointing to the root of the tree.
@@ -138,14 +148,43 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
+    #[test]
+    fn test_node_index_value_too_high() {
+        assert_eq!(
+            NodeIndex::new_checked(0, 0).unwrap(),
+            NodeIndex { depth: 0, value: 0 }
+        );
+        match NodeIndex::new_checked(0, 1) {
+            Err(MerkleError::ValueTooBig { depth, value }) => {
+                assert_eq!(depth, 0);
+                assert_eq!(value, 1);
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn test_node_index_can_represent_depth_64() {
+        assert!(NodeIndex::new_checked(64, u64::MAX).is_ok());
+    }
+
+    prop_compose! {
+        fn node_index()(value in 0..2u64.pow(u64::BITS - 1)) -> NodeIndex {
+            // unwrap never panics because the range of depth is 0..u64::BITS
+            let mut depth = value.ilog2() as u8;
+            if value > (1 << depth) { // round up
+                depth += 1;
+            }
+            NodeIndex::new_checked(depth, value.into()).unwrap()
+        }
+    }
+
     proptest! {
         #[test]
         fn arbitrary_index_wont_panic_on_move_up(
-            depth in prop::num::u8::ANY,
-            value in prop::num::u64::ANY,
+            mut index in node_index(),
             count in prop::num::u8::ANY,
         ) {
-            let mut index = NodeIndex::new(depth, value);
             for _ in 0..count {
                 index.move_up();
             }

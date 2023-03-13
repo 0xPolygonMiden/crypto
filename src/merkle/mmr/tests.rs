@@ -212,7 +212,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 6);
     assert!(
-        mmr.accumulator().verify(LEAVES[6], opening),
+        mmr.accumulator().verify(LEAVES[6], opening).unwrap(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -225,7 +225,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 5);
     assert!(
-        mmr.accumulator().verify(LEAVES[5], opening),
+        mmr.accumulator().verify(LEAVES[5], opening).unwrap(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -237,7 +237,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 4);
     assert!(
-        mmr.accumulator().verify(LEAVES[4], opening),
+        mmr.accumulator().verify(LEAVES[4], opening).unwrap(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -250,7 +250,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 3);
     assert!(
-        mmr.accumulator().verify(LEAVES[3], opening),
+        mmr.accumulator().verify(LEAVES[3], opening).unwrap(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -262,7 +262,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 2);
     assert!(
-        mmr.accumulator().verify(LEAVES[2], opening),
+        mmr.accumulator().verify(LEAVES[2], opening).unwrap(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -274,7 +274,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 1);
     assert!(
-        mmr.accumulator().verify(LEAVES[1], opening),
+        mmr.accumulator().verify(LEAVES[1], opening).unwrap(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -286,7 +286,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 0);
     assert!(
-        mmr.accumulator().verify(LEAVES[0], opening),
+        mmr.accumulator().verify(LEAVES[0], opening).unwrap(),
         "MmrProof should be valid for the current accumulator."
     );
 }

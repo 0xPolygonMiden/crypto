@@ -125,7 +125,7 @@ impl MerkleTree {
     /// Returns an error if the specified index value is not a valid leaf value for this tree.
     pub fn update_leaf<'a>(&'a mut self, index_value: u64, value: Word) -> Result<(), MerkleError> {
         let depth = self.depth();
-        let mut index = NodeIndex::new(depth, index_value);
+        let mut index = NodeIndex::new_checked(depth, index_value)?;
         if !index.is_valid() {
             return Err(MerkleError::InvalidIndex(index));
         }
@@ -169,7 +169,7 @@ pub fn tree_to_text(tree: &MerkleTree) -> Result<String, fmt::Error> {
     for d in 1..=tree.depth() {
         let entries = 2u64.pow(d.into());
         for i in 0..entries {
-            let index = NodeIndex::new(d, i);
+            let index = NodeIndex::new_checked(d, i).expect("Only valid indexes must be created");
 
             let node = tree
                 .get_node(index)
@@ -254,24 +254,26 @@ mod tests {
     }
 
     #[test]
-    fn get_leaf() {
+    fn get_leaf() -> Result<(), MerkleError> {
         let tree = super::MerkleTree::new(LEAVES4.to_vec()).unwrap();
 
         // check depth 2
-        assert_eq!(LEAVES4[0], tree.get_node(NodeIndex::new(2, 0)).unwrap());
-        assert_eq!(LEAVES4[1], tree.get_node(NodeIndex::new(2, 1)).unwrap());
-        assert_eq!(LEAVES4[2], tree.get_node(NodeIndex::new(2, 2)).unwrap());
-        assert_eq!(LEAVES4[3], tree.get_node(NodeIndex::new(2, 3)).unwrap());
+        assert_eq!(LEAVES4[0], tree.get_node(NodeIndex::new_checked(2, 0)?)?);
+        assert_eq!(LEAVES4[1], tree.get_node(NodeIndex::new_checked(2, 1)?)?);
+        assert_eq!(LEAVES4[2], tree.get_node(NodeIndex::new_checked(2, 2)?)?);
+        assert_eq!(LEAVES4[3], tree.get_node(NodeIndex::new_checked(2, 3)?)?);
 
         // check depth 1
         let (_, node2, node3) = compute_internal_nodes();
 
-        assert_eq!(node2, tree.get_node(NodeIndex::new(1, 0)).unwrap());
-        assert_eq!(node3, tree.get_node(NodeIndex::new(1, 1)).unwrap());
+        assert_eq!(node2, tree.get_node(NodeIndex::new_checked(1, 0)?).unwrap());
+        assert_eq!(node3, tree.get_node(NodeIndex::new_checked(1, 1)?).unwrap());
+
+        Ok(())
     }
 
     #[test]
-    fn get_path() {
+    fn get_path() -> Result<(), MerkleError> {
         let tree = super::MerkleTree::new(LEAVES4.to_vec()).unwrap();
 
         let (_, node2, node3) = compute_internal_nodes();
@@ -279,24 +281,26 @@ mod tests {
         // check depth 2
         assert_eq!(
             vec![LEAVES4[1], node3],
-            *tree.get_path(NodeIndex::new(2, 0)).unwrap()
+            *tree.get_path(NodeIndex::new_checked(2, 0)?)?
         );
         assert_eq!(
             vec![LEAVES4[0], node3],
-            *tree.get_path(NodeIndex::new(2, 1)).unwrap()
+            *tree.get_path(NodeIndex::new_checked(2, 1)?)?
         );
         assert_eq!(
             vec![LEAVES4[3], node2],
-            *tree.get_path(NodeIndex::new(2, 2)).unwrap()
+            *tree.get_path(NodeIndex::new_checked(2, 2)?)?
         );
         assert_eq!(
             vec![LEAVES4[2], node2],
-            *tree.get_path(NodeIndex::new(2, 3)).unwrap()
+            *tree.get_path(NodeIndex::new_checked(2, 3)?)?
         );
 
         // check depth 1
-        assert_eq!(vec![node3], *tree.get_path(NodeIndex::new(1, 0)).unwrap());
-        assert_eq!(vec![node2], *tree.get_path(NodeIndex::new(1, 1)).unwrap());
+        assert_eq!(vec![node3], *tree.get_path(NodeIndex::new_checked(1, 0)?)?);
+        assert_eq!(vec![node2], *tree.get_path(NodeIndex::new_checked(1, 1)?)?);
+
+        Ok(())
     }
 
     #[test]
