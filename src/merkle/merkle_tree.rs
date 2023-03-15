@@ -9,7 +9,7 @@ use winter_math::log2;
 /// A fully-balanced binary Merkle tree (i.e., a tree where the number of leaves is a power of two).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerkleTree {
-    nodes: Vec<Word>,
+    pub(crate) nodes: Vec<Word>,
 }
 
 impl MerkleTree {
@@ -107,6 +107,8 @@ impl MerkleTree {
             path.push(self.nodes[sibling]);
             index.move_up();
         }
+
+        debug_assert!(index.is_root(), "the path must include the root");
 
         Ok(path.into())
     }
