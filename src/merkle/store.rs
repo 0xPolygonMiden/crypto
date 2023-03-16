@@ -8,12 +8,13 @@ use super::{
     RpoDigest, SimpleSmt, Vec, Word,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct Node {
     left: RpoDigest,
     right: RpoDigest,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct MerkleStore {
     nodes: BTreeMap<RpoDigest, Node>,
 }
@@ -30,21 +31,58 @@ impl MerkleStore {
 
     /// Creates an empty `MerkleStore` instance.
     pub fn new() -> MerkleStore {
-        let mut nodes = BTreeMap::new();
-
         // pre-populate the store with the empty hashes
         let subtrees = EmptySubtreeRoots::empty_hashes(64);
-        for (child, parent) in subtrees.iter().zip(subtrees.iter().skip(1)) {
-            nodes.insert(
-                *parent,
-                Node {
-                    left: *child,
-                    right: *child,
-                },
-            );
-        }
+        let nodes = subtrees
+            .iter()
+            .copied()
+            .zip(subtrees.iter().skip(1).copied())
+            .map(|(child, parent)| {
+                (
+                    parent,
+                    Node {
+                        left: child,
+                        right: child,
+                    },
+                )
+            })
+            .collect();
+
         MerkleStore { nodes }
     }
+
+    /// Appends the provided merkle tree represented by its `leaves` to the set.
+    pub fn with_merkle_tree<I>(mut self, leaves: I) -> Result<Self, MerkleError>
+    where
+        I: IntoIterator<Item = Word>,
+    {
+        self.add_merkle_tree(leaves)?;
+        Ok(self)
+    }
+
+    /// Appends the provided sparse merkle tree represented by its `entries` to the set.
+    pub fn with_sparse_merkle_tree<R, I>(mut self, entries: R) -> Result<Self, MerkleError>
+    where
+        R: IntoIterator<IntoIter = I>,
+        I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
+    {
+        self.add_sparse_merkle_tree(entries)?;
+        Ok(self)
+    }
+
+    /// Appends the provided merkle path set.
+    pub fn with_merkle_path(
+        mut self,
+        index_value: u64,
+        node: Word,
+        path: MerklePath,
+    ) -> Result<Self, MerkleError> {
+        self.add_merkle_path(index_value, node, path)?;
+        Ok(self)
+    }
+
+    // STATE MUTATORS
+    // --------------------------------------------------------------------------------------------
 
     /// Adds all the nodes of a Merkle tree represented by `leaves`.
     ///
@@ -56,7 +94,11 @@ impl MerkleStore {
     /// This method may return the following errors:
     /// - `DepthTooSmall` if leaves is empty or contains only 1 element
     /// - `NumLeavesNotPowerOfTwo` if the number of leaves is not a power-of-two
-    pub fn add_merkle_tree(&mut self, leaves: Vec<Word>) -> Result<Word, MerkleError> {
+    pub fn add_merkle_tree<I>(&mut self, leaves: I) -> Result<Word, MerkleError>
+    where
+        I: IntoIterator<Item = Word>,
+    {
+        let leaves: Vec<_> = leaves.into_iter().collect();
         let layers = leaves.len().ilog2();
         let tree = MerkleTree::new(leaves)?;
 
