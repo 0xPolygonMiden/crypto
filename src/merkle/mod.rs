@@ -35,7 +35,7 @@ pub use store::MerkleStore;
 // ERRORS
 // ================================================================================================
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MerkleError {
     ConflictingRoots(Vec<Word>),
     DepthTooSmall(u8),

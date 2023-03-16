@@ -19,7 +19,7 @@ impl BitIterator {
         let mask = bitmask(n);
         let ones = self.mask.trailing_ones();
         let mask_position = ones;
-        self.mask ^= mask << mask_position;
+        self.mask ^= mask.checked_shl(mask_position).unwrap_or(0);
         self
     }
 
@@ -31,7 +31,7 @@ impl BitIterator {
         let mask = bitmask(n);
         let ones = self.mask.leading_ones();
         let mask_position = u64::BITS - ones - n;
-        self.mask ^= mask << mask_position;
+        self.mask ^= mask.checked_shl(mask_position).unwrap_or(0);
         self
     }
 }

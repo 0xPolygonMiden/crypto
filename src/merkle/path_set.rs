@@ -57,6 +57,14 @@ impl MerklePathSet {
         self.total_depth
     }
 
+    /// Returns all the leaf indexes of this path set.
+    pub fn indexes(&self) -> impl Iterator<Item = NodeIndex> + '_ {
+        self.paths
+            .keys()
+            .copied()
+            .map(|index| NodeIndex::new(self.total_depth, index))
+    }
+
     /// Returns a node at the specified index.
     ///
     /// # Errors
