@@ -235,6 +235,12 @@ impl MerkleStore {
     /// This will return `NodeNotInStorage` if the element is not present in the store.
     pub fn get_node(&self, root: Word, index: NodeIndex) -> Result<Word, MerkleError> {
         let mut hash: RpoDigest = root.into();
+
+        // Check the root is in the storage when called with `NodeIndex::root()`
+        self.nodes
+            .get(&hash)
+            .ok_or(MerkleError::NodeNotInStorage(hash.into(), index))?;
+
         for bit in index.bit_iterator().rev() {
             let node = self
                 .nodes
@@ -383,18 +389,6 @@ mod test {
             .expect("node 3 must be in tree");
 
         Ok(())
-    }
-
-    #[test]
-    fn test_get_node_returns_self_for_root() {
-        let store = MerkleStore::default();
-        let root_idx = NodeIndex::new(0, 0);
-
-        // the root does not need any lookups in the storage itself, so the value is just returned
-        assert_eq!(store.get_node(LEAVES4[0], root_idx).unwrap(), LEAVES4[0]);
-        assert_eq!(store.get_node(LEAVES4[1], root_idx).unwrap(), LEAVES4[1]);
-        assert_eq!(store.get_node(LEAVES4[2], root_idx).unwrap(), LEAVES4[2]);
-        assert_eq!(store.get_node(LEAVES4[3], root_idx).unwrap(), LEAVES4[3]);
     }
 
     #[test]
