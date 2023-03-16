@@ -8,6 +8,9 @@ use super::{
     NodeIndex, Rpo256, RpoDigest, SimpleSmt, Vec, Word,
 };
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct Node {
     left: RpoDigest,
@@ -88,42 +91,67 @@ impl MerkleStore {
     ///
     /// # Errors
     ///
-    /// This will return `NodeNotInStorage` if the element is not present in the store.
+    /// This method can return the following errors:
+    /// - `RootNotInStore` if the `root` is not present in the storage.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
     pub fn get_node(&self, root: Word, index: NodeIndex) -> Result<Word, MerkleError> {
         let mut hash: RpoDigest = root.into();
 
-        // Check the root is in the storage when called with `NodeIndex::root()`
+        // corner case: check the root is in the storage when called with index `NodeIndex::root()`
         self.nodes
             .get(&hash)
-            .ok_or(MerkleError::NodeNotInStorage(hash.into(), index))?;
+            .ok_or(MerkleError::RootNotInStore(hash.into()))?;
 
         for bit in index.bit_iterator().rev() {
             let node = self
                 .nodes
                 .get(&hash)
-                .ok_or(MerkleError::NodeNotInStorage(hash.into(), index))?;
+                .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
             hash = if bit { node.right } else { node.left }
         }
 
         Ok(hash.into())
     }
 
-    /// Returns the path for the node at `index` rooted on the tree `root`.
+    /// Returns the node at the specified `index` and its opening to the `root`.
     ///
     /// The path starts at the sibling of the target leaf.
     ///
     /// # Errors
     ///
-    /// This will return `NodeNotInStorage` if the element is not present in the store.
-    pub fn get_path(&self, root: Word, mut index: NodeIndex) -> Result<MerklePath, MerkleError> {
-        let mut path = Vec::with_capacity(index.depth().saturating_sub(1) as usize);
-        while index.depth() > 0 {
-            let sibling = index.sibling();
-            index.move_up();
-            let node = self.get_node(root, sibling)?;
-            path.push(node);
+    /// This method can return the following errors:
+    /// - `RootNotInStore` if the `root` is not present in the storage.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
+    pub fn get_path(
+        &self,
+        root: Word,
+        index: NodeIndex,
+    ) -> Result<(Word, MerklePath), MerkleError> {
+        let mut hash: RpoDigest = root.into();
+        let mut path = Vec::with_capacity(index.depth().into());
+
+        // corner case: check the root is in the storage when called with index `NodeIndex::root()`
+        self.nodes
+            .get(&hash)
+            .ok_or(MerkleError::RootNotInStore(hash.into()))?;
+
+        for bit in index.bit_iterator().rev() {
+            let node = self
+                .nodes
+                .get(&hash)
+                .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
+
+            hash = if bit {
+                path.push(node.left.into());
+                node.right
+            } else {
+                path.push(node.right.into());
+                node.left
+            }
         }
-        Ok(MerklePath::new(path))
+
+        path.reverse();
+        Ok((hash.into(), MerklePath::new(path)))
     }
 
     // STATE MUTATORS
@@ -269,8 +297,6 @@ impl MerkleStore {
             self.add_merkle_path(index_value, node, path)?;
         }
 
-        // Returns the parent of the last paths (assumes all paths have the same parent) or empty
-        // The length of unique_roots is checked above, so this wont panic
         Ok(roots.iter().next().unwrap().into())
     }
 
@@ -284,16 +310,22 @@ impl MerkleStore {
         })
     }
 
+    /// Sets a node to `value`.
+    ///
+    /// # Errors
+    ///
+    /// This method can return the following errors:
+    /// - `RootNotInStore` if the `root` is not present in the storage.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
     pub fn set_node(
         &mut self,
         root: Word,
         index: NodeIndex,
         value: Word,
     ) -> Result<Word, MerkleError> {
-        let current_node = self.get_node(root, index)?;
-        let path = self.get_path(root, index)?;
-        if current_node != value {
-            self.add_merkle_path(index.value(), value, path)
+        let result = self.get_path(root, index)?;
+        if result.0 != value {
+            self.add_merkle_path(index.value(), value, result.1)
         } else {
             Ok(root)
         }
@@ -304,12 +336,12 @@ impl MerkleStore {
         let root2: RpoDigest = root2.into();
 
         if !self.nodes.contains_key(&root1) {
-            Err(MerkleError::NodeNotInStorage(
+            Err(MerkleError::NodeNotInStore(
                 root1.into(),
                 NodeIndex::new(0, 0),
             ))
         } else if !self.nodes.contains_key(&root1) {
-            Err(MerkleError::NodeNotInStorage(
+            Err(MerkleError::NodeNotInStore(
                 root2.into(),
                 NodeIndex::new(0, 0),
             ))
@@ -325,224 +357,5 @@ impl MerkleStore {
 
             Ok(parent)
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::{
-        hash::rpo::Rpo256,
-        merkle::{int_to_node, MerklePathSet},
-        Felt, Word,
-    };
-
-    const KEYS4: [u64; 4] = [0, 1, 2, 3];
-    const LEAVES4: [Word; 4] = [
-        int_to_node(1),
-        int_to_node(2),
-        int_to_node(3),
-        int_to_node(4),
-    ];
-
-    #[test]
-    fn test_add_merkle_tree() -> Result<(), MerkleError> {
-        let mut store = MerkleStore::default();
-
-        let mtree = MerkleTree::new(LEAVES4.to_vec())?;
-        store.add_merkle_tree(LEAVES4.to_vec())?;
-
-        assert!(
-            store
-                .get_node(mtree.root(), NodeIndex::new(mtree.depth(), 0))
-                .is_ok(),
-            "node 0 must be in the tree"
-        );
-        assert!(
-            store
-                .get_node(mtree.root(), NodeIndex::new(mtree.depth(), 1))
-                .is_ok(),
-            "node 1 must be in the tree"
-        );
-        assert!(
-            store
-                .get_node(mtree.root(), NodeIndex::new(mtree.depth(), 2))
-                .is_ok(),
-            "node 2 must be in the tree"
-        );
-        assert!(
-            store
-                .get_node(mtree.root(), NodeIndex::new(mtree.depth(), 3))
-                .is_ok(),
-            "node 3 must be in the tree"
-        );
-
-        store
-            .get_node(mtree.root(), NodeIndex::new(mtree.depth(), 0))
-            .expect("node 0 must be in tree");
-        store
-            .get_node(mtree.root(), NodeIndex::new(mtree.depth(), 1))
-            .expect("node 1 must be in tree");
-        store
-            .get_node(mtree.root(), NodeIndex::new(mtree.depth(), 2))
-            .expect("node 2 must be in tree");
-        store
-            .get_node(mtree.root(), NodeIndex::new(mtree.depth(), 3))
-            .expect("node 3 must be in tree");
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_get_invalid_node() {
-        let mut store = MerkleStore::default();
-        let mtree = MerkleTree::new(LEAVES4.to_vec()).expect("creating a merkle tree must work");
-        store
-            .add_merkle_tree(LEAVES4.to_vec())
-            .expect("adding a merkle tree to the store must work");
-        let _ = store.get_node(mtree.root(), NodeIndex::new(mtree.depth(), 3));
-    }
-
-    #[test]
-    fn test_add_sparse_merkle_tree_one_level() -> Result<(), MerkleError> {
-        let mut store = MerkleStore::default();
-        let keys2: [u64; 2] = [0, 1];
-        let leaves2: [Word; 2] = [int_to_node(1), int_to_node(2)];
-        store.add_sparse_merkle_tree(keys2.into_iter().zip(leaves2.into_iter()))?;
-        let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
-            .unwrap()
-            .with_leaves(keys2.into_iter().zip(leaves2.into_iter()))
-            .unwrap();
-
-        let idx = NodeIndex::new(1, 0);
-        assert_eq!(
-            store.get_node(smt.root(), idx).unwrap(),
-            smt.get_node(&idx).unwrap()
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_add_sparse_merkle_tree() -> Result<(), MerkleError> {
-        let mut store = MerkleStore::default();
-        store.add_sparse_merkle_tree(KEYS4.into_iter().zip(LEAVES4.into_iter()))?;
-
-        let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
-            .unwrap()
-            .with_leaves(KEYS4.into_iter().zip(LEAVES4.into_iter()))
-            .unwrap();
-
-        let idx = NodeIndex::new(1, 0);
-        assert_eq!(
-            store.get_node(smt.root(), idx).unwrap(),
-            smt.get_node(&idx).unwrap()
-        );
-        let idx = NodeIndex::new(1, 1);
-        assert_eq!(
-            store.get_node(smt.root(), idx).unwrap(),
-            smt.get_node(&idx).unwrap()
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_add_merkle_paths() -> Result<(), MerkleError> {
-        let mut store = MerkleStore::default();
-        let mtree = MerkleTree::new(LEAVES4.to_vec())?;
-
-        let i0 = 0;
-        let p0 = mtree.get_path(NodeIndex::new(2, i0)).unwrap();
-
-        let i1 = 1;
-        let p1 = mtree.get_path(NodeIndex::new(2, i1)).unwrap();
-
-        let i2 = 2;
-        let p2 = mtree.get_path(NodeIndex::new(2, i2)).unwrap();
-
-        let i3 = 3;
-        let p3 = mtree.get_path(NodeIndex::new(2, i3)).unwrap();
-
-        let paths = [
-            (i0, LEAVES4[i0 as usize], p0),
-            (i1, LEAVES4[i1 as usize], p1),
-            (i2, LEAVES4[i2 as usize], p2),
-            (i3, LEAVES4[i3 as usize], p3),
-        ];
-
-        store
-            .add_merkle_paths(paths.clone())
-            .expect("the valid paths must work");
-
-        let set = MerklePathSet::new(3).with_paths(paths).unwrap();
-
-        assert_eq!(
-            set.get_node(NodeIndex::new(3, 0)).unwrap(),
-            store.get_node(set.root(), NodeIndex::new(2, 0b00)).unwrap(),
-        );
-        assert_eq!(
-            set.get_node(NodeIndex::new(3, 1)).unwrap(),
-            store.get_node(set.root(), NodeIndex::new(2, 0b01)).unwrap(),
-        );
-        assert_eq!(
-            set.get_node(NodeIndex::new(3, 2)).unwrap(),
-            store.get_node(set.root(), NodeIndex::new(2, 0b10)).unwrap(),
-        );
-        assert_eq!(
-            set.get_node(NodeIndex::new(3, 3)).unwrap(),
-            store.get_node(set.root(), NodeIndex::new(2, 0b11)).unwrap(),
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn wont_open_to_different_depth_root() {
-        let empty = EmptySubtreeRoots::empty_hashes(64);
-        let a = [Felt::new(1); 4];
-        let b = [Felt::new(2); 4];
-
-        // compute the root for a different depth
-        let mut root = Rpo256::merge(&[a.into(), b.into()]);
-        for depth in (1..=63).rev() {
-            root = Rpo256::merge(&[root, empty[depth]]);
-        }
-        let root = Word::from(root);
-
-        let store = MerkleStore::default().with_merkle_tree([a, b]).unwrap();
-        let index = NodeIndex::root();
-        let err = store.get_node(root, index).err().unwrap();
-        assert_eq!(err, MerkleError::NodeNotInStorage(root, index));
-    }
-
-    #[test]
-    fn store_path_opens_from_leaf() {
-        let a = [Felt::new(1); 4];
-        let b = [Felt::new(2); 4];
-        let c = [Felt::new(3); 4];
-        let d = [Felt::new(4); 4];
-        let e = [Felt::new(5); 4];
-        let f = [Felt::new(6); 4];
-        let g = [Felt::new(7); 4];
-        let h = [Felt::new(8); 4];
-
-        let i = Rpo256::merge(&[a.into(), b.into()]);
-        let j = Rpo256::merge(&[c.into(), d.into()]);
-        let k = Rpo256::merge(&[e.into(), f.into()]);
-        let l = Rpo256::merge(&[g.into(), h.into()]);
-
-        let m = Rpo256::merge(&[i.into(), j.into()]);
-        let n = Rpo256::merge(&[k.into(), l.into()]);
-
-        let root = Rpo256::merge(&[m.into(), n.into()]);
-
-        let store = MerkleStore::default()
-            .with_merkle_tree([a, b, c, d, e, f, g, h])
-            .unwrap();
-        let path = store.get_path(root.into(), NodeIndex::new(3, 1)).unwrap();
-
-        let expected = MerklePath::new([a.into(), j.into(), n.into()].to_vec());
-        assert_eq!(path, expected);
     }
 }
