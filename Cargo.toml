@@ -20,6 +20,10 @@ harness = false
 name = "smt"
 harness = false
 
+[[bench]]
+name = "store"
+harness = false
+
 [features]
 default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
 std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
