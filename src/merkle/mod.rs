@@ -71,8 +71,8 @@ impl fmt::Display for MerkleError {
             InvalidPath(_path) => write!(f, "the provided path is not valid"),
             InvalidEntriesCount(max, provided) => write!(f, "the provided number of entries is {provided}, but the maximum for the given depth is {max}"),
             NodeNotInSet(index) => write!(f, "the node indexed by {index} is not in the set"),
-            NodeNotInStore(hash, index) => write!(f, "the node {:?} indexed by {} and depth {} is not in the storage", hash, index.value(), index.depth(),),
-            RootNotInStore(root) => write!(f, "the root {:?} is not in the storage", root),
+            NodeNotInStore(hash, index) => write!(f, "the node {:?} indexed by {} and depth {} is not in the store", hash, index.value(), index.depth(),),
+            RootNotInStore(root) => write!(f, "the root {:?} is not in the store", root),
         }
     }
 }

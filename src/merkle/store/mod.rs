@@ -92,12 +92,12 @@ impl MerkleStore {
     /// # Errors
     ///
     /// This method can return the following errors:
-    /// - `RootNotInStore` if the `root` is not present in the storage.
+    /// - `RootNotInStore` if the `root` is not present in the store.
     /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
     pub fn get_node(&self, root: Word, index: NodeIndex) -> Result<Word, MerkleError> {
         let mut hash: RpoDigest = root.into();
 
-        // corner case: check the root is in the storage when called with index `NodeIndex::root()`
+        // corner case: check the root is in the store when called with index `NodeIndex::root()`
         self.nodes
             .get(&hash)
             .ok_or(MerkleError::RootNotInStore(hash.into()))?;
@@ -120,7 +120,7 @@ impl MerkleStore {
     /// # Errors
     ///
     /// This method can return the following errors:
-    /// - `RootNotInStore` if the `root` is not present in the storage.
+    /// - `RootNotInStore` if the `root` is not present in the store.
     /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
     pub fn get_path(
         &self,
@@ -130,7 +130,7 @@ impl MerkleStore {
         let mut hash: RpoDigest = root.into();
         let mut path = Vec::with_capacity(index.depth().into());
 
-        // corner case: check the root is in the storage when called with index `NodeIndex::root()`
+        // corner case: check the root is in the store when called with index `NodeIndex::root()`
         self.nodes
             .get(&hash)
             .ok_or(MerkleError::RootNotInStore(hash.into()))?;
@@ -160,7 +160,7 @@ impl MerkleStore {
     /// Adds all the nodes of a Merkle tree represented by `leaves`.
     ///
     /// This will instantiate a Merkle tree using `leaves` and include all the nodes into the
-    /// storage.
+    /// store.
     ///
     /// # Errors
     ///
@@ -208,7 +208,7 @@ impl MerkleStore {
     /// Adds all the nodes of a Sparse Merkle tree represented by `entries`.
     ///
     /// This will instantiate a Sparse Merkle tree using `entries` and include all the nodes into
-    /// the storage.
+    /// the store.
     ///
     /// # Errors
     ///
@@ -236,7 +236,7 @@ impl MerkleStore {
     /// Adds all the nodes of a Merkle path represented by `path`.
     ///
     /// This will compute the sibling elements determined by the Merkle `path` and `node`, and
-    /// include all the nodes into the storage.
+    /// include all the nodes into the store.
     pub fn add_merkle_path(
         &mut self,
         index_value: u64,
@@ -270,7 +270,7 @@ impl MerkleStore {
     /// Adds all the nodes of multiple Merkle paths into the store.
     ///
     /// This will compute the sibling elements for each Merkle `path` and include all the nodes
-    /// into the storage.
+    /// into the store.
     ///
     /// # Errors
     ///
@@ -315,7 +315,7 @@ impl MerkleStore {
     /// # Errors
     ///
     /// This method can return the following errors:
-    /// - `RootNotInStore` if the `root` is not present in the storage.
+    /// - `RootNotInStore` if the `root` is not present in the store.
     /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
     pub fn set_node(
         &mut self,

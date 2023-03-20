@@ -14,7 +14,7 @@ const LEAVES4: [Word; 4] = [
 ];
 
 #[test]
-fn test_root_not_in_storage() -> Result<(), MerkleError> {
+fn test_root_not_in_store() -> Result<(), MerkleError> {
     let mtree = MerkleTree::new(LEAVES4.to_vec())?;
     let store = MerkleStore::default().with_merkle_tree(LEAVES4)?;
     assert_eq!(
