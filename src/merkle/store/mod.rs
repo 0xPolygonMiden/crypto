@@ -5,7 +5,7 @@
 //! implementation of efficient persistent data structures
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, MerkleError, MerklePath, MerklePathSet, MerkleTree,
-    NodeIndex, Rpo256, RpoDigest, SimpleSmt, Vec, Word,
+    NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
 };
 
 #[cfg(test)]
@@ -122,11 +122,7 @@ impl MerkleStore {
     /// This method can return the following errors:
     /// - `RootNotInStore` if the `root` is not present in the store.
     /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
-    pub fn get_path(
-        &self,
-        root: Word,
-        index: NodeIndex,
-    ) -> Result<(Word, MerklePath), MerkleError> {
+    pub fn get_path(&self, root: Word, index: NodeIndex) -> Result<ValuePath, MerkleError> {
         let mut hash: RpoDigest = root.into();
         let mut path = Vec::with_capacity(index.depth().into());
 
@@ -150,8 +146,13 @@ impl MerkleStore {
             }
         }
 
+        // the path is computed from root to leaf, so it must be reversed
         path.reverse();
-        Ok((hash.into(), MerklePath::new(path)))
+
+        Ok(ValuePath {
+            value: hash.into(),
+            path: MerklePath::new(path),
+        })
     }
 
     // STATE MUTATORS
@@ -233,17 +234,17 @@ impl MerkleStore {
         Ok(smt.root())
     }
 
-    /// Adds all the nodes of a Merkle path represented by `path`.
+    /// Adds all the nodes of a Merkle path represented by `path`, opening to `node`. Returns the
+    /// new root.
     ///
     /// This will compute the sibling elements determined by the Merkle `path` and `node`, and
     /// include all the nodes into the store.
     pub fn add_merkle_path(
         &mut self,
         index_value: u64,
-        node: Word,
+        mut node: Word,
         path: MerklePath,
     ) -> Result<Word, MerkleError> {
-        let mut node = node;
         let mut index = NodeIndex::new(self.nodes.len() as u8, index_value);
 
         for sibling in path {
@@ -271,6 +272,8 @@ impl MerkleStore {
     ///
     /// This will compute the sibling elements for each Merkle `path` and include all the nodes
     /// into the store.
+    ///
+    /// For further reference, check [MerkleStore::add_merkle_path].
     ///
     /// # Errors
     ///
@@ -301,6 +304,8 @@ impl MerkleStore {
     }
 
     /// Appends the provided [MerklePathSet] into the store.
+    ///
+    /// For further reference, check [MerkleStore::add_merkle_path].
     pub fn add_merkle_path_set(&mut self, path_set: &MerklePathSet) -> Result<Word, MerkleError> {
         let root = path_set.root();
         path_set.indexes().try_fold(root, |_, index| {
@@ -319,16 +324,19 @@ impl MerkleStore {
     /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
     pub fn set_node(
         &mut self,
-        root: Word,
+        mut root: Word,
         index: NodeIndex,
         value: Word,
-    ) -> Result<Word, MerkleError> {
-        let result = self.get_path(root, index)?;
-        if result.0 != value {
-            self.add_merkle_path(index.value(), value, result.1)
-        } else {
-            Ok(root)
+    ) -> Result<RootPath, MerkleError> {
+        let node = value;
+        let ValuePath { value, path } = self.get_path(root, index)?;
+
+        // performs the update only if the node value differs from the opening
+        if node != value {
+            root = self.add_merkle_path(index.value(), node, path.clone())?;
         }
+
+        Ok(RootPath { root, path })
     }
 
     pub fn merge_roots(&mut self, root1: Word, root2: Word) -> Result<Word, MerkleError> {
