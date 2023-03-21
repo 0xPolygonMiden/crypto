@@ -18,7 +18,7 @@ mod merkle_tree;
 pub use merkle_tree::MerkleTree;
 
 mod path;
-pub use path::MerklePath;
+pub use path::{MerklePath, RootPath, ValuePath};
 
 mod path_set;
 pub use path_set::MerklePathSet;
