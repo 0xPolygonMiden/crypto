@@ -15,7 +15,7 @@ mod index;
 pub use index::NodeIndex;
 
 mod merkle_tree;
-pub use merkle_tree::MerkleTree;
+pub use merkle_tree::{path_to_text, tree_to_text, MerkleTree};
 
 mod path;
 pub use path::{MerklePath, RootPath, ValuePath};

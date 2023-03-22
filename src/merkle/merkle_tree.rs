@@ -1,6 +1,9 @@
 use super::{Felt, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word};
-use crate::{utils::uninit_vector, FieldElement};
-use core::slice;
+use crate::{
+    utils::{string::String, uninit_vector, word_to_hex},
+    FieldElement,
+};
+use core::{fmt, slice};
 use winter_math::log2;
 
 // MERKLE TREE
@@ -155,6 +158,52 @@ impl MerkleTree {
 
         Ok(())
     }
+}
+
+/// Utility to vizualize a [MerkleTree] in text.
+pub fn tree_to_text(tree: &MerkleTree) -> Result<String, fmt::Error> {
+    let indent = "  ";
+    let mut s = String::new();
+    s.push_str(&word_to_hex(&tree.root())?);
+    s.push('\n');
+    for d in 1..=tree.depth() {
+        let entries = 2u64.pow(d.into());
+        for i in 0..entries {
+            let index = NodeIndex::new(d, i);
+
+            let node = tree
+                .get_node(index)
+                .expect("The index must always be valid");
+
+            for _ in 0..d {
+                s.push_str(indent);
+            }
+            s.push_str(&word_to_hex(&node)?);
+            s.push('\n');
+        }
+    }
+
+    Ok(s)
+}
+
+/// Utility to vizualize a [MerklePath] in text.
+pub fn path_to_text(path: &MerklePath) -> Result<String, fmt::Error> {
+    let mut s = String::new();
+    s.push('[');
+
+    for el in path.iter() {
+        s.push_str(&word_to_hex(el)?);
+        s.push_str(", ");
+    }
+
+    // remove the last ", "
+    if path.len() != 0 {
+        s.pop();
+        s.pop();
+    }
+    s.push(']');
+
+    Ok(s)
 }
 
 // TESTS
