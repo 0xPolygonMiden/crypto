@@ -425,7 +425,8 @@ fn update_leaf_merkletree(c: &mut Criterion) {
                     // comparison
                     store_root = store
                         .set_node(root, NodeIndex::new(depth, index), value)
-                        .unwrap();
+                        .unwrap()
+                        .root;
                     black_box(store_root)
                 },
                 BatchSize::SmallInput,
@@ -478,7 +479,8 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
                     // comparison
                     store_root = store
                         .set_node(root, NodeIndex::new(depth, index), value)
-                        .unwrap();
+                        .unwrap()
+                        .root;
                     black_box(store_root)
                 },
                 BatchSize::SmallInput,
