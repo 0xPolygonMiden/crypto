@@ -108,7 +108,10 @@ impl MerkleTree {
             index.move_up();
         }
 
-        debug_assert!(index.is_root(), "the path must include the root");
+        debug_assert!(
+            index.is_root(),
+            "the path walk must go all the way to the root"
+        );
 
         Ok(path.into())
     }
