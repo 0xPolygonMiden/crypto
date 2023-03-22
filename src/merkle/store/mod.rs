@@ -84,6 +84,15 @@ impl MerkleStore {
         Ok(self)
     }
 
+    /// Appends the provided merkle path set.
+    pub fn with_merkle_paths<I>(mut self, paths: I) -> Result<Self, MerkleError>
+    where
+        I: IntoIterator<Item = (u64, Word, MerklePath)>,
+    {
+        self.add_merkle_paths(paths)?;
+        Ok(self)
+    }
+
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 

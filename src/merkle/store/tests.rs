@@ -498,3 +498,59 @@ fn test_set_node() -> Result<(), MerkleError> {
 
     Ok(())
 }
+
+#[test]
+fn test_constructors() -> Result<(), MerkleError> {
+    let store = MerkleStore::new().with_merkle_tree(LEAVES4)?;
+    let mtree = MerkleTree::new(LEAVES4.to_vec())?;
+
+    let depth = mtree.depth();
+    let leaves = 2u64.pow(depth.into());
+    for index in 0..leaves {
+        let index = NodeIndex::new(depth, index);
+        let value_path = store.get_path(mtree.root(), index)?;
+        assert_eq!(mtree.get_path(index)?, value_path.path);
+    }
+
+    let store = MerkleStore::default()
+        .with_sparse_merkle_tree(KEYS4.into_iter().zip(LEAVES4.into_iter()))?;
+    let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
+        .unwrap()
+        .with_leaves(KEYS4.into_iter().zip(LEAVES4.into_iter()))
+        .unwrap();
+    let depth = smt.depth();
+
+    for key in KEYS4 {
+        let index = NodeIndex::new(depth, key);
+        let value_path = store.get_path(smt.root(), index)?;
+        assert_eq!(smt.get_path(index)?, value_path.path);
+    }
+
+    let d = 2;
+    let paths = [
+        (0, LEAVES4[0], mtree.get_path(NodeIndex::new(d, 0)).unwrap()),
+        (1, LEAVES4[1], mtree.get_path(NodeIndex::new(d, 1)).unwrap()),
+        (2, LEAVES4[2], mtree.get_path(NodeIndex::new(d, 2)).unwrap()),
+        (3, LEAVES4[3], mtree.get_path(NodeIndex::new(d, 3)).unwrap()),
+    ];
+
+    let store1 = MerkleStore::default().with_merkle_paths(paths.clone())?;
+    let store2 = MerkleStore::default()
+        .with_merkle_path(0, LEAVES4[0], mtree.get_path(NodeIndex::new(d, 0))?)?
+        .with_merkle_path(1, LEAVES4[1], mtree.get_path(NodeIndex::new(d, 1))?)?
+        .with_merkle_path(2, LEAVES4[2], mtree.get_path(NodeIndex::new(d, 2))?)?
+        .with_merkle_path(3, LEAVES4[3], mtree.get_path(NodeIndex::new(d, 3))?)?;
+    let set = MerklePathSet::new(d + 1).with_paths(paths).unwrap();
+
+    for key in [0, 1, 2, 3] {
+        let index = NodeIndex::new(d, key);
+        let value_path1 = store1.get_path(set.root(), index)?;
+        let value_path2 = store2.get_path(set.root(), index)?;
+        assert_eq!(value_path1, value_path2);
+
+        let index = NodeIndex::new(d + 1, key);
+        assert_eq!(set.get_path(index)?, value_path1.path);
+    }
+
+    Ok(())
+}
