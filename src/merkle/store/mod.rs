@@ -316,12 +316,16 @@ impl MerkleStore {
     ///
     /// For further reference, check [MerkleStore::add_merkle_path].
     pub fn add_merkle_path_set(&mut self, path_set: &MerklePathSet) -> Result<Word, MerkleError> {
-        let root = path_set.root();
-        path_set.indexes().try_fold(root, |_, index| {
-            let node = path_set.get_node(index)?;
-            let path = path_set.get_path(index)?;
-            self.add_merkle_path(index.value(), node, path)
-        })
+        let paths = path_set
+            .indexes()
+            .map(|i| i.value())
+            .map(|index| {
+                let leaf = path_set.get_leaf(index)?;
+                let path = path_set.get_path(index)?.clone();
+                Ok((index, leaf, path))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        self.add_merkle_paths(paths)
     }
 
     /// Sets a node to `value`.
