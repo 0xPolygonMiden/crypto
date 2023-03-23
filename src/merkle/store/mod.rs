@@ -1,8 +1,3 @@
-//! An in-memory data store for Merkle-lized data
-//!
-//! This is a in memory data store for Merkle trees, this store allows all the nodes of a tree
-//! (leaves or internal) to live as long as necessary and without duplication, this allows the
-//! implementation of efficient persistent data structures
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, MerkleError, MerklePath, MerklePathSet, MerkleTree,
     NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
@@ -17,6 +12,61 @@ pub struct Node {
     right: RpoDigest,
 }
 
+/// An in-memory data store for Merkle-lized data.
+///
+/// This is a in memory data store for Merkle trees, this store allows all the nodes of multiple
+/// trees to live as long as necessary and without duplication, this allows the implementation of
+/// space efficient persistent data structures.
+///
+/// Example usage:
+///
+/// ```rust
+/// # use miden_crypto::{ZERO, Felt, Word};
+/// # use miden_crypto::merkle::{NodeIndex, MerkleStore, MerkleTree};
+/// # use miden_crypto::hash::rpo::Rpo256;
+/// # const fn int_to_node(value: u64) -> Word {
+/// #     [Felt::new(value), ZERO, ZERO, ZERO]
+/// # }
+/// # let A = int_to_node(1);
+/// # let B = int_to_node(2);
+/// # let C = int_to_node(3);
+/// # let D = int_to_node(4);
+/// # let E = int_to_node(5);
+/// # let F = int_to_node(6);
+/// # let G = int_to_node(7);
+/// # let H0 = int_to_node(8);
+/// # let H1 = int_to_node(9);
+/// # let T0 = MerkleTree::new([A, B, C, D, E, F, G, H0].to_vec()).expect("even number of leaves provided");
+/// # let T1 = MerkleTree::new([A, B, C, D, E, F, G, H1].to_vec()).expect("even number of leaves provided");
+/// # let ROOT0 = T0.root();
+/// # let ROOT1 = T1.root();
+/// let mut store = MerkleStore::new();
+///
+/// // the store is initialized with the SMT empty nodes
+/// assert_eq!(store.num_internal_nodes(), 64);
+///
+/// // populates the store with two merkle trees, common nodes are shared
+/// store.add_merkle_tree([A, B, C, D, E, F, G, H0]);
+/// store.add_merkle_tree([A, B, C, D, E, F, G, H1]);
+///
+/// // every leaf except the last are the same
+/// for i in 0..7 {
+///     let d0 = store.get_node(ROOT0, NodeIndex::new(3, i)).unwrap();
+///     let d1 = store.get_node(ROOT1, NodeIndex::new(3, i)).unwrap();
+///     assert_eq!(d0, d1, "Both trees have the same leaf at pos {i}");
+/// }
+///
+/// // The leafs A-B-C-D are the same for both trees, so are their 2 immediate parents
+/// for i in 0..4 {
+///     let d0 = store.get_path(ROOT0, NodeIndex::new(3, i)).unwrap();
+///     let d1 = store.get_path(ROOT1, NodeIndex::new(3, i)).unwrap();
+///     assert_eq!(d0.path[0..2], d1.path[0..2], "Both sub-trees are equal up to two levels");
+/// }
+///
+/// // Common internal nodes are shared, the two added trees have a total of 30, but the store has
+/// // only 10 new entries, corresponding to the 10 unique internal nodes of these trees.
+/// assert_eq!(store.num_internal_nodes() - 64, 10);
+/// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct MerkleStore {
     nodes: BTreeMap<RpoDigest, Node>,
@@ -95,6 +145,11 @@ impl MerkleStore {
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
+
+    /// Return a count of the non-leaf nodes in the store.
+    pub fn num_internal_nodes(&self) -> usize {
+        self.nodes.len()
+    }
 
     /// Returns the node at `index` rooted on the tree `root`.
     ///
