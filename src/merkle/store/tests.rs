@@ -320,28 +320,28 @@ fn test_add_merkle_paths() -> Result<(), MerkleError> {
         .add_merkle_paths(paths.clone())
         .expect("the valid paths must work");
 
-    let depth = 3;
+    let depth = 2;
     let set = MerklePathSet::new(depth).with_paths(paths).unwrap();
 
     // STORE LEAVES ARE CORRECT ==============================================================
     // checks the leaves in the store corresponds to the expected values
     assert_eq!(
-        store.get_node(set.root(), NodeIndex::new(set.depth() - 1, 0)),
+        store.get_node(set.root(), NodeIndex::new(set.depth(), 0)),
         Ok(LEAVES4[0]),
         "node 0 must be in the set"
     );
     assert_eq!(
-        store.get_node(set.root(), NodeIndex::new(set.depth() - 1, 1)),
+        store.get_node(set.root(), NodeIndex::new(set.depth(), 1)),
         Ok(LEAVES4[1]),
         "node 1 must be in the set"
     );
     assert_eq!(
-        store.get_node(set.root(), NodeIndex::new(set.depth() - 1, 2)),
+        store.get_node(set.root(), NodeIndex::new(set.depth(), 2)),
         Ok(LEAVES4[2]),
         "node 2 must be in the set"
     );
     assert_eq!(
-        store.get_node(set.root(), NodeIndex::new(set.depth() - 1, 3)),
+        store.get_node(set.root(), NodeIndex::new(set.depth(), 3)),
         Ok(LEAVES4[3]),
         "node 3 must be in the set"
     );
@@ -350,29 +350,29 @@ fn test_add_merkle_paths() -> Result<(), MerkleError> {
     // sanity check the values returned by the store and the set
     assert_eq!(
         set.get_node(NodeIndex::new(set.depth(), 0)),
-        store.get_node(set.root(), NodeIndex::new(set.depth() - 1, 0)),
+        store.get_node(set.root(), NodeIndex::new(set.depth(), 0)),
         "node 0 must be the same for both SparseMerkleTree and MerkleStore"
     );
     assert_eq!(
         set.get_node(NodeIndex::new(set.depth(), 1)),
-        store.get_node(set.root(), NodeIndex::new(set.depth() - 1, 1)),
+        store.get_node(set.root(), NodeIndex::new(set.depth(), 1)),
         "node 1 must be the same for both SparseMerkleTree and MerkleStore"
     );
     assert_eq!(
         set.get_node(NodeIndex::new(set.depth(), 2)),
-        store.get_node(set.root(), NodeIndex::new(set.depth() - 1, 2)),
+        store.get_node(set.root(), NodeIndex::new(set.depth(), 2)),
         "node 2 must be the same for both SparseMerkleTree and MerkleStore"
     );
     assert_eq!(
         set.get_node(NodeIndex::new(set.depth(), 3)),
-        store.get_node(set.root(), NodeIndex::new(set.depth() - 1, 3)),
+        store.get_node(set.root(), NodeIndex::new(set.depth(), 3)),
         "node 3 must be the same for both SparseMerkleTree and MerkleStore"
     );
 
     // STORE MERKLE PATH MATCHS ==============================================================
     // assert the merkle path returned by the store is the same as the one in the set
     let result = store
-        .get_path(set.root(), NodeIndex::new(set.depth() - 1, 0))
+        .get_path(set.root(), NodeIndex::new(set.depth(), 0))
         .unwrap();
     assert_eq!(
         LEAVES4[0], result.value,
@@ -385,7 +385,7 @@ fn test_add_merkle_paths() -> Result<(), MerkleError> {
     );
 
     let result = store
-        .get_path(set.root(), NodeIndex::new(set.depth() - 1, 1))
+        .get_path(set.root(), NodeIndex::new(set.depth(), 1))
         .unwrap();
     assert_eq!(
         LEAVES4[1], result.value,
@@ -398,7 +398,7 @@ fn test_add_merkle_paths() -> Result<(), MerkleError> {
     );
 
     let result = store
-        .get_path(set.root(), NodeIndex::new(set.depth() - 1, 2))
+        .get_path(set.root(), NodeIndex::new(set.depth(), 2))
         .unwrap();
     assert_eq!(
         LEAVES4[2], result.value,
@@ -411,7 +411,7 @@ fn test_add_merkle_paths() -> Result<(), MerkleError> {
     );
 
     let result = store
-        .get_path(set.root(), NodeIndex::new(set.depth() - 1, 3))
+        .get_path(set.root(), NodeIndex::new(set.depth(), 3))
         .unwrap();
     assert_eq!(
         LEAVES4[3], result.value,
@@ -540,7 +540,7 @@ fn test_constructors() -> Result<(), MerkleError> {
         .with_merkle_path(1, LEAVES4[1], mtree.get_path(NodeIndex::new(d, 1))?)?
         .with_merkle_path(2, LEAVES4[2], mtree.get_path(NodeIndex::new(d, 2))?)?
         .with_merkle_path(3, LEAVES4[3], mtree.get_path(NodeIndex::new(d, 3))?)?;
-    let set = MerklePathSet::new(d + 1).with_paths(paths).unwrap();
+    let set = MerklePathSet::new(d).with_paths(paths).unwrap();
 
     for key in [0, 1, 2, 3] {
         let index = NodeIndex::new(d, key);
@@ -548,7 +548,7 @@ fn test_constructors() -> Result<(), MerkleError> {
         let value_path2 = store2.get_path(set.root(), index)?;
         assert_eq!(value_path1, value_path2);
 
-        let index = NodeIndex::new(d + 1, key);
+        let index = NodeIndex::new(d, key);
         assert_eq!(set.get_path(index)?, value_path1.path);
     }
 
