@@ -78,7 +78,7 @@ impl NodeIndex {
         self.depth
     }
 
-    /// Returns the value of the current depth.
+    /// Returns the value of this index.
     pub const fn value(&self) -> u64 {
         self.value
     }
@@ -104,7 +104,7 @@ impl NodeIndex {
     /// arrive at the leaf. From the right-to-left the bit represent the position the hash of the
     /// current element should go.
     ///
-    /// Additionally, the value that is not visisted are the sibling values necessary for a Merkle
+    /// Additionally, the value that is not visited are the sibling values necessary for a Merkle
     /// opening.
     pub fn bit_iterator(&self) -> BitIterator {
         let depth: u32 = self.depth.into();
