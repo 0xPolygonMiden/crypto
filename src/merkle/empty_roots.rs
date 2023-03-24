@@ -17,6 +17,15 @@ impl EmptySubtreeRoots {
         // the returned value for static/constant definitions.
         unsafe { slice::from_raw_parts(ptr, depth as usize + 1) }
     }
+
+    /// Returns the root of an empty tree with `depth`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the provided `depth` is greater than `64`.
+    pub const fn get_root_for_depth(depth: u8) -> RpoDigest {
+        EMPTY_SUBTREES[255 - depth as usize]
+    }
 }
 
 const EMPTY_SUBTREES: [RpoDigest; 256] = [

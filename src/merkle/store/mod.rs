@@ -43,7 +43,7 @@ pub struct Node {
 /// let mut store = MerkleStore::new();
 ///
 /// // the store is initialized with the SMT empty nodes
-/// assert_eq!(store.num_internal_nodes(), 64);
+/// assert_eq!(store.num_nodes(), 255);
 ///
 /// // populates the store with two merkle trees, common nodes are shared
 /// store.add_merkle_tree([A, B, C, D, E, F, G, H0]);
@@ -64,12 +64,16 @@ pub struct Node {
 /// }
 ///
 /// // Common internal nodes are shared, the two added trees have a total of 30, but the store has
-/// // only 10 new entries, corresponding to the 10 unique internal nodes of these trees.
-/// assert_eq!(store.num_internal_nodes() - 64, 10);
+/// // only 19 new entries.
+/// assert_eq!(store.num_nodes() - 255, 19);
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct MerkleStore {
-    nodes: BTreeMap<RpoDigest, Node>,
+    /// This map stores every node of every structure added to the store. When the value is set to
+    /// `None` the `key` represents a leaf node, if the value is [Node] then the key represent an
+    /// internal node with the specified `left` and `right` children, which may not necessarily be
+    /// in the store.
+    nodes: BTreeMap<RpoDigest, Option<Node>>,
 }
 
 impl Default for MerkleStore {
@@ -82,21 +86,22 @@ impl MerkleStore {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
-    /// Creates an empty `MerkleStore` instance.
+    /// Creates an empty [MerkleStore] instance.
     pub fn new() -> MerkleStore {
         // pre-populate the store with the empty hashes
-        let subtrees = EmptySubtreeRoots::empty_hashes(64);
+        let subtrees = EmptySubtreeRoots::empty_hashes(255);
         let nodes = subtrees
             .iter()
+            .rev()
             .copied()
-            .zip(subtrees.iter().skip(1).copied())
+            .zip(subtrees.iter().rev().skip(1).copied())
             .map(|(child, parent)| {
                 (
                     parent,
-                    Node {
+                    Some(Node {
                         left: child,
                         right: child,
-                    },
+                    }),
                 )
             })
             .collect();
@@ -143,15 +148,17 @@ impl MerkleStore {
         Ok(self)
     }
 
-    // PUBLIC ACCESSORS
+    // NODE ACCESSORS
     // --------------------------------------------------------------------------------------------
 
     /// Return a count of the non-leaf nodes in the store.
-    pub fn num_internal_nodes(&self) -> usize {
+    pub fn num_nodes(&self) -> usize {
         self.nodes.len()
     }
 
     /// Returns the node at `index` rooted on the tree `root`.
+    ///
+    /// The returned node may be an internal node or a leaf.
     ///
     /// # Errors
     ///
@@ -170,16 +177,20 @@ impl MerkleStore {
             let node = self
                 .nodes
                 .get(&hash)
-                .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
+                // This means the entry is not in the map, i.e. the node is not in the store
+                .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?
+                // This means the entry was in the map, and its value is None, i.e. it's a leaf
+                .ok_or(MerkleError::DepthTooBig(index.depth().into()))?;
             hash = if bit { node.right } else { node.left }
         }
 
         Ok(hash.into())
     }
 
-    /// Returns the node at the specified `index` and its opening to the `root`.
+    /// Returns the path to the node at `index` rooted on the tree `root`.
     ///
-    /// The path starts at the sibling of the target leaf.
+    /// The path starts at the sibling of the target node and goes up to the root (but not
+    /// including it).
     ///
     /// # Errors
     ///
@@ -199,7 +210,10 @@ impl MerkleStore {
             let node = self
                 .nodes
                 .get(&hash)
-                .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
+                // This means the entry is not in the map, i.e. the node is not in the store
+                .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?
+                // This means the entry was in the map, and its value is None, i.e. it's a leaf
+                .ok_or(MerkleError::DepthTooBig(index.depth().into()))?;
 
             hash = if bit {
                 path.push(node.left.into());
@@ -217,6 +231,55 @@ impl MerkleStore {
             value: hash.into(),
             path: MerklePath::new(path),
         })
+    }
+
+    // LEAF ACCESSORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns the leaf at `index` rooted on the tree `root`.
+    ///
+    /// # Errors
+    ///
+    /// This method can return the following errors:
+    /// - `RootNotInStore` if the `root` is not present in the store.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
+    /// - `DepthTooBig` if `leaf_index.depth` is too big.
+    /// - `DepthTooSmall` if the final node is not a leaf.
+    pub fn get_leaf(&self, root: Word, leaf_index: NodeIndex) -> Result<Word, MerkleError> {
+        let value = self.get_node(root, leaf_index)?;
+
+        // check the node is a leaf
+        if let Some(Some(_)) = self.nodes.get(&value.into()) {
+            return Err(MerkleError::DepthTooSmall(leaf_index.depth()));
+        }
+
+        Ok(value)
+    }
+
+    /// Returns the leaf at the specified `index` and its opening to the `root`.
+    ///
+    /// The path starts at the sibling of the target leaf.
+    ///
+    /// # Errors
+    ///
+    /// This method can return the following errors:
+    /// - `RootNotInStore` if the `root` is not present in the store.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
+    /// - `DepthTooBig` if `leaf_index.depth` is too big.
+    /// - `DepthTooSmall` if the final node is not a leaf.
+    pub fn get_leaf_path(
+        &self,
+        root: Word,
+        leaf_index: NodeIndex,
+    ) -> Result<ValuePath, MerkleError> {
+        let path = self.get_path(root, leaf_index)?;
+
+        // check the node is a leaf
+        if let Some(Some(_)) = self.nodes.get(&path.value.into()) {
+            return Err(MerkleError::DepthTooSmall(leaf_index.depth()));
+        }
+
+        Ok(path)
     }
 
     // STATE MUTATORS
@@ -242,8 +305,9 @@ impl MerkleStore {
         }
 
         let layers = leaves.len().ilog2();
-        let tree = MerkleTree::new(leaves)?;
+        let tree = MerkleTree::new(leaves.clone())?;
 
+        // copy internal nodes
         let mut depth = 0;
         let mut parent_offset = 1;
         let mut child_offset = 2;
@@ -256,15 +320,21 @@ impl MerkleStore {
                 let right = tree.nodes[child_offset + 1];
                 self.nodes.insert(
                     tree.nodes[parent_offset].into(),
-                    Node {
+                    Some(Node {
                         left: left.into(),
                         right: right.into(),
-                    },
+                    }),
                 );
                 parent_offset += 1;
                 child_offset += 2;
             }
             depth += 1;
+        }
+
+        // copy leaves
+        for leaf in leaves {
+            let digest: RpoDigest = leaf.into();
+            self.nodes.entry(digest).or_insert(None);
         }
 
         Ok(tree.nodes[1])
@@ -283,34 +353,49 @@ impl MerkleStore {
         R: IntoIterator<IntoIter = I>,
         I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
     {
+        // the values are iterated over twice, so the iterator has to be collected
+        let entries: Vec<(u64, Word)> = entries.into_iter().collect();
+
+        // copy leaves
+        for (_, leaf) in &entries {
+            let digest: RpoDigest = (*leaf).into();
+            self.nodes.entry(digest).or_insert(None);
+        }
+
+        // copy internal nodes
         let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)?.with_leaves(entries)?;
         for branch in smt.store.branches.values() {
             let parent = Rpo256::merge(&[branch.left, branch.right]);
             self.nodes.insert(
                 parent,
-                Node {
+                Some(Node {
                     left: branch.left,
                     right: branch.right,
-                },
+                }),
             );
         }
 
         Ok(smt.root())
     }
 
-    /// Adds all the nodes of a Merkle path represented by `path`, opening to `node`. Returns the
-    /// new root.
+    /// Adds the `leaf` and all the nodes required for its Merkle opening to the store. Returns the
+    /// `leaf`'s root.
     ///
-    /// This will compute the sibling elements determined by the Merkle `path` and `node`, and
+    /// This will compute the sibling elements determined by the Merkle `path` and `leaf`, and
     /// include all the nodes into the store.
     pub fn add_merkle_path(
         &mut self,
         index_value: u64,
-        mut node: Word,
+        leaf: Word,
         path: MerklePath,
     ) -> Result<Word, MerkleError> {
         let mut index = NodeIndex::new(self.nodes.len() as u8, index_value);
+        let mut node = leaf;
 
+        // copy leaf
+        self.nodes.entry(leaf.into()).or_insert(None);
+
+        // copy internal nodes
         for sibling in path {
             let (left, right) = match index.is_value_odd() {
                 true => (sibling, node),
@@ -319,10 +404,10 @@ impl MerkleStore {
             let parent = Rpo256::merge(&[left.into(), right.into()]);
             self.nodes.insert(
                 parent,
-                Node {
+                Some(Node {
                     left: left.into(),
                     right: right.into(),
-                },
+                }),
             );
 
             index.move_up();
@@ -378,7 +463,10 @@ impl MerkleStore {
         Ok(root)
     }
 
-    /// Sets a node to `value`.
+    /// Modify the tree represented by `root`, by setting the node at `index` to `node`. Returns the new tree root.
+    ///
+    /// `node` is not assumed to be either a leaf nor a internal node, it will be absent from the
+    /// store. The actual value of `node` can be added with any of the other modifiers.
     ///
     /// # Errors
     ///
@@ -387,16 +475,55 @@ impl MerkleStore {
     /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
     pub fn set_node(
         &mut self,
-        mut root: Word,
-        index: NodeIndex,
-        value: Word,
+        root: Word,
+        mut index: NodeIndex,
+        mut node: Word,
     ) -> Result<RootPath, MerkleError> {
-        let node = value;
-        let ValuePath { value, path } = self.get_path(root, index)?;
+        #[allow(clippy::clone_on_copy)]
+        let ValuePath { value, path } = self.get_path(root, index.clone())?;
 
         // performs the update only if the node value differs from the opening
-        if node != value {
-            root = self.add_merkle_path(index.value(), node, path.clone())?;
+        if value != node {
+            for sibling in &path {
+                let (left, right) = match index.is_value_odd() {
+                    true => (*sibling, node),
+                    false => (node, *sibling),
+                };
+                let parent = Rpo256::merge(&[left.into(), right.into()]);
+                self.nodes.insert(
+                    parent,
+                    Some(Node {
+                        left: left.into(),
+                        right: right.into(),
+                    }),
+                );
+
+                index.move_up();
+                node = parent.into();
+            }
+        }
+
+        Ok(RootPath { root, path })
+    }
+
+    /// Modify the tree represented by `root`, by setting the leaf at `index` to `leaf`. Returns the new tree root.
+    ///
+    /// # Errors
+    ///
+    /// This method can return the following errors:
+    /// - `RootNotInStore` if the `root` is not present in the store.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
+    pub fn set_leaf(
+        &mut self,
+        mut root: Word,
+        index: NodeIndex,
+        leaf: Word,
+    ) -> Result<RootPath, MerkleError> {
+        let ValuePath { value, path } = self.get_leaf_path(root, index)?;
+
+        // performs the update only if the node value differs from the opening
+        if value != leaf {
+            root = self.add_merkle_path(index.value(), leaf, path.clone())?;
         }
 
         Ok(RootPath { root, path })
@@ -420,10 +547,10 @@ impl MerkleStore {
             let parent: Word = Rpo256::merge(&[root1, root2]).into();
             self.nodes.insert(
                 parent.into(),
-                Node {
+                Some(Node {
                     left: root1,
                     right: root2,
-                },
+                }),
             );
 
             Ok(parent)

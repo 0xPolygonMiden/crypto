@@ -1,6 +1,12 @@
 use super::{vec, NodeIndex, Rpo256, Vec, Word};
 use core::ops::{Deref, DerefMut};
 
+#[cfg(not(feature = "std"))]
+pub use alloc::slice;
+
+#[cfg(feature = "std")]
+pub use std::slice;
+
 // MERKLE PATH
 // ================================================================================================
 
@@ -80,6 +86,15 @@ impl IntoIterator for MerklePath {
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a MerklePath {
+    type Item = &'a Word;
+    type IntoIter = slice::Iter<'a, Word>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.nodes.iter()
     }
 }
 
