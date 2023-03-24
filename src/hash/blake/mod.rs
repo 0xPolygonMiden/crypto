@@ -290,7 +290,7 @@ where
     let digest = if Felt::IS_CANONICAL {
         blake3::hash(E::elements_as_bytes(elements))
     } else {
-        let base_elements = E::as_base_elements(elements);
+        let base_elements = E::slice_as_base_elements(elements);
         let blen = base_elements.len() << 3;
 
         let mut bytes = unsafe { uninit_vector(blen) };
