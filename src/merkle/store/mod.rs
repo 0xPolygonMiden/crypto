@@ -2,6 +2,7 @@ use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, MerkleError, MerklePath, MerklePathSet, MerkleTree,
     NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
 };
+use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 #[cfg(test)]
 mod tests;
@@ -428,5 +429,49 @@ impl MerkleStore {
 
             Ok(parent)
         }
+    }
+}
+
+// SERIALIZATION
+// ================================================================================================
+
+impl Serializable for Node {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        self.left.write_into(target);
+        self.right.write_into(target);
+    }
+}
+
+impl Deserializable for Node {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let left = RpoDigest::read_from(source)?;
+        let right = RpoDigest::read_from(source)?;
+        Ok(Node { left, right })
+    }
+}
+
+impl Serializable for MerkleStore {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write_u64(self.nodes.len() as u64);
+
+        for (k, v) in self.nodes.iter() {
+            k.write_into(target);
+            v.write_into(target);
+        }
+    }
+}
+
+impl Deserializable for MerkleStore {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let len = source.read_u64()?;
+        let mut nodes: BTreeMap<RpoDigest, Node> = BTreeMap::new();
+
+        for _ in 0..len {
+            let key = RpoDigest::read_from(source)?;
+            let value = Node::read_from(source)?;
+            nodes.insert(key, value);
+        }
+
+        Ok(MerkleStore { nodes })
     }
 }
