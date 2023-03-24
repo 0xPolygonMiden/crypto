@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     hash::rpo::Rpo256,
     merkle::{int_to_node, MerklePathSet},
-    Felt, Word,
+    Felt, Word, WORD_SIZE, ZERO,
 };
 
 #[cfg(std)]
@@ -15,6 +15,7 @@ const LEAVES4: [Word; 4] = [
     int_to_node(3),
     int_to_node(4),
 ];
+const EMPTY: Word = [ZERO; WORD_SIZE];
 
 #[test]
 fn test_root_not_in_store() -> Result<(), MerkleError> {
@@ -145,6 +146,51 @@ fn test_merkle_tree() -> Result<(), MerkleError> {
 }
 
 #[test]
+fn test_empty_roots() {
+    let store = MerkleStore::default();
+    let mut root = RpoDigest::new(EMPTY);
+
+    for depth in 0..255 {
+        root = Rpo256::merge(&[root; 2]);
+        assert!(
+            store.get_node(root.into(), NodeIndex::new(0, 0)).is_ok(),
+            "The root of the empty tree of depth {depth} must be registered"
+        );
+    }
+}
+
+#[test]
+fn test_leaf_paths_for_empty_trees() -> Result<(), MerkleError> {
+    let store = MerkleStore::default();
+
+    // Starts at 1 because leafs are not included in the store.
+    // Ends at 64 because it is not possible to represent an index of a depth greater than 64,
+    // because a u64 is used to index the leaf.
+    for depth in 1..64 {
+        let smt = SimpleSmt::new(depth)?;
+
+        let index = NodeIndex::new(depth, 0);
+        let store_path = store.get_path(smt.root(), index)?;
+        let smt_path = smt.get_path(index)?;
+        assert_eq!(
+            store_path.value, EMPTY,
+            "the leaf of an empty tree is always ZERO"
+        );
+        assert_eq!(
+            store_path.path, smt_path,
+            "the returned merkle path does not match the computed values"
+        );
+        assert_eq!(
+            store_path.path.compute_root(depth.into(), EMPTY),
+            smt.root(),
+            "computed root from the path must match the empty tree root"
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
 fn test_get_invalid_node() {
     let mut store = MerkleStore::default();
     let mtree = MerkleTree::new(LEAVES4.to_vec()).expect("creating a merkle tree must work");
@@ -214,6 +260,11 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         Ok(LEAVES4[3]),
         "node 3 must be in the tree"
     );
+    assert_eq!(
+        store.get_node(smt.root(), NodeIndex::new(smt.depth(), 4)),
+        Ok(EMPTY),
+        "unmodified node 4 must be ZERO"
+    );
 
     // STORE LEAVES MATCH TREE ===============================================================
     // sanity check the values returned by the store and the tree
@@ -237,6 +288,11 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         store.get_node(smt.root(), NodeIndex::new(smt.depth(), 3)),
         "node 3 must be the same for both SparseMerkleTree and MerkleStore"
     );
+    assert_eq!(
+        smt.get_node(&NodeIndex::new(smt.depth(), 4)),
+        store.get_node(smt.root(), NodeIndex::new(smt.depth(), 4)),
+        "node 4 must be the same for both SparseMerkleTree and MerkleStore"
+    );
 
     // STORE MERKLE PATH MATCHS ==============================================================
     // assert the merkle path returned by the store is the same as the one in the tree
@@ -258,7 +314,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         .unwrap();
     assert_eq!(
         LEAVES4[1], result.value,
-        "Value for merkle path at index 0 must match leaf value"
+        "Value for merkle path at index 1 must match leaf value"
     );
     assert_eq!(
         smt.get_path(NodeIndex::new(smt.depth(), 1)),
@@ -271,12 +327,12 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         .unwrap();
     assert_eq!(
         LEAVES4[2], result.value,
-        "Value for merkle path at index 0 must match leaf value"
+        "Value for merkle path at index 2 must match leaf value"
     );
     assert_eq!(
         smt.get_path(NodeIndex::new(smt.depth(), 2)),
         Ok(result.path),
-        "merkle path for index 0 must be the same for the MerkleTree and MerkleStore"
+        "merkle path for index 2 must be the same for the MerkleTree and MerkleStore"
     );
 
     let result = store
@@ -284,12 +340,25 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         .unwrap();
     assert_eq!(
         LEAVES4[3], result.value,
-        "Value for merkle path at index 0 must match leaf value"
+        "Value for merkle path at index 3 must match leaf value"
     );
     assert_eq!(
         smt.get_path(NodeIndex::new(smt.depth(), 3)),
         Ok(result.path),
-        "merkle path for index 0 must be the same for the MerkleTree and MerkleStore"
+        "merkle path for index 3 must be the same for the MerkleTree and MerkleStore"
+    );
+
+    let result = store
+        .get_path(smt.root(), NodeIndex::new(smt.depth(), 4))
+        .unwrap();
+    assert_eq!(
+        EMPTY, result.value,
+        "Value for merkle path at index 4 must match leaf value"
+    );
+    assert_eq!(
+        smt.get_path(NodeIndex::new(smt.depth(), 4)),
+        Ok(result.path),
+        "merkle path for index 4 must be the same for the MerkleTree and MerkleStore"
     );
 
     Ok(())

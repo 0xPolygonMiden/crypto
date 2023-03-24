@@ -44,7 +44,7 @@ pub struct Node {
 /// let mut store = MerkleStore::new();
 ///
 /// // the store is initialized with the SMT empty nodes
-/// assert_eq!(store.num_internal_nodes(), 64);
+/// assert_eq!(store.num_internal_nodes(), 255);
 ///
 /// // populates the store with two merkle trees, common nodes are shared
 /// store.add_merkle_tree([A, B, C, D, E, F, G, H0]);
@@ -66,7 +66,7 @@ pub struct Node {
 ///
 /// // Common internal nodes are shared, the two added trees have a total of 30, but the store has
 /// // only 10 new entries, corresponding to the 10 unique internal nodes of these trees.
-/// assert_eq!(store.num_internal_nodes() - 64, 10);
+/// assert_eq!(store.num_internal_nodes() - 255, 10);
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct MerkleStore {
@@ -86,11 +86,12 @@ impl MerkleStore {
     /// Creates an empty `MerkleStore` instance.
     pub fn new() -> MerkleStore {
         // pre-populate the store with the empty hashes
-        let subtrees = EmptySubtreeRoots::empty_hashes(64);
+        let subtrees = EmptySubtreeRoots::empty_hashes(255);
         let nodes = subtrees
             .iter()
+            .rev()
             .copied()
-            .zip(subtrees.iter().skip(1).copied())
+            .zip(subtrees.iter().rev().skip(1).copied())
             .map(|(child, parent)| {
                 (
                     parent,
