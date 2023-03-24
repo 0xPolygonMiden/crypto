@@ -5,6 +5,9 @@ use crate::{
     Felt, Word,
 };
 
+#[cfg(std)]
+use std::error::Error;
+
 const KEYS4: [u64; 4] = [0, 1, 2, 3];
 const LEAVES4: [Word; 4] = [
     int_to_node(1),
@@ -552,5 +555,14 @@ fn test_constructors() -> Result<(), MerkleError> {
         assert_eq!(set.get_path(index)?, value_path1.path);
     }
 
+    Ok(())
+}
+
+#[cfg(std)]
+#[test]
+fn test_serialization() -> Result<(), Box<dyn Error>> {
+    let original = MerkleStore::new().with_merkle_tree(LEAVES4)?;
+    let decoded = MerkleStore::read_from_bytes(&original.to_bytes())?;
+    assert_eq!(original, decoded);
     Ok(())
 }
