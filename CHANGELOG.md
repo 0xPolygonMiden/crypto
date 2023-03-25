@@ -1,3 +1,10 @@
+## 0.2.0 (2023-03-24)
+
+- Implemented `MerkleStore` (#93, #94, #95, #107 #112).
+- Added benchmarks for `MerkleStore` vs. other structs (#97).
+- Added Merkle path containers (#99).
+- Fixed depth handling in `MerklePathSet` (#110).
+
 ## 0.1.4 (2023-02-22)
 
 - Re-export winter-crypto Hasher, Digest & ElementHasher (#72)
