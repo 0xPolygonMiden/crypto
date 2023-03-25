@@ -1,5 +1,6 @@
 ## 0.2.0 (2023-03-24)
 
+- Implemented `Mmr` and related structs (#67)
 - Implemented `MerkleStore` (#93, #94, #95, #107 #112).
 - Added benchmarks for `MerkleStore` vs. other structs (#97).
 - Added Merkle path containers (#99).
