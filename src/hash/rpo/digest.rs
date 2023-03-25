@@ -11,7 +11,7 @@ use core::{cmp::Ordering, ops::Deref};
 pub struct RpoDigest([Felt; DIGEST_SIZE]);
 
 impl RpoDigest {
-    pub fn new(value: [Felt; DIGEST_SIZE]) -> Self {
+    pub const fn new(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
     }
 
@@ -73,9 +73,21 @@ impl From<[Felt; DIGEST_SIZE]> for RpoDigest {
     }
 }
 
+impl From<&RpoDigest> for [Felt; DIGEST_SIZE] {
+    fn from(value: &RpoDigest) -> Self {
+        value.0
+    }
+}
+
 impl From<RpoDigest> for [Felt; DIGEST_SIZE] {
     fn from(value: RpoDigest) -> Self {
         value.0
+    }
+}
+
+impl From<&RpoDigest> for [u8; 32] {
+    fn from(value: &RpoDigest) -> Self {
+        value.as_bytes()
     }
 }
 

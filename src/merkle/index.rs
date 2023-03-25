@@ -1,9 +1,13 @@
 use super::{Felt, MerkleError, RpoDigest, StarkField};
+use crate::bit::BitIterator;
 
 // NODE INDEX
 // ================================================================================================
 
 /// A Merkle tree address to an arbitrary node.
+///
+/// The position is relative to a tree in level order, where for a given depth `d` elements are
+/// numbered from $0..2^d$.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct NodeIndex {
     depth: u8,
@@ -74,7 +78,7 @@ impl NodeIndex {
         self.depth
     }
 
-    /// Returns the value of the current depth.
+    /// Returns the value of this index.
     pub const fn value(&self) -> u64 {
         self.value
     }
@@ -92,6 +96,19 @@ impl NodeIndex {
     /// Returns `true` if the depth is `0`.
     pub const fn is_root(&self) -> bool {
         self.depth == 0
+    }
+
+    /// Returns a bit iterator for the `value`.
+    ///
+    /// Bits read from left-to-right represent which internal node's child should be visited to
+    /// arrive at the leaf. From the right-to-left the bit represent the position the hash of the
+    /// current element should go.
+    ///
+    /// Additionally, the value that is not visited are the sibling values necessary for a Merkle
+    /// opening.
+    pub fn bit_iterator(&self) -> BitIterator {
+        let depth: u32 = self.depth.into();
+        BitIterator::new(self.value).skip_back(u64::BITS - depth)
     }
 
     // STATE MUTATORS

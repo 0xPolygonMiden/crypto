@@ -1,4 +1,4 @@
-use super::{BTreeMap, MerkleError, MerklePath, NodeIndex, Rpo256, Vec, Word, ZERO};
+use super::{BTreeMap, MerkleError, MerklePath, NodeIndex, Rpo256, ValuePath, Vec, Word, ZERO};
 
 // MERKLE PATH SET
 // ================================================================================================
@@ -76,13 +76,21 @@ impl MerklePathSet {
             });
         }
 
-        let index_value = index.to_scalar_index();
-        let parity = index_value & 1;
-        let index_value = index_value / 2;
+        let parity = index.value() & 1;
+        let path_key = index.value() - parity;
         self.paths
-            .get(&index_value)
-            .ok_or(MerkleError::NodeNotInSet(index_value))
+            .get(&path_key)
+            .ok_or(MerkleError::NodeNotInSet(path_key))
             .map(|path| path[parity as usize])
+    }
+
+    /// Returns a leaf at the specified index.
+    ///
+    /// # Errors
+    /// * The specified index is not valid for the depth of the structure.
+    /// * Leaf with the requested path does not exist in the set.
+    pub fn get_leaf(&self, index: u64) -> Result<Word, MerkleError> {
+        self.get_node(NodeIndex::new(self.depth(), index))
     }
 
     /// Returns a Merkle path to the node at the specified index. The node itself is
@@ -103,16 +111,40 @@ impl MerklePathSet {
             });
         }
 
-        let index_value = index.to_scalar_index();
-        let index = index_value / 2;
-        let parity = index_value & 1;
+        let parity = index.value() & 1;
+        let path_key = index.value() - parity;
         let mut path = self
             .paths
-            .get(&index)
+            .get(&path_key)
             .cloned()
-            .ok_or(MerkleError::NodeNotInSet(index))?;
+            .ok_or(MerkleError::NodeNotInSet(index.value()))?;
         path.remove(parity as usize);
         Ok(path)
+    }
+
+    /// Returns all paths in this path set together with their indexes.
+    pub fn to_paths(&self) -> Vec<(u64, ValuePath)> {
+        let mut result = Vec::with_capacity(self.paths.len() * 2);
+
+        for (&index, path) in self.paths.iter() {
+            // push path for the even index into the result
+            let path1 = ValuePath {
+                value: path[0],
+                path: MerklePath::new(path[1..].to_vec()),
+            };
+            result.push((index, path1));
+
+            // push path for the odd index into the result
+            let mut path2 = path.clone();
+            let leaf2 = path2.remove(1);
+            let path2 = ValuePath {
+                value: leaf2,
+                path: path2,
+            };
+            result.push((index + 1, path2));
+        }
+
+        result
     }
 
     // STATE MUTATORS
@@ -133,7 +165,7 @@ impl MerklePathSet {
         value: Word,
         mut path: MerklePath,
     ) -> Result<(), MerkleError> {
-        let depth = (path.len() + 1) as u8;
+        let depth = path.len() as u8;
         let mut index = NodeIndex::new(depth, index_value);
         if index.depth() != self.total_depth {
             return Err(MerkleError::InvalidDepth {
@@ -143,8 +175,6 @@ impl MerklePathSet {
         }
 
         // update the current path
-        let index_value = index.to_scalar_index();
-        let upper_index_value = index_value / 2;
         let parity = index_value & 1;
         path.insert(parity as usize, value);
 
@@ -164,7 +194,8 @@ impl MerklePathSet {
         }
 
         // finish updating the path
-        self.paths.insert(upper_index_value, path);
+        let path_key = index_value - parity;
+        self.paths.insert(path_key, path);
         Ok(())
     }
 
@@ -180,10 +211,9 @@ impl MerklePathSet {
             return Err(MerkleError::InvalidIndex(index));
         }
 
-        let path = match self
-            .paths
-            .get_mut(&index.clone().move_up().to_scalar_index())
-        {
+        let parity = index.value() & 1;
+        let path_key = index.value() - parity;
+        let path = match self.paths.get_mut(&path_key) {
             Some(path) => path,
             None => return Err(MerkleError::NodeNotInSet(base_index_value)),
         };
@@ -247,7 +277,7 @@ mod tests {
 
         let root_exp = calculate_parent_hash(parent0, 0, parent1);
 
-        let set = super::MerklePathSet::new(3)
+        let set = super::MerklePathSet::new(2)
             .with_paths([(0, leaf0, vec![leaf1, parent1].into())])
             .unwrap();
 
@@ -259,7 +289,7 @@ mod tests {
         let path_6 = vec![int_to_node(7), int_to_node(45), int_to_node(123)];
         let hash_6 = int_to_node(6);
         let index = 6_u64;
-        let depth = 4_u8;
+        let depth = 3_u8;
         let set = super::MerklePathSet::new(depth)
             .with_paths([(index, hash_6, path_6.clone().into())])
             .unwrap();
@@ -274,7 +304,7 @@ mod tests {
         let path_6 = vec![int_to_node(7), int_to_node(45), int_to_node(123)];
         let hash_6 = int_to_node(6);
         let index = 6_u64;
-        let depth = 4_u8;
+        let depth = 3_u8;
         let set = MerklePathSet::new(depth)
             .with_paths([(index, hash_6, path_6.into())])
             .unwrap();
@@ -304,7 +334,7 @@ mod tests {
         let index_6 = 6_u64;
         let index_5 = 5_u64;
         let index_4 = 4_u64;
-        let depth = 4_u8;
+        let depth = 3_u8;
         let mut set = MerklePathSet::new(depth)
             .with_paths([
                 (index_6, hash_6, path_6.into()),
@@ -327,6 +357,58 @@ mod tests {
         let new_hash_45 = calculate_parent_hash(new_hash_5, 13_u64, hash_4);
         assert_eq!(new_hash_45, new_path_6[1]);
         assert_eq!(new_hash_5, new_path_4[0]);
+    }
+
+    #[test]
+    fn depth_3_is_correct() {
+        let a = int_to_node(1);
+        let b = int_to_node(2);
+        let c = int_to_node(3);
+        let d = int_to_node(4);
+        let e = int_to_node(5);
+        let f = int_to_node(6);
+        let g = int_to_node(7);
+        let h = int_to_node(8);
+
+        let i = Rpo256::merge(&[a.into(), b.into()]);
+        let j = Rpo256::merge(&[c.into(), d.into()]);
+        let k = Rpo256::merge(&[e.into(), f.into()]);
+        let l = Rpo256::merge(&[g.into(), h.into()]);
+
+        let m = Rpo256::merge(&[i.into(), j.into()]);
+        let n = Rpo256::merge(&[k.into(), l.into()]);
+
+        let root = Rpo256::merge(&[m.into(), n.into()]);
+
+        let mut set = MerklePathSet::new(3);
+
+        let value = b;
+        let index = 1;
+        let path = MerklePath::new([a.into(), j.into(), n.into()].to_vec());
+        set.add_path(index, value, path.clone()).unwrap();
+        assert_eq!(value, set.get_leaf(index).unwrap());
+        assert_eq!(Word::from(root), set.root());
+
+        let value = e;
+        let index = 4;
+        let path = MerklePath::new([f.into(), l.into(), m.into()].to_vec());
+        set.add_path(index, value, path.clone()).unwrap();
+        assert_eq!(value, set.get_leaf(index).unwrap());
+        assert_eq!(Word::from(root), set.root());
+
+        let value = a;
+        let index = 0;
+        let path = MerklePath::new([b.into(), j.into(), n.into()].to_vec());
+        set.add_path(index, value, path.clone()).unwrap();
+        assert_eq!(value, set.get_leaf(index).unwrap());
+        assert_eq!(Word::from(root), set.root());
+
+        let value = h;
+        let index = 7;
+        let path = MerklePath::new([g.into(), k.into(), m.into()].to_vec());
+        set.add_path(index, value, path.clone()).unwrap();
+        assert_eq!(value, set.get_leaf(index).unwrap());
+        assert_eq!(Word::from(root), set.root());
     }
 
     // HELPER FUNCTIONS

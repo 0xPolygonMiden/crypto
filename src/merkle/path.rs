@@ -82,3 +82,27 @@ impl IntoIterator for MerklePath {
         self.nodes.into_iter()
     }
 }
+
+// MERKLE PATH CONTAINERS
+// ================================================================================================
+
+/// A container for a [Word] value and its [MerklePath] opening.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ValuePath {
+    /// The node value opening for `path`.
+    pub value: Word,
+    /// The path from `value` to `root` (exclusive).
+    pub path: MerklePath,
+}
+
+/// A container for a [MerklePath] and its [Word] root.
+///
+/// This structure does not provide any guarantees regarding the correctness of the path to the
+/// root. For more information, check [MerklePath::verify].
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RootPath {
+    /// The node value opening for `path`.
+    pub root: Word,
+    /// The path from `value` to `root` (exclusive).
+    pub path: MerklePath,
+}

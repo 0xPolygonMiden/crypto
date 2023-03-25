@@ -1,9 +1,7 @@
 use super::{
-    super::{MerkleTree, RpoDigest, SimpleSmt},
+    super::{int_to_node, MerkleTree, RpoDigest, SimpleSmt},
     NodeIndex, Rpo256, Vec, Word,
 };
-use crate::{Felt, FieldElement};
-use core::iter;
 use proptest::prelude::*;
 use rand_utils::prng_array;
 
@@ -32,7 +30,7 @@ const ZERO_VALUES8: [Word; 8] = [int_to_node(0); 8];
 
 #[test]
 fn build_empty_tree() {
-    let smt = SimpleSmt::new(iter::empty(), 3).unwrap();
+    let smt = SimpleSmt::new(3).unwrap();
     let mt = MerkleTree::new(ZERO_VALUES8.to_vec()).unwrap();
     assert_eq!(mt.root(), smt.root());
 }
@@ -40,7 +38,7 @@ fn build_empty_tree() {
 #[test]
 fn empty_digests_are_consistent() {
     let depth = 5;
-    let root = SimpleSmt::new(iter::empty(), depth).unwrap().root();
+    let root = SimpleSmt::new(depth).unwrap().root();
     let computed: [RpoDigest; 2] = (0..depth).fold([Default::default(); 2], |state, _| {
         let digest = Rpo256::merge(&state);
         [digest; 2]
@@ -51,7 +49,7 @@ fn empty_digests_are_consistent() {
 
 #[test]
 fn build_sparse_tree() {
-    let mut smt = SimpleSmt::new(iter::empty(), 3).unwrap();
+    let mut smt = SimpleSmt::new(3).unwrap();
     let mut values = ZERO_VALUES8.to_vec();
 
     // insert single value
@@ -83,7 +81,10 @@ fn build_sparse_tree() {
 
 #[test]
 fn build_full_tree() {
-    let tree = SimpleSmt::new(KEYS4.into_iter().zip(VALUES4.into_iter()), 2).unwrap();
+    let tree = SimpleSmt::new(2)
+        .unwrap()
+        .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
+        .unwrap();
 
     let (root, node2, node3) = compute_internal_nodes();
     assert_eq!(root, tree.root());
@@ -93,7 +94,10 @@ fn build_full_tree() {
 
 #[test]
 fn get_values() {
-    let tree = SimpleSmt::new(KEYS4.into_iter().zip(VALUES4.into_iter()), 2).unwrap();
+    let tree = SimpleSmt::new(2)
+        .unwrap()
+        .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
+        .unwrap();
 
     // check depth 2
     assert_eq!(VALUES4[0], tree.get_node(&NodeIndex::new(2, 0)).unwrap());
@@ -104,7 +108,10 @@ fn get_values() {
 
 #[test]
 fn get_path() {
-    let tree = SimpleSmt::new(KEYS4.into_iter().zip(VALUES4.into_iter()), 2).unwrap();
+    let tree = SimpleSmt::new(2)
+        .unwrap()
+        .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
+        .unwrap();
 
     let (_, node2, node3) = compute_internal_nodes();
 
@@ -133,18 +140,20 @@ fn get_path() {
 
 #[test]
 fn update_leaf() {
-    let mut tree = SimpleSmt::new(KEYS8.into_iter().zip(VALUES8.into_iter()), 3).unwrap();
+    let mut tree = SimpleSmt::new(3)
+        .unwrap()
+        .with_leaves(KEYS8.into_iter().zip(VALUES8.into_iter()))
+        .unwrap();
 
     // update one value
     let key = 3;
     let new_node = int_to_node(9);
     let mut expected_values = VALUES8.to_vec();
     expected_values[key] = new_node;
-    let expected_tree = SimpleSmt::new(
-        KEYS8.into_iter().zip(expected_values.clone().into_iter()),
-        3,
-    )
-    .unwrap();
+    let expected_tree = SimpleSmt::new(3)
+        .unwrap()
+        .with_leaves(KEYS8.into_iter().zip(expected_values.clone().into_iter()))
+        .unwrap();
 
     tree.update_leaf(key as u64, new_node).unwrap();
     assert_eq!(expected_tree.root, tree.root);
@@ -153,8 +162,10 @@ fn update_leaf() {
     let key = 6;
     let new_node = int_to_node(10);
     expected_values[key] = new_node;
-    let expected_tree =
-        SimpleSmt::new(KEYS8.into_iter().zip(expected_values.into_iter()), 3).unwrap();
+    let expected_tree = SimpleSmt::new(3)
+        .unwrap()
+        .with_leaves(KEYS8.into_iter().zip(expected_values.into_iter()))
+        .unwrap();
 
     tree.update_leaf(key as u64, new_node).unwrap();
     assert_eq!(expected_tree.root, tree.root);
@@ -189,7 +200,7 @@ fn small_tree_opening_is_consistent() {
 
     let depth = 3;
     let entries = vec![(0, a), (1, b), (4, c), (7, d)];
-    let tree = SimpleSmt::new(entries, depth).unwrap();
+    let tree = SimpleSmt::new(depth).unwrap().with_leaves(entries).unwrap();
 
     assert_eq!(tree.root(), Word::from(k));
 
@@ -220,7 +231,7 @@ proptest! {
         key in prop::num::u64::ANY,
         leaf in prop::num::u64::ANY,
     ) {
-        let mut tree = SimpleSmt::new(iter::empty(), depth).unwrap();
+        let mut tree = SimpleSmt::new(depth).unwrap();
 
         let key = key % (1 << depth as u64);
         let leaf = int_to_node(leaf);
@@ -241,7 +252,7 @@ proptest! {
         count in 2u8..10u8,
         ref seed in any::<[u8; 32]>()
     ) {
-        let mut tree = SimpleSmt::new(iter::empty(), depth).unwrap();
+        let mut tree = SimpleSmt::new(depth).unwrap();
         let mut seed = *seed;
         let leaves = (1 << depth) - 1;
 
@@ -274,8 +285,4 @@ fn compute_internal_nodes() -> (Word, Word, Word) {
     let root = Rpo256::merge(&[node2, node3]);
 
     (root.into(), node2.into(), node3.into())
-}
-
-const fn int_to_node(value: u64) -> Word {
-    [Felt::new(value), Felt::ZERO, Felt::ZERO, Felt::ZERO]
 }
