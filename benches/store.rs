@@ -27,7 +27,7 @@ fn random_index(range: u64) -> u64 {
 fn get_empty_leaf_simplesmt(c: &mut Criterion) {
     let mut group = c.benchmark_group("get_empty_leaf_simplesmt");
 
-    let depth = 63u8;
+    let depth = SimpleSmt::MAX_DEPTH;
     let size = 2u64.pow(depth as u32);
 
     // both SMT and the store are pre-populated with empty hashes, accessing these values is what is
@@ -103,12 +103,12 @@ fn get_leaf_simplesmt(c: &mut Criterion) {
             .enumerate()
             .map(|(c, v)| (c.try_into().unwrap(), v.into()))
             .collect::<Vec<(u64, Word)>>();
-        let smt = SimpleSmt::new(63)
+        let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
             .unwrap()
             .with_leaves(smt_leaves.clone())
             .unwrap();
         let store = MerkleStore::new()
-            .with_sparse_merkle_tree(smt_leaves)
+            .with_sparse_merkle_tree(SimpleSmt::MAX_DEPTH, smt_leaves)
             .unwrap();
         let depth = smt.depth();
         let root = smt.root();
@@ -136,7 +136,7 @@ fn get_leaf_simplesmt(c: &mut Criterion) {
 fn get_node_of_empty_simplesmt(c: &mut Criterion) {
     let mut group = c.benchmark_group("get_node_of_empty_simplesmt");
 
-    let depth = 63u8;
+    let depth = SimpleSmt::MAX_DEPTH;
     let size = 2u64.pow(depth as u32);
 
     // both SMT and the store are pre-populated with the empty hashes, accessing the internal nodes
@@ -216,12 +216,12 @@ fn get_node_simplesmt(c: &mut Criterion) {
             .enumerate()
             .map(|(c, v)| (c.try_into().unwrap(), v.into()))
             .collect::<Vec<(u64, Word)>>();
-        let smt = SimpleSmt::new(63)
+        let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
             .unwrap()
             .with_leaves(smt_leaves.clone())
             .unwrap();
         let store = MerkleStore::new()
-            .with_sparse_merkle_tree(smt_leaves)
+            .with_sparse_merkle_tree(SimpleSmt::MAX_DEPTH, smt_leaves)
             .unwrap();
         let root = smt.root();
         let size_u64 = size as u64;
@@ -295,12 +295,12 @@ fn get_leaf_path_simplesmt(c: &mut Criterion) {
             .enumerate()
             .map(|(c, v)| (c.try_into().unwrap(), v.into()))
             .collect::<Vec<(u64, Word)>>();
-        let smt = SimpleSmt::new(63)
+        let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
             .unwrap()
             .with_leaves(smt_leaves.clone())
             .unwrap();
         let store = MerkleStore::new()
-            .with_sparse_merkle_tree(smt_leaves)
+            .with_sparse_merkle_tree(SimpleSmt::MAX_DEPTH, smt_leaves)
             .unwrap();
         let depth = smt.depth();
         let root = smt.root();
@@ -366,7 +366,7 @@ fn new(c: &mut Criterion) {
                         .map(|(c, v)| (c.try_into().unwrap(), v.into()))
                         .collect::<Vec<(u64, Word)>>()
                 },
-                |l| black_box(SimpleSmt::new(63).unwrap().with_leaves(l)),
+                |l| black_box(SimpleSmt::new(SimpleSmt::MAX_DEPTH).unwrap().with_leaves(l)),
                 BatchSize::SmallInput,
             )
         });
@@ -382,7 +382,11 @@ fn new(c: &mut Criterion) {
                             .map(|(c, v)| (c.try_into().unwrap(), v.into()))
                             .collect::<Vec<(u64, Word)>>()
                     },
-                    |l| black_box(MerkleStore::new().with_sparse_merkle_tree(l)),
+                    |l| {
+                        black_box(
+                            MerkleStore::new().with_sparse_merkle_tree(SimpleSmt::MAX_DEPTH, l),
+                        )
+                    },
                     BatchSize::SmallInput,
                 )
             },
@@ -450,12 +454,12 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
             .enumerate()
             .map(|(c, v)| (c.try_into().unwrap(), v.into()))
             .collect::<Vec<(u64, Word)>>();
-        let mut smt = SimpleSmt::new(63)
+        let mut smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
             .unwrap()
             .with_leaves(smt_leaves.clone())
             .unwrap();
         let mut store = MerkleStore::new()
-            .with_sparse_merkle_tree(smt_leaves)
+            .with_sparse_merkle_tree(SimpleSmt::MAX_DEPTH, smt_leaves)
             .unwrap();
         let depth = smt.depth();
         let root = smt.root();

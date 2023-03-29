@@ -115,13 +115,19 @@ impl MerkleStore {
         Ok(self)
     }
 
-    /// Appends the provided sparse merkle tree represented by its `entries` to the set.
-    pub fn with_sparse_merkle_tree<R, I>(mut self, entries: R) -> Result<Self, MerkleError>
+    /// Appends the provided Sparse Merkle tree represented by its `entries` to the set.
+    ///
+    /// For more information, check [MerkleStore::add_sparse_merkle_tree].
+    pub fn with_sparse_merkle_tree<R, I>(
+        mut self,
+        depth: u8,
+        entries: R,
+    ) -> Result<Self, MerkleError>
     where
         R: IntoIterator<IntoIter = I>,
         I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
     {
-        self.add_sparse_merkle_tree(entries)?;
+        self.add_sparse_merkle_tree(depth, entries)?;
         Ok(self)
     }
 
@@ -272,20 +278,24 @@ impl MerkleStore {
         Ok(tree.nodes[1])
     }
 
-    /// Adds all the nodes of a Sparse Merkle tree represented by `entries`.
+    /// Adds a Sparse Merkle tree defined by the specified `entries` to the store, and returns the
+    /// root of the added tree.
     ///
-    /// This will instantiate a Sparse Merkle tree using `entries` and include all the nodes into
-    /// the store.
+    /// The entries are expected to contain tuples of `(index, node)` describing nodes in the tree
+    /// at `depth`.
     ///
     /// # Errors
-    ///
-    /// This will return `InvalidEntriesCount` if the length of `entries` is not `63`.
-    pub fn add_sparse_merkle_tree<R, I>(&mut self, entries: R) -> Result<Word, MerkleError>
+    /// Returns an error if the provided `depth` is greater than [SimpleSmt::MAX_DEPTH].
+    pub fn add_sparse_merkle_tree<R, I>(
+        &mut self,
+        depth: u8,
+        entries: R,
+    ) -> Result<Word, MerkleError>
     where
         R: IntoIterator<IntoIter = I>,
         I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
     {
-        let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)?.with_leaves(entries)?;
+        let smt = SimpleSmt::new(depth)?.with_leaves(entries)?;
         for branch in smt.store.branches.values() {
             let parent = Rpo256::merge(&[branch.left, branch.right]);
             self.nodes.insert(
