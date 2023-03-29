@@ -8,7 +8,7 @@ mod tests;
 // SPARSE MERKLE TREE
 // ================================================================================================
 
-/// A sparse Merkle tree with 63-bit keys and 4-element leaf values, without compaction.
+/// A sparse Merkle tree with 64-bit keys and 4-element leaf values, without compaction.
 /// Manipulation and retrieval of leaves and internal nodes is provided by its internal `Store`.
 /// The root of the tree is recomputed on each new leaf update.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,7 +26,7 @@ impl SimpleSmt {
     pub const MIN_DEPTH: u8 = 1;
 
     /// Maximum supported depth.
-    pub const MAX_DEPTH: u8 = 63;
+    pub const MAX_DEPTH: u8 = 64;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ impl SimpleSmt {
     {
         // check if the leaves count will fit the depth setup
         let mut entries = entries.into_iter();
-        let max = 1 << self.depth;
+        let max = 1 << self.depth.min(63);
         if entries.len() > max {
             return Err(MerkleError::InvalidEntriesCount(max, entries.len()));
         }
