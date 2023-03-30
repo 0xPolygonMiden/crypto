@@ -32,6 +32,9 @@ pub use mmr::{Mmr, MmrPeaks};
 mod store;
 pub use store::MerkleStore;
 
+mod node;
+pub use node::InnerNodeInfo;
+
 // ERRORS
 // ================================================================================================
 

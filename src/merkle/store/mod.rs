@@ -249,33 +249,18 @@ impl MerkleStore {
             return Err(MerkleError::DepthTooSmall(leaves.len() as u8));
         }
 
-        let layers = leaves.len().ilog2();
         let tree = MerkleTree::new(leaves)?;
-
-        let mut depth = 0;
-        let mut parent_offset = 1;
-        let mut child_offset = 2;
-        while depth < layers {
-            let layer_size = 1usize << depth;
-            for _ in 0..layer_size {
-                // merkle tree is using level form representation, so left and right siblings are
-                // next to each other
-                let left = tree.nodes[child_offset];
-                let right = tree.nodes[child_offset + 1];
-                self.nodes.insert(
-                    tree.nodes[parent_offset].into(),
-                    Node {
-                        left: left.into(),
-                        right: right.into(),
-                    },
-                );
-                parent_offset += 1;
-                child_offset += 2;
-            }
-            depth += 1;
+        for node in tree.inner_nodes() {
+            self.nodes.insert(
+                node.value.into(),
+                Node {
+                    left: node.left.into(),
+                    right: node.right.into(),
+                },
+            );
         }
 
-        Ok(tree.nodes[1])
+        Ok(tree.root())
     }
 
     /// Adds a Sparse Merkle tree defined by the specified `entries` to the store, and returns the
