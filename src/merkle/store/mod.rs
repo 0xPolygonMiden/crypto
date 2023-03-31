@@ -1,3 +1,4 @@
+use super::mmr::{Mmr, MmrPeaks};
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, MerkleError, MerklePath, MerklePathSet, MerkleTree,
     NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
@@ -148,6 +149,15 @@ impl MerkleStore {
         I: IntoIterator<Item = (u64, Word, MerklePath)>,
     {
         self.add_merkle_paths(paths)?;
+        Ok(self)
+    }
+
+    /// Appends the provided [Mmr] represented by its `leaves` to the set.
+    pub fn with_mmr<I>(mut self, leaves: I) -> Result<Self, MerkleError>
+    where
+        I: IntoIterator<Item = Word>,
+    {
+        self.add_mmr(leaves)?;
         Ok(self)
     }
 
@@ -373,6 +383,25 @@ impl MerkleStore {
             self.add_merkle_path(index, path.value, path.path)?;
         }
         Ok(root)
+    }
+
+    /// Appends the provided [Mmr] into the store.
+    pub fn add_mmr<I>(&mut self, leaves: I) -> Result<MmrPeaks, MerkleError>
+    where
+        I: IntoIterator<Item = Word>,
+    {
+        let mmr = Mmr::from(leaves);
+        for node in mmr.inner_nodes() {
+            self.nodes.insert(
+                node.value.into(),
+                Node {
+                    left: node.left.into(),
+                    right: node.right.into(),
+                },
+            );
+        }
+
+        Ok(mmr.accumulator())
     }
 
     /// Sets a node to `value`.
