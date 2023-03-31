@@ -9,13 +9,20 @@ mod tests;
 // ================================================================================================
 
 /// A sparse Merkle tree with 64-bit keys and 4-element leaf values, without compaction.
-/// Manipulation and retrieval of leaves and internal nodes is provided by its internal `Store`.
 /// The root of the tree is recomputed on each new leaf update.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimpleSmt {
-    root: Word,
     depth: u8,
-    pub(crate) store: Store,
+    root: Word,
+    leaves: BTreeMap<u64, Word>,
+    pub(crate) branches: BTreeMap<NodeIndex, BranchNode>,
+    empty_hashes: Vec<RpoDigest>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub(crate) struct BranchNode {
+    pub(crate) left: RpoDigest,
+    pub(crate) right: RpoDigest,
 }
 
 impl SimpleSmt {
@@ -40,8 +47,16 @@ impl SimpleSmt {
             return Err(MerkleError::DepthTooBig(depth as u64));
         }
 
-        let (store, root) = Store::new(depth);
-        Ok(Self { root, depth, store })
+        let empty_hashes = EmptySubtreeRoots::empty_hashes(depth).to_vec();
+        let root = empty_hashes[0].into();
+
+        Ok(Self {
+            root,
+            depth,
+            empty_hashes,
+            leaves: BTreeMap::new(),
+            branches: BTreeMap::new(),
+        })
     }
 
     /// Appends the provided entries as leaves of the tree.
@@ -72,8 +87,7 @@ impl SimpleSmt {
     where
         I: IntoIterator<Item = RpoDigest>,
     {
-        self.store
-            .replace_empty_subtrees(hashes.into_iter().collect());
+        self.replace_empty_subtrees(hashes.into_iter().collect());
         self
     }
 
@@ -95,7 +109,7 @@ impl SimpleSmt {
 
     /// Returns the set count of the keys of the leaves.
     pub fn leaves_count(&self) -> usize {
-        self.store.leaves_count()
+        self.leaves.len()
     }
 
     /// Returns a node at the specified key
@@ -109,18 +123,16 @@ impl SimpleSmt {
         } else if index.depth() > self.depth() {
             Err(MerkleError::DepthTooBig(index.depth() as u64))
         } else if index.depth() == self.depth() {
-            self.store
-                .get_leaf_node(index.value())
+            self.get_leaf_node(index.value())
                 .or_else(|| {
-                    self.store
-                        .empty_hashes
+                    self.empty_hashes
                         .get(index.depth() as usize)
                         .copied()
                         .map(Word::from)
                 })
                 .ok_or(MerkleError::InvalidIndex(*index))
         } else {
-            let branch_node = self.store.get_branch_node(index);
+            let branch_node = self.get_branch_node(index);
             Ok(Rpo256::merge(&[branch_node.left, branch_node.right]).into())
         }
     }
@@ -142,7 +154,7 @@ impl SimpleSmt {
         for _ in 0..index.depth() {
             let is_right = index.is_value_odd();
             index.move_up();
-            let BranchNode { left, right } = self.store.get_branch_node(&index);
+            let BranchNode { left, right } = self.get_branch_node(&index);
             let value = if is_right { left } else { right };
             path.push(*value);
         }
@@ -167,7 +179,7 @@ impl SimpleSmt {
     /// # Errors
     /// Returns an error if the specified key is not a valid leaf index for this tree.
     pub fn update_leaf(&mut self, key: u64, value: Word) -> Result<(), MerkleError> {
-        if !self.store.check_leaf_node_exists(key) {
+        if !self.check_leaf_node_exists(key) {
             return Err(MerkleError::InvalidIndex(NodeIndex::new(self.depth(), key)));
         }
         self.insert_leaf(key, value)?;
@@ -177,7 +189,7 @@ impl SimpleSmt {
 
     /// Inserts a leaf located at the specified key, and recomputes hashes by walking up the tree
     pub fn insert_leaf(&mut self, key: u64, value: Word) -> Result<(), MerkleError> {
-        self.store.insert_leaf_node(key, value);
+        self.insert_leaf_node(key, value);
 
         // TODO consider using a map `index |-> word` instead of `index |-> (word, word)`
         let mut index = NodeIndex::new(self.depth(), key);
@@ -185,59 +197,21 @@ impl SimpleSmt {
         for _ in 0..index.depth() {
             let is_right = index.is_value_odd();
             index.move_up();
-            let BranchNode { left, right } = self.store.get_branch_node(&index);
+            let BranchNode { left, right } = self.get_branch_node(&index);
             let (left, right) = if is_right {
                 (left, value)
             } else {
                 (value, right)
             };
-            self.store.insert_branch_node(index, left, right);
+            self.insert_branch_node(index, left, right);
             value = Rpo256::merge(&[left, right]);
         }
         self.root = value.into();
         Ok(())
     }
-}
 
-// STORE
-// ================================================================================================
-
-/// A data store for sparse Merkle tree key-value pairs.
-/// Leaves and branch nodes are stored separately in B-tree maps, indexed by key and (key, depth)
-/// respectively. Hashes for blank subtrees at each layer are stored in `empty_hashes`, beginning
-/// with the root hash of an empty tree, and ending with the zero value of a leaf node.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Store {
-    pub(crate) branches: BTreeMap<NodeIndex, BranchNode>,
-    leaves: BTreeMap<u64, Word>,
-    pub(crate) empty_hashes: Vec<RpoDigest>,
-    depth: u8,
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub(crate) struct BranchNode {
-    pub(crate) left: RpoDigest,
-    pub(crate) right: RpoDigest,
-}
-
-impl Store {
-    fn new(depth: u8) -> (Self, Word) {
-        let branches = BTreeMap::new();
-        let leaves = BTreeMap::new();
-
-        // Construct empty node digests for each layer of the tree
-        let empty_hashes = EmptySubtreeRoots::empty_hashes(depth).to_vec();
-
-        let root = empty_hashes[0].into();
-        let store = Self {
-            branches,
-            leaves,
-            empty_hashes,
-            depth,
-        };
-
-        (store, root)
-    }
+    // HELPER METHODS
+    // --------------------------------------------------------------------------------------------
 
     fn replace_empty_subtrees(&mut self, hashes: Vec<RpoDigest>) {
         self.empty_hashes = hashes;
@@ -268,9 +242,5 @@ impl Store {
     fn insert_branch_node(&mut self, index: NodeIndex, left: RpoDigest, right: RpoDigest) {
         let branch = BranchNode { left, right };
         self.branches.insert(index, branch);
-    }
-
-    fn leaves_count(&self) -> usize {
-        self.leaves.len()
     }
 }
