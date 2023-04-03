@@ -1,5 +1,6 @@
 use super::{
-    BTreeMap, EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word,
+    BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256,
+    RpoDigest, Vec, Word,
 };
 
 #[cfg(test)]
@@ -15,14 +16,20 @@ pub struct SimpleSmt {
     depth: u8,
     root: Word,
     leaves: BTreeMap<u64, Word>,
-    pub(crate) branches: BTreeMap<NodeIndex, BranchNode>,
+    branches: BTreeMap<NodeIndex, BranchNode>,
     empty_hashes: Vec<RpoDigest>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub(crate) struct BranchNode {
-    pub(crate) left: RpoDigest,
-    pub(crate) right: RpoDigest,
+struct BranchNode {
+    left: RpoDigest,
+    right: RpoDigest,
+}
+
+impl BranchNode {
+    fn parent(&self) -> RpoDigest {
+        Rpo256::merge(&[self.left, self.right])
+    }
 }
 
 impl SimpleSmt {
@@ -169,6 +176,15 @@ impl SimpleSmt {
     /// * The specified key does not exist as a leaf node.
     pub fn get_leaf_path(&self, key: u64) -> Result<MerklePath, MerkleError> {
         self.get_path(NodeIndex::new(self.depth(), key))
+    }
+
+    /// Iterator over the inner nodes of the [SimpleSmt].
+    pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+        self.branches.values().map(|e| InnerNodeInfo {
+            value: e.parent().into(),
+            left: e.left.into(),
+            right: e.right.into(),
+        })
     }
 
     // STATE MUTATORS
