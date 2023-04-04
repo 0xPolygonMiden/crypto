@@ -291,13 +291,12 @@ impl MerkleStore {
         I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
     {
         let smt = SimpleSmt::new(depth)?.with_leaves(entries)?;
-        for branch in smt.branches.values() {
-            let parent = Rpo256::merge(&[branch.left, branch.right]);
+        for node in smt.inner_nodes() {
             self.nodes.insert(
-                parent,
+                node.value.into(),
                 Node {
-                    left: branch.left,
-                    right: branch.right,
+                    left: node.left.into(),
+                    right: node.right.into(),
                 },
             );
         }

@@ -1,5 +1,5 @@
 use super::{
-    super::{int_to_node, MerkleTree, RpoDigest, SimpleSmt},
+    super::{int_to_node, InnerNodeInfo, MerkleError, MerkleTree, RpoDigest, SimpleSmt},
     NodeIndex, Rpo256, Vec, Word,
 };
 use proptest::prelude::*;
@@ -136,6 +136,51 @@ fn get_path() {
     // check depth 1
     assert_eq!(vec![node3], *tree.get_path(NodeIndex::new(1, 0)).unwrap());
     assert_eq!(vec![node2], *tree.get_path(NodeIndex::new(1, 1)).unwrap());
+}
+
+#[test]
+fn test_parent_node_iterator() -> Result<(), MerkleError> {
+    let tree = SimpleSmt::new(2)
+        .unwrap()
+        .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
+        .unwrap();
+
+    // check depth 2
+    assert_eq!(VALUES4[0], tree.get_node(&NodeIndex::new(2, 0)).unwrap());
+    assert_eq!(VALUES4[1], tree.get_node(&NodeIndex::new(2, 1)).unwrap());
+    assert_eq!(VALUES4[2], tree.get_node(&NodeIndex::new(2, 2)).unwrap());
+    assert_eq!(VALUES4[3], tree.get_node(&NodeIndex::new(2, 3)).unwrap());
+
+    // get parent nodes
+    let root = tree.root();
+    let l1n0 = tree.get_node(&NodeIndex::new(1, 0))?;
+    let l1n1 = tree.get_node(&NodeIndex::new(1, 1))?;
+    let l2n0 = tree.get_node(&NodeIndex::new(2, 0))?;
+    let l2n1 = tree.get_node(&NodeIndex::new(2, 1))?;
+    let l2n2 = tree.get_node(&NodeIndex::new(2, 2))?;
+    let l2n3 = tree.get_node(&NodeIndex::new(2, 3))?;
+
+    let nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
+    let expected = vec![
+        InnerNodeInfo {
+            value: root.into(),
+            left: l1n0.into(),
+            right: l1n1.into(),
+        },
+        InnerNodeInfo {
+            value: l1n0.into(),
+            left: l2n0.into(),
+            right: l2n1.into(),
+        },
+        InnerNodeInfo {
+            value: l1n1.into(),
+            left: l2n2.into(),
+            right: l2n3.into(),
+        },
+    ];
+    assert_eq!(nodes, expected);
+
+    Ok(())
 }
 
 #[test]
