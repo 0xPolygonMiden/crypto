@@ -1,4 +1,6 @@
-use super::{Felt, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word};
+use super::{
+    Felt, InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word,
+};
 use crate::{
     utils::{string::String, uninit_vector, word_to_hex},
     FieldElement,
@@ -12,7 +14,7 @@ use winter_math::log2;
 /// A fully-balanced binary Merkle tree (i.e., a tree where the number of leaves is a power of two).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerkleTree {
-    pub(crate) nodes: Vec<Word>,
+    nodes: Vec<Word>,
 }
 
 impl MerkleTree {
@@ -158,6 +160,47 @@ impl MerkleTree {
 
         Ok(())
     }
+
+    /// An iterator over every inner node in the tree. The iterator order is unspecified.
+    pub fn inner_nodes(&self) -> MerkleTreeNodes<'_> {
+        MerkleTreeNodes {
+            nodes: &self.nodes,
+            index: 1, // index 0 is just padding, start at 1
+        }
+    }
+}
+
+// ITERATORS
+// ================================================================================================
+
+/// An iterator over every inner node of the [MerkleTree].
+///
+/// Use this to extract the data of the tree, there is no guarantee on the order of the elements.
+pub struct MerkleTreeNodes<'a> {
+    nodes: &'a Vec<Word>,
+    index: usize,
+}
+
+impl<'a> Iterator for MerkleTreeNodes<'a> {
+    type Item = InnerNodeInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.nodes.len() / 2 {
+            let value = self.index;
+            let left = self.index * 2;
+            let right = left + 1;
+
+            self.index += 1;
+
+            Some(InnerNodeInfo {
+                value: self.nodes[value],
+                left: self.nodes[left],
+                right: self.nodes[right],
+            })
+        } else {
+            None
+        }
+    }
 }
 
 /// Utility to vizualize a [MerkleTree] in text.
@@ -212,7 +255,7 @@ pub fn path_to_text(path: &MerklePath) -> Result<String, fmt::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::merkle::int_to_node;
+    use crate::merkle::{int_to_node, InnerNodeInfo};
     use core::mem::size_of;
     use proptest::prelude::*;
 
@@ -321,6 +364,40 @@ mod tests {
 
         tree.update_leaf(value, new_node).unwrap();
         assert_eq!(expected_tree.nodes, tree.nodes);
+    }
+
+    #[test]
+    fn nodes() -> Result<(), MerkleError> {
+        let tree = super::MerkleTree::new(LEAVES4.to_vec()).unwrap();
+        let root = tree.root();
+        let l1n0 = tree.get_node(NodeIndex::new(1, 0))?;
+        let l1n1 = tree.get_node(NodeIndex::new(1, 1))?;
+        let l2n0 = tree.get_node(NodeIndex::new(2, 0))?;
+        let l2n1 = tree.get_node(NodeIndex::new(2, 1))?;
+        let l2n2 = tree.get_node(NodeIndex::new(2, 2))?;
+        let l2n3 = tree.get_node(NodeIndex::new(2, 3))?;
+
+        let nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
+        let expected = vec![
+            InnerNodeInfo {
+                value: root,
+                left: l1n0,
+                right: l1n1,
+            },
+            InnerNodeInfo {
+                value: l1n0,
+                left: l2n0,
+                right: l2n1,
+            },
+            InnerNodeInfo {
+                value: l1n1,
+                left: l2n2,
+                right: l2n3,
+            },
+        ];
+        assert_eq!(nodes, expected);
+
+        Ok(())
     }
 
     proptest! {
