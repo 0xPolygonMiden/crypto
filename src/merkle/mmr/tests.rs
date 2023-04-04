@@ -1,6 +1,9 @@
 use super::bit::TrueBitPositionIterator;
 use super::full::{high_bitmask, leaf_to_corresponding_tree, nodes_in_forest};
-use super::{super::Vec, Mmr, Rpo256, Word};
+use super::{
+    super::{InnerNodeInfo, Vec},
+    Mmr, Rpo256, Word,
+};
 use crate::merkle::{int_to_node, MerklePath};
 
 #[test]
@@ -408,6 +411,41 @@ fn test_bit_position_iterator() {
             .collect::<Vec<u32>>(),
         vec![7, 6, 4, 2, 0],
     );
+}
+
+#[test]
+fn test_mmr_inner_nodes() {
+    let mmr: Mmr = LEAVES.into();
+    let nodes: Vec<InnerNodeInfo> = mmr.inner_nodes().collect();
+
+    let h01 = *Rpo256::hash_elements(&[LEAVES[0], LEAVES[1]].concat());
+    let h23 = *Rpo256::hash_elements(&[LEAVES[2], LEAVES[3]].concat());
+    let h0123 = *Rpo256::hash_elements(&[h01, h23].concat());
+    let h45 = *Rpo256::hash_elements(&[LEAVES[4], LEAVES[5]].concat());
+    let postorder = vec![
+        InnerNodeInfo {
+            value: h01,
+            left: LEAVES[0],
+            right: LEAVES[1],
+        },
+        InnerNodeInfo {
+            value: h23,
+            left: LEAVES[2],
+            right: LEAVES[3],
+        },
+        InnerNodeInfo {
+            value: h0123,
+            left: h01,
+            right: h23,
+        },
+        InnerNodeInfo {
+            value: h45,
+            left: LEAVES[4],
+            right: LEAVES[5],
+        },
+    ];
+
+    assert_eq!(postorder, nodes);
 }
 
 mod property_tests {
