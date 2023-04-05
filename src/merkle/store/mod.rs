@@ -244,6 +244,81 @@ impl MerkleStore {
         })
     }
 
+    /// Reconstructs a path from the root until a leaf or empty node and returns its depth.
+    ///
+    /// The `tree_depth` parameter defines up to which depth the tree will be traversed, starting
+    /// from `root`. The maximum value the argument accepts is [u64::BITS].
+    ///
+    /// The traversed path from leaf to root will start at the least significant bit of `index`,
+    /// and will be executed for `tree_depth` bits.
+    ///
+    /// # Errors
+    /// Will return an error if:
+    /// - The provided root is not found.
+    /// - The path from the root continues to a depth greater than `tree_depth`.
+    /// - The provided `tree_depth` is greater than `64.
+    /// - The provided `index` is not valid for a depth equivalent to `tree_depth`. For more
+    /// information, check [NodeIndex::new].
+    pub fn get_leaf_depth(
+        &self,
+        root: Word,
+        tree_depth: u8,
+        index: u64,
+    ) -> Result<u8, MerkleError> {
+        // validate depth and index
+        if tree_depth > 64 {
+            return Err(MerkleError::DepthTooBig(tree_depth as u64));
+        }
+        NodeIndex::new(tree_depth, index)?;
+
+        // it's not illegal to have a maximum depth of `0`; we should just return the root in that
+        // case. this check will simplify the implementation as we could overflow bits for depth
+        // `0`.
+        if tree_depth == 0 {
+            return Ok(0);
+        }
+
+        // check if the root exists, providing the proper error report if it doesn't
+        let empty = EmptySubtreeRoots::empty_hashes(tree_depth);
+        let mut hash: RpoDigest = root.into();
+        if !self.nodes.contains_key(&hash) {
+            return Err(MerkleError::RootNotInStore(hash.into()));
+        }
+
+        // we traverse from root to leaf, so the path is reversed
+        let mut path = (index << (64 - tree_depth)).reverse_bits();
+
+        // iterate every depth and reconstruct the path from root to leaf
+        for depth in 0..tree_depth {
+            // we short-circuit if an empty node has been found
+            if hash == empty[depth as usize] {
+                return Ok(depth);
+            }
+
+            // fetch the children pair, mapped by its parent hash
+            let children = match self.nodes.get(&hash) {
+                Some(node) => node,
+                None => return Ok(depth),
+            };
+
+            // traverse down
+            hash = if path & 1 == 0 {
+                children.left
+            } else {
+                children.right
+            };
+            path >>= 1;
+        }
+
+        // at max depth assert it doesn't have sub-trees
+        if self.nodes.contains_key(&hash) {
+            return Err(MerkleError::DepthTooBig(tree_depth as u64 + 1));
+        }
+
+        // depleted bits; return max depth
+        Ok(tree_depth)
+    }
+
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
