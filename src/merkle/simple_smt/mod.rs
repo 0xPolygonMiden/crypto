@@ -119,12 +119,12 @@ impl SimpleSmt {
         self.leaves.len()
     }
 
-    /// Returns a node at the specified key
+    /// Returns a node at the specified index.
     ///
     /// # Errors
     /// Returns an error if:
     /// * The specified depth is greater than the depth of the tree.
-    pub fn get_node(&self, index: &NodeIndex) -> Result<Word, MerkleError> {
+    pub fn get_node(&self, index: NodeIndex) -> Result<Word, MerkleError> {
         if index.is_root() {
             Err(MerkleError::DepthTooSmall(index.depth()))
         } else if index.depth() > self.depth() {
@@ -137,9 +137,9 @@ impl SimpleSmt {
                         .copied()
                         .map(Word::from)
                 })
-                .ok_or(MerkleError::InvalidIndex(*index))
+                .ok_or(MerkleError::NodeNotInSet(index.value()))
         } else {
-            let branch_node = self.get_branch_node(index);
+            let branch_node = self.get_branch_node(&index);
             Ok(Rpo256::merge(&[branch_node.left, branch_node.right]).into())
         }
     }
@@ -175,7 +175,8 @@ impl SimpleSmt {
     /// Returns an error if:
     /// * The specified key does not exist as a leaf node.
     pub fn get_leaf_path(&self, key: u64) -> Result<MerklePath, MerkleError> {
-        self.get_path(NodeIndex::new(self.depth(), key))
+        let index = NodeIndex::new(self.depth(), key)?;
+        self.get_path(index)
     }
 
     /// Iterator over the inner nodes of the [SimpleSmt].
@@ -190,13 +191,15 @@ impl SimpleSmt {
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
-    /// Replaces the leaf located at the specified key, and recomputes hashes by walking up the tree
+    /// Replaces the leaf located at the specified key, and recomputes hashes by walking up the
+    /// tree.
     ///
     /// # Errors
     /// Returns an error if the specified key is not a valid leaf index for this tree.
     pub fn update_leaf(&mut self, key: u64, value: Word) -> Result<(), MerkleError> {
+        let index = NodeIndex::new(self.depth(), key)?;
         if !self.check_leaf_node_exists(key) {
-            return Err(MerkleError::InvalidIndex(NodeIndex::new(self.depth(), key)));
+            return Err(MerkleError::NodeNotInSet(index.value()));
         }
         self.insert_leaf(key, value)?;
 
@@ -208,7 +211,7 @@ impl SimpleSmt {
         self.insert_leaf_node(key, value);
 
         // TODO consider using a map `index |-> word` instead of `index |-> (word, word)`
-        let mut index = NodeIndex::new(self.depth(), key);
+        let mut index = NodeIndex::new(self.depth(), key)?;
         let mut value = RpoDigest::from(value);
         for _ in 0..index.depth() {
             let is_right = index.is_value_odd();

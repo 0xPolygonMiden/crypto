@@ -18,9 +18,10 @@ fn random_word() -> Word {
     rand_array::<Felt, 4>().into()
 }
 
-/// Generates a u64 in `0..range`.
-fn random_index(range: u64) -> u64 {
-    rand_value::<u64>() % range
+/// Generates an index at the specified depth in `0..range`.
+fn random_index(range: u64, depth: u8) -> NodeIndex {
+    let value = rand_value::<u64>() % range;
+    NodeIndex::new(depth, value).unwrap()
 }
 
 /// Benchmarks getting an empty leaf from the SMT and MerkleStore backends.
@@ -28,7 +29,7 @@ fn get_empty_leaf_simplesmt(c: &mut Criterion) {
     let mut group = c.benchmark_group("get_empty_leaf_simplesmt");
 
     let depth = SimpleSmt::MAX_DEPTH;
-    let size = 2u64.pow(depth as u32);
+    let size = u64::MAX;
 
     // both SMT and the store are pre-populated with empty hashes, accessing these values is what is
     // being benchmarked here, so no values are inserted into the backends
@@ -38,16 +39,16 @@ fn get_empty_leaf_simplesmt(c: &mut Criterion) {
 
     group.bench_function(BenchmarkId::new("SimpleSmt", depth), |b| {
         b.iter_batched(
-            || random_index(size),
-            |value| black_box(smt.get_node(&NodeIndex::new(depth, value))),
+            || random_index(size, depth),
+            |index| black_box(smt.get_node(index)),
             BatchSize::SmallInput,
         )
     });
 
     group.bench_function(BenchmarkId::new("MerkleStore", depth), |b| {
         b.iter_batched(
-            || random_index(size),
-            |value| black_box(store.get_node(root, NodeIndex::new(depth, value))),
+            || random_index(size, depth),
+            |index| black_box(store.get_node(root, index)),
             BatchSize::SmallInput,
         )
     });
@@ -72,16 +73,16 @@ fn get_leaf_merkletree(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("MerkleTree", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(mtree.get_node(NodeIndex::new(depth, value))),
+                || random_index(size_u64, depth),
+                |index| black_box(mtree.get_node(index)),
                 BatchSize::SmallInput,
             )
         });
 
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(store.get_node(root, NodeIndex::new(depth, value))),
+                || random_index(size_u64, depth),
+                |index| black_box(store.get_node(root, index)),
                 BatchSize::SmallInput,
             )
         });
@@ -116,16 +117,16 @@ fn get_leaf_simplesmt(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("SimpleSmt", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(smt.get_node(&NodeIndex::new(depth, value))),
+                || random_index(size_u64, depth),
+                |index| black_box(smt.get_node(index)),
                 BatchSize::SmallInput,
             )
         });
 
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(store.get_node(root, NodeIndex::new(depth, value))),
+                || random_index(size_u64, depth),
+                |index| black_box(store.get_node(root, index)),
                 BatchSize::SmallInput,
             )
         });
@@ -137,7 +138,6 @@ fn get_node_of_empty_simplesmt(c: &mut Criterion) {
     let mut group = c.benchmark_group("get_node_of_empty_simplesmt");
 
     let depth = SimpleSmt::MAX_DEPTH;
-    let size = 2u64.pow(depth as u32);
 
     // both SMT and the store are pre-populated with the empty hashes, accessing the internal nodes
     // of these values is what is being benchmarked here, so no values are inserted into the
@@ -146,19 +146,20 @@ fn get_node_of_empty_simplesmt(c: &mut Criterion) {
     let store = MerkleStore::new();
     let root = smt.root();
     let half_depth = depth / 2;
+    let half_size = 2_u64.pow(half_depth as u32);
 
     group.bench_function(BenchmarkId::new("SimpleSmt", depth), |b| {
         b.iter_batched(
-            || random_index(size),
-            |value| black_box(smt.get_node(&NodeIndex::new(half_depth, value))),
+            || random_index(half_size, half_depth),
+            |index| black_box(smt.get_node(index)),
             BatchSize::SmallInput,
         )
     });
 
     group.bench_function(BenchmarkId::new("MerkleStore", depth), |b| {
         b.iter_batched(
-            || random_index(size),
-            |value| black_box(store.get_node(root, NodeIndex::new(half_depth, value))),
+            || random_index(half_size, half_depth),
+            |index| black_box(store.get_node(root, index)),
             BatchSize::SmallInput,
         )
     });
@@ -178,22 +179,22 @@ fn get_node_merkletree(c: &mut Criterion) {
         let mtree_leaves: Vec<Word> = leaves.iter().map(|v| v.into()).collect();
         let mtree = MerkleTree::new(mtree_leaves.clone()).unwrap();
         let store = MerkleStore::new().with_merkle_tree(mtree_leaves).unwrap();
-        let half_depth = mtree.depth() / 2;
         let root = mtree.root();
-        let size_u64 = size as u64;
+        let half_depth = mtree.depth() / 2;
+        let half_size = 2_u64.pow(half_depth as u32);
 
         group.bench_function(BenchmarkId::new("MerkleTree", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(mtree.get_node(NodeIndex::new(half_depth, value))),
+                || random_index(half_size, half_depth),
+                |index| black_box(mtree.get_node(index)),
                 BatchSize::SmallInput,
             )
         });
 
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(store.get_node(root, NodeIndex::new(half_depth, value))),
+                || random_index(half_size, half_depth),
+                |index| black_box(store.get_node(root, index)),
                 BatchSize::SmallInput,
             )
         });
@@ -224,21 +225,21 @@ fn get_node_simplesmt(c: &mut Criterion) {
             .with_sparse_merkle_tree(SimpleSmt::MAX_DEPTH, smt_leaves)
             .unwrap();
         let root = smt.root();
-        let size_u64 = size as u64;
         let half_depth = smt.depth() / 2;
+        let half_size = 2_u64.pow(half_depth as u32);
 
         group.bench_function(BenchmarkId::new("SimpleSmt", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(smt.get_node(&NodeIndex::new(half_depth, value))),
+                || random_index(half_size, half_depth),
+                |index| black_box(smt.get_node(index)),
                 BatchSize::SmallInput,
             )
         });
 
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(store.get_node(root, NodeIndex::new(half_depth, value))),
+                || random_index(half_size, half_depth),
+                |index| black_box(store.get_node(root, index)),
                 BatchSize::SmallInput,
             )
         });
@@ -264,16 +265,16 @@ fn get_leaf_path_merkletree(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("MerkleTree", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(mtree.get_path(NodeIndex::new(depth, value))),
+                || random_index(size_u64, depth),
+                |index| black_box(mtree.get_path(index)),
                 BatchSize::SmallInput,
             )
         });
 
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(store.get_path(root, NodeIndex::new(depth, value))),
+                || random_index(size_u64, depth),
+                |index| black_box(store.get_path(root, index)),
                 BatchSize::SmallInput,
             )
         });
@@ -308,16 +309,16 @@ fn get_leaf_path_simplesmt(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("SimpleSmt", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(smt.get_path(NodeIndex::new(depth, value))),
+                || random_index(size_u64, depth),
+                |index| black_box(smt.get_path(index)),
                 BatchSize::SmallInput,
             )
         });
 
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || random_index(size_u64),
-                |value| black_box(store.get_path(root, NodeIndex::new(depth, value))),
+                || random_index(size_u64, depth),
+                |index| black_box(store.get_path(root, index)),
                 BatchSize::SmallInput,
             )
         });
@@ -413,7 +414,7 @@ fn update_leaf_merkletree(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("MerkleTree", size), |b| {
             b.iter_batched(
-                || (random_index(size_u64), random_word()),
+                || (rand_value::<u64>() % size_u64, random_word()),
                 |(index, value)| black_box(mtree.update_leaf(index, value)),
                 BatchSize::SmallInput,
             )
@@ -422,15 +423,12 @@ fn update_leaf_merkletree(c: &mut Criterion) {
         let mut store_root = root;
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || (random_index(size_u64), random_word()),
+                || (random_index(size_u64, depth), random_word()),
                 |(index, value)| {
                     // The MerkleTree automatically updates its internal root, the Store maintains
                     // the old root and adds the new one. Here we update the root to have a fair
                     // comparison
-                    store_root = store
-                        .set_node(root, NodeIndex::new(depth, index), value)
-                        .unwrap()
-                        .root;
+                    store_root = store.set_node(root, index, value).unwrap().root;
                     black_box(store_root)
                 },
                 BatchSize::SmallInput,
@@ -467,7 +465,7 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("SimpleSMT", size), |b| {
             b.iter_batched(
-                || (random_index(size_u64), random_word()),
+                || (rand_value::<u64>() % size_u64, random_word()),
                 |(index, value)| black_box(smt.update_leaf(index, value)),
                 BatchSize::SmallInput,
             )
@@ -476,15 +474,12 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
         let mut store_root = root;
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || (random_index(size_u64), random_word()),
+                || (random_index(size_u64, depth), random_word()),
                 |(index, value)| {
                     // The MerkleTree automatically updates its internal root, the Store maintains
                     // the old root and adds the new one. Here we update the root to have a fair
                     // comparison
-                    store_root = store
-                        .set_node(root, NodeIndex::new(depth, index), value)
-                        .unwrap()
-                        .root;
+                    store_root = store.set_node(root, index, value).unwrap().root;
                     black_box(store_root)
                 },
                 BatchSize::SmallInput,
