@@ -230,7 +230,7 @@ impl MerklePathSet {
         }
 
         // Fill new_hashes vector -----------------------------------------------------------------
-        path[index.is_value_odd() as usize] = value;
+        path[index.direction() as usize] = value;
 
         let mut new_hashes = Vec::with_capacity(path.len().saturating_sub(2));
         let mut new_root: Word = Rpo256::merge(&[path[0].into(), path[1].into()]).into();

@@ -1,7 +1,7 @@
 use super::mmr::{Mmr, MmrPeaks};
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, MerkleError, MerklePath, MerklePathSet, MerkleTree,
-    NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
+    BTreeMap, BTreeSet, Direction, EmptySubtreeRoots, MerkleError, MerklePath, MerklePathSet,
+    MerkleTree, NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
@@ -184,12 +184,16 @@ impl MerkleStore {
             .get(&hash)
             .ok_or(MerkleError::RootNotInStore(hash.into()))?;
 
-        for bit in index.bit_iterator().rev() {
+        for direction in index.root_to_leaf() {
             let node = self
                 .nodes
                 .get(&hash)
                 .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
-            hash = if bit { node.right } else { node.left }
+
+            hash = match direction {
+                Direction::Left => node.left,
+                Direction::Right => node.right,
+            }
         }
 
         Ok(hash.into())
@@ -213,18 +217,21 @@ impl MerkleStore {
             .get(&hash)
             .ok_or(MerkleError::RootNotInStore(hash.into()))?;
 
-        for bit in index.bit_iterator().rev() {
+        for direction in index.root_to_leaf() {
             let node = self
                 .nodes
                 .get(&hash)
                 .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
 
-            hash = if bit {
-                path.push(node.left.into());
-                node.right
-            } else {
-                path.push(node.right.into());
-                node.left
+            hash = match direction {
+                Direction::Left => {
+                    path.push(node.right.into());
+                    node.left
+                }
+                Direction::Right => {
+                    path.push(node.left.into());
+                    node.right
+                }
             }
         }
 
@@ -318,9 +325,9 @@ impl MerkleStore {
         let mut index = NodeIndex::new(self.nodes.len() as u8, index_value);
 
         for sibling in path {
-            let (left, right) = match index.is_value_odd() {
-                true => (sibling, node),
-                false => (node, sibling),
+            let (left, right) = match index.direction() {
+                Direction::Left => (node, sibling),
+                Direction::Right => (sibling, node),
             };
             let parent = Rpo256::merge(&[left.into(), right.into()]);
             self.nodes.insert(

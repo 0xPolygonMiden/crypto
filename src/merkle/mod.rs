@@ -12,7 +12,7 @@ mod empty_roots;
 pub use empty_roots::EmptySubtreeRoots;
 
 mod index;
-pub use index::NodeIndex;
+pub use index::{Direction, NodeIndex};
 
 mod merkle_tree;
 pub use merkle_tree::{path_to_text, tree_to_text, MerkleTree};

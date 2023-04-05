@@ -14,6 +14,22 @@ pub struct NodeIndex {
     value: u64,
 }
 
+/// Describes the direction a node must go when inserted into a merkle structure.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Direction {
+    Left = 0,
+    Right = 1,
+}
+
+impl From<bool> for Direction {
+    fn from(value: bool) -> Self {
+        match value {
+            false => Direction::Left,
+            true => Direction::Right,
+        }
+    }
+}
+
 impl NodeIndex {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -59,10 +75,9 @@ impl NodeIndex {
     ///
     /// Will evaluate the parity of the current instance to define the result.
     pub const fn build_node(&self, slf: RpoDigest, sibling: RpoDigest) -> [RpoDigest; 2] {
-        if self.is_value_odd() {
-            [sibling, slf]
-        } else {
-            [slf, sibling]
+        match self.direction() {
+            Direction::Left => [slf, sibling],
+            Direction::Right => [sibling, slf],
         }
     }
 
@@ -89,8 +104,12 @@ impl NodeIndex {
     }
 
     /// Returns true if the current instance points to a right sibling node.
-    pub const fn is_value_odd(&self) -> bool {
-        (self.value & 1) == 1
+    pub const fn direction(&self) -> Direction {
+        if (self.value & 1) == (Direction::Left as u64) {
+            Direction::Left
+        } else {
+            Direction::Right
+        }
     }
 
     /// Returns `true` if the depth is `0`.
@@ -98,17 +117,23 @@ impl NodeIndex {
         self.depth == 0
     }
 
-    /// Returns a bit iterator for the `value`.
+    /// Return a direction iterator for the node when going from leaf-to-root.
     ///
-    /// Bits read from left-to-right represent which internal node's child should be visited to
-    /// arrive at the leaf. From the right-to-left the bit represent the position the hash of the
-    /// current element should go.
-    ///
-    /// Additionally, the value that is not visited are the sibling values necessary for a Merkle
-    /// opening.
-    pub fn bit_iterator(&self) -> BitIterator {
+    /// The first `depth` bits of `value`, going from least to most significant, determines the
+    /// node's right/left position in a internal node.
+    pub fn leaf_to_root(&self) -> impl DoubleEndedIterator<Item = Direction> {
         let depth: u32 = self.depth.into();
-        BitIterator::new(self.value).skip_back(u64::BITS - depth)
+        BitIterator::new(self.value)
+            .skip_back(u64::BITS - depth)
+            .map(|v| v.into())
+    }
+
+    /// Return a direction iterator for the node when going from root-to-leaf.
+    ///
+    /// The first `depth` bits of `value`, going from most to least significant, determines the
+    /// node's right/left position in a internal node.
+    pub fn root_to_leaf(&self) -> impl DoubleEndedIterator<Item = Direction> {
+        self.leaf_to_root().rev()
     }
 
     // STATE MUTATORS
@@ -124,6 +149,7 @@ impl NodeIndex {
 
 #[cfg(test)]
 mod tests {
+    use super::super::Vec;
     use super::*;
     use proptest::prelude::*;
 
@@ -138,6 +164,53 @@ mod tests {
             for _ in 0..count {
                 index.move_up();
             }
+        }
+    }
+
+    /// Test that using `leaf_to_root` or `move_up` give the same result.
+    #[test]
+    fn test_node_index_and_leaf_to_root_match() {
+        let value = 0b10101010_01010101_11110000_10110111;
+
+        for depth in 1..=64 {
+            let mut index = NodeIndex::new(depth, value);
+
+            let bits: Vec<Direction> = index.leaf_to_root().collect();
+            let mut indexes: Vec<Direction> = Vec::new();
+            for _ in 0..depth {
+                indexes.push(index.direction());
+                index.move_up();
+            }
+
+            assert_eq!(bits, indexes);
+        }
+    }
+
+    /// Test with the same value and different depths, the smaller depth is a prefix of the larger
+    /// one (this allows nodes to be moved up and down in a SMT).
+    #[test]
+    fn test_increasing_depth_doesnt_change_prefix() {
+        let value = 0b10101010_11110000_10110111_01010101;
+
+        // accumulates the new bit on every iteration
+        let mut prefix: Vec<Direction> = Vec::new();
+        for depth in 1..=64 {
+            let mut index = NodeIndex::new(depth.into(), value);
+
+            let bits: Vec<Direction> = index.leaf_to_root().collect();
+            let mut indexes: Vec<Direction> = Vec::new();
+            for _ in 0..depth {
+                indexes.push(index.direction());
+                index.move_up();
+            }
+
+            assert_eq!(bits, indexes);
+
+            prefix.push(*bits.last().unwrap());
+            assert_eq!(prefix.len(), depth.into());
+
+            assert!(bits.iter().zip(prefix.iter()).all(|(l, r)| l == r));
+            assert!(indexes.iter().zip(prefix.iter()).all(|(l, r)| l == r));
         }
     }
 }

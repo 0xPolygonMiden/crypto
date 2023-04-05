@@ -1,6 +1,6 @@
 use super::{
-    BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256,
-    RpoDigest, Vec, Word,
+    BTreeMap, Direction, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
+    Rpo256, RpoDigest, Vec, Word,
 };
 
 #[cfg(test)]
@@ -159,11 +159,14 @@ impl SimpleSmt {
 
         let mut path = Vec::with_capacity(index.depth() as usize);
         for _ in 0..index.depth() {
-            let is_right = index.is_value_odd();
+            let direction = index.direction();
             index.move_up();
             let BranchNode { left, right } = self.get_branch_node(&index);
-            let value = if is_right { left } else { right };
-            path.push(*value);
+            let sibling = match direction {
+                Direction::Left => right,
+                Direction::Right => left,
+            };
+            path.push(*sibling);
         }
         Ok(path.into())
     }
@@ -211,13 +214,12 @@ impl SimpleSmt {
         let mut index = NodeIndex::new(self.depth(), key);
         let mut value = RpoDigest::from(value);
         for _ in 0..index.depth() {
-            let is_right = index.is_value_odd();
+            let direction = index.direction();
             index.move_up();
             let BranchNode { left, right } = self.get_branch_node(&index);
-            let (left, right) = if is_right {
-                (left, value)
-            } else {
-                (value, right)
+            let (left, right) = match direction {
+                Direction::Left => (value, right),
+                Direction::Right => (left, value),
             };
             self.insert_branch_node(index, left, right);
             value = Rpo256::merge(&[left, right]);

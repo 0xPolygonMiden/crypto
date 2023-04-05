@@ -12,6 +12,7 @@ pub mod utils;
 // RE-EXPORTS
 // ================================================================================================
 
+pub use bit::BitIterator;
 pub use winter_crypto::{RandomCoin, RandomCoinError};
 pub use winter_math::{fields::f64::BaseElement as Felt, FieldElement, StarkField};
 
