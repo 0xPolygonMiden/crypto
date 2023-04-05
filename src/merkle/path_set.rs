@@ -64,11 +64,6 @@ impl MerklePathSet {
     /// * The specified index is not valid for the depth of structure.
     /// * Requested node does not exist in the set.
     pub fn get_node(&self, index: NodeIndex) -> Result<Word, MerkleError> {
-        if !index.with_depth(self.total_depth).is_valid() {
-            return Err(MerkleError::InvalidIndex(
-                index.with_depth(self.total_depth),
-            ));
-        }
         if index.depth() != self.total_depth {
             return Err(MerkleError::InvalidDepth {
                 expected: self.total_depth,
@@ -90,7 +85,8 @@ impl MerklePathSet {
     /// * The specified index is not valid for the depth of the structure.
     /// * Leaf with the requested path does not exist in the set.
     pub fn get_leaf(&self, index: u64) -> Result<Word, MerkleError> {
-        self.get_node(NodeIndex::new(self.depth(), index))
+        let index = NodeIndex::new(self.depth(), index)?;
+        self.get_node(index)
     }
 
     /// Returns a Merkle path to the node at the specified index. The node itself is
@@ -101,9 +97,6 @@ impl MerklePathSet {
     /// * The specified index is not valid for the depth of structure.
     /// * Node of the requested path does not exist in the set.
     pub fn get_path(&self, index: NodeIndex) -> Result<MerklePath, MerkleError> {
-        if !index.with_depth(self.total_depth).is_valid() {
-            return Err(MerkleError::InvalidIndex(index));
-        }
         if index.depth() != self.total_depth {
             return Err(MerkleError::InvalidDepth {
                 expected: self.total_depth,
@@ -165,8 +158,7 @@ impl MerklePathSet {
         value: Word,
         mut path: MerklePath,
     ) -> Result<(), MerkleError> {
-        let depth = path.len() as u8;
-        let mut index = NodeIndex::new(depth, index_value);
+        let mut index = NodeIndex::new(path.len() as u8, index_value)?;
         if index.depth() != self.total_depth {
             return Err(MerkleError::InvalidDepth {
                 expected: self.total_depth,
@@ -190,7 +182,7 @@ impl MerklePathSet {
         if self.root == [ZERO; 4] {
             self.root = root;
         } else if self.root != root {
-            return Err(MerkleError::InvalidPath(path));
+            return Err(MerkleError::ConflictingRoots([self.root, root].to_vec()));
         }
 
         // finish updating the path
@@ -205,12 +197,7 @@ impl MerklePathSet {
     /// Returns an error if:
     /// * Requested node does not exist in the set.
     pub fn update_leaf(&mut self, base_index_value: u64, value: Word) -> Result<(), MerkleError> {
-        let depth = self.depth();
-        let mut index = NodeIndex::new(depth, base_index_value);
-        if !index.is_valid() {
-            return Err(MerkleError::InvalidIndex(index));
-        }
-
+        let mut index = NodeIndex::new(self.depth(), base_index_value)?;
         let parity = index.value() & 1;
         let path_key = index.value() - parity;
         let path = match self.paths.get_mut(&path_key) {
@@ -293,10 +280,9 @@ mod tests {
         let set = super::MerklePathSet::new(depth)
             .with_paths([(index, hash_6, path_6.clone().into())])
             .unwrap();
-        let stored_path_6 = set.get_path(NodeIndex::new(depth, index)).unwrap();
+        let stored_path_6 = set.get_path(NodeIndex::make(depth, index)).unwrap();
 
         assert_eq!(path_6, *stored_path_6);
-        assert!(set.get_path(NodeIndex::new(depth, 15_u64)).is_err())
     }
 
     #[test]
@@ -311,9 +297,8 @@ mod tests {
 
         assert_eq!(
             int_to_node(6u64),
-            set.get_node(NodeIndex::new(depth, index)).unwrap()
+            set.get_node(NodeIndex::make(depth, index)).unwrap()
         );
-        assert!(set.get_node(NodeIndex::new(depth, 15_u64)).is_err());
     }
 
     #[test]
@@ -347,13 +332,13 @@ mod tests {
         let new_hash_5 = int_to_node(55);
 
         set.update_leaf(index_6, new_hash_6).unwrap();
-        let new_path_4 = set.get_path(NodeIndex::new(depth, index_4)).unwrap();
+        let new_path_4 = set.get_path(NodeIndex::make(depth, index_4)).unwrap();
         let new_hash_67 = calculate_parent_hash(new_hash_6, 14_u64, hash_7);
         assert_eq!(new_hash_67, new_path_4[1]);
 
         set.update_leaf(index_5, new_hash_5).unwrap();
-        let new_path_4 = set.get_path(NodeIndex::new(depth, index_4)).unwrap();
-        let new_path_6 = set.get_path(NodeIndex::new(depth, index_6)).unwrap();
+        let new_path_4 = set.get_path(NodeIndex::make(depth, index_4)).unwrap();
+        let new_path_6 = set.get_path(NodeIndex::make(depth, index_6)).unwrap();
         let new_hash_45 = calculate_parent_hash(new_hash_5, 13_u64, hash_4);
         assert_eq!(new_hash_45, new_path_6[1]);
         assert_eq!(new_hash_5, new_path_4[0]);

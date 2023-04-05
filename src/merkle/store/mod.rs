@@ -1,7 +1,7 @@
 use super::mmr::{Mmr, MmrPeaks};
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, MerkleError, MerklePath, MerklePathSet, MerkleTree,
-    NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
+    BTreeMap, EmptySubtreeRoots, MerkleError, MerklePath, MerklePathSet, MerkleTree, NodeIndex,
+    RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
@@ -53,15 +53,19 @@ pub struct Node {
 ///
 /// // every leaf except the last are the same
 /// for i in 0..7 {
-///     let d0 = store.get_node(ROOT0, NodeIndex::new(3, i)).unwrap();
-///     let d1 = store.get_node(ROOT1, NodeIndex::new(3, i)).unwrap();
+///     let idx0 = NodeIndex::new(3, i).unwrap();
+///     let d0 = store.get_node(ROOT0, idx0).unwrap();
+///     let idx1 = NodeIndex::new(3, i).unwrap();
+///     let d1 = store.get_node(ROOT1, idx1).unwrap();
 ///     assert_eq!(d0, d1, "Both trees have the same leaf at pos {i}");
 /// }
 ///
 /// // The leafs A-B-C-D are the same for both trees, so are their 2 immediate parents
 /// for i in 0..4 {
-///     let d0 = store.get_path(ROOT0, NodeIndex::new(3, i)).unwrap();
-///     let d1 = store.get_path(ROOT1, NodeIndex::new(3, i)).unwrap();
+///     let idx0 = NodeIndex::new(3, i).unwrap();
+///     let d0 = store.get_path(ROOT0, idx0).unwrap();
+///     let idx1 = NodeIndex::new(3, i).unwrap();
+///     let d1 = store.get_path(ROOT1, idx1).unwrap();
 ///     assert_eq!(d0.path[0..2], d1.path[0..2], "Both sub-trees are equal up to two levels");
 /// }
 ///
@@ -184,12 +188,14 @@ impl MerkleStore {
             .get(&hash)
             .ok_or(MerkleError::RootNotInStore(hash.into()))?;
 
-        for bit in index.bit_iterator().rev() {
+        for i in (0..index.depth()).rev() {
             let node = self
                 .nodes
                 .get(&hash)
                 .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
-            hash = if bit { node.right } else { node.left }
+
+            let bit = (index.value() >> i) & 1;
+            hash = if bit == 0 { node.left } else { node.right }
         }
 
         Ok(hash.into())
@@ -213,18 +219,19 @@ impl MerkleStore {
             .get(&hash)
             .ok_or(MerkleError::RootNotInStore(hash.into()))?;
 
-        for bit in index.bit_iterator().rev() {
+        for i in (0..index.depth()).rev() {
             let node = self
                 .nodes
                 .get(&hash)
                 .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
 
-            hash = if bit {
-                path.push(node.left.into());
-                node.right
-            } else {
+            let bit = (index.value() >> i) & 1;
+            hash = if bit == 0 {
                 path.push(node.right.into());
                 node.left
+            } else {
+                path.push(node.left.into());
+                node.right
             }
         }
 
@@ -315,7 +322,7 @@ impl MerkleStore {
         mut node: Word,
         path: MerklePath,
     ) -> Result<Word, MerkleError> {
-        let mut index = NodeIndex::new(self.nodes.len() as u8, index_value);
+        let mut index = NodeIndex::new(path.len() as u8, index_value)?;
 
         for sibling in path {
             let (left, right) = match index.is_value_odd() {
@@ -344,33 +351,14 @@ impl MerkleStore {
     /// into the store.
     ///
     /// For further reference, check [MerkleStore::add_merkle_path].
-    ///
-    /// # Errors
-    ///
-    /// Every path must resolve to the same root, otherwise this will return an `ConflictingRoots`
-    /// error.
-    pub fn add_merkle_paths<I>(&mut self, paths: I) -> Result<Word, MerkleError>
+    pub fn add_merkle_paths<I>(&mut self, paths: I) -> Result<(), MerkleError>
     where
         I: IntoIterator<Item = (u64, Word, MerklePath)>,
     {
-        let paths: Vec<(u64, Word, MerklePath)> = paths.into_iter().collect();
-
-        let roots: BTreeSet<RpoDigest> = paths
-            .iter()
-            .map(|(index, node, path)| path.compute_root(*index, *node).into())
-            .collect();
-
-        if roots.len() != 1 {
-            return Err(MerkleError::ConflictingRoots(
-                roots.iter().map(|v| Word::from(*v)).collect(),
-            ));
-        }
-
-        for (index_value, node, path) in paths {
+        for (index_value, node, path) in paths.into_iter() {
             self.add_merkle_path(index_value, node, path)?;
         }
-
-        Ok(roots.iter().next().unwrap().into())
+        Ok(())
     }
 
     /// Appends the provided [MerklePathSet] into the store.
@@ -432,15 +420,9 @@ impl MerkleStore {
         let root2: RpoDigest = root2.into();
 
         if !self.nodes.contains_key(&root1) {
-            Err(MerkleError::NodeNotInStore(
-                root1.into(),
-                NodeIndex::new(0, 0),
-            ))
+            Err(MerkleError::NodeNotInStore(root1.into(), NodeIndex::root()))
         } else if !self.nodes.contains_key(&root1) {
-            Err(MerkleError::NodeNotInStore(
-                root2.into(),
-                NodeIndex::new(0, 0),
-            ))
+            Err(MerkleError::NodeNotInStore(root2.into(), NodeIndex::root()))
         } else {
             let parent: Word = Rpo256::merge(&[root1, root2]).into();
             self.nodes.insert(

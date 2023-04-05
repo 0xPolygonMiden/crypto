@@ -79,8 +79,6 @@ impl MerkleTree {
             return Err(MerkleError::DepthTooSmall(index.depth()));
         } else if index.depth() > self.depth() {
             return Err(MerkleError::DepthTooBig(index.depth() as u64));
-        } else if !index.is_valid() {
-            return Err(MerkleError::InvalidIndex(index));
         }
 
         let pos = index.to_scalar_index() as usize;
@@ -99,8 +97,6 @@ impl MerkleTree {
             return Err(MerkleError::DepthTooSmall(index.depth()));
         } else if index.depth() > self.depth() {
             return Err(MerkleError::DepthTooBig(index.depth() as u64));
-        } else if !index.is_valid() {
-            return Err(MerkleError::InvalidIndex(index));
         }
 
         // TODO should we create a helper in `NodeIndex` that will encapsulate traversal to root so
@@ -126,11 +122,7 @@ impl MerkleTree {
     /// # Errors
     /// Returns an error if the specified index value is not a valid leaf value for this tree.
     pub fn update_leaf<'a>(&'a mut self, index_value: u64, value: Word) -> Result<(), MerkleError> {
-        let depth = self.depth();
-        let mut index = NodeIndex::new(depth, index_value);
-        if !index.is_valid() {
-            return Err(MerkleError::InvalidIndex(index));
-        }
+        let mut index = NodeIndex::new(self.depth(), index_value)?;
 
         // we don't need to copy the pairs into a new address as we are logically guaranteed to not
         // overlap write instructions. however, it's important to bind the lifetime of pairs to
@@ -203,7 +195,7 @@ impl<'a> Iterator for MerkleTreeNodes<'a> {
     }
 }
 
-/// Utility to vizualize a [MerkleTree] in text.
+/// Utility to visualize a [MerkleTree] in text.
 pub fn tree_to_text(tree: &MerkleTree) -> Result<String, fmt::Error> {
     let indent = "  ";
     let mut s = String::new();
@@ -212,11 +204,8 @@ pub fn tree_to_text(tree: &MerkleTree) -> Result<String, fmt::Error> {
     for d in 1..=tree.depth() {
         let entries = 2u64.pow(d.into());
         for i in 0..entries {
-            let index = NodeIndex::new(d, i);
-
-            let node = tree
-                .get_node(index)
-                .expect("The index must always be valid");
+            let index = NodeIndex::new(d, i).expect("The index must always be valid");
+            let node = tree.get_node(index).expect("The node must always be found");
 
             for _ in 0..d {
                 s.push_str(indent);
@@ -229,7 +218,7 @@ pub fn tree_to_text(tree: &MerkleTree) -> Result<String, fmt::Error> {
     Ok(s)
 }
 
-/// Utility to vizualize a [MerklePath] in text.
+/// Utility to visualize a [MerklePath] in text.
 pub fn path_to_text(path: &MerklePath) -> Result<String, fmt::Error> {
     let mut s = String::new();
     s.push('[');
@@ -301,16 +290,16 @@ mod tests {
         let tree = super::MerkleTree::new(LEAVES4.to_vec()).unwrap();
 
         // check depth 2
-        assert_eq!(LEAVES4[0], tree.get_node(NodeIndex::new(2, 0)).unwrap());
-        assert_eq!(LEAVES4[1], tree.get_node(NodeIndex::new(2, 1)).unwrap());
-        assert_eq!(LEAVES4[2], tree.get_node(NodeIndex::new(2, 2)).unwrap());
-        assert_eq!(LEAVES4[3], tree.get_node(NodeIndex::new(2, 3)).unwrap());
+        assert_eq!(LEAVES4[0], tree.get_node(NodeIndex::make(2, 0)).unwrap());
+        assert_eq!(LEAVES4[1], tree.get_node(NodeIndex::make(2, 1)).unwrap());
+        assert_eq!(LEAVES4[2], tree.get_node(NodeIndex::make(2, 2)).unwrap());
+        assert_eq!(LEAVES4[3], tree.get_node(NodeIndex::make(2, 3)).unwrap());
 
         // check depth 1
         let (_, node2, node3) = compute_internal_nodes();
 
-        assert_eq!(node2, tree.get_node(NodeIndex::new(1, 0)).unwrap());
-        assert_eq!(node3, tree.get_node(NodeIndex::new(1, 1)).unwrap());
+        assert_eq!(node2, tree.get_node(NodeIndex::make(1, 0)).unwrap());
+        assert_eq!(node3, tree.get_node(NodeIndex::make(1, 1)).unwrap());
     }
 
     #[test]
@@ -322,24 +311,24 @@ mod tests {
         // check depth 2
         assert_eq!(
             vec![LEAVES4[1], node3],
-            *tree.get_path(NodeIndex::new(2, 0)).unwrap()
+            *tree.get_path(NodeIndex::make(2, 0)).unwrap()
         );
         assert_eq!(
             vec![LEAVES4[0], node3],
-            *tree.get_path(NodeIndex::new(2, 1)).unwrap()
+            *tree.get_path(NodeIndex::make(2, 1)).unwrap()
         );
         assert_eq!(
             vec![LEAVES4[3], node2],
-            *tree.get_path(NodeIndex::new(2, 2)).unwrap()
+            *tree.get_path(NodeIndex::make(2, 2)).unwrap()
         );
         assert_eq!(
             vec![LEAVES4[2], node2],
-            *tree.get_path(NodeIndex::new(2, 3)).unwrap()
+            *tree.get_path(NodeIndex::make(2, 3)).unwrap()
         );
 
         // check depth 1
-        assert_eq!(vec![node3], *tree.get_path(NodeIndex::new(1, 0)).unwrap());
-        assert_eq!(vec![node2], *tree.get_path(NodeIndex::new(1, 1)).unwrap());
+        assert_eq!(vec![node3], *tree.get_path(NodeIndex::make(1, 0)).unwrap());
+        assert_eq!(vec![node2], *tree.get_path(NodeIndex::make(1, 1)).unwrap());
     }
 
     #[test]
@@ -370,12 +359,12 @@ mod tests {
     fn nodes() -> Result<(), MerkleError> {
         let tree = super::MerkleTree::new(LEAVES4.to_vec()).unwrap();
         let root = tree.root();
-        let l1n0 = tree.get_node(NodeIndex::new(1, 0))?;
-        let l1n1 = tree.get_node(NodeIndex::new(1, 1))?;
-        let l2n0 = tree.get_node(NodeIndex::new(2, 0))?;
-        let l2n1 = tree.get_node(NodeIndex::new(2, 1))?;
-        let l2n2 = tree.get_node(NodeIndex::new(2, 2))?;
-        let l2n3 = tree.get_node(NodeIndex::new(2, 3))?;
+        let l1n0 = tree.get_node(NodeIndex::make(1, 0))?;
+        let l1n1 = tree.get_node(NodeIndex::make(1, 1))?;
+        let l2n0 = tree.get_node(NodeIndex::make(2, 0))?;
+        let l2n1 = tree.get_node(NodeIndex::make(2, 1))?;
+        let l2n2 = tree.get_node(NodeIndex::make(2, 2))?;
+        let l2n3 = tree.get_node(NodeIndex::make(2, 3))?;
 
         let nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
         let expected = vec![

@@ -61,8 +61,8 @@ fn build_sparse_tree() {
     let mt2 = MerkleTree::new(values.clone()).unwrap();
     assert_eq!(mt2.root(), smt.root());
     assert_eq!(
-        mt2.get_path(NodeIndex::new(3, 6)).unwrap(),
-        smt.get_path(NodeIndex::new(3, 6)).unwrap()
+        mt2.get_path(NodeIndex::make(3, 6)).unwrap(),
+        smt.get_path(NodeIndex::make(3, 6)).unwrap()
     );
 
     // insert second value at distinct leaf branch
@@ -74,8 +74,8 @@ fn build_sparse_tree() {
     let mt3 = MerkleTree::new(values).unwrap();
     assert_eq!(mt3.root(), smt.root());
     assert_eq!(
-        mt3.get_path(NodeIndex::new(3, 2)).unwrap(),
-        smt.get_path(NodeIndex::new(3, 2)).unwrap()
+        mt3.get_path(NodeIndex::make(3, 2)).unwrap(),
+        smt.get_path(NodeIndex::make(3, 2)).unwrap()
     );
 }
 
@@ -88,8 +88,8 @@ fn build_full_tree() {
 
     let (root, node2, node3) = compute_internal_nodes();
     assert_eq!(root, tree.root());
-    assert_eq!(node2, tree.get_node(&NodeIndex::new(1, 0)).unwrap());
-    assert_eq!(node3, tree.get_node(&NodeIndex::new(1, 1)).unwrap());
+    assert_eq!(node2, tree.get_node(NodeIndex::make(1, 0)).unwrap());
+    assert_eq!(node3, tree.get_node(NodeIndex::make(1, 1)).unwrap());
 }
 
 #[test]
@@ -100,10 +100,10 @@ fn get_values() {
         .unwrap();
 
     // check depth 2
-    assert_eq!(VALUES4[0], tree.get_node(&NodeIndex::new(2, 0)).unwrap());
-    assert_eq!(VALUES4[1], tree.get_node(&NodeIndex::new(2, 1)).unwrap());
-    assert_eq!(VALUES4[2], tree.get_node(&NodeIndex::new(2, 2)).unwrap());
-    assert_eq!(VALUES4[3], tree.get_node(&NodeIndex::new(2, 3)).unwrap());
+    assert_eq!(VALUES4[0], tree.get_node(NodeIndex::make(2, 0)).unwrap());
+    assert_eq!(VALUES4[1], tree.get_node(NodeIndex::make(2, 1)).unwrap());
+    assert_eq!(VALUES4[2], tree.get_node(NodeIndex::make(2, 2)).unwrap());
+    assert_eq!(VALUES4[3], tree.get_node(NodeIndex::make(2, 3)).unwrap());
 }
 
 #[test]
@@ -118,24 +118,24 @@ fn get_path() {
     // check depth 2
     assert_eq!(
         vec![VALUES4[1], node3],
-        *tree.get_path(NodeIndex::new(2, 0)).unwrap()
+        *tree.get_path(NodeIndex::make(2, 0)).unwrap()
     );
     assert_eq!(
         vec![VALUES4[0], node3],
-        *tree.get_path(NodeIndex::new(2, 1)).unwrap()
+        *tree.get_path(NodeIndex::make(2, 1)).unwrap()
     );
     assert_eq!(
         vec![VALUES4[3], node2],
-        *tree.get_path(NodeIndex::new(2, 2)).unwrap()
+        *tree.get_path(NodeIndex::make(2, 2)).unwrap()
     );
     assert_eq!(
         vec![VALUES4[2], node2],
-        *tree.get_path(NodeIndex::new(2, 3)).unwrap()
+        *tree.get_path(NodeIndex::make(2, 3)).unwrap()
     );
 
     // check depth 1
-    assert_eq!(vec![node3], *tree.get_path(NodeIndex::new(1, 0)).unwrap());
-    assert_eq!(vec![node2], *tree.get_path(NodeIndex::new(1, 1)).unwrap());
+    assert_eq!(vec![node3], *tree.get_path(NodeIndex::make(1, 0)).unwrap());
+    assert_eq!(vec![node2], *tree.get_path(NodeIndex::make(1, 1)).unwrap());
 }
 
 #[test]
@@ -146,19 +146,19 @@ fn test_parent_node_iterator() -> Result<(), MerkleError> {
         .unwrap();
 
     // check depth 2
-    assert_eq!(VALUES4[0], tree.get_node(&NodeIndex::new(2, 0)).unwrap());
-    assert_eq!(VALUES4[1], tree.get_node(&NodeIndex::new(2, 1)).unwrap());
-    assert_eq!(VALUES4[2], tree.get_node(&NodeIndex::new(2, 2)).unwrap());
-    assert_eq!(VALUES4[3], tree.get_node(&NodeIndex::new(2, 3)).unwrap());
+    assert_eq!(VALUES4[0], tree.get_node(NodeIndex::make(2, 0)).unwrap());
+    assert_eq!(VALUES4[1], tree.get_node(NodeIndex::make(2, 1)).unwrap());
+    assert_eq!(VALUES4[2], tree.get_node(NodeIndex::make(2, 2)).unwrap());
+    assert_eq!(VALUES4[3], tree.get_node(NodeIndex::make(2, 3)).unwrap());
 
     // get parent nodes
     let root = tree.root();
-    let l1n0 = tree.get_node(&NodeIndex::new(1, 0))?;
-    let l1n1 = tree.get_node(&NodeIndex::new(1, 1))?;
-    let l2n0 = tree.get_node(&NodeIndex::new(2, 0))?;
-    let l2n1 = tree.get_node(&NodeIndex::new(2, 1))?;
-    let l2n2 = tree.get_node(&NodeIndex::new(2, 2))?;
-    let l2n3 = tree.get_node(&NodeIndex::new(2, 3))?;
+    let l1n0 = tree.get_node(NodeIndex::make(1, 0))?;
+    let l1n1 = tree.get_node(NodeIndex::make(1, 1))?;
+    let l2n0 = tree.get_node(NodeIndex::make(2, 0))?;
+    let l2n1 = tree.get_node(NodeIndex::make(2, 1))?;
+    let l2n2 = tree.get_node(NodeIndex::make(2, 2))?;
+    let l2n3 = tree.get_node(NodeIndex::make(2, 3))?;
 
     let nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
     let expected = vec![
@@ -263,7 +263,7 @@ fn small_tree_opening_is_consistent() {
     ];
 
     for (depth, key, path) in cases {
-        let opening = tree.get_path(NodeIndex::new(depth, key)).unwrap();
+        let opening = tree.get_path(NodeIndex::make(depth, key)).unwrap();
 
         assert_eq!(path, *opening);
     }
@@ -287,7 +287,7 @@ proptest! {
         // traverse to root, fetching all paths
         for d in 1..depth {
             let k = key >> (depth - d);
-            tree.get_path(NodeIndex::new(d, k)).unwrap();
+            tree.get_path(NodeIndex::make(d, k)).unwrap();
         }
     }
 
