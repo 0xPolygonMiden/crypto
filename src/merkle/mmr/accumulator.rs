@@ -12,18 +12,17 @@ pub struct MmrPeaks {
     /// the MMR has a power-of-two number of leaves there is a single peak.
     ///
     /// Every tree in the MMR forest has a distinct power-of-two size, this means only the right
-    /// most tree can have an odd number of elements (1). Additionally this means that the bits in
+    /// most tree can have an odd number of elements (e.g. `1`). Additionally this means that the bits in
     /// `num_leaves` conveniently encode the size of each individual tree.
     ///
     /// Examples:
     ///
-    ///    Example 1: With 5 leaves, the binary 0b101. The number of set bits is equal the number
-    ///    of peaks, in this case there are 2 peaks. The 0-indexed least-significant position of
-    ///    the bit determines the number of elements of a tree, so the rightmost tree has 2**0
-    ///    elements and the left most has 2**2.
-    ///
-    ///    Example 2: With 12 leaves, the binary is 0b1100, this case also has 2 peaks, the
-    ///    leftmost tree has 2**3=8 elements, and the right most has 2**2=4 elements.
+    ///    - With 5 leaves, the binary `0b101`. The number of set bits is equal the number
+    ///      of peaks, in this case there are 2 peaks. The 0-indexed least-significant position of
+    ///      the bit determines the number of elements of a tree, so the rightmost tree has `2**0`
+    ///      elements and the left most has `2**2`.
+    ///    - With 12 leaves, the binary is `0b1100`, this case also has 2 peaks, the
+    ///      leftmost tree has `2**3=8` elements, and the right most has `2**2=4` elements.
     pub num_leaves: usize,
 
     /// All the peaks of every tree in the MMR forest. The peaks are always ordered by number of
@@ -45,7 +44,7 @@ impl MmrPeaks {
     ///
     /// This version of the hash can represent up to 32 peaks. This does not mean that only the
     /// first 32 peaks are representable, but instead it causes discontinuities on representable
-    /// peaks. It is possible to represent up to $\sum_{i=1}_{33} 2^{i}$ or $8589934590$ without
+    /// peaks. It is possible to represent up to `sum(2^i for i in 1..3)` or `8589934590` without
     /// reaching the first discontinuity.
     pub fn hash_peaks_32(&self) -> Option<Word> {
         if self.peaks.len() > 32 {
