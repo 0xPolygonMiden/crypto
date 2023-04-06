@@ -647,6 +647,157 @@ fn test_constructors() -> Result<(), MerkleError> {
     Ok(())
 }
 
+#[test]
+fn node_path_should_be_truncated_by_midtier_insert() {
+    let key = 0b11010010_11001100_11001100_11001100_11001100_11001100_11001100_11001100_u64;
+
+    let mut store = MerkleStore::new();
+    let root: Word = EmptySubtreeRoots::empty_hashes(64)[0].into();
+
+    // insert first node - works as expected
+    let depth = 64;
+    let node = [Felt::new(key); WORD_SIZE];
+    let index = NodeIndex::new(depth, key).unwrap();
+    let root = store.set_node(root, index, node).unwrap().root;
+    let result = store.get_node(root, index).unwrap();
+    let path = store.get_path(root, index).unwrap().path;
+    assert_eq!(node, result);
+    assert_eq!(path.depth(), depth);
+    assert!(path.verify(index.value(), result, &root));
+
+    // flip the first bit of the key and insert the second node on a different depth
+    let key = key ^ (1 << 63);
+    let key = key >> 8;
+    let depth = 56;
+    let node = [Felt::new(key); WORD_SIZE];
+    let index = NodeIndex::new(depth, key).unwrap();
+    let root = store.set_node(root, index, node).unwrap().root;
+    let result = store.get_node(root, index).unwrap();
+    let path = store.get_path(root, index).unwrap().path;
+    assert_eq!(node, result);
+    assert_eq!(path.depth(), depth);
+    assert!(path.verify(index.value(), result, &root));
+
+    // attempt to fetch a path of the second node to depth 64
+    // should fail because the previously inserted node will remove its sub-tree from the set
+    let key = key << 8;
+    let index = NodeIndex::new(64, key).unwrap();
+    assert!(store.get_node(root, index).is_err());
+}
+
+#[test]
+fn get_leaf_depth_works_depth_64() {
+    let mut store = MerkleStore::new();
+    let mut root: Word = EmptySubtreeRoots::empty_hashes(64)[0].into();
+    let key = u64::MAX;
+
+    // this will create a rainbow tree and test all opening to depth 64
+    for d in 0..64 {
+        let k = key & (u64::MAX >> d);
+        let node = [Felt::new(k); WORD_SIZE];
+        let index = NodeIndex::new(64, k).unwrap();
+
+        // assert the leaf doesn't exist before the insert. the returned depth should always
+        // increment with the paths count of the set, as they are insersecting one another up to
+        // the first bits of the used key.
+        assert_eq!(d, store.get_leaf_depth(root, 64, k).unwrap());
+
+        // insert and assert the correct depth
+        root = store.set_node(root, index, node).unwrap().root;
+        assert_eq!(64, store.get_leaf_depth(root, 64, k).unwrap());
+    }
+}
+
+#[test]
+fn get_leaf_depth_works_with_incremental_depth() {
+    let mut store = MerkleStore::new();
+    let mut root: Word = EmptySubtreeRoots::empty_hashes(64)[0].into();
+
+    // insert some path to the left of the root and assert it
+    let key = 0b01001011_10110110_00001101_01110100_00111011_10101101_00000100_01000001_u64;
+    assert_eq!(0, store.get_leaf_depth(root, 64, key).unwrap());
+    let depth = 64;
+    let index = NodeIndex::new(depth, key).unwrap();
+    let node = [Felt::new(key); WORD_SIZE];
+    root = store.set_node(root, index, node).unwrap().root;
+    assert_eq!(depth, store.get_leaf_depth(root, 64, key).unwrap());
+
+    // flip the key to the right of the root and insert some content on depth 16
+    let key = 0b11001011_10110110_00000000_00000000_00000000_00000000_00000000_00000000_u64;
+    assert_eq!(1, store.get_leaf_depth(root, 64, key).unwrap());
+    let depth = 16;
+    let index = NodeIndex::new(depth, key >> (64 - depth)).unwrap();
+    let node = [Felt::new(key); WORD_SIZE];
+    root = store.set_node(root, index, node).unwrap().root;
+    assert_eq!(depth, store.get_leaf_depth(root, 64, key).unwrap());
+
+    // attempt the sibling of the previous leaf
+    let key = 0b11001011_10110111_00000000_00000000_00000000_00000000_00000000_00000000_u64;
+    assert_eq!(16, store.get_leaf_depth(root, 64, key).unwrap());
+    let index = NodeIndex::new(depth, key >> (64 - depth)).unwrap();
+    let node = [Felt::new(key); WORD_SIZE];
+    root = store.set_node(root, index, node).unwrap().root;
+    assert_eq!(depth, store.get_leaf_depth(root, 64, key).unwrap());
+
+    // move down to the next depth and assert correct behavior
+    let key = 0b11001011_10110100_00000000_00000000_00000000_00000000_00000000_00000000_u64;
+    assert_eq!(15, store.get_leaf_depth(root, 64, key).unwrap());
+    let depth = 17;
+    let index = NodeIndex::new(depth, key >> (64 - depth)).unwrap();
+    let node = [Felt::new(key); WORD_SIZE];
+    root = store.set_node(root, index, node).unwrap().root;
+    assert_eq!(depth, store.get_leaf_depth(root, 64, key).unwrap());
+}
+
+#[test]
+fn get_leaf_depth_works_with_depth_8() {
+    let mut store = MerkleStore::new();
+    let mut root: Word = EmptySubtreeRoots::empty_hashes(8)[0].into();
+
+    // insert some random, 8 depth keys. `a` diverges from the first bit
+    let a = 0b01101001_u64;
+    let b = 0b10011001_u64;
+    let c = 0b10010110_u64;
+    let d = 0b11110110_u64;
+
+    for k in [a, b, c, d] {
+        let index = NodeIndex::new(8, k).unwrap();
+        let node = [Felt::new(k); WORD_SIZE];
+        root = store.set_node(root, index, node).unwrap().root;
+    }
+
+    // assert all leaves returns the inserted depth
+    for k in [a, b, c, d] {
+        assert_eq!(8, store.get_leaf_depth(root, 8, k).unwrap());
+    }
+
+    // flip last bit of a and expect it to return the the same depth, but for an empty node
+    assert_eq!(8, store.get_leaf_depth(root, 8, 0b01101000_u64).unwrap());
+
+    // flip fourth bit of a and expect an empty node on depth 4
+    assert_eq!(4, store.get_leaf_depth(root, 8, 0b01111001_u64).unwrap());
+
+    // flip third bit of a and expect an empty node on depth 3
+    assert_eq!(3, store.get_leaf_depth(root, 8, 0b01001001_u64).unwrap());
+
+    // flip second bit of a and expect an empty node on depth 2
+    assert_eq!(2, store.get_leaf_depth(root, 8, 0b00101001_u64).unwrap());
+
+    // flip fourth bit of c and expect an empty node on depth 4
+    assert_eq!(4, store.get_leaf_depth(root, 8, 0b10000110_u64).unwrap());
+
+    // flip second bit of d and expect an empty node on depth 3 as depth 2 conflicts with b and c
+    assert_eq!(3, store.get_leaf_depth(root, 8, 0b10110110_u64).unwrap());
+
+    // duplicate the tree on `a` and assert the depth is short-circuited by such sub-tree
+    let index = NodeIndex::new(8, a).unwrap();
+    root = store.set_node(root, index, root).unwrap().root;
+    assert_eq!(
+        Err(MerkleError::DepthTooBig(9)),
+        store.get_leaf_depth(root, 8, a)
+    );
+}
+
 #[cfg(std)]
 #[test]
 fn test_serialization() -> Result<(), Box<dyn Error>> {
