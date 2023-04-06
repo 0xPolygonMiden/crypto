@@ -174,7 +174,7 @@ impl Mmr {
         self.forest += 1;
     }
 
-    /// Returns an accumulator representing the current state of the MMMR.
+    /// Returns an accumulator representing the current state of the MMR.
     pub fn accumulator(&self) -> MmrPeaks {
         let peaks: Vec<Word> = TrueBitPositionIterator::new(self.forest)
             .rev()
@@ -192,7 +192,7 @@ impl Mmr {
         }
     }
 
-    /// An iterator over inner nodes in the [Mmm]. The order of iteration is unspecified.
+    /// An iterator over inner nodes in the MMR. The order of iteration is unspecified.
     pub fn inner_nodes(&self) -> MmrNodes {
         MmrNodes {
             mmr: self,

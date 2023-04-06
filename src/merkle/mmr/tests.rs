@@ -1,8 +1,8 @@
 use super::bit::TrueBitPositionIterator;
 use super::full::{high_bitmask, leaf_to_corresponding_tree, nodes_in_forest};
 use super::{
-    super::{InnerNodeInfo, Vec},
-    Mmr, Rpo256, Word,
+    super::{InnerNodeInfo, Vec, WORD_SIZE, ZERO},
+    Mmr, MmrPeaks, Rpo256, Word,
 };
 use crate::merkle::{int_to_node, MerklePath};
 
@@ -446,6 +446,66 @@ fn test_mmr_inner_nodes() {
     ];
 
     assert_eq!(postorder, nodes);
+}
+
+#[test]
+fn test_mmr_hash_peaks() {
+    let mmr: Mmr = LEAVES.into();
+    let peaks = mmr.accumulator();
+
+    let first_peak = *Rpo256::merge(&[
+        Rpo256::hash_elements(&[LEAVES[0], LEAVES[1]].concat()),
+        Rpo256::hash_elements(&[LEAVES[2], LEAVES[3]].concat()),
+    ]);
+    let second_peak = *Rpo256::hash_elements(&[LEAVES[4], LEAVES[5]].concat());
+    let third_peak = LEAVES[6];
+
+    // minimum length is 16
+    let mut expected_peaks = [first_peak, second_peak, third_peak].to_vec();
+    expected_peaks.resize(16, [ZERO; WORD_SIZE]);
+    assert_eq!(
+        peaks.hash_peaks(),
+        *Rpo256::hash_elements(&expected_peaks.as_slice().concat())
+    );
+}
+
+#[test]
+fn test_mmr_peaks_hash_less_than_16() {
+    let mut peaks = Vec::new();
+
+    for i in 0..16 {
+        peaks.push(int_to_node(i));
+        let accumulator = MmrPeaks {
+            num_leaves: (1 << peaks.len()) - 1,
+            peaks: peaks.clone(),
+        };
+
+        // minimum length is 16
+        let mut expected_peaks = peaks.clone();
+        expected_peaks.resize(16, [ZERO; WORD_SIZE]);
+        assert_eq!(
+            accumulator.hash_peaks(),
+            *Rpo256::hash_elements(&expected_peaks.as_slice().concat())
+        );
+    }
+}
+
+#[test]
+fn test_mmr_peaks_hash_odd() {
+    let peaks: Vec<_> = (0..=17).map(|i| int_to_node(i)).collect();
+
+    let accumulator = MmrPeaks {
+        num_leaves: (1 << peaks.len()) - 1,
+        peaks: peaks.clone(),
+    };
+
+    // odd length bigger than 16 is padded to the next even nubmer
+    let mut expected_peaks = peaks.clone();
+    expected_peaks.resize(18, [ZERO; WORD_SIZE]);
+    assert_eq!(
+        accumulator.hash_peaks(),
+        *Rpo256::hash_elements(&expected_peaks.as_slice().concat())
+    );
 }
 
 mod property_tests {
