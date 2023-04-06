@@ -1,4 +1,8 @@
-use super::{super::Vec, MmrProof, Rpo256, Word};
+use super::{
+    super::Vec,
+    super::{WORD_SIZE, ZERO},
+    MmrProof, Rpo256, Word,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MmrPeaks {
@@ -33,6 +37,24 @@ impl MmrPeaks {
     /// Hashes the peaks sequentially, compacting it to a single digest
     pub fn hash_peaks(&self) -> Word {
         Rpo256::hash_elements(&self.peaks.as_slice().concat()).into()
+    }
+
+    /// Hashes the peaks sequentially, compacting it to a single digest padded to 32 words.
+    ///
+    /// # Notes
+    ///
+    /// This version of the hash can represent up to 32 peaks. This does not mean that only the
+    /// first 32 peaks are representable, but instead it causes discontinuities on representable
+    /// peaks. It is possible to represent up to $\sum_{i=1}_{33} 2^{i}$ or $8589934590$ without
+    /// reaching the first discontinuity.
+    pub fn hash_peaks_32(&self) -> Option<Word> {
+        if self.peaks.len() > 32 {
+            None
+        } else {
+            let mut copy = self.peaks.clone();
+            copy.resize(32, [ZERO; WORD_SIZE]);
+            Some(Rpo256::hash_elements(&copy.as_slice().concat()).into())
+        }
     }
 
     pub fn verify(&self, value: Word, opening: MmrProof) -> bool {

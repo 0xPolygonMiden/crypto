@@ -1,7 +1,7 @@
 use super::bit::TrueBitPositionIterator;
 use super::full::{high_bitmask, leaf_to_corresponding_tree, nodes_in_forest};
 use super::{
-    super::{InnerNodeInfo, Vec},
+    super::{InnerNodeInfo, Vec, WORD_SIZE, ZERO},
     Mmr, Rpo256, Word,
 };
 use crate::merkle::{int_to_node, MerklePath};
@@ -446,6 +446,32 @@ fn test_mmr_inner_nodes() {
     ];
 
     assert_eq!(postorder, nodes);
+}
+
+#[test]
+fn test_mmr_hash_peaks() {
+    let mmr: Mmr = LEAVES.into();
+    let peaks = mmr.accumulator();
+
+    let first_peak = *Rpo256::merge(&[
+        Rpo256::hash_elements(&[LEAVES[0], LEAVES[1]].concat()),
+        Rpo256::hash_elements(&[LEAVES[2], LEAVES[3]].concat()),
+    ]);
+    let second_peak = *Rpo256::hash_elements(&[LEAVES[4], LEAVES[5]].concat());
+    let third_peak = LEAVES[6];
+
+    let expected_peaks = [first_peak, second_peak, third_peak];
+    assert_eq!(
+        peaks.hash_peaks(),
+        *Rpo256::hash_elements(&expected_peaks.as_slice().concat())
+    );
+
+    let mut expected_peaks = vec![first_peak, second_peak, third_peak];
+    expected_peaks.resize(32, [ZERO; WORD_SIZE]);
+    assert_eq!(
+        peaks.hash_peaks_32().unwrap(),
+        *Rpo256::hash_elements(&expected_peaks.as_slice().concat())
+    );
 }
 
 mod property_tests {
