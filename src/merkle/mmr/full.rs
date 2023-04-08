@@ -11,8 +11,10 @@
 //! merged, creating a new tree with depth d+1, this process is continued until the property is
 //! restabilished.
 use super::bit::TrueBitPositionIterator;
-use super::{super::Vec, MmrPeaks, MmrProof, Rpo256, Word};
-use crate::merkle::MerklePath;
+use super::{
+    super::{InnerNodeInfo, MerklePath, Vec},
+    MmrPeaks, MmrProof, Rpo256, Word,
+};
 use core::fmt::{Display, Formatter};
 
 #[cfg(feature = "std")]
@@ -172,7 +174,7 @@ impl Mmr {
         self.forest += 1;
     }
 
-    /// Returns an accumulator representing the current state of the MMMR.
+    /// Returns an accumulator representing the current state of the MMR.
     pub fn accumulator(&self) -> MmrPeaks {
         let peaks: Vec<Word> = TrueBitPositionIterator::new(self.forest)
             .rev()
@@ -187,6 +189,16 @@ impl Mmr {
         MmrPeaks {
             num_leaves: self.forest,
             peaks,
+        }
+    }
+
+    /// An iterator over inner nodes in the MMR. The order of iteration is unspecified.
+    pub fn inner_nodes(&self) -> MmrNodes {
+        MmrNodes {
+            mmr: self,
+            forest: 0,
+            last_right: 0,
+            index: 0,
         }
     }
 
@@ -243,6 +255,87 @@ where
             mmr.add(v)
         }
         mmr
+    }
+}
+
+// ITERATOR
+// ===============================================================================================
+
+/// Yields inner nodes of the [Mmr].
+pub struct MmrNodes<'a> {
+    /// [Mmr] being yielded, when its `forest` value is matched, the iterations is finished.
+    mmr: &'a Mmr,
+    /// Keeps track of the left nodes yielded so far waiting for a right pair, this matches the
+    /// semantics of the [Mmr]'s forest attribute, since that too works as a buffer of left nodes
+    /// waiting for a pair to be hashed together.
+    forest: usize,
+    /// Keeps track of the last right node yielded, after this value is set, the next iteration
+    /// will be its parent with its corresponding left node that has been yield already.
+    last_right: usize,
+    /// The current index in the `nodes` vector.
+    index: usize,
+}
+
+impl<'a> Iterator for MmrNodes<'a> {
+    type Item = InnerNodeInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        debug_assert!(
+            self.last_right.count_ones() <= 1,
+            "last_right tracks zero or one element"
+        );
+
+        // only parent nodes are emitted, remove the single node tree from the forest
+        let target = self.mmr.forest & (usize::MAX << 1);
+
+        if self.forest < target {
+            if self.last_right == 0 {
+                // yield the left leaf
+                debug_assert!(self.last_right == 0, "left must be before right");
+                self.forest |= 1;
+                self.index += 1;
+
+                // yield the right leaf
+                debug_assert!((self.forest & 1) == 1, "right must be after left");
+                self.last_right |= 1;
+                self.index += 1;
+            };
+
+            debug_assert!(
+                self.forest & self.last_right != 0,
+                "parent requires both a left and right",
+            );
+
+            // compute the number of nodes in the right tree, this is the offset to the
+            // previous left parent
+            let right_nodes = nodes_in_forest(self.last_right);
+            // the next parent position is one above the position of the pair
+            let parent = self.last_right << 1;
+
+            // the left node has been paired and the current parent yielded, removed it from the forest
+            self.forest ^= self.last_right;
+            if self.forest & parent == 0 {
+                // this iteration yielded the left parent node
+                debug_assert!(self.forest & 1 == 0, "next iteration yields a left leaf");
+                self.last_right = 0;
+                self.forest ^= parent;
+            } else {
+                // the left node of the parent level has been yielded already, this iteration
+                // was the right parent. Next iteration yields their parent.
+                self.last_right = parent;
+            }
+
+            // yields a parent
+            let value = self.mmr.nodes[self.index];
+            let right = self.mmr.nodes[self.index - 1];
+            let left = self.mmr.nodes[self.index - 1 - right_nodes];
+            self.index += 1;
+            let node = InnerNodeInfo { value, left, right };
+
+            Some(node)
+        } else {
+            None
+        }
     }
 }
 

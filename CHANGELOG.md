@@ -1,3 +1,10 @@
+## 0.3.0 (2023-04-08)
+
+- Added `depth` parameter to SMT constructors in `MerkleStore` (#115).
+- Optimized MMR peak hashing for Miden VM (#120).
+- Added `get_leaf_depth` method to `MerkleStore` (#119).
+- Added inner node iterators to `MerkleTree`, `SimpleSmt`, and `Mmr` (#117, #118, #121).
+
 ## 0.2.0 (2023-03-24)
 
 - Implemented `Mmr` and related structs (#67).

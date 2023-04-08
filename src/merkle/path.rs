@@ -1,4 +1,4 @@
-use super::{vec, NodeIndex, Rpo256, Vec, Word};
+use super::{vec, MerkleError, NodeIndex, Rpo256, Vec, Word};
 use core::ops::{Deref, DerefMut};
 
 // MERKLE PATH
@@ -23,14 +23,15 @@ impl MerklePath {
     // --------------------------------------------------------------------------------------------
 
     /// Computes the merkle root for this opening.
-    pub fn compute_root(&self, index_value: u64, node: Word) -> Word {
-        let mut index = NodeIndex::new(self.depth(), index_value);
-        self.nodes.iter().copied().fold(node, |node, sibling| {
+    pub fn compute_root(&self, index: u64, node: Word) -> Result<Word, MerkleError> {
+        let mut index = NodeIndex::new(self.depth(), index)?;
+        let root = self.nodes.iter().copied().fold(node, |node, sibling| {
             // compute the node and move to the next iteration.
             let input = index.build_node(node.into(), sibling.into());
             index.move_up();
             Rpo256::merge(&input).into()
-        })
+        });
+        Ok(root)
     }
 
     /// Returns the depth in which this Merkle path proof is valid.
@@ -42,7 +43,10 @@ impl MerklePath {
     ///
     /// Returns `true` if `node` exists at `index` in a Merkle tree with `root`.
     pub fn verify(&self, index: u64, node: Word, root: &Word) -> bool {
-        root == &self.compute_root(index, node)
+        match self.compute_root(index, node) {
+            Ok(computed_root) => root == &computed_root,
+            Err(_) => false,
+        }
     }
 }
 

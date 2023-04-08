@@ -1,6 +1,6 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{vec, BTreeMap, BTreeSet, Vec},
+    utils::collections::{vec, BTreeMap, Vec},
     Felt, StarkField, Word, WORD_SIZE, ZERO,
 };
 use core::fmt;
@@ -32,6 +32,9 @@ pub use mmr::{Mmr, MmrPeaks};
 mod store;
 pub use store::MerkleStore;
 
+mod node;
+pub use node::InnerNodeInfo;
+
 // ERRORS
 // ================================================================================================
 
@@ -42,7 +45,7 @@ pub enum MerkleError {
     DepthTooBig(u64),
     NodeNotInStore(Word, NodeIndex),
     NumLeavesNotPowerOfTwo(usize),
-    InvalidIndex(NodeIndex),
+    InvalidIndex { depth: u8, value: u64 },
     InvalidDepth { expected: u8, provided: u8 },
     InvalidPath(MerklePath),
     InvalidEntriesCount(usize, usize),
@@ -60,9 +63,9 @@ impl fmt::Display for MerkleError {
             NumLeavesNotPowerOfTwo(leaves) => {
                 write!(f, "the leaves count {leaves} is not a power of 2")
             }
-            InvalidIndex(index) => write!(
+            InvalidIndex{ depth, value} => write!(
                 f,
-                "the index value {} is not valid for the depth {}", index.value(), index.depth()
+                "the index value {value} is not valid for the depth {depth}"
             ),
             InvalidDepth { expected, provided } => write!(
                 f,

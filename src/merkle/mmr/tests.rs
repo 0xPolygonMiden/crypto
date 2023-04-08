@@ -1,6 +1,9 @@
 use super::bit::TrueBitPositionIterator;
 use super::full::{high_bitmask, leaf_to_corresponding_tree, nodes_in_forest};
-use super::{super::Vec, Mmr, Rpo256, Word};
+use super::{
+    super::{InnerNodeInfo, Vec, WORD_SIZE, ZERO},
+    Mmr, MmrPeaks, Rpo256, Word,
+};
 use crate::merkle::{int_to_node, MerklePath};
 
 #[test]
@@ -407,6 +410,101 @@ fn test_bit_position_iterator() {
             .rev()
             .collect::<Vec<u32>>(),
         vec![7, 6, 4, 2, 0],
+    );
+}
+
+#[test]
+fn test_mmr_inner_nodes() {
+    let mmr: Mmr = LEAVES.into();
+    let nodes: Vec<InnerNodeInfo> = mmr.inner_nodes().collect();
+
+    let h01 = *Rpo256::hash_elements(&[LEAVES[0], LEAVES[1]].concat());
+    let h23 = *Rpo256::hash_elements(&[LEAVES[2], LEAVES[3]].concat());
+    let h0123 = *Rpo256::hash_elements(&[h01, h23].concat());
+    let h45 = *Rpo256::hash_elements(&[LEAVES[4], LEAVES[5]].concat());
+    let postorder = vec![
+        InnerNodeInfo {
+            value: h01,
+            left: LEAVES[0],
+            right: LEAVES[1],
+        },
+        InnerNodeInfo {
+            value: h23,
+            left: LEAVES[2],
+            right: LEAVES[3],
+        },
+        InnerNodeInfo {
+            value: h0123,
+            left: h01,
+            right: h23,
+        },
+        InnerNodeInfo {
+            value: h45,
+            left: LEAVES[4],
+            right: LEAVES[5],
+        },
+    ];
+
+    assert_eq!(postorder, nodes);
+}
+
+#[test]
+fn test_mmr_hash_peaks() {
+    let mmr: Mmr = LEAVES.into();
+    let peaks = mmr.accumulator();
+
+    let first_peak = *Rpo256::merge(&[
+        Rpo256::hash_elements(&[LEAVES[0], LEAVES[1]].concat()),
+        Rpo256::hash_elements(&[LEAVES[2], LEAVES[3]].concat()),
+    ]);
+    let second_peak = *Rpo256::hash_elements(&[LEAVES[4], LEAVES[5]].concat());
+    let third_peak = LEAVES[6];
+
+    // minimum length is 16
+    let mut expected_peaks = [first_peak, second_peak, third_peak].to_vec();
+    expected_peaks.resize(16, [ZERO; WORD_SIZE]);
+    assert_eq!(
+        peaks.hash_peaks(),
+        *Rpo256::hash_elements(&expected_peaks.as_slice().concat())
+    );
+}
+
+#[test]
+fn test_mmr_peaks_hash_less_than_16() {
+    let mut peaks = Vec::new();
+
+    for i in 0..16 {
+        peaks.push(int_to_node(i));
+        let accumulator = MmrPeaks {
+            num_leaves: (1 << peaks.len()) - 1,
+            peaks: peaks.clone(),
+        };
+
+        // minimum length is 16
+        let mut expected_peaks = peaks.clone();
+        expected_peaks.resize(16, [ZERO; WORD_SIZE]);
+        assert_eq!(
+            accumulator.hash_peaks(),
+            *Rpo256::hash_elements(&expected_peaks.as_slice().concat())
+        );
+    }
+}
+
+#[test]
+fn test_mmr_peaks_hash_odd() {
+    let peaks: Vec<_> = (0..=17).map(|i| int_to_node(i)).collect();
+
+    let accumulator = MmrPeaks {
+        num_leaves: (1 << peaks.len()) - 1,
+        peaks: peaks.clone(),
+    };
+
+    // odd length bigger than 16 is padded to the next even nubmer
+    let mut expected_peaks = peaks.clone();
+    expected_peaks.resize(18, [ZERO; WORD_SIZE]);
+    assert_eq!(
+        accumulator.hash_peaks(),
+        *Rpo256::hash_elements(&expected_peaks.as_slice().concat())
     );
 }
 
