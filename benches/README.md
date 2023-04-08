@@ -28,7 +28,7 @@ The second scenario is that of sequential hashing where we take a sequence of le
 
 | Function            | BLAKE3 | SHA3    | Poseidon  | Rp64_256  | RPO_256 |
 | ------------------- | -------| ------- | --------- | --------- | ------- |
-| Apple M1 Pro        | 1.1 us | 1.5 us  |  19.4 us  |   118 us  | 70 us   |
+| Apple M1 Pro        | 1.0 us | 1.5 us  |  19.4 us  |   118 us  | 70 us   |
 | Apple M2            | 1.0 us | 1.5 us  |  17.4 us  |   103 us  | 65 us   |
 | Amazon Graviton 3   | 1.4 us |         |           |           | 114 us  |
 | AMD Ryzen 9 5950X   | 0.8 us | 1.7 us  |  15.7 us  |   120 us  | 72 us   |
