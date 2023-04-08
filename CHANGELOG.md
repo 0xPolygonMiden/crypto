@@ -1,3 +1,6 @@
+## 0.4.0 (TBD)
+
+
 ## 0.3.0 (2023-04-08)
 
 - Added `depth` parameter to SMT constructors in `MerkleStore` (#115).
