@@ -132,10 +132,7 @@ mod tests {
 
     #[test]
     fn test_node_index_value_too_high() {
-        assert_eq!(
-            NodeIndex::new(0, 0).unwrap(),
-            NodeIndex { depth: 0, value: 0 }
-        );
+        assert_eq!(NodeIndex::new(0, 0).unwrap(), NodeIndex { depth: 0, value: 0 });
         match NodeIndex::new(0, 1) {
             Err(MerkleError::InvalidIndex { depth, value }) => {
                 assert_eq!(depth, 0);

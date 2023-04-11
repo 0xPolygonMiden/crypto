@@ -34,12 +34,10 @@ impl MerklePathSet {
     where
         I: IntoIterator<Item = (u64, Word, MerklePath)>,
     {
-        paths
-            .into_iter()
-            .try_fold(self, |mut set, (index, value, path)| {
-                set.add_path(index, value, path)?;
-                Ok(set)
-            })
+        paths.into_iter().try_fold(self, |mut set, (index, value, path)| {
+            set.add_path(index, value, path)?;
+            Ok(set)
+        })
     }
 
     // PUBLIC ACCESSORS
@@ -291,14 +289,9 @@ mod tests {
         let hash_6 = int_to_node(6);
         let index = 6_u64;
         let depth = 3_u8;
-        let set = MerklePathSet::new(depth)
-            .with_paths([(index, hash_6, path_6.into())])
-            .unwrap();
+        let set = MerklePathSet::new(depth).with_paths([(index, hash_6, path_6.into())]).unwrap();
 
-        assert_eq!(
-            int_to_node(6u64),
-            set.get_node(NodeIndex::make(depth, index)).unwrap()
-        );
+        assert_eq!(int_to_node(6u64), set.get_node(NodeIndex::make(depth, index)).unwrap());
     }
 
     #[test]

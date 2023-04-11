@@ -8,12 +8,7 @@ use rand_utils::prng_array;
 const KEYS4: [u64; 4] = [0, 1, 2, 3];
 const KEYS8: [u64; 8] = [0, 1, 2, 3, 4, 5, 6, 7];
 
-const VALUES4: [Word; 4] = [
-    int_to_node(1),
-    int_to_node(2),
-    int_to_node(3),
-    int_to_node(4),
-];
+const VALUES4: [Word; 4] = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
 
 const VALUES8: [Word; 8] = [
     int_to_node(1),
@@ -56,8 +51,7 @@ fn build_sparse_tree() {
     let key = 6;
     let new_node = int_to_node(7);
     values[key as usize] = new_node;
-    smt.insert_leaf(key, new_node)
-        .expect("Failed to insert leaf");
+    smt.insert_leaf(key, new_node).expect("Failed to insert leaf");
     let mt2 = MerkleTree::new(values.clone()).unwrap();
     assert_eq!(mt2.root(), smt.root());
     assert_eq!(
@@ -69,8 +63,7 @@ fn build_sparse_tree() {
     let key = 2;
     let new_node = int_to_node(3);
     values[key as usize] = new_node;
-    smt.insert_leaf(key, new_node)
-        .expect("Failed to insert leaf");
+    smt.insert_leaf(key, new_node).expect("Failed to insert leaf");
     let mt3 = MerkleTree::new(values).unwrap();
     assert_eq!(mt3.root(), smt.root());
     assert_eq!(
@@ -116,22 +109,10 @@ fn get_path() {
     let (_, node2, node3) = compute_internal_nodes();
 
     // check depth 2
-    assert_eq!(
-        vec![VALUES4[1], node3],
-        *tree.get_path(NodeIndex::make(2, 0)).unwrap()
-    );
-    assert_eq!(
-        vec![VALUES4[0], node3],
-        *tree.get_path(NodeIndex::make(2, 1)).unwrap()
-    );
-    assert_eq!(
-        vec![VALUES4[3], node2],
-        *tree.get_path(NodeIndex::make(2, 2)).unwrap()
-    );
-    assert_eq!(
-        vec![VALUES4[2], node2],
-        *tree.get_path(NodeIndex::make(2, 3)).unwrap()
-    );
+    assert_eq!(vec![VALUES4[1], node3], *tree.get_path(NodeIndex::make(2, 0)).unwrap());
+    assert_eq!(vec![VALUES4[0], node3], *tree.get_path(NodeIndex::make(2, 1)).unwrap());
+    assert_eq!(vec![VALUES4[3], node2], *tree.get_path(NodeIndex::make(2, 2)).unwrap());
+    assert_eq!(vec![VALUES4[2], node2], *tree.get_path(NodeIndex::make(2, 3)).unwrap());
 
     // check depth 1
     assert_eq!(vec![node3], *tree.get_path(NodeIndex::make(1, 0)).unwrap());
