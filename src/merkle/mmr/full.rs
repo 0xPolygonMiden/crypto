@@ -280,10 +280,7 @@ impl<'a> Iterator for MmrNodes<'a> {
     type Item = InnerNodeInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
-        debug_assert!(
-            self.last_right.count_ones() <= 1,
-            "last_right tracks zero or one element"
-        );
+        debug_assert!(self.last_right.count_ones() <= 1, "last_right tracks zero or one element");
 
         // only parent nodes are emitted, remove the single node tree from the forest
         let target = self.mmr.forest & (usize::MAX << 1);

@@ -347,16 +347,13 @@ fn new(c: &mut Criterion) {
 
         // This could be done with `bench_with_input`, however to remove variables while comparing
         // with MerkleTree it is using `iter_batched`
-        group.bench_function(
-            BenchmarkId::new("MerkleStore::with_merkle_tree", size),
-            |b| {
-                b.iter_batched(
-                    || leaves.iter().map(|v| v.into()).collect::<Vec<Word>>(),
-                    |l| black_box(MerkleStore::new().with_merkle_tree(l)),
-                    BatchSize::SmallInput,
-                )
-            },
-        );
+        group.bench_function(BenchmarkId::new("MerkleStore::with_merkle_tree", size), |b| {
+            b.iter_batched(
+                || leaves.iter().map(|v| v.into()).collect::<Vec<Word>>(),
+                |l| black_box(MerkleStore::new().with_merkle_tree(l)),
+                BatchSize::SmallInput,
+            )
+        });
 
         group.bench_function(BenchmarkId::new("SimpleSmt::new", size), |b| {
             b.iter_batched(
@@ -372,26 +369,19 @@ fn new(c: &mut Criterion) {
             )
         });
 
-        group.bench_function(
-            BenchmarkId::new("MerkleStore::with_sparse_merkle_tree", size),
-            |b| {
-                b.iter_batched(
-                    || {
-                        leaves
-                            .iter()
-                            .enumerate()
-                            .map(|(c, v)| (c.try_into().unwrap(), v.into()))
-                            .collect::<Vec<(u64, Word)>>()
-                    },
-                    |l| {
-                        black_box(
-                            MerkleStore::new().with_sparse_merkle_tree(SimpleSmt::MAX_DEPTH, l),
-                        )
-                    },
-                    BatchSize::SmallInput,
-                )
-            },
-        );
+        group.bench_function(BenchmarkId::new("MerkleStore::with_sparse_merkle_tree", size), |b| {
+            b.iter_batched(
+                || {
+                    leaves
+                        .iter()
+                        .enumerate()
+                        .map(|(c, v)| (c.try_into().unwrap(), v.into()))
+                        .collect::<Vec<(u64, Word)>>()
+                },
+                |l| black_box(MerkleStore::new().with_sparse_merkle_tree(SimpleSmt::MAX_DEPTH, l)),
+                BatchSize::SmallInput,
+            )
+        });
     }
 }
 

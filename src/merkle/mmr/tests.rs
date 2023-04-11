@@ -118,9 +118,7 @@ fn test_mmr_simple() {
     postorder.push(LEAVES[2]);
     postorder.push(LEAVES[3]);
     postorder.push(*Rpo256::hash_elements(&[LEAVES[2], LEAVES[3]].concat()));
-    postorder.push(*Rpo256::hash_elements(
-        &[postorder[2], postorder[5]].concat(),
-    ));
+    postorder.push(*Rpo256::hash_elements(&[postorder[2], postorder[5]].concat()));
     postorder.push(LEAVES[4]);
     postorder.push(LEAVES[5]);
     postorder.push(*Rpo256::hash_elements(&[LEAVES[4], LEAVES[5]].concat()));
@@ -201,10 +199,7 @@ fn test_mmr_open() {
     let h23: Word = Rpo256::hash_elements(&LEAVES[2..4].concat()).into();
 
     // node at pos 7 is the root
-    assert!(
-        mmr.open(7).is_err(),
-        "Element 7 is not in the tree, result should be None"
-    );
+    assert!(mmr.open(7).is_err(), "Element 7 is not in the tree, result should be None");
 
     // node at pos 6 is the root
     let empty: MerklePath = MerklePath::new(vec![]);
@@ -297,41 +292,13 @@ fn test_mmr_open() {
 #[test]
 fn test_mmr_get() {
     let mmr: Mmr = LEAVES.into();
-    assert_eq!(
-        mmr.get(0).unwrap(),
-        LEAVES[0],
-        "value at pos 0 must correspond"
-    );
-    assert_eq!(
-        mmr.get(1).unwrap(),
-        LEAVES[1],
-        "value at pos 1 must correspond"
-    );
-    assert_eq!(
-        mmr.get(2).unwrap(),
-        LEAVES[2],
-        "value at pos 2 must correspond"
-    );
-    assert_eq!(
-        mmr.get(3).unwrap(),
-        LEAVES[3],
-        "value at pos 3 must correspond"
-    );
-    assert_eq!(
-        mmr.get(4).unwrap(),
-        LEAVES[4],
-        "value at pos 4 must correspond"
-    );
-    assert_eq!(
-        mmr.get(5).unwrap(),
-        LEAVES[5],
-        "value at pos 5 must correspond"
-    );
-    assert_eq!(
-        mmr.get(6).unwrap(),
-        LEAVES[6],
-        "value at pos 6 must correspond"
-    );
+    assert_eq!(mmr.get(0).unwrap(), LEAVES[0], "value at pos 0 must correspond");
+    assert_eq!(mmr.get(1).unwrap(), LEAVES[1], "value at pos 1 must correspond");
+    assert_eq!(mmr.get(2).unwrap(), LEAVES[2], "value at pos 2 must correspond");
+    assert_eq!(mmr.get(3).unwrap(), LEAVES[3], "value at pos 3 must correspond");
+    assert_eq!(mmr.get(4).unwrap(), LEAVES[4], "value at pos 4 must correspond");
+    assert_eq!(mmr.get(5).unwrap(), LEAVES[5], "value at pos 5 must correspond");
+    assert_eq!(mmr.get(6).unwrap(), LEAVES[6], "value at pos 6 must correspond");
     assert!(mmr.get(7).is_err());
 }
 
@@ -341,11 +308,7 @@ fn test_mmr_invariants() {
     for v in 1..=1028 {
         mmr.add(int_to_node(v));
         let accumulator = mmr.accumulator();
-        assert_eq!(
-            v as usize,
-            mmr.forest(),
-            "MMR leaf count must increase by one on every add"
-        );
+        assert_eq!(v as usize, mmr.forest(), "MMR leaf count must increase by one on every add");
         assert_eq!(
             v as usize, accumulator.num_leaves,
             "MMR and its accumulator must match leaves count"
@@ -374,41 +337,21 @@ fn test_bit_position_iterator() {
     assert_eq!(TrueBitPositionIterator::new(0).count(), 0);
     assert_eq!(TrueBitPositionIterator::new(0).rev().count(), 0);
 
-    assert_eq!(
-        TrueBitPositionIterator::new(1).collect::<Vec<u32>>(),
-        vec![0]
-    );
-    assert_eq!(
-        TrueBitPositionIterator::new(1).rev().collect::<Vec<u32>>(),
-        vec![0],
-    );
+    assert_eq!(TrueBitPositionIterator::new(1).collect::<Vec<u32>>(), vec![0]);
+    assert_eq!(TrueBitPositionIterator::new(1).rev().collect::<Vec<u32>>(), vec![0],);
 
-    assert_eq!(
-        TrueBitPositionIterator::new(2).collect::<Vec<u32>>(),
-        vec![1]
-    );
-    assert_eq!(
-        TrueBitPositionIterator::new(2).rev().collect::<Vec<u32>>(),
-        vec![1],
-    );
+    assert_eq!(TrueBitPositionIterator::new(2).collect::<Vec<u32>>(), vec![1]);
+    assert_eq!(TrueBitPositionIterator::new(2).rev().collect::<Vec<u32>>(), vec![1],);
 
-    assert_eq!(
-        TrueBitPositionIterator::new(3).collect::<Vec<u32>>(),
-        vec![0, 1],
-    );
-    assert_eq!(
-        TrueBitPositionIterator::new(3).rev().collect::<Vec<u32>>(),
-        vec![1, 0],
-    );
+    assert_eq!(TrueBitPositionIterator::new(3).collect::<Vec<u32>>(), vec![0, 1],);
+    assert_eq!(TrueBitPositionIterator::new(3).rev().collect::<Vec<u32>>(), vec![1, 0],);
 
     assert_eq!(
         TrueBitPositionIterator::new(0b11010101).collect::<Vec<u32>>(),
         vec![0, 2, 4, 6, 7],
     );
     assert_eq!(
-        TrueBitPositionIterator::new(0b11010101)
-            .rev()
-            .collect::<Vec<u32>>(),
+        TrueBitPositionIterator::new(0b11010101).rev().collect::<Vec<u32>>(),
         vec![7, 6, 4, 2, 0],
     );
 }
@@ -463,10 +406,7 @@ fn test_mmr_hash_peaks() {
     // minimum length is 16
     let mut expected_peaks = [first_peak, second_peak, third_peak].to_vec();
     expected_peaks.resize(16, [ZERO; WORD_SIZE]);
-    assert_eq!(
-        peaks.hash_peaks(),
-        *Rpo256::hash_elements(&expected_peaks.as_slice().concat())
-    );
+    assert_eq!(peaks.hash_peaks(), *Rpo256::hash_elements(&expected_peaks.as_slice().concat()));
 }
 
 #[test]

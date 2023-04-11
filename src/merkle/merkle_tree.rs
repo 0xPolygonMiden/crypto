@@ -109,10 +109,7 @@ impl MerkleTree {
             index.move_up();
         }
 
-        debug_assert!(
-            index.is_root(),
-            "the path walk must go all the way to the root"
-        );
+        debug_assert!(index.is_root(), "the path walk must go all the way to the root");
 
         Ok(path.into())
     }
@@ -248,12 +245,7 @@ mod tests {
     use core::mem::size_of;
     use proptest::prelude::*;
 
-    const LEAVES4: [Word; 4] = [
-        int_to_node(1),
-        int_to_node(2),
-        int_to_node(3),
-        int_to_node(4),
-    ];
+    const LEAVES4: [Word; 4] = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
 
     const LEAVES8: [Word; 8] = [
         int_to_node(1),
@@ -309,22 +301,10 @@ mod tests {
         let (_, node2, node3) = compute_internal_nodes();
 
         // check depth 2
-        assert_eq!(
-            vec![LEAVES4[1], node3],
-            *tree.get_path(NodeIndex::make(2, 0)).unwrap()
-        );
-        assert_eq!(
-            vec![LEAVES4[0], node3],
-            *tree.get_path(NodeIndex::make(2, 1)).unwrap()
-        );
-        assert_eq!(
-            vec![LEAVES4[3], node2],
-            *tree.get_path(NodeIndex::make(2, 2)).unwrap()
-        );
-        assert_eq!(
-            vec![LEAVES4[2], node2],
-            *tree.get_path(NodeIndex::make(2, 3)).unwrap()
-        );
+        assert_eq!(vec![LEAVES4[1], node3], *tree.get_path(NodeIndex::make(2, 0)).unwrap());
+        assert_eq!(vec![LEAVES4[0], node3], *tree.get_path(NodeIndex::make(2, 1)).unwrap());
+        assert_eq!(vec![LEAVES4[3], node2], *tree.get_path(NodeIndex::make(2, 2)).unwrap());
+        assert_eq!(vec![LEAVES4[2], node2], *tree.get_path(NodeIndex::make(2, 3)).unwrap());
 
         // check depth 1
         assert_eq!(vec![node3], *tree.get_path(NodeIndex::make(1, 0)).unwrap());

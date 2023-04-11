@@ -184,15 +184,11 @@ impl MerkleStore {
         let mut hash: RpoDigest = root.into();
 
         // corner case: check the root is in the store when called with index `NodeIndex::root()`
-        self.nodes
-            .get(&hash)
-            .ok_or(MerkleError::RootNotInStore(hash.into()))?;
+        self.nodes.get(&hash).ok_or(MerkleError::RootNotInStore(hash.into()))?;
 
         for i in (0..index.depth()).rev() {
-            let node = self
-                .nodes
-                .get(&hash)
-                .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
+            let node =
+                self.nodes.get(&hash).ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
 
             let bit = (index.value() >> i) & 1;
             hash = if bit == 0 { node.left } else { node.right }
@@ -215,15 +211,11 @@ impl MerkleStore {
         let mut path = Vec::with_capacity(index.depth().into());
 
         // corner case: check the root is in the store when called with index `NodeIndex::root()`
-        self.nodes
-            .get(&hash)
-            .ok_or(MerkleError::RootNotInStore(hash.into()))?;
+        self.nodes.get(&hash).ok_or(MerkleError::RootNotInStore(hash.into()))?;
 
         for i in (0..index.depth()).rev() {
-            let node = self
-                .nodes
-                .get(&hash)
-                .ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
+            let node =
+                self.nodes.get(&hash).ok_or(MerkleError::NodeNotInStore(hash.into(), index))?;
 
             let bit = (index.value() >> i) & 1;
             hash = if bit == 0 {
@@ -302,11 +294,7 @@ impl MerkleStore {
             };
 
             // traverse down
-            hash = if path & 1 == 0 {
-                children.left
-            } else {
-                children.right
-            };
+            hash = if path & 1 == 0 { children.left } else { children.right };
             path >>= 1;
         }
 

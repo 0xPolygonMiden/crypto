@@ -106,11 +106,5 @@ fn blake3_sequential(c: &mut Criterion) {
     });
 }
 
-criterion_group!(
-    hash_group,
-    rpo256_2to1,
-    rpo256_sequential,
-    blake3_2to1,
-    blake3_sequential
-);
+criterion_group!(hash_group, rpo256_2to1, rpo256_sequential, blake3_2to1, blake3_sequential);
 criterion_main!(hash_group);
