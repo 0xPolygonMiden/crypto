@@ -27,7 +27,7 @@ mod simple_smt;
 pub use simple_smt::SimpleSmt;
 
 mod mmr;
-pub use mmr::{Mmr, MmrPeaks};
+pub use mmr::{Mmr, MmrPeaks, MmrProof};
 
 mod store;
 pub use store::MerkleStore;
