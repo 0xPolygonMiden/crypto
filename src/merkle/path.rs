@@ -1,4 +1,4 @@
-use super::{vec, MerkleError, NodeIndex, Rpo256, Vec, Word};
+use super::{vec, MerkleError, NodeIndex, Rpo256, RpoDigest, Vec, Word};
 use core::ops::{Deref, DerefMut};
 
 // MERKLE PATH
@@ -24,14 +24,32 @@ impl MerklePath {
 
     /// Computes the merkle root for this opening.
     pub fn compute_root(&self, index: u64, node: Word) -> Result<Word, MerkleError> {
-        let mut index = NodeIndex::new(self.depth(), index)?;
-        let root = self.nodes.iter().copied().fold(node, |node, sibling| {
-            // compute the node and move to the next iteration.
-            let input = index.build_node(node.into(), sibling.into());
-            index.move_up();
-            Rpo256::merge(&input).into()
-        });
+        let index = NodeIndex::new(self.depth(), index)?;
+        let root = self.compute_parents(index, node).last().unwrap_or(node);
         Ok(root)
+    }
+
+    /// Returns an iterator that will traverse from the leaf towards the root, yielding the parent
+    /// of node for every iteration.
+    pub fn compute_parents(&self, index: NodeIndex, node: Word) -> impl Iterator<Item = Word> + '_ {
+        struct State {
+            index: NodeIndex,
+            curr_node: RpoDigest,
+        }
+
+        self.nodes.iter().copied().scan(
+            State {
+                index,
+                curr_node: node.into(),
+            },
+            |state, sibling| {
+                // compute the node and move to the next iteration.
+                let input = state.index.build_node(state.curr_node, sibling.into());
+                state.index.move_up();
+                state.curr_node = Rpo256::merge(&input);
+                Some(state.curr_node.into())
+            },
+        )
     }
 
     /// Returns the depth in which this Merkle path proof is valid.
@@ -109,4 +127,80 @@ pub struct RootPath {
     pub root: Word,
     /// The path from `value` to `root` (exclusive).
     pub path: MerklePath,
+}
+
+#[cfg(test)]
+mod test {
+    use crate::merkle::{int_to_node, MerklePath, NodeIndex, Rpo256, Vec, Word};
+
+    #[test]
+    fn test_merkle_path_empty() {
+        let node0 = int_to_node(5);
+        let parents: &[Word] = &[];
+
+        let merkle_path = MerklePath::new(vec![]);
+        let computed: Vec<_> = merkle_path
+            .compute_parents(NodeIndex::new(merkle_path.depth(), 0).unwrap(), node0)
+            .collect();
+
+        assert!(merkle_path.verify(0, node0, &node0));
+        assert_eq!(&computed, parents);
+    }
+
+    #[test]
+    fn test_merkle_path_left_most_element() {
+        let siblings = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
+        let node0 = int_to_node(5);
+        let parent1: Word = Rpo256::hash_elements(&[node0, siblings[0]].concat()).into();
+        let parent2: Word = Rpo256::hash_elements(&[parent1, siblings[1]].concat()).into();
+        let parent3: Word = Rpo256::hash_elements(&[parent2, siblings[2]].concat()).into();
+        let root: Word = Rpo256::hash_elements(&[parent3, siblings[3]].concat()).into();
+        let parents = &[parent1, parent2, parent3, root];
+
+        let merkle_path = MerklePath::new(siblings.to_vec());
+        let computed: Vec<_> = merkle_path
+            .compute_parents(NodeIndex::new(merkle_path.depth(), 0).unwrap(), node0)
+            .collect();
+
+        assert!(merkle_path.verify(0, node0, &root));
+        assert_eq!(&computed, parents);
+    }
+
+    #[test]
+    fn test_merkle_path_right_left_right_left_element() {
+        let siblings = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
+        let node0 = int_to_node(5);
+        let parent1: Word = Rpo256::hash_elements(&[siblings[0], node0].concat()).into();
+        let parent2: Word = Rpo256::hash_elements(&[parent1, siblings[1]].concat()).into();
+        let parent3: Word = Rpo256::hash_elements(&[siblings[2], parent2].concat()).into();
+        let root: Word = Rpo256::hash_elements(&[parent3, siblings[3]].concat()).into();
+        let parents = &[parent1, parent2, parent3, root];
+
+        let merkle_path = MerklePath::new(siblings.to_vec());
+        let computed: Vec<_> = merkle_path
+            .compute_parents(NodeIndex::new(merkle_path.depth(), 0b0101).unwrap(), node0)
+            .collect();
+
+        assert_eq!(&computed, parents);
+        assert!(merkle_path.verify(0b0101, node0, &root));
+    }
+
+    #[test]
+    fn test_merkle_path_right_most_element() {
+        let siblings = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
+        let node0 = int_to_node(5);
+        let parent1: Word = Rpo256::hash_elements(&[siblings[0], node0].concat()).into();
+        let parent2: Word = Rpo256::hash_elements(&[siblings[1], parent1].concat()).into();
+        let parent3: Word = Rpo256::hash_elements(&[siblings[2], parent2].concat()).into();
+        let root: Word = Rpo256::hash_elements(&[siblings[3], parent3].concat()).into();
+        let parents = &[parent1, parent2, parent3, root];
+
+        let merkle_path = MerklePath::new(siblings.to_vec());
+        let computed: Vec<_> = merkle_path
+            .compute_parents(NodeIndex::new(merkle_path.depth(), 15).unwrap(), node0)
+            .collect();
+
+        assert_eq!(&computed, parents);
+        assert!(merkle_path.verify(15, node0, &root));
+    }
 }

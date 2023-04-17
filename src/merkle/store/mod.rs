@@ -478,26 +478,23 @@ impl MerkleStore {
         Ok(RootPath { root, path })
     }
 
+    /// Merges two elements and adds the resulting node into the store.
+    ///
+    /// Merges arbitrary values. They may be leafs, nodes, or a mixture of both.
     pub fn merge_roots(&mut self, root1: Word, root2: Word) -> Result<Word, MerkleError> {
         let root1: RpoDigest = root1.into();
         let root2: RpoDigest = root2.into();
 
-        if !self.nodes.contains_key(&root1) {
-            Err(MerkleError::NodeNotInStore(root1.into(), NodeIndex::root()))
-        } else if !self.nodes.contains_key(&root1) {
-            Err(MerkleError::NodeNotInStore(root2.into(), NodeIndex::root()))
-        } else {
-            let parent: Word = Rpo256::merge(&[root1, root2]).into();
-            self.nodes.insert(
-                parent.into(),
-                Node {
-                    left: root1,
-                    right: root2,
-                },
-            );
+        let parent: Word = Rpo256::merge(&[root1, root2]).into();
+        self.nodes.insert(
+            parent.into(),
+            Node {
+                left: root1,
+                right: root2,
+            },
+        );
 
-            Ok(parent)
-        }
+        Ok(parent)
     }
 }
 
