@@ -34,7 +34,7 @@ fn get_empty_leaf_simplesmt(c: &mut Criterion) {
     // both SMT and the store are pre-populated with empty hashes, accessing these values is what is
     // being benchmarked here, so no values are inserted into the backends
     let smt = SimpleSmt::new(depth).unwrap();
-    let store: MerkleStore = smt.clone().into();
+    let store = MerkleStore::from(&smt);
     let root = smt.root();
 
     group.bench_function(BenchmarkId::new("SimpleSmt", depth), |b| {
@@ -66,7 +66,7 @@ fn get_leaf_merkletree(c: &mut Criterion) {
 
         let mtree_leaves: Vec<Word> = leaves.iter().map(|v| v.into()).collect();
         let mtree = MerkleTree::new(mtree_leaves.clone()).unwrap();
-        let store: MerkleStore = mtree.clone().into();
+        let store = MerkleStore::from(&mtree);
         let depth = mtree.depth();
         let root = mtree.root();
         let size_u64 = size as u64;
@@ -108,7 +108,7 @@ fn get_leaf_simplesmt(c: &mut Criterion) {
             .unwrap()
             .with_leaves(smt_leaves.clone())
             .unwrap();
-        let store: MerkleStore = smt.clone().into();
+        let store = MerkleStore::from(&smt);
         let depth = smt.depth();
         let root = smt.root();
         let size_u64 = size as u64;
@@ -141,7 +141,7 @@ fn get_node_of_empty_simplesmt(c: &mut Criterion) {
     // of these values is what is being benchmarked here, so no values are inserted into the
     // backends.
     let smt = SimpleSmt::new(depth).unwrap();
-    let store: MerkleStore = smt.clone().into();
+    let store = MerkleStore::from(&smt);
     let root = smt.root();
     let half_depth = depth / 2;
     let half_size = 2_u64.pow(half_depth as u32);
@@ -176,7 +176,7 @@ fn get_node_merkletree(c: &mut Criterion) {
 
         let mtree_leaves: Vec<Word> = leaves.iter().map(|v| v.into()).collect();
         let mtree = MerkleTree::new(mtree_leaves.clone()).unwrap();
-        let store: MerkleStore = mtree.clone().into();
+        let store = MerkleStore::from(&mtree);
         let root = mtree.root();
         let half_depth = mtree.depth() / 2;
         let half_size = 2_u64.pow(half_depth as u32);
@@ -219,7 +219,7 @@ fn get_node_simplesmt(c: &mut Criterion) {
             .unwrap()
             .with_leaves(smt_leaves.clone())
             .unwrap();
-        let store: MerkleStore = smt.clone().into();
+        let store = MerkleStore::from(&smt);
         let root = smt.root();
         let half_depth = smt.depth() / 2;
         let half_size = 2_u64.pow(half_depth as u32);
@@ -254,7 +254,7 @@ fn get_leaf_path_merkletree(c: &mut Criterion) {
 
         let mtree_leaves: Vec<Word> = leaves.iter().map(|v| v.into()).collect();
         let mtree = MerkleTree::new(mtree_leaves.clone()).unwrap();
-        let store: MerkleStore = mtree.clone().into();
+        let store = MerkleStore::from(&mtree);
         let depth = mtree.depth();
         let root = mtree.root();
         let size_u64 = size as u64;
@@ -296,7 +296,7 @@ fn get_leaf_path_simplesmt(c: &mut Criterion) {
             .unwrap()
             .with_leaves(smt_leaves.clone())
             .unwrap();
-        let store: MerkleStore = smt.clone().into();
+        let store = MerkleStore::from(&smt);
         let depth = smt.depth();
         let root = smt.root();
         let size_u64 = size as u64;
@@ -346,7 +346,7 @@ fn new(c: &mut Criterion) {
                 || leaves.iter().map(|v| v.into()).collect::<Vec<Word>>(),
                 |l| {
                     let mtree = MerkleTree::new(l).unwrap();
-                    black_box(MerkleStore::from(mtree));
+                    black_box(MerkleStore::from(&mtree));
                 },
                 BatchSize::SmallInput,
             )
@@ -377,7 +377,7 @@ fn new(c: &mut Criterion) {
                 },
                 |l| {
                     let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH).unwrap().with_leaves(l).unwrap();
-                    black_box(MerkleStore::from(smt));
+                    black_box(MerkleStore::from(&smt));
                 },
                 BatchSize::SmallInput,
             )
@@ -397,7 +397,7 @@ fn update_leaf_merkletree(c: &mut Criterion) {
 
         let mtree_leaves: Vec<Word> = leaves.iter().map(|v| v.into()).collect();
         let mut mtree = MerkleTree::new(mtree_leaves.clone()).unwrap();
-        let mut store: MerkleStore = mtree.clone().into();
+        let mut store = MerkleStore::from(&mtree);
         let depth = mtree.depth();
         let root = mtree.root();
         let size_u64 = size as u64;
@@ -446,7 +446,7 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
             .unwrap()
             .with_leaves(smt_leaves.clone())
             .unwrap();
-        let mut store: MerkleStore = smt.clone().into();
+        let mut store = MerkleStore::from(&smt);
         let depth = smt.depth();
         let root = smt.root();
         let size_u64 = size as u64;

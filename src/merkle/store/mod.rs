@@ -393,29 +393,37 @@ impl MerkleStore {
     }
 }
 
-// CONVERTIONS
+// CONVERSIONS
 // ================================================================================================
 
-impl From<MerkleTree> for MerkleStore {
-    fn from(value: MerkleTree) -> Self {
+impl From<&MerkleTree> for MerkleStore {
+    fn from(value: &MerkleTree) -> Self {
         let mut store = MerkleStore::new();
         store.extend(value.inner_nodes());
         store
     }
 }
 
-impl From<SimpleSmt> for MerkleStore {
-    fn from(value: SimpleSmt) -> Self {
+impl From<&SimpleSmt> for MerkleStore {
+    fn from(value: &SimpleSmt) -> Self {
         let mut store = MerkleStore::new();
         store.extend(value.inner_nodes());
         store
     }
 }
 
-impl From<Mmr> for MerkleStore {
-    fn from(value: Mmr) -> Self {
+impl From<&Mmr> for MerkleStore {
+    fn from(value: &Mmr) -> Self {
         let mut store = MerkleStore::new();
         store.extend(value.inner_nodes());
+        store
+    }
+}
+
+impl FromIterator<InnerNodeInfo> for MerkleStore {
+    fn from_iter<T: IntoIterator<Item = InnerNodeInfo>>(iter: T) -> Self {
+        let mut store = MerkleStore::new();
+        store.extend(iter.into_iter());
         store
     }
 }

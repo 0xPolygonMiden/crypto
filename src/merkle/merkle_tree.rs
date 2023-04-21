@@ -192,6 +192,9 @@ impl<'a> Iterator for MerkleTreeNodes<'a> {
     }
 }
 
+// UTILITY FUNCTIONS
+// ================================================================================================
+
 /// Utility to visualize a [MerkleTree] in text.
 pub fn tree_to_text(tree: &MerkleTree) -> Result<String, fmt::Error> {
     let indent = "  ";
