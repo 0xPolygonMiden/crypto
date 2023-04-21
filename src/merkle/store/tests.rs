@@ -547,12 +547,14 @@ fn test_constructors() -> Result<(), MerkleError> {
         (3, LEAVES4[3], mtree.get_path(NodeIndex::make(d, 3)).unwrap()),
     ];
 
-    let store1 = MerkleStore::default().with_merkle_paths(paths.clone())?;
-    let store2 = MerkleStore::default()
-        .with_merkle_path(0, LEAVES4[0], mtree.get_path(NodeIndex::make(d, 0))?)?
-        .with_merkle_path(1, LEAVES4[1], mtree.get_path(NodeIndex::make(d, 1))?)?
-        .with_merkle_path(2, LEAVES4[2], mtree.get_path(NodeIndex::make(d, 2))?)?
-        .with_merkle_path(3, LEAVES4[3], mtree.get_path(NodeIndex::make(d, 3))?)?;
+    let mut store1 = MerkleStore::default();
+    store1.add_merkle_paths(paths.clone())?;
+
+    let mut store2 = MerkleStore::default();
+    store2.add_merkle_path(0, LEAVES4[0], mtree.get_path(NodeIndex::make(d, 0))?)?;
+    store2.add_merkle_path(1, LEAVES4[1], mtree.get_path(NodeIndex::make(d, 1))?)?;
+    store2.add_merkle_path(2, LEAVES4[2], mtree.get_path(NodeIndex::make(d, 2))?)?;
+    store2.add_merkle_path(3, LEAVES4[3], mtree.get_path(NodeIndex::make(d, 3))?)?;
     let set = MerklePathSet::new(d).with_paths(paths).unwrap();
 
     for key in [0, 1, 2, 3] {

@@ -115,26 +115,6 @@ impl MerkleStore {
         MerkleStore { nodes }
     }
 
-    /// Appends the provided merkle path set.
-    pub fn with_merkle_path(
-        mut self,
-        index_value: u64,
-        node: Word,
-        path: MerklePath,
-    ) -> Result<Self, MerkleError> {
-        self.add_merkle_path(index_value, node, path)?;
-        Ok(self)
-    }
-
-    /// Appends the provided merkle path set.
-    pub fn with_merkle_paths<I>(mut self, paths: I) -> Result<Self, MerkleError>
-    where
-        I: IntoIterator<Item = (u64, Word, MerklePath)>,
-    {
-        self.add_merkle_paths(paths)?;
-        Ok(self)
-    }
-
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
@@ -280,8 +260,11 @@ impl MerkleStore {
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
-    /// Adds a new [InnerNodeInfo] into the store.
-    pub fn extend(&mut self, iter: impl Iterator<Item = InnerNodeInfo>) -> &mut MerkleStore {
+    /// Adds a sequence of nodes yielded by the provided iterator into the store.
+    pub fn extend<I>(&mut self, iter: I) -> &mut MerkleStore
+    where
+        I: Iterator<Item = InnerNodeInfo>,
+    {
         for node in iter {
             let value: RpoDigest = node.value.into();
             let left: RpoDigest = node.left.into();
@@ -301,31 +284,21 @@ impl MerkleStore {
     /// include all the nodes into the store.
     pub fn add_merkle_path(
         &mut self,
-        index_value: u64,
-        mut node: Word,
+        index: u64,
+        node: Word,
         path: MerklePath,
     ) -> Result<Word, MerkleError> {
-        let mut index = NodeIndex::new(path.len() as u8, index_value)?;
+        let root = path.inner_nodes(index, node)?.fold(Word::default(), |_, node| {
+            let value: RpoDigest = node.value.into();
+            let left: RpoDigest = node.left.into();
+            let right: RpoDigest = node.right.into();
 
-        for sibling in path {
-            let (left, right) = match index.is_value_odd() {
-                true => (sibling, node),
-                false => (node, sibling),
-            };
-            let parent = Rpo256::merge(&[left.into(), right.into()]);
-            self.nodes.insert(
-                parent,
-                Node {
-                    left: left.into(),
-                    right: right.into(),
-                },
-            );
+            debug_assert_eq!(Rpo256::merge(&[left, right]), value);
+            self.nodes.insert(value, Node { left, right });
 
-            index.move_up();
-            node = parent.into();
-        }
-
-        Ok(node)
+            node.value
+        });
+        Ok(root)
     }
 
     /// Adds all the nodes of multiple Merkle paths into the store.

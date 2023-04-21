@@ -1,4 +1,4 @@
-use super::{vec, MerkleError, NodeIndex, Rpo256, Vec, Word};
+use super::{vec, InnerNodeInfo, MerkleError, NodeIndex, Rpo256, Vec, Word};
 use core::ops::{Deref, DerefMut};
 
 // MERKLE PATH
@@ -22,6 +22,11 @@ impl MerklePath {
     // PROVIDERS
     // --------------------------------------------------------------------------------------------
 
+    /// Returns the depth in which this Merkle path proof is valid.
+    pub fn depth(&self) -> u8 {
+        self.nodes.len() as u8
+    }
+
     /// Computes the merkle root for this opening.
     pub fn compute_root(&self, index: u64, node: Word) -> Result<Word, MerkleError> {
         let mut index = NodeIndex::new(self.depth(), index)?;
@@ -34,11 +39,6 @@ impl MerklePath {
         Ok(root)
     }
 
-    /// Returns the depth in which this Merkle path proof is valid.
-    pub fn depth(&self) -> u8 {
-        self.nodes.len() as u8
-    }
-
     /// Verifies the Merkle opening proof towards the provided root.
     ///
     /// Returns `true` if `node` exists at `index` in a Merkle tree with `root`.
@@ -47,6 +47,20 @@ impl MerklePath {
             Ok(computed_root) => root == &computed_root,
             Err(_) => false,
         }
+    }
+
+    /// Returns an iterator over every inner node of this [MerklePath].
+    ///
+    /// The iteration order is unspecified.
+    ///
+    /// # Errors
+    /// Returns an error if the specified index is not valid for this path.
+    pub fn inner_nodes(&self, index: u64, node: Word) -> Result<InnerNodeIterator, MerkleError> {
+        Ok(InnerNodeIterator {
+            nodes: &self.nodes,
+            index: NodeIndex::new(self.depth(), index)?,
+            value: node,
+        })
     }
 }
 
@@ -72,6 +86,9 @@ impl DerefMut for MerklePath {
     }
 }
 
+// ITERATORS
+// ================================================================================================
+
 impl FromIterator<Word> for MerklePath {
     fn from_iter<T: IntoIterator<Item = Word>>(iter: T) -> Self {
         Self::new(iter.into_iter().collect())
@@ -84,6 +101,39 @@ impl IntoIterator for MerklePath {
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.into_iter()
+    }
+}
+
+/// An iterator over internal nodes of a [MerklePath].
+pub struct InnerNodeIterator<'a> {
+    nodes: &'a Vec<Word>,
+    index: NodeIndex,
+    value: Word,
+}
+
+impl<'a> Iterator for InnerNodeIterator<'a> {
+    type Item = InnerNodeInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.index.is_root() {
+            let sibling_pos = self.nodes.len() - self.index.depth() as usize;
+            let (left, right) = if self.index.is_value_odd() {
+                (self.nodes[sibling_pos], self.value)
+            } else {
+                (self.value, self.nodes[sibling_pos])
+            };
+
+            self.value = Rpo256::merge(&[left.into(), right.into()]).into();
+            self.index.move_up();
+
+            Some(InnerNodeInfo {
+                value: self.value,
+                left,
+                right,
+            })
+        } else {
+            None
+        }
     }
 }
 
@@ -109,4 +159,26 @@ pub struct RootPath {
     pub root: Word,
     /// The path from `value` to `root` (exclusive).
     pub path: MerklePath,
+}
+
+// TESTS
+// ================================================================================================
+
+#[cfg(test)]
+mod tests {
+    use crate::merkle::{int_to_node, MerklePath};
+
+    #[test]
+    fn test_inner_nodes() {
+        let nodes = vec![int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
+        let merkle_path = MerklePath::new(nodes);
+
+        let index = 6;
+        let node = int_to_node(5);
+        let root = merkle_path.compute_root(index, node).unwrap();
+
+        let inner_root = merkle_path.inner_nodes(index, node).unwrap().last().unwrap().value;
+
+        assert_eq!(root, inner_root);
+    }
 }

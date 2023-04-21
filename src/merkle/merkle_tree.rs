@@ -150,9 +150,11 @@ impl MerkleTree {
         Ok(())
     }
 
-    /// An iterator over every inner node in the tree. The iterator order is unspecified.
-    pub fn inner_nodes(&self) -> MerkleTreeNodes<'_> {
-        MerkleTreeNodes {
+    /// Returns n iterator over every inner node of this [MerkleTree].
+    ///
+    /// The iterator order is unspecified.
+    pub fn inner_nodes(&self) -> InnerNodeIterator<'_> {
+        InnerNodeIterator {
             nodes: &self.nodes,
             index: 1, // index 0 is just padding, start at 1
         }
@@ -165,12 +167,12 @@ impl MerkleTree {
 /// An iterator over every inner node of the [MerkleTree].
 ///
 /// Use this to extract the data of the tree, there is no guarantee on the order of the elements.
-pub struct MerkleTreeNodes<'a> {
+pub struct InnerNodeIterator<'a> {
     nodes: &'a Vec<Word>,
     index: usize,
 }
 
-impl<'a> Iterator for MerkleTreeNodes<'a> {
+impl<'a> Iterator for InnerNodeIterator<'a> {
     type Item = InnerNodeInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
