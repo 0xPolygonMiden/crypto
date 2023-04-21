@@ -5,7 +5,7 @@ use crate::{
     Felt, Word, WORD_SIZE, ZERO,
 };
 
-#[cfg(std)]
+#[cfg(feature = "std")]
 use std::error::Error;
 
 const KEYS4: [u64; 4] = [0, 1, 2, 3];
@@ -716,12 +716,12 @@ fn get_leaf_depth_works_with_depth_8() {
     assert_eq!(Err(MerkleError::DepthTooBig(9)), store.get_leaf_depth(root, 8, a));
 }
 
-#[cfg(std)]
+#[cfg(feature = "std")]
 #[test]
 fn test_serialization() -> Result<(), Box<dyn Error>> {
     let mtree = MerkleTree::new(LEAVES4.to_vec())?;
-    let store: MerkleStore = mtree.clone().into();
-    let decoded = MerkleStore::read_from_bytes(&original.to_bytes())?;
-    assert_eq!(original, decoded);
+    let store = MerkleStore::from(&mtree);
+    let decoded = MerkleStore::read_from_bytes(&store.to_bytes()).expect("deserialization failed");
+    assert_eq!(store, decoded);
     Ok(())
 }
