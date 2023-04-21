@@ -15,8 +15,7 @@ const EMPTY: Word = [ZERO; WORD_SIZE];
 #[test]
 fn test_root_not_in_store() -> Result<(), MerkleError> {
     let mtree = MerkleTree::new(LEAVES4.to_vec())?;
-    let mut store = MerkleStore::new();
-    store.extend(mtree.inner_nodes());
+    let store: MerkleStore = mtree.clone().into();
     assert_eq!(
         store.get_node(LEAVES4[0], NodeIndex::make(mtree.depth(), 0)),
         Err(MerkleError::RootNotInStore(LEAVES4[0])),
@@ -34,8 +33,7 @@ fn test_root_not_in_store() -> Result<(), MerkleError> {
 #[test]
 fn test_merkle_tree() -> Result<(), MerkleError> {
     let mtree = MerkleTree::new(LEAVES4.to_vec())?;
-    let mut store = MerkleStore::default();
-    store.extend(mtree.inner_nodes());
+    let store: MerkleStore = mtree.clone().into();
 
     // STORE LEAVES ARE CORRECT ==============================================================
     // checks the leaves in the store corresponds to the expected values
@@ -177,8 +175,7 @@ fn test_leaf_paths_for_empty_trees() -> Result<(), MerkleError> {
 #[test]
 fn test_get_invalid_node() {
     let mtree = MerkleTree::new(LEAVES4.to_vec()).expect("creating a merkle tree must work");
-    let mut store = MerkleStore::default();
-    store.extend(mtree.inner_nodes());
+    let store: MerkleStore = mtree.clone().into();
     let _ = store.get_node(mtree.root(), NodeIndex::make(mtree.depth(), 3));
 }
 
@@ -190,8 +187,7 @@ fn test_add_sparse_merkle_tree_one_level() -> Result<(), MerkleError> {
         .unwrap()
         .with_leaves(keys2.into_iter().zip(leaves2.into_iter()))
         .unwrap();
-    let mut store = MerkleStore::default();
-    store.extend(smt.inner_nodes());
+    let store: MerkleStore = smt.clone().into();
 
     let idx = NodeIndex::make(1, 0);
     assert_eq!(smt.get_node(idx).unwrap(), leaves2[0]);
@@ -211,8 +207,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         .with_leaves(KEYS4.into_iter().zip(LEAVES4.into_iter()))
         .unwrap();
 
-    let mut store = MerkleStore::default();
-    store.extend(smt.inner_nodes());
+    let store: MerkleStore = smt.clone().into();
 
     // STORE LEAVES ARE CORRECT ==============================================================
     // checks the leaves in the store corresponds to the expected values
@@ -470,8 +465,7 @@ fn wont_open_to_different_depth_root() {
     // attempt to fetch a node on the maximum depth, and it should fail because the root shouldn't
     // exist for the set.
     let mtree = MerkleTree::new(vec![a, b]).unwrap();
-    let mut store = MerkleStore::new();
-    store.extend(mtree.inner_nodes());
+    let store: MerkleStore = mtree.clone().into();
     let index = NodeIndex::root();
     let err = store.get_node(root, index).err().unwrap();
     assert_eq!(err, MerkleError::RootNotInStore(root));
@@ -499,8 +493,7 @@ fn store_path_opens_from_leaf() {
     let root = Rpo256::merge(&[m.into(), n.into()]);
 
     let mtree = MerkleTree::new(vec![a, b, c, d, e, f, g, h]).unwrap();
-    let mut store = MerkleStore::new();
-    store.extend(mtree.inner_nodes());
+    let store: MerkleStore = mtree.clone().into();
     let path = store.get_path(root.into(), NodeIndex::make(3, 1)).unwrap().path;
 
     let expected = MerklePath::new([a.into(), j.into(), n.into()].to_vec());
@@ -510,8 +503,7 @@ fn store_path_opens_from_leaf() {
 #[test]
 fn test_set_node() -> Result<(), MerkleError> {
     let mtree = MerkleTree::new(LEAVES4.to_vec())?;
-    let mut store = MerkleStore::new();
-    store.extend(mtree.inner_nodes());
+    let mut store: MerkleStore = mtree.clone().into();
     let value = int_to_node(42);
     let index = NodeIndex::make(mtree.depth(), 0);
     let new_root = store.set_node(mtree.root(), index, value)?.root;
@@ -523,8 +515,7 @@ fn test_set_node() -> Result<(), MerkleError> {
 #[test]
 fn test_constructors() -> Result<(), MerkleError> {
     let mtree = MerkleTree::new(LEAVES4.to_vec())?;
-    let mut store = MerkleStore::new();
-    store.extend(mtree.inner_nodes());
+    let store: MerkleStore = mtree.clone().into();
 
     let depth = mtree.depth();
     let leaves = 2u64.pow(depth.into());
@@ -539,8 +530,7 @@ fn test_constructors() -> Result<(), MerkleError> {
         .unwrap()
         .with_leaves(KEYS4.into_iter().zip(LEAVES4.into_iter()))
         .unwrap();
-    let mut store = MerkleStore::new();
-    store.extend(smt.inner_nodes());
+    let store: MerkleStore = smt.clone().into();
     let depth = smt.depth();
 
     for key in KEYS4 {
@@ -730,8 +720,7 @@ fn get_leaf_depth_works_with_depth_8() {
 #[test]
 fn test_serialization() -> Result<(), Box<dyn Error>> {
     let mtree = MerkleTree::new(LEAVES4.to_vec())?;
-    let mut store = MerkleStore::new();
-    store.extend(mtree.inner_nodes());
+    let store: MerkleStore = mtree.clone().into();
     let decoded = MerkleStore::read_from_bytes(&original.to_bytes())?;
     assert_eq!(original, decoded);
     Ok(())

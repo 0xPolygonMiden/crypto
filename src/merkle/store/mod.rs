@@ -1,7 +1,7 @@
 use super::mmr::Mmr;
 use super::{
-    BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerklePathSet, NodeIndex,
-    RootPath, Rpo256, RpoDigest, ValuePath, Vec, Word,
+    BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerklePathSet, MerkleTree,
+    NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
@@ -390,6 +390,33 @@ impl MerkleStore {
         self.nodes.insert(parent, Node { left, right });
 
         Ok(parent.into())
+    }
+}
+
+// CONVERTIONS
+// ================================================================================================
+
+impl From<MerkleTree> for MerkleStore {
+    fn from(value: MerkleTree) -> Self {
+        let mut store = MerkleStore::new();
+        store.extend(value.inner_nodes());
+        store
+    }
+}
+
+impl From<SimpleSmt> for MerkleStore {
+    fn from(value: SimpleSmt) -> Self {
+        let mut store = MerkleStore::new();
+        store.extend(value.inner_nodes());
+        store
+    }
+}
+
+impl From<Mmr> for MerkleStore {
+    fn from(value: Mmr) -> Self {
+        let mut store = MerkleStore::new();
+        store.extend(value.inner_nodes());
+        store
     }
 }
 
