@@ -1,7 +1,7 @@
-use super::mmr::{Mmr, MmrPeaks};
+use super::mmr::Mmr;
 use super::{
-    BTreeMap, EmptySubtreeRoots, MerkleError, MerklePath, MerklePathSet, MerkleTree, NodeIndex,
-    RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
+    BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerklePathSet, MerkleTree,
+    NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
@@ -47,9 +47,13 @@ pub struct Node {
 /// // the store is initialized with the SMT empty nodes
 /// assert_eq!(store.num_internal_nodes(), 255);
 ///
+/// let tree1 = MerkleTree::new(vec![A, B, C, D, E, F, G, H0]).unwrap();
+/// let tree2 = MerkleTree::new(vec![A, B, C, D, E, F, G, H1]).unwrap();
+///
 /// // populates the store with two merkle trees, common nodes are shared
-/// store.add_merkle_tree([A, B, C, D, E, F, G, H0]);
-/// store.add_merkle_tree([A, B, C, D, E, F, G, H1]);
+/// store
+///     .extend(tree1.inner_nodes())
+///     .extend(tree2.inner_nodes());
 ///
 /// // every leaf except the last are the same
 /// for i in 0..7 {
@@ -109,60 +113,6 @@ impl MerkleStore {
             .collect();
 
         MerkleStore { nodes }
-    }
-
-    /// Appends the provided merkle tree represented by its `leaves` to the set.
-    pub fn with_merkle_tree<I>(mut self, leaves: I) -> Result<Self, MerkleError>
-    where
-        I: IntoIterator<Item = Word>,
-    {
-        self.add_merkle_tree(leaves)?;
-        Ok(self)
-    }
-
-    /// Appends the provided Sparse Merkle tree represented by its `entries` to the set.
-    ///
-    /// For more information, check [MerkleStore::add_sparse_merkle_tree].
-    pub fn with_sparse_merkle_tree<R, I>(
-        mut self,
-        depth: u8,
-        entries: R,
-    ) -> Result<Self, MerkleError>
-    where
-        R: IntoIterator<IntoIter = I>,
-        I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
-    {
-        self.add_sparse_merkle_tree(depth, entries)?;
-        Ok(self)
-    }
-
-    /// Appends the provided merkle path set.
-    pub fn with_merkle_path(
-        mut self,
-        index_value: u64,
-        node: Word,
-        path: MerklePath,
-    ) -> Result<Self, MerkleError> {
-        self.add_merkle_path(index_value, node, path)?;
-        Ok(self)
-    }
-
-    /// Appends the provided merkle path set.
-    pub fn with_merkle_paths<I>(mut self, paths: I) -> Result<Self, MerkleError>
-    where
-        I: IntoIterator<Item = (u64, Word, MerklePath)>,
-    {
-        self.add_merkle_paths(paths)?;
-        Ok(self)
-    }
-
-    /// Appends the provided [Mmr] represented by its `leaves` to the set.
-    pub fn with_mmr<I>(mut self, leaves: I) -> Result<Self, MerkleError>
-    where
-        I: IntoIterator<Item = Word>,
-    {
-        self.add_mmr(leaves)?;
-        Ok(self)
     }
 
     // PUBLIC ACCESSORS
@@ -310,68 +260,21 @@ impl MerkleStore {
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
-    /// Adds all the nodes of a Merkle tree represented by `leaves`.
-    ///
-    /// This will instantiate a Merkle tree using `leaves` and include all the nodes into the
-    /// store.
-    ///
-    /// # Errors
-    ///
-    /// This method may return the following errors:
-    /// - `DepthTooSmall` if leaves is empty or contains only 1 element
-    /// - `NumLeavesNotPowerOfTwo` if the number of leaves is not a power-of-two
-    pub fn add_merkle_tree<I>(&mut self, leaves: I) -> Result<Word, MerkleError>
+    /// Adds a sequence of nodes yielded by the provided iterator into the store.
+    pub fn extend<I>(&mut self, iter: I) -> &mut MerkleStore
     where
-        I: IntoIterator<Item = Word>,
+        I: Iterator<Item = InnerNodeInfo>,
     {
-        let leaves: Vec<_> = leaves.into_iter().collect();
-        if leaves.len() < 2 {
-            return Err(MerkleError::DepthTooSmall(leaves.len() as u8));
+        for node in iter {
+            let value: RpoDigest = node.value.into();
+            let left: RpoDigest = node.left.into();
+            let right: RpoDigest = node.right.into();
+
+            debug_assert_eq!(Rpo256::merge(&[left, right]), value);
+            self.nodes.insert(value, Node { left, right });
         }
 
-        let tree = MerkleTree::new(leaves)?;
-        for node in tree.inner_nodes() {
-            self.nodes.insert(
-                node.value.into(),
-                Node {
-                    left: node.left.into(),
-                    right: node.right.into(),
-                },
-            );
-        }
-
-        Ok(tree.root())
-    }
-
-    /// Adds a Sparse Merkle tree defined by the specified `entries` to the store, and returns the
-    /// root of the added tree.
-    ///
-    /// The entries are expected to contain tuples of `(index, node)` describing nodes in the tree
-    /// at `depth`.
-    ///
-    /// # Errors
-    /// Returns an error if the provided `depth` is greater than [SimpleSmt::MAX_DEPTH].
-    pub fn add_sparse_merkle_tree<R, I>(
-        &mut self,
-        depth: u8,
-        entries: R,
-    ) -> Result<Word, MerkleError>
-    where
-        R: IntoIterator<IntoIter = I>,
-        I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
-    {
-        let smt = SimpleSmt::new(depth)?.with_leaves(entries)?;
-        for node in smt.inner_nodes() {
-            self.nodes.insert(
-                node.value.into(),
-                Node {
-                    left: node.left.into(),
-                    right: node.right.into(),
-                },
-            );
-        }
-
-        Ok(smt.root())
+        self
     }
 
     /// Adds all the nodes of a Merkle path represented by `path`, opening to `node`. Returns the
@@ -381,31 +284,21 @@ impl MerkleStore {
     /// include all the nodes into the store.
     pub fn add_merkle_path(
         &mut self,
-        index_value: u64,
-        mut node: Word,
+        index: u64,
+        node: Word,
         path: MerklePath,
     ) -> Result<Word, MerkleError> {
-        let mut index = NodeIndex::new(path.len() as u8, index_value)?;
+        let root = path.inner_nodes(index, node)?.fold(Word::default(), |_, node| {
+            let value: RpoDigest = node.value.into();
+            let left: RpoDigest = node.left.into();
+            let right: RpoDigest = node.right.into();
 
-        for sibling in path {
-            let (left, right) = match index.is_value_odd() {
-                true => (sibling, node),
-                false => (node, sibling),
-            };
-            let parent = Rpo256::merge(&[left.into(), right.into()]);
-            self.nodes.insert(
-                parent,
-                Node {
-                    left: left.into(),
-                    right: right.into(),
-                },
-            );
+            debug_assert_eq!(Rpo256::merge(&[left, right]), value);
+            self.nodes.insert(value, Node { left, right });
 
-            index.move_up();
-            node = parent.into();
-        }
-
-        Ok(node)
+            node.value
+        });
+        Ok(root)
     }
 
     /// Adds all the nodes of multiple Merkle paths into the store.
@@ -433,25 +326,6 @@ impl MerkleStore {
             self.add_merkle_path(index, path.value, path.path)?;
         }
         Ok(root)
-    }
-
-    /// Appends the provided [Mmr] into the store.
-    pub fn add_mmr<I>(&mut self, leaves: I) -> Result<MmrPeaks, MerkleError>
-    where
-        I: IntoIterator<Item = Word>,
-    {
-        let mmr = Mmr::from(leaves);
-        for node in mmr.inner_nodes() {
-            self.nodes.insert(
-                node.value.into(),
-                Node {
-                    left: node.left.into(),
-                    right: node.right.into(),
-                },
-            );
-        }
-
-        Ok(mmr.accumulator())
     }
 
     /// Sets a node to `value`.
@@ -482,19 +356,57 @@ impl MerkleStore {
     ///
     /// Merges arbitrary values. They may be leafs, nodes, or a mixture of both.
     pub fn merge_roots(&mut self, root1: Word, root2: Word) -> Result<Word, MerkleError> {
-        let root1: RpoDigest = root1.into();
-        let root2: RpoDigest = root2.into();
+        let left: RpoDigest = root1.into();
+        let right: RpoDigest = root2.into();
 
-        let parent: Word = Rpo256::merge(&[root1, root2]).into();
-        self.nodes.insert(
-            parent.into(),
-            Node {
-                left: root1,
-                right: root2,
-            },
-        );
+        let parent = Rpo256::merge(&[left, right]);
+        self.nodes.insert(parent, Node { left, right });
 
-        Ok(parent)
+        Ok(parent.into())
+    }
+}
+
+// CONVERSIONS
+// ================================================================================================
+
+impl From<&MerkleTree> for MerkleStore {
+    fn from(value: &MerkleTree) -> Self {
+        let mut store = MerkleStore::new();
+        store.extend(value.inner_nodes());
+        store
+    }
+}
+
+impl From<&SimpleSmt> for MerkleStore {
+    fn from(value: &SimpleSmt) -> Self {
+        let mut store = MerkleStore::new();
+        store.extend(value.inner_nodes());
+        store
+    }
+}
+
+impl From<&Mmr> for MerkleStore {
+    fn from(value: &Mmr) -> Self {
+        let mut store = MerkleStore::new();
+        store.extend(value.inner_nodes());
+        store
+    }
+}
+
+impl FromIterator<InnerNodeInfo> for MerkleStore {
+    fn from_iter<T: IntoIterator<Item = InnerNodeInfo>>(iter: T) -> Self {
+        let mut store = MerkleStore::new();
+        store.extend(iter.into_iter());
+        store
+    }
+}
+
+// ITERATORS
+// ================================================================================================
+
+impl Extend<InnerNodeInfo> for MerkleStore {
+    fn extend<T: IntoIterator<Item = InnerNodeInfo>>(&mut self, iter: T) {
+        self.extend(iter.into_iter());
     }
 }
 
