@@ -1,5 +1,8 @@
-## 0.4.0 (TBD)
+## 0.4.0 (2023-04-21)
 
+- Exported `MmrProof` from the crate (#137).
+- Allowed merging of leaves in `MerkleStore` (#138).
+- [BREAKING] Refactored how existing data structures are added to `MerkleStore` (#139).
 
 ## 0.3.0 (2023-04-08)
 
