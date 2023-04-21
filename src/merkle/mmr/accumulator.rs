@@ -54,8 +54,6 @@ impl MmrPeaks {
 
     pub fn verify(&self, value: Word, opening: MmrProof) -> bool {
         let root = &self.peaks[opening.peak_index()];
-        opening
-            .merkle_path
-            .verify(opening.relative_pos() as u64, value, root)
+        opening.merkle_path.verify(opening.relative_pos() as u64, value, root)
     }
 }

@@ -270,10 +270,7 @@ impl Blake3_160 {
 /// Zero-copy ref shrink to array.
 fn shrink_bytes<const M: usize, const N: usize>(bytes: &[u8; M]) -> &[u8; N] {
     // compile-time assertion
-    assert!(
-        M >= N,
-        "N should fit in M so it can be safely transmuted into a smaller slice!"
-    );
+    assert!(M >= N, "N should fit in M so it can be safely transmuted into a smaller slice!");
     // safety: bytes len is asserted
     unsafe { transmute(bytes) }
 }

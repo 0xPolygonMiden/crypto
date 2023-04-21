@@ -109,10 +109,7 @@ impl MerkleTree {
             index.move_up();
         }
 
-        debug_assert!(
-            index.is_root(),
-            "the path walk must go all the way to the root"
-        );
+        debug_assert!(index.is_root(), "the path walk must go all the way to the root");
 
         Ok(path.into())
     }
@@ -153,9 +150,11 @@ impl MerkleTree {
         Ok(())
     }
 
-    /// An iterator over every inner node in the tree. The iterator order is unspecified.
-    pub fn inner_nodes(&self) -> MerkleTreeNodes<'_> {
-        MerkleTreeNodes {
+    /// Returns n iterator over every inner node of this [MerkleTree].
+    ///
+    /// The iterator order is unspecified.
+    pub fn inner_nodes(&self) -> InnerNodeIterator<'_> {
+        InnerNodeIterator {
             nodes: &self.nodes,
             index: 1, // index 0 is just padding, start at 1
         }
@@ -168,12 +167,12 @@ impl MerkleTree {
 /// An iterator over every inner node of the [MerkleTree].
 ///
 /// Use this to extract the data of the tree, there is no guarantee on the order of the elements.
-pub struct MerkleTreeNodes<'a> {
+pub struct InnerNodeIterator<'a> {
     nodes: &'a Vec<Word>,
     index: usize,
 }
 
-impl<'a> Iterator for MerkleTreeNodes<'a> {
+impl<'a> Iterator for InnerNodeIterator<'a> {
     type Item = InnerNodeInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -194,6 +193,9 @@ impl<'a> Iterator for MerkleTreeNodes<'a> {
         }
     }
 }
+
+// UTILITY FUNCTIONS
+// ================================================================================================
 
 /// Utility to visualize a [MerkleTree] in text.
 pub fn tree_to_text(tree: &MerkleTree) -> Result<String, fmt::Error> {
@@ -248,12 +250,7 @@ mod tests {
     use core::mem::size_of;
     use proptest::prelude::*;
 
-    const LEAVES4: [Word; 4] = [
-        int_to_node(1),
-        int_to_node(2),
-        int_to_node(3),
-        int_to_node(4),
-    ];
+    const LEAVES4: [Word; 4] = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
 
     const LEAVES8: [Word; 8] = [
         int_to_node(1),
@@ -309,22 +306,10 @@ mod tests {
         let (_, node2, node3) = compute_internal_nodes();
 
         // check depth 2
-        assert_eq!(
-            vec![LEAVES4[1], node3],
-            *tree.get_path(NodeIndex::make(2, 0)).unwrap()
-        );
-        assert_eq!(
-            vec![LEAVES4[0], node3],
-            *tree.get_path(NodeIndex::make(2, 1)).unwrap()
-        );
-        assert_eq!(
-            vec![LEAVES4[3], node2],
-            *tree.get_path(NodeIndex::make(2, 2)).unwrap()
-        );
-        assert_eq!(
-            vec![LEAVES4[2], node2],
-            *tree.get_path(NodeIndex::make(2, 3)).unwrap()
-        );
+        assert_eq!(vec![LEAVES4[1], node3], *tree.get_path(NodeIndex::make(2, 0)).unwrap());
+        assert_eq!(vec![LEAVES4[0], node3], *tree.get_path(NodeIndex::make(2, 1)).unwrap());
+        assert_eq!(vec![LEAVES4[3], node2], *tree.get_path(NodeIndex::make(2, 2)).unwrap());
+        assert_eq!(vec![LEAVES4[2], node2], *tree.get_path(NodeIndex::make(2, 3)).unwrap());
 
         // check depth 1
         assert_eq!(vec![node3], *tree.get_path(NodeIndex::make(1, 0)).unwrap());

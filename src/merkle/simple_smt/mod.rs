@@ -131,12 +131,7 @@ impl SimpleSmt {
             Err(MerkleError::DepthTooBig(index.depth() as u64))
         } else if index.depth() == self.depth() {
             self.get_leaf_node(index.value())
-                .or_else(|| {
-                    self.empty_hashes
-                        .get(index.depth() as usize)
-                        .copied()
-                        .map(Word::from)
-                })
+                .or_else(|| self.empty_hashes.get(index.depth() as usize).copied().map(Word::from))
                 .ok_or(MerkleError::NodeNotInSet(index.value()))
         } else {
             let branch_node = self.get_branch_node(&index);
@@ -217,11 +212,7 @@ impl SimpleSmt {
             let is_right = index.is_value_odd();
             index.move_up();
             let BranchNode { left, right } = self.get_branch_node(&index);
-            let (left, right) = if is_right {
-                (left, value)
-            } else {
-                (value, right)
-            };
+            let (left, right) = if is_right { (left, value) } else { (value, right) };
             self.insert_branch_node(index, left, right);
             value = Rpo256::merge(&[left, right]);
         }
