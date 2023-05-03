@@ -257,6 +257,15 @@ impl MerkleStore {
         Ok(tree_depth)
     }
 
+    /// Iterator over the inner nodes of the [MerkleStore].
+    pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+        self.nodes.values().map(|&e| InnerNodeInfo {
+            value: Rpo256::merge(&[e.left, e.right]).into(),
+            left: e.left.into(),
+            right: e.right.into(),
+        })
+    }
+
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
