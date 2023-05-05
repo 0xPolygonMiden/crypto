@@ -6,7 +6,7 @@ mod proof;
 #[cfg(test)]
 mod tests;
 
-use super::{Rpo256, Word};
+use super::{Felt, Rpo256, Word};
 
 // REEXPORTS
 // ================================================================================================
