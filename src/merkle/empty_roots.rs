@@ -1,5 +1,11 @@
-use super::{Felt, RpoDigest, WORD_SIZE, ZERO};
+use super::{Felt, RpoDigest, Word, WORD_SIZE, ZERO};
 use core::slice;
+
+// CONSTANTS
+// ================================================================================================
+
+/// A word consisting of 4 ZERO elements.
+pub const EMPTY_WORD: Word = [ZERO; WORD_SIZE];
 
 // EMPTY NODES SUBTREES
 // ================================================================================================
@@ -1570,7 +1576,7 @@ fn all_depths_opens_to_zero() {
         assert_eq!(depth as usize + 1, subtree.len());
 
         // assert the opening is zero
-        let initial = RpoDigest::new([ZERO; WORD_SIZE]);
+        let initial = RpoDigest::new(EMPTY_WORD);
         assert_eq!(initial, subtree.remove(0));
 
         // compute every node of the path manually and compare with the output

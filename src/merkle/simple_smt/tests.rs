@@ -1,9 +1,10 @@
 use super::{
     super::{int_to_node, InnerNodeInfo, MerkleError, MerkleTree, RpoDigest, SimpleSmt},
-    NodeIndex, Rpo256, Vec, Word,
+    NodeIndex, Rpo256, Vec, Word, EMPTY_WORD,
 };
-use proptest::prelude::*;
-use rand_utils::prng_array;
+
+// TEST DATA
+// ================================================================================================
 
 const KEYS4: [u64; 4] = [0, 1, 2, 3];
 const KEYS8: [u64; 8] = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -23,23 +24,15 @@ const VALUES8: [Word; 8] = [
 
 const ZERO_VALUES8: [Word; 8] = [int_to_node(0); 8];
 
+// TESTS
+// ================================================================================================
+
 #[test]
 fn build_empty_tree() {
+    // tree of depth 3
     let smt = SimpleSmt::new(3).unwrap();
     let mt = MerkleTree::new(ZERO_VALUES8.to_vec()).unwrap();
     assert_eq!(mt.root(), smt.root());
-}
-
-#[test]
-fn empty_digests_are_consistent() {
-    let depth = 5;
-    let root = SimpleSmt::new(depth).unwrap().root();
-    let computed: [RpoDigest; 2] = (0..depth).fold([Default::default(); 2], |state, _| {
-        let digest = Rpo256::merge(&state);
-        [digest; 2]
-    });
-
-    assert_eq!(Word::from(computed[0]), root);
 }
 
 #[test]
@@ -51,80 +44,59 @@ fn build_sparse_tree() {
     let key = 6;
     let new_node = int_to_node(7);
     values[key as usize] = new_node;
-    smt.insert_leaf(key, new_node).expect("Failed to insert leaf");
+    let old_value = smt.update_leaf(key, new_node).expect("Failed to update leaf");
     let mt2 = MerkleTree::new(values.clone()).unwrap();
     assert_eq!(mt2.root(), smt.root());
     assert_eq!(
         mt2.get_path(NodeIndex::make(3, 6)).unwrap(),
         smt.get_path(NodeIndex::make(3, 6)).unwrap()
     );
+    assert_eq!(old_value, EMPTY_WORD);
 
     // insert second value at distinct leaf branch
     let key = 2;
     let new_node = int_to_node(3);
     values[key as usize] = new_node;
-    smt.insert_leaf(key, new_node).expect("Failed to insert leaf");
+    let old_value = smt.update_leaf(key, new_node).expect("Failed to update leaf");
     let mt3 = MerkleTree::new(values).unwrap();
     assert_eq!(mt3.root(), smt.root());
     assert_eq!(
         mt3.get_path(NodeIndex::make(3, 2)).unwrap(),
         smt.get_path(NodeIndex::make(3, 2)).unwrap()
     );
+    assert_eq!(old_value, EMPTY_WORD);
 }
 
 #[test]
-fn build_full_tree() {
-    let tree = SimpleSmt::new(2)
-        .unwrap()
-        .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
-        .unwrap();
+fn test_depth2_tree() {
+    let tree = SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(VALUES4.into_iter())).unwrap();
 
+    // check internal structure
     let (root, node2, node3) = compute_internal_nodes();
     assert_eq!(root, tree.root());
     assert_eq!(node2, tree.get_node(NodeIndex::make(1, 0)).unwrap());
     assert_eq!(node3, tree.get_node(NodeIndex::make(1, 1)).unwrap());
-}
 
-#[test]
-fn get_values() {
-    let tree = SimpleSmt::new(2)
-        .unwrap()
-        .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
-        .unwrap();
-
-    // check depth 2
+    // check get_node()
     assert_eq!(VALUES4[0], tree.get_node(NodeIndex::make(2, 0)).unwrap());
     assert_eq!(VALUES4[1], tree.get_node(NodeIndex::make(2, 1)).unwrap());
     assert_eq!(VALUES4[2], tree.get_node(NodeIndex::make(2, 2)).unwrap());
     assert_eq!(VALUES4[3], tree.get_node(NodeIndex::make(2, 3)).unwrap());
-}
 
-#[test]
-fn get_path() {
-    let tree = SimpleSmt::new(2)
-        .unwrap()
-        .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
-        .unwrap();
-
-    let (_, node2, node3) = compute_internal_nodes();
-
-    // check depth 2
+    // check get_path(): depth 2
     assert_eq!(vec![VALUES4[1], node3], *tree.get_path(NodeIndex::make(2, 0)).unwrap());
     assert_eq!(vec![VALUES4[0], node3], *tree.get_path(NodeIndex::make(2, 1)).unwrap());
     assert_eq!(vec![VALUES4[3], node2], *tree.get_path(NodeIndex::make(2, 2)).unwrap());
     assert_eq!(vec![VALUES4[2], node2], *tree.get_path(NodeIndex::make(2, 3)).unwrap());
 
-    // check depth 1
+    // check get_path(): depth 1
     assert_eq!(vec![node3], *tree.get_path(NodeIndex::make(1, 0)).unwrap());
     assert_eq!(vec![node2], *tree.get_path(NodeIndex::make(1, 1)).unwrap());
 }
 
 #[test]
-fn test_parent_node_iterator() -> Result<(), MerkleError> {
-    let tree = SimpleSmt::new(2)
-        .unwrap()
-        .with_leaves(KEYS4.into_iter().zip(VALUES4.into_iter()))
-        .unwrap();
+fn test_inner_node_iterator() -> Result<(), MerkleError> {
+    let tree = SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(VALUES4.into_iter())).unwrap();
 
     // check depth 2
     assert_eq!(VALUES4[0], tree.get_node(NodeIndex::make(2, 0)).unwrap());
@@ -166,35 +138,28 @@ fn test_parent_node_iterator() -> Result<(), MerkleError> {
 
 #[test]
 fn update_leaf() {
-    let mut tree = SimpleSmt::new(3)
-        .unwrap()
-        .with_leaves(KEYS8.into_iter().zip(VALUES8.into_iter()))
-        .unwrap();
+    let mut tree = SimpleSmt::with_leaves(3, KEYS8.into_iter().zip(VALUES8.into_iter())).unwrap();
 
     // update one value
     let key = 3;
     let new_node = int_to_node(9);
     let mut expected_values = VALUES8.to_vec();
     expected_values[key] = new_node;
-    let expected_tree = SimpleSmt::new(3)
-        .unwrap()
-        .with_leaves(KEYS8.into_iter().zip(expected_values.clone().into_iter()))
-        .unwrap();
+    let expected_tree = MerkleTree::new(expected_values.clone()).unwrap();
 
-    tree.update_leaf(key as u64, new_node).unwrap();
-    assert_eq!(expected_tree.root, tree.root);
+    let old_leaf = tree.update_leaf(key as u64, new_node).unwrap();
+    assert_eq!(expected_tree.root(), tree.root);
+    assert_eq!(old_leaf, VALUES8[key]);
 
     // update another value
     let key = 6;
     let new_node = int_to_node(10);
     expected_values[key] = new_node;
-    let expected_tree = SimpleSmt::new(3)
-        .unwrap()
-        .with_leaves(KEYS8.into_iter().zip(expected_values.into_iter()))
-        .unwrap();
+    let expected_tree = MerkleTree::new(expected_values.clone()).unwrap();
 
-    tree.update_leaf(key as u64, new_node).unwrap();
-    assert_eq!(expected_tree.root, tree.root);
+    let old_leaf = tree.update_leaf(key as u64, new_node).unwrap();
+    assert_eq!(expected_tree.root(), tree.root);
+    assert_eq!(old_leaf, VALUES8[key]);
 }
 
 #[test]
@@ -226,7 +191,7 @@ fn small_tree_opening_is_consistent() {
 
     let depth = 3;
     let entries = vec![(0, a), (1, b), (4, c), (7, d)];
-    let tree = SimpleSmt::new(depth).unwrap().with_leaves(entries).unwrap();
+    let tree = SimpleSmt::with_leaves(depth, entries).unwrap();
 
     assert_eq!(tree.root(), Word::from(k));
 
@@ -250,56 +215,30 @@ fn small_tree_opening_is_consistent() {
     }
 }
 
-proptest! {
-    #[test]
-    fn arbitrary_openings_single_leaf(
-        depth in SimpleSmt::MIN_DEPTH..SimpleSmt::MAX_DEPTH,
-        key in prop::num::u64::ANY,
-        leaf in prop::num::u64::ANY,
-    ) {
-        let mut tree = SimpleSmt::new(depth).unwrap();
+#[test]
+fn fail_on_duplicates() {
+    let entries = [(1_u64, int_to_node(1)), (5, int_to_node(2)), (1_u64, int_to_node(3))];
+    let smt = SimpleSmt::with_leaves(64, entries);
+    assert!(smt.is_err());
 
-        let key = key % (1 << depth as u64);
-        let leaf = int_to_node(leaf);
+    let entries = [(1_u64, int_to_node(0)), (5, int_to_node(2)), (1_u64, int_to_node(0))];
+    let smt = SimpleSmt::with_leaves(64, entries);
+    assert!(smt.is_err());
 
-        tree.insert_leaf(key, leaf.into()).unwrap();
-        tree.get_leaf_path(key).unwrap();
+    let entries = [(1_u64, int_to_node(0)), (5, int_to_node(2)), (1_u64, int_to_node(1))];
+    let smt = SimpleSmt::with_leaves(64, entries);
+    assert!(smt.is_err());
 
-        // traverse to root, fetching all paths
-        for d in 1..depth {
-            let k = key >> (depth - d);
-            tree.get_path(NodeIndex::make(d, k)).unwrap();
-        }
-    }
+    let entries = [(1_u64, int_to_node(1)), (5, int_to_node(2)), (1_u64, int_to_node(0))];
+    let smt = SimpleSmt::with_leaves(64, entries);
+    assert!(smt.is_err());
+}
 
-    #[test]
-    fn arbitrary_openings_multiple_leaves(
-        depth in SimpleSmt::MIN_DEPTH..SimpleSmt::MAX_DEPTH,
-        count in 2u8..10u8,
-        ref seed in any::<[u8; 32]>()
-    ) {
-        let mut tree = SimpleSmt::new(depth).unwrap();
-        let mut seed = *seed;
-        let leaves = (1 << depth) - 1;
-
-        for _ in 0..count {
-            seed = prng_array(seed);
-
-            let mut key = [0u8; 8];
-            let mut leaf = [0u8; 8];
-
-            key.copy_from_slice(&seed[..8]);
-            leaf.copy_from_slice(&seed[8..16]);
-
-            let key = u64::from_le_bytes(key);
-            let key = key % leaves;
-            let leaf = u64::from_le_bytes(leaf);
-            let leaf = int_to_node(leaf);
-
-            tree.insert_leaf(key, leaf).unwrap();
-            tree.get_leaf_path(key).unwrap();
-        }
-    }
+#[test]
+fn with_no_duplicates_empty_node() {
+    let entries = [(1_u64, int_to_node(0)), (5, int_to_node(2))];
+    let smt = SimpleSmt::with_leaves(64, entries);
+    assert!(smt.is_ok());
 }
 
 // HELPER FUNCTIONS

@@ -183,10 +183,7 @@ fn test_get_invalid_node() {
 fn test_add_sparse_merkle_tree_one_level() -> Result<(), MerkleError> {
     let keys2: [u64; 2] = [0, 1];
     let leaves2: [Word; 2] = [int_to_node(1), int_to_node(2)];
-    let smt = SimpleSmt::new(1)
-        .unwrap()
-        .with_leaves(keys2.into_iter().zip(leaves2.into_iter()))
-        .unwrap();
+    let smt = SimpleSmt::with_leaves(1, keys2.into_iter().zip(leaves2.into_iter())).unwrap();
     let store = MerkleStore::from(&smt);
 
     let idx = NodeIndex::make(1, 0);
@@ -202,10 +199,9 @@ fn test_add_sparse_merkle_tree_one_level() -> Result<(), MerkleError> {
 
 #[test]
 fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
-    let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
-        .unwrap()
-        .with_leaves(KEYS4.into_iter().zip(LEAVES4.into_iter()))
-        .unwrap();
+    let smt =
+        SimpleSmt::with_leaves(SimpleSmt::MAX_DEPTH, KEYS4.into_iter().zip(LEAVES4.into_iter()))
+            .unwrap();
 
     let store = MerkleStore::from(&smt);
 
@@ -526,10 +522,7 @@ fn test_constructors() -> Result<(), MerkleError> {
     }
 
     let depth = 32;
-    let smt = SimpleSmt::new(depth)
-        .unwrap()
-        .with_leaves(KEYS4.into_iter().zip(LEAVES4.into_iter()))
-        .unwrap();
+    let smt = SimpleSmt::with_leaves(depth, KEYS4.into_iter().zip(LEAVES4.into_iter())).unwrap();
     let store = MerkleStore::from(&smt);
     let depth = smt.depth();
 

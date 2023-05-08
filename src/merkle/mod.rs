@@ -1,6 +1,6 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{vec, BTreeMap, Vec},
+    utils::collections::{vec, BTreeMap, BTreeSet, Vec},
     Felt, StarkField, Word, WORD_SIZE, ZERO,
 };
 use core::fmt;
@@ -10,6 +10,7 @@ use core::fmt;
 
 mod empty_roots;
 pub use empty_roots::EmptySubtreeRoots;
+use empty_roots::EMPTY_WORD;
 
 mod index;
 pub use index::NodeIndex;
@@ -43,12 +44,13 @@ pub enum MerkleError {
     ConflictingRoots(Vec<Word>),
     DepthTooSmall(u8),
     DepthTooBig(u64),
+    DuplicateValuesForKey(u64),
     NodeNotInStore(Word, NodeIndex),
     NumLeavesNotPowerOfTwo(usize),
     InvalidIndex { depth: u8, value: u64 },
     InvalidDepth { expected: u8, provided: u8 },
     InvalidPath(MerklePath),
-    InvalidEntriesCount(usize, usize),
+    InvalidNumEntries(usize, usize),
     NodeNotInSet(u64),
     RootNotInStore(Word),
 }
@@ -60,6 +62,7 @@ impl fmt::Display for MerkleError {
             ConflictingRoots(roots) => write!(f, "the merkle paths roots do not match {roots:?}"),
             DepthTooSmall(depth) => write!(f, "the provided depth {depth} is too small"),
             DepthTooBig(depth) => write!(f, "the provided depth {depth} is too big"),
+            DuplicateValuesForKey(key) => write!(f, "multiple values provided for key {key}"),
             NumLeavesNotPowerOfTwo(leaves) => {
                 write!(f, "the leaves count {leaves} is not a power of 2")
             }
@@ -72,7 +75,7 @@ impl fmt::Display for MerkleError {
                 "the provided depth {provided} is not valid for {expected}"
             ),
             InvalidPath(_path) => write!(f, "the provided path is not valid"),
-            InvalidEntriesCount(max, provided) => write!(f, "the provided number of entries is {provided}, but the maximum for the given depth is {max}"),
+            InvalidNumEntries(max, provided) => write!(f, "the provided number of entries is {provided}, but the maximum for the given depth is {max}"),
             NodeNotInSet(index) => write!(f, "the node indexed by {index} is not in the set"),
             NodeNotInStore(hash, index) => write!(f, "the node {:?} indexed by {} and depth {} is not in the store", hash, index.value(), index.depth(),),
             RootNotInStore(root) => write!(f, "the root {:?} is not in the store", root),
