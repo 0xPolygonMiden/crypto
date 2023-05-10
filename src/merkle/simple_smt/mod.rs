@@ -182,6 +182,14 @@ impl SimpleSmt {
         self.get_path(index)
     }
 
+    // ITERATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns an iterator over the leaves of this [SimpleSmt].
+    pub fn leaves(&self) -> impl Iterator<Item = (u64, &Word)> {
+        self.leaves.iter().map(|(i, w)| (*i, w))
+    }
+
     /// Returns an iterator over the inner nodes of this Merkle tree.
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         self.branches.values().map(|e| InnerNodeInfo {

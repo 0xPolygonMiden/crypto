@@ -750,38 +750,39 @@ fn mstore_subset() {
     let subtree2 = MerkleTree::new(VALUES8[2..4].to_vec()).unwrap();
     let subtree3 = MerkleTree::new(VALUES8[6..].to_vec()).unwrap();
 
-    let substore = store.subset(&[subtree1.root(), subtree2.root(), subtree3.root()]);
+    // --- extract all 3 subtrees ---------------------------------------------
+
+    let substore = store.subset([subtree1.root(), subtree2.root(), subtree3.root()].iter());
 
     // number of nodes should increase by 4: 3 nodes form subtree1 and 1 node from subtree3
     assert_eq!(substore.nodes.len(), empty_store_num_nodes + 4);
 
-    // make sure paths for subtree1 are correct
-    for (i, value) in subtree1.leaves().enumerate() {
-        let index = NodeIndex::new(2, i as u64).unwrap();
-        let path1 = substore.get_path(subtree1.root(), index).unwrap();
+    // make sure paths that all subtrees are in the store
+    check_mstore_subtree(&substore, &subtree1);
+    check_mstore_subtree(&substore, &subtree2);
+    check_mstore_subtree(&substore, &subtree3);
+
+    // --- extract subtrees 1 and 3 -------------------------------------------
+    // this should give the same result as above as subtree2 is nested withing subtree1
+
+    let substore = store.subset([subtree1.root(), subtree3.root()].iter());
+
+    // number of nodes should increase by 4: 3 nodes form subtree1 and 1 node from subtree3
+    assert_eq!(substore.nodes.len(), empty_store_num_nodes + 4);
+
+    // make sure paths that all subtrees are in the store
+    check_mstore_subtree(&substore, &subtree1);
+    check_mstore_subtree(&substore, &subtree2);
+    check_mstore_subtree(&substore, &subtree3);
+}
+
+fn check_mstore_subtree(store: &MerkleStore, subtree: &MerkleTree) {
+    for (i, value) in subtree.leaves() {
+        let index = NodeIndex::new(subtree.depth(), i).unwrap();
+        let path1 = store.get_path(subtree.root(), index).unwrap();
         assert_eq!(&path1.value, value);
 
-        let path2 = subtree1.get_path(index).unwrap();
-        assert_eq!(path1.path, path2);
-    }
-
-    // make sure paths for subtree2 are correct
-    for (i, value) in subtree2.leaves().enumerate() {
-        let index = NodeIndex::new(1, i as u64).unwrap();
-        let path1 = substore.get_path(subtree2.root(), index).unwrap();
-        assert_eq!(&path1.value, value);
-
-        let path2 = subtree2.get_path(index).unwrap();
-        assert_eq!(path1.path, path2);
-    }
-
-    // make sure paths for subtree3 are correct
-    for (i, value) in subtree3.leaves().enumerate() {
-        let index = NodeIndex::new(1, i as u64).unwrap();
-        let path1 = substore.get_path(subtree3.root(), index).unwrap();
-        assert_eq!(&path1.value, value);
-
-        let path2 = subtree3.get_path(index).unwrap();
+        let path2 = subtree.get_path(index).unwrap();
         assert_eq!(path1.path, path2);
     }
 }

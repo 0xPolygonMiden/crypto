@@ -118,15 +118,15 @@ impl MerkleTree {
     // --------------------------------------------------------------------------------------------
 
     /// Returns an iterator over the leaves of this [MerkleTree].
-    pub fn leaves(&self) -> core::slice::Iter<Word> {
+    pub fn leaves(&self) -> impl Iterator<Item = (u64, &Word)> {
         let leaves_start = self.nodes.len() / 2;
-        self.nodes[leaves_start..].iter()
+        self.nodes.iter().skip(leaves_start).enumerate().map(|(i, v)| (i as u64, v))
     }
 
     /// Returns n iterator over every inner node of this [MerkleTree].
     ///
     /// The iterator order is unspecified.
-    pub fn inner_nodes(&self) -> InnerNodeIterator<'_> {
+    pub fn inner_nodes(&self) -> InnerNodeIterator {
         InnerNodeIterator {
             nodes: &self.nodes,
             index: 1, // index 0 is just padding, start at 1
