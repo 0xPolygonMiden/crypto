@@ -14,7 +14,7 @@ pub struct Node {
     right: RpoDigest,
 }
 
-/// An in-memory data store for Merkle-lized data.
+/// An in-memory data store for Merkelized data.
 ///
 /// This is a in memory data store for Merkle trees, this store allows all the nodes of multiple
 /// trees to live as long as necessary and without duplication, this allows the implementation of
@@ -257,6 +257,22 @@ impl MerkleStore {
         Ok(tree_depth)
     }
 
+    // DATA EXTRACTORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns a subset of this Merkle store such that the returned Merkle store contains all
+    /// nodes which are descendants of the specified roots.
+    ///
+    /// The roots for which no descendants exist in this Merkle store are ignored.
+    pub fn subset(&self, roots: &[Word]) -> MerkleStore {
+        let mut store = MerkleStore::new();
+        for root in roots {
+            let root = RpoDigest::from(*root);
+            self.clone_tree_into(root, &mut store);
+        }
+        store
+    }
+
     /// Iterator over the inner nodes of the [MerkleStore].
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         self.nodes.iter().map(|(r, n)| InnerNodeInfo {
@@ -372,6 +388,24 @@ impl MerkleStore {
         self.nodes.insert(parent, Node { left, right });
 
         Ok(parent.into())
+    }
+
+    // HELPER METHODS
+    // --------------------------------------------------------------------------------------------
+
+    /// Recursively clones a tree starting at the specified root into the specified target.
+    ///
+    /// If this Merkle store does not contain a tree with the specified root, this is a noop.
+    fn clone_tree_into(&self, root: RpoDigest, target: &mut Self) {
+        // process the node only if it is in this store
+        if let Some(node) = self.nodes.get(&root) {
+            // if the node has already been inserted, no need to process it further as all of its
+            // descendants should be already in the target store
+            if matches!(target.nodes.insert(root, *node), None) {
+                self.clone_tree_into(node.left, target);
+                self.clone_tree_into(node.right, target);
+            }
+        }
     }
 }
 
