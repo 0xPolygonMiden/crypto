@@ -1,9 +1,9 @@
-use super::mmr::Mmr;
 use super::{
-    BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerklePathSet, MerkleTree,
-    NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
+    mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerklePathSet,
+    MerkleTree, NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use core::borrow::Borrow;
 
 #[cfg(test)]
 mod tests;
@@ -14,7 +14,7 @@ pub struct Node {
     right: RpoDigest,
 }
 
-/// An in-memory data store for Merkle-lized data.
+/// An in-memory data store for Merkelized data.
 ///
 /// This is a in memory data store for Merkle trees, this store allows all the nodes of multiple
 /// trees to live as long as necessary and without duplication, this allows the implementation of
@@ -257,6 +257,26 @@ impl MerkleStore {
         Ok(tree_depth)
     }
 
+    // DATA EXTRACTORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns a subset of this Merkle store such that the returned Merkle store contains all
+    /// nodes which are descendants of the specified roots.
+    ///
+    /// The roots for which no descendants exist in this Merkle store are ignored.
+    pub fn subset<I, R>(&self, roots: I) -> MerkleStore
+    where
+        I: Iterator<Item = R>,
+        R: Borrow<Word>,
+    {
+        let mut store = MerkleStore::new();
+        for root in roots {
+            let root = RpoDigest::from(*root.borrow());
+            store.clone_tree_from(root, self);
+        }
+        store
+    }
+
     /// Iterator over the inner nodes of the [MerkleStore].
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         self.nodes.iter().map(|(r, n)| InnerNodeInfo {
@@ -372,6 +392,24 @@ impl MerkleStore {
         self.nodes.insert(parent, Node { left, right });
 
         Ok(parent.into())
+    }
+
+    // HELPER METHODS
+    // --------------------------------------------------------------------------------------------
+
+    /// Recursively clones a tree with the specified root from the specified source into self.
+    ///
+    /// If the source store does not contain a tree with the specified root, this is a noop.
+    fn clone_tree_from(&mut self, root: RpoDigest, source: &Self) {
+        // process the node only if it is in the source
+        if let Some(node) = source.nodes.get(&root) {
+            // if the node has already been inserted, no need to process it further as all of its
+            // descendants should be already cloned from the source store
+            if matches!(self.nodes.insert(root, *node), None) {
+                self.clone_tree_from(node.left, source);
+                self.clone_tree_from(node.right, source);
+            }
+        }
     }
 }
 
