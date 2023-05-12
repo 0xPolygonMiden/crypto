@@ -27,6 +27,9 @@ pub use path_set::MerklePathSet;
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
 
+mod tiered_smt;
+pub use tiered_smt::TieredSmt;
+
 mod mmr;
 pub use mmr::{Mmr, MmrPeaks, MmrProof};
 
