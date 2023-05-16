@@ -74,9 +74,23 @@ impl NodeIndex {
         Self { depth: 0, value: 0 }
     }
 
-    /// Computes the value of the sibling of the current node.
-    pub fn sibling(mut self) -> Self {
+    /// Computes sibling index of the current node.
+    pub const fn sibling(mut self) -> Self {
         self.value ^= 1;
+        self
+    }
+
+    /// Returns left child index of the current node.
+    pub const fn left_child(mut self) -> Self {
+        self.depth += 1;
+        self.value <<= 1;
+        self
+    }
+
+    /// Returns right child index of the current node.
+    pub const fn right_child(mut self) -> Self {
+        self.depth += 1;
+        self.value = (self.value << 1) + 1;
         self
     }
 
