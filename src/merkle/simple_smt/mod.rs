@@ -92,12 +92,12 @@ impl SimpleSmt {
         for (key, value) in entries {
             let old_value = tree.update_leaf(key, value)?;
             if old_value != EMPTY_WORD || empty_entries.contains(&key) {
-                return Err(MerkleError::DuplicateValuesForKey(key));
+                return Err(MerkleError::DuplicateValuesForIndex(key));
             }
             // if we've processed an empty entry, add the key to the set of empty entry keys, and
             // if this key was already in the set, return an error
             if value == EMPTY_WORD && !empty_entries.insert(key) {
-                return Err(MerkleError::DuplicateValuesForKey(key));
+                return Err(MerkleError::DuplicateValuesForIndex(key));
             }
         }
         Ok(tree)

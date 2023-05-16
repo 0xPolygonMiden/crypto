@@ -73,7 +73,7 @@ impl MerklePathSet {
         let path_key = index.value() - parity;
         self.paths
             .get(&path_key)
-            .ok_or(MerkleError::NodeNotInSet(path_key))
+            .ok_or(MerkleError::NodeNotInSet(index))
             .map(|path| path[parity as usize])
     }
 
@@ -104,11 +104,8 @@ impl MerklePathSet {
 
         let parity = index.value() & 1;
         let path_key = index.value() - parity;
-        let mut path = self
-            .paths
-            .get(&path_key)
-            .cloned()
-            .ok_or(MerkleError::NodeNotInSet(index.value()))?;
+        let mut path =
+            self.paths.get(&path_key).cloned().ok_or(MerkleError::NodeNotInSet(index))?;
         path.remove(parity as usize);
         Ok(path)
     }
@@ -200,7 +197,7 @@ impl MerklePathSet {
         let path_key = index.value() - parity;
         let path = match self.paths.get_mut(&path_key) {
             Some(path) => path,
-            None => return Err(MerkleError::NodeNotInSet(base_index_value)),
+            None => return Err(MerkleError::NodeNotInSet(index)),
         };
 
         // Fill old_hashes vector -----------------------------------------------------------------

@@ -27,6 +27,9 @@ pub use path_set::MerklePathSet;
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
 
+mod tiered_smt;
+pub use tiered_smt::TieredSmt;
+
 mod mmr;
 pub use mmr::{Mmr, MmrPeaks, MmrProof};
 
@@ -44,14 +47,15 @@ pub enum MerkleError {
     ConflictingRoots(Vec<Word>),
     DepthTooSmall(u8),
     DepthTooBig(u64),
-    DuplicateValuesForKey(u64),
-    NodeNotInStore(Word, NodeIndex),
-    NumLeavesNotPowerOfTwo(usize),
+    DuplicateValuesForIndex(u64),
+    DuplicateValuesForKey(RpoDigest),
     InvalidIndex { depth: u8, value: u64 },
     InvalidDepth { expected: u8, provided: u8 },
     InvalidPath(MerklePath),
     InvalidNumEntries(usize, usize),
-    NodeNotInSet(u64),
+    NodeNotInSet(NodeIndex),
+    NodeNotInStore(Word, NodeIndex),
+    NumLeavesNotPowerOfTwo(usize),
     RootNotInStore(Word),
 }
 
@@ -62,10 +66,8 @@ impl fmt::Display for MerkleError {
             ConflictingRoots(roots) => write!(f, "the merkle paths roots do not match {roots:?}"),
             DepthTooSmall(depth) => write!(f, "the provided depth {depth} is too small"),
             DepthTooBig(depth) => write!(f, "the provided depth {depth} is too big"),
+            DuplicateValuesForIndex(key) => write!(f, "multiple values provided for key {key}"),
             DuplicateValuesForKey(key) => write!(f, "multiple values provided for key {key}"),
-            NumLeavesNotPowerOfTwo(leaves) => {
-                write!(f, "the leaves count {leaves} is not a power of 2")
-            }
             InvalidIndex{ depth, value} => write!(
                 f,
                 "the index value {value} is not valid for the depth {depth}"
@@ -76,8 +78,11 @@ impl fmt::Display for MerkleError {
             ),
             InvalidPath(_path) => write!(f, "the provided path is not valid"),
             InvalidNumEntries(max, provided) => write!(f, "the provided number of entries is {provided}, but the maximum for the given depth is {max}"),
-            NodeNotInSet(index) => write!(f, "the node indexed by {index} is not in the set"),
-            NodeNotInStore(hash, index) => write!(f, "the node {:?} indexed by {} and depth {} is not in the store", hash, index.value(), index.depth(),),
+            NodeNotInSet(index) => write!(f, "the node with index ({index}) is not in the set"),
+            NodeNotInStore(hash, index) => write!(f, "the node {hash:?} with index ({index}) is not in the store"),
+            NumLeavesNotPowerOfTwo(leaves) => {
+                write!(f, "the leaves count {leaves} is not a power of 2")
+            }
             RootNotInStore(root) => write!(f, "the root {:?} is not in the store", root),
         }
     }
