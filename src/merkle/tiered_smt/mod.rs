@@ -1,6 +1,6 @@
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, Felt, MerkleError, MerklePath, NodeIndex, Rpo256,
-    RpoDigest, StarkField, Vec, Word, EMPTY_WORD, ZERO,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, Felt, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
+    Rpo256, RpoDigest, StarkField, Vec, Word, EMPTY_WORD, ZERO,
 };
 use core::cmp;
 
@@ -189,6 +189,52 @@ impl TieredSmt {
         old_value
     }
 
+    // ITERATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns an iterator over all inner nodes of this [TieredSmt] (i.e., nodes not at depths 16
+    /// 32, 48, or 64).
+    ///
+    /// The iterator order is unspecified.
+    pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+        self.nodes.iter().filter_map(|(index, node)| {
+            if is_inner_node(index) {
+                Some(InnerNodeInfo {
+                    value: node.into(),
+                    left: self.get_node_unchecked(&index.left_child()).into(),
+                    right: self.get_node_unchecked(&index.right_child()).into(),
+                })
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Returns an iterator over upper leaves (i.e., depth = 16, 32, or 48) for this [TieredSmt].
+    ///
+    /// Each yielded item is a (node, key, value) tuple where key is a full un-truncated key (i.e.,
+    /// with key[3] element unmodified).
+    ///
+    /// The iterator order is unspecified.
+    pub fn upper_leaves(&self) -> impl Iterator<Item = (RpoDigest, RpoDigest, Word)> + '_ {
+        self.upper_leaves.iter().map(|(index, key)| {
+            let node = self.get_node_unchecked(index);
+            let value = self.get_value(*key);
+            (node, *key, value)
+        })
+    }
+
+    /// Returns an iterator over bottom leaves (i.e., depth = 64) of this [TieredSmt].
+    ///
+    /// Each yielded item consists of the hash of the leaf and its contents, where contents is
+    /// a vector containing key-value pairs of entries storied in this leaf. Note that keys are
+    /// un-truncated keys (i.e., with key[3] element unmodified).
+    ///
+    /// The iterator order is unspecified.
+    pub fn bottom_leaves(&self) -> impl Iterator<Item = (RpoDigest, Vec<(RpoDigest, Word)>)> + '_ {
+        self.bottom_leaves.values().map(|leaf| (leaf.hash(), leaf.contents()))
+    }
+
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
 
@@ -288,6 +334,7 @@ impl TieredSmt {
         }
 
         // update the root
+        self.nodes.insert(NodeIndex::root(), node);
         self.root = node;
     }
 }
@@ -367,6 +414,12 @@ const fn get_index_tier(index: &NodeIndex) -> usize {
     }
 }
 
+/// Returns true if the specified index is an index for an inner node (i.e., the depth is not 16,
+/// 32, 48, or 64).
+const fn is_inner_node(index: &NodeIndex) -> bool {
+    !matches!(index.depth(), 16 | 32 | 48 | 64)
+}
+
 // BOTTOM LEAF
 // ================================================================================================
 
@@ -378,16 +431,18 @@ const fn get_index_tier(index: &NodeIndex) -> usize {
 /// the same hash value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct BottomLeaf {
+    prefix: u64,
     values: BTreeMap<[u64; 4], Word>,
 }
 
 impl BottomLeaf {
     /// Returns a new [BottomLeaf] with a single key-value pair added.
     pub fn new(key: RpoDigest, value: Word) -> Self {
+        let prefix = Word::from(key)[3].as_int();
         let mut values = BTreeMap::new();
         let key = get_remaining_path(key, TieredSmt::MAX_DEPTH as u32);
         values.insert(key.into(), value);
-        Self { values }
+        Self { prefix, values }
     }
 
     /// Adds a new key-value pair to this leaf.
@@ -405,5 +460,23 @@ impl BottomLeaf {
         }
         // TODO: hash in domain
         Rpo256::hash_elements(&elements)
+    }
+
+    /// Returns contents of this leaf as a vector of (key, value) pairs.
+    ///
+    /// The keys are returned in their un-truncated form.
+    pub fn contents(&self) -> Vec<(RpoDigest, Word)> {
+        self.values
+            .iter()
+            .map(|(key, val)| {
+                let key = RpoDigest::from([
+                    Felt::new(key[0]),
+                    Felt::new(key[1]),
+                    Felt::new(key[2]),
+                    Felt::new(self.prefix),
+                ]);
+                (key, *val)
+            })
+            .collect()
     }
 }

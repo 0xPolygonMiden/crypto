@@ -1,6 +1,6 @@
 use super::{
     mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerklePathSet,
-    MerkleTree, NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, ValuePath, Vec, Word,
+    MerkleTree, NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, TieredSmt, ValuePath, Vec, Word,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::borrow::Borrow;
@@ -152,7 +152,6 @@ impl MerkleStore {
     /// The path starts at the sibling of the target leaf.
     ///
     /// # Errors
-    ///
     /// This method can return the following errors:
     /// - `RootNotInStore` if the `root` is not present in the store.
     /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
@@ -434,6 +433,14 @@ impl From<&SimpleSmt> for MerkleStore {
 
 impl From<&Mmr> for MerkleStore {
     fn from(value: &Mmr) -> Self {
+        let mut store = MerkleStore::new();
+        store.extend(value.inner_nodes());
+        store
+    }
+}
+
+impl From<&TieredSmt> for MerkleStore {
+    fn from(value: &TieredSmt) -> Self {
         let mut store = MerkleStore::new();
         store.extend(value.inner_nodes());
         store

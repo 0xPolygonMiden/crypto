@@ -1,9 +1,7 @@
 use super::{
-    super::{
-        super::{ONE, ZERO},
-        Felt, MerkleStore, WORD_SIZE,
-    },
-    get_remaining_path, EmptySubtreeRoots, NodeIndex, Rpo256, RpoDigest, TieredSmt, Vec, Word,
+    super::{super::ONE, Felt, MerkleStore, WORD_SIZE, ZERO},
+    get_remaining_path, EmptySubtreeRoots, InnerNodeInfo, NodeIndex, Rpo256, RpoDigest, TieredSmt,
+    Vec, Word,
 };
 
 #[test]
@@ -32,6 +30,17 @@ fn tsmt_insert_one() {
     // make sure the paths we get from the store and the tree match
     let expected_path = store.get_path(tree_root, index).unwrap();
     assert_eq!(smt.get_path(index).unwrap(), expected_path.path);
+
+    // make sure inner nodes match
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    assert_eq!(actual_nodes.len(), expected_nodes.len());
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    // make sure leaves are returned correctly
+    let mut leaves = smt.upper_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node, key, value)));
+    assert_eq!(leaves.next(), None);
 }
 
 #[test]
@@ -76,6 +85,18 @@ fn tsmt_insert_two_16() {
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
     let expected_path = store.get_path(tree_root, index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    // make sure leaves are returned correctly
+    let mut leaves = smt.upper_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node_a, key_a, val_a)));
+    assert_eq!(leaves.next(), Some((leaf_node_b, key_b, val_b)));
+    assert_eq!(leaves.next(), None);
 }
 
 #[test]
@@ -120,6 +141,12 @@ fn tsmt_insert_two_32() {
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
     let expected_path = store.get_path(tree_root, index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
 }
 
 #[test]
@@ -182,6 +209,12 @@ fn tsmt_insert_three() {
     assert_eq!(smt.get_node(index_c).unwrap(), leaf_node_c);
     let expected_path = store.get_path(tree_root, index_c).unwrap().path;
     assert_eq!(smt.get_path(index_c).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
 }
 
 #[test]
@@ -211,6 +244,12 @@ fn tsmt_update() {
     assert_eq!(smt.get_node(index).unwrap(), leaf_node);
     let expected_path = store.get_path(tree_root, index).unwrap().path;
     assert_eq!(smt.get_path(index).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
 }
 
 // BOTTOM TIER TESTS
@@ -254,6 +293,17 @@ fn tsmt_bottom_tier() {
     assert_eq!(smt.get_node(index).unwrap(), leaf_node);
     let expected_path = store.get_path(tree_root, index).unwrap().path;
     assert_eq!(smt.get_path(index).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    // make sure leaves are returned correctly
+    let mut leaves = smt.bottom_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node, vec![(key_b, val_b), (key_a, val_a)])));
+    assert_eq!(leaves.next(), None);
 }
 
 #[test]
@@ -298,6 +348,18 @@ fn tsmt_bottom_tier_two() {
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
     let expected_path = store.get_path(tree_root, index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    // make sure leaves are returned correctly
+    let mut leaves = smt.bottom_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node_b, vec![(key_b, val_b)])));
+    assert_eq!(leaves.next(), Some((leaf_node_a, vec![(key_a, val_a)])));
+    assert_eq!(leaves.next(), None);
 }
 
 // ERROR TESTS
@@ -365,4 +427,15 @@ fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
     }
 
     Rpo256::hash_elements(&elements)
+}
+
+fn get_non_empty_nodes(store: &MerkleStore) -> Vec<InnerNodeInfo> {
+    store
+        .inner_nodes()
+        .filter(|node| !is_empty_subtree(&RpoDigest::from(node.value)))
+        .collect::<Vec<_>>()
+}
+
+fn is_empty_subtree(node: &RpoDigest) -> bool {
+    EmptySubtreeRoots::empty_hashes(255).contains(&node)
 }
