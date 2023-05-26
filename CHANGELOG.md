@@ -1,4 +1,5 @@
 ## 0.5.0 (2023-05-26)
+
 * Implemented `TieredSmt` (#152, #153).
 * Implemented ability to extract a subset of a `MerkleStore` (#151).
 * Cleaned up `SimpleSmt` interface (#149).
