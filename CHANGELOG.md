@@ -1,3 +1,10 @@
+## 0.5.0 (2023-05-26)
+* Implemented `TieredSmt` (#152, #153).
+* Implemented ability to extract a subset of a `MerkleStore` (#151).
+* Cleaned up `SimpleSmt` interface (#149).
+* Decoupled hashing and padding of peaks in `Mmr` (#148).
+* Added `inner_nodes()` to `MerkleStore` (#146).
+
 ## 0.4.0 (2023-04-21)
 
 - Exported `MmrProof` from the crate (#137).

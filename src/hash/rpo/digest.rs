@@ -2,7 +2,7 @@ use super::{Digest, Felt, StarkField, DIGEST_SIZE, ZERO};
 use crate::utils::{
     string::String, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
 };
-use core::{cmp::Ordering, ops::Deref};
+use core::{cmp::Ordering, fmt::Display, ops::Deref};
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
@@ -85,6 +85,28 @@ impl From<RpoDigest> for [Felt; DIGEST_SIZE] {
     }
 }
 
+impl From<&RpoDigest> for [u64; DIGEST_SIZE] {
+    fn from(value: &RpoDigest) -> Self {
+        [
+            value.0[0].as_int(),
+            value.0[1].as_int(),
+            value.0[2].as_int(),
+            value.0[3].as_int(),
+        ]
+    }
+}
+
+impl From<RpoDigest> for [u64; DIGEST_SIZE] {
+    fn from(value: RpoDigest) -> Self {
+        [
+            value.0[0].as_int(),
+            value.0[1].as_int(),
+            value.0[2].as_int(),
+            value.0[3].as_int(),
+        ]
+    }
+}
+
 impl From<&RpoDigest> for [u8; 32] {
     fn from(value: &RpoDigest) -> Self {
         value.as_bytes()
@@ -131,6 +153,15 @@ impl Ord for RpoDigest {
 impl PartialOrd for RpoDigest {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl Display for RpoDigest {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for byte in self.as_bytes() {
+            write!(f, "{byte:02x}")?;
+        }
+        Ok(())
     }
 }
 

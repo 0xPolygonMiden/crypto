@@ -1,12 +1,12 @@
 [package]
 name = "miden-crypto"
-version = "0.4.0"
+version = "0.5.0"
 description = "Miden Cryptographic primitives"
 authors = ["miden contributors"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
-documentation = "https://docs.rs/miden-crypto/0.4.0"
+documentation = "https://docs.rs/miden-crypto/0.5.0"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
@@ -35,6 +35,6 @@ winter_math = { version = "0.6", package = "winter-math", default-features = fal
 winter_utils = { version = "0.6", package = "winter-utils", default-features = false }
 
 [dev-dependencies]
-criterion = { version = "0.4", features = ["html_reports"] }
+criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.1.0"
 rand_utils = { version = "0.6", package = "winter-rand-utils" }

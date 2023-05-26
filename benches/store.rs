@@ -104,10 +104,7 @@ fn get_leaf_simplesmt(c: &mut Criterion) {
             .enumerate()
             .map(|(c, v)| (c.try_into().unwrap(), v.into()))
             .collect::<Vec<(u64, Word)>>();
-        let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
-            .unwrap()
-            .with_leaves(smt_leaves.clone())
-            .unwrap();
+        let smt = SimpleSmt::with_leaves(SimpleSmt::MAX_DEPTH, smt_leaves.clone()).unwrap();
         let store = MerkleStore::from(&smt);
         let depth = smt.depth();
         let root = smt.root();
@@ -215,10 +212,7 @@ fn get_node_simplesmt(c: &mut Criterion) {
             .enumerate()
             .map(|(c, v)| (c.try_into().unwrap(), v.into()))
             .collect::<Vec<(u64, Word)>>();
-        let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
-            .unwrap()
-            .with_leaves(smt_leaves.clone())
-            .unwrap();
+        let smt = SimpleSmt::with_leaves(SimpleSmt::MAX_DEPTH, smt_leaves.clone()).unwrap();
         let store = MerkleStore::from(&smt);
         let root = smt.root();
         let half_depth = smt.depth() / 2;
@@ -292,10 +286,7 @@ fn get_leaf_path_simplesmt(c: &mut Criterion) {
             .enumerate()
             .map(|(c, v)| (c.try_into().unwrap(), v.into()))
             .collect::<Vec<(u64, Word)>>();
-        let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
-            .unwrap()
-            .with_leaves(smt_leaves.clone())
-            .unwrap();
+        let smt = SimpleSmt::with_leaves(SimpleSmt::MAX_DEPTH, smt_leaves.clone()).unwrap();
         let store = MerkleStore::from(&smt);
         let depth = smt.depth();
         let root = smt.root();
@@ -361,7 +352,7 @@ fn new(c: &mut Criterion) {
                         .map(|(c, v)| (c.try_into().unwrap(), v.into()))
                         .collect::<Vec<(u64, Word)>>()
                 },
-                |l| black_box(SimpleSmt::new(SimpleSmt::MAX_DEPTH).unwrap().with_leaves(l)),
+                |l| black_box(SimpleSmt::with_leaves(SimpleSmt::MAX_DEPTH, l)),
                 BatchSize::SmallInput,
             )
         });
@@ -376,7 +367,7 @@ fn new(c: &mut Criterion) {
                         .collect::<Vec<(u64, Word)>>()
                 },
                 |l| {
-                    let smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH).unwrap().with_leaves(l).unwrap();
+                    let smt = SimpleSmt::with_leaves(SimpleSmt::MAX_DEPTH, l).unwrap();
                     black_box(MerkleStore::from(&smt));
                 },
                 BatchSize::SmallInput,
@@ -442,10 +433,7 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
             .enumerate()
             .map(|(c, v)| (c.try_into().unwrap(), v.into()))
             .collect::<Vec<(u64, Word)>>();
-        let mut smt = SimpleSmt::new(SimpleSmt::MAX_DEPTH)
-            .unwrap()
-            .with_leaves(smt_leaves.clone())
-            .unwrap();
+        let mut smt = SimpleSmt::with_leaves(SimpleSmt::MAX_DEPTH, smt_leaves.clone()).unwrap();
         let mut store = MerkleStore::from(&smt);
         let depth = smt.depth();
         let root = smt.root();

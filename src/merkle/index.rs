@@ -1,4 +1,5 @@
 use super::{Felt, MerkleError, RpoDigest, StarkField};
+use core::fmt::Display;
 
 // NODE INDEX
 // ================================================================================================
@@ -40,6 +41,12 @@ impl NodeIndex {
         }
     }
 
+    /// Creates a new node index without checking its validity.
+    pub const fn new_unchecked(depth: u8, value: u64) -> Self {
+        debug_assert!((64 - value.leading_zeros()) <= depth as u32);
+        Self { depth, value }
+    }
+
     /// Creates a new node index for testing purposes.
     ///
     /// # Panics
@@ -67,9 +74,23 @@ impl NodeIndex {
         Self { depth: 0, value: 0 }
     }
 
-    /// Computes the value of the sibling of the current node.
-    pub fn sibling(mut self) -> Self {
+    /// Computes sibling index of the current node.
+    pub const fn sibling(mut self) -> Self {
         self.value ^= 1;
+        self
+    }
+
+    /// Returns left child index of the current node.
+    pub const fn left_child(mut self) -> Self {
+        self.depth += 1;
+        self.value <<= 1;
+        self
+    }
+
+    /// Returns right child index of the current node.
+    pub const fn right_child(mut self) -> Self {
+        self.depth += 1;
+        self.value = (self.value << 1) + 1;
         self
     }
 
@@ -117,11 +138,26 @@ impl NodeIndex {
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
-    /// Traverse one level towards the root, decrementing the depth by `1`.
-    pub fn move_up(&mut self) -> &mut Self {
+    /// Traverses one level towards the root, decrementing the depth by `1`.
+    pub fn move_up(&mut self) {
         self.depth = self.depth.saturating_sub(1);
         self.value >>= 1;
-        self
+    }
+
+    /// Traverses towards the root until the specified depth is reached.
+    ///
+    /// Assumes that the specified depth is smaller than the current depth.
+    pub fn move_up_to(&mut self, depth: u8) {
+        debug_assert!(depth < self.depth);
+        let delta = self.depth.saturating_sub(depth);
+        self.depth = self.depth.saturating_sub(delta);
+        self.value >>= delta as u32;
+    }
+}
+
+impl Display for NodeIndex {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "depth={}, value={}", self.depth, self.value)
     }
 }
 

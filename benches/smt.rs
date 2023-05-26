@@ -18,8 +18,8 @@ fn smt_rpo(c: &mut Criterion) {
                     (i, word)
                 })
                 .collect();
-            let tree = SimpleSmt::new(depth).unwrap().with_leaves(entries).unwrap();
-            trees.push(tree);
+            let tree = SimpleSmt::with_leaves(depth, entries).unwrap();
+            trees.push((tree, count));
         }
     }
 
@@ -29,10 +29,9 @@ fn smt_rpo(c: &mut Criterion) {
 
     let mut insert = c.benchmark_group(format!("smt update_leaf"));
 
-    for tree in trees.iter_mut() {
+    for (tree, count) in trees.iter_mut() {
         let depth = tree.depth();
-        let count = tree.leaves_count() as u64;
-        let key = count >> 2;
+        let key = *count >> 2;
         insert.bench_with_input(
             format!("simple smt(depth:{depth},count:{count})"),
             &(key, leaf),
@@ -48,10 +47,9 @@ fn smt_rpo(c: &mut Criterion) {
 
     let mut path = c.benchmark_group(format!("smt get_leaf_path"));
 
-    for tree in trees.iter_mut() {
+    for (tree, count) in trees.iter_mut() {
         let depth = tree.depth();
-        let count = tree.leaves_count() as u64;
-        let key = count >> 2;
+        let key = *count >> 2;
         path.bench_with_input(
             format!("simple smt(depth:{depth},count:{count})"),
             &key,
