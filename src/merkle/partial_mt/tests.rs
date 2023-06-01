@@ -1,10 +1,14 @@
+use crate::hash::rpo::RpoDigest;
+
 use super::{
-    super::{int_to_node, MerkleTree, NodeIndex, RpoDigest},
-    BTreeMap, InnerNodeInfo, MerkleError, PartialMerkleTree, Rpo256, Vec, Word, EMPTY_WORD,
+    super::{int_to_node, NodeIndex},
+    InnerNodeInfo, MerkleError, PartialMerkleTree, Rpo256, Vec, Word,
 };
 
 // TEST DATA
 // ================================================================================================
+
+const ROOT_NODE: NodeIndex = NodeIndex::new_unchecked(0, 0);
 
 const NODE10: NodeIndex = NodeIndex::new_unchecked(1, 0);
 const NODE11: NodeIndex = NodeIndex::new_unchecked(1, 1);
@@ -14,125 +18,161 @@ const NODE21: NodeIndex = NodeIndex::new_unchecked(2, 1);
 const NODE22: NodeIndex = NodeIndex::new_unchecked(2, 2);
 const NODE23: NodeIndex = NodeIndex::new_unchecked(2, 3);
 
-const NODE30: NodeIndex = NodeIndex::new_unchecked(3, 0);
-const NODE31: NodeIndex = NodeIndex::new_unchecked(3, 1);
 const NODE32: NodeIndex = NodeIndex::new_unchecked(3, 2);
-const NODE34: NodeIndex = NodeIndex::new_unchecked(3, 4);
-const NODE35: NodeIndex = NodeIndex::new_unchecked(3, 5);
-const NODE36: NodeIndex = NodeIndex::new_unchecked(3, 6);
-const NODE37: NodeIndex = NodeIndex::new_unchecked(3, 7);
-
-const KEYS4: [NodeIndex; 4] = [NODE20, NODE21, NODE22, NODE23];
-
-const WVALUES4: [Word; 4] = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
-const DVALUES4: [RpoDigest; 4] = [
-    RpoDigest::new(int_to_node(1)),
-    RpoDigest::new(int_to_node(2)),
-    RpoDigest::new(int_to_node(3)),
-    RpoDigest::new(int_to_node(4)),
-];
-
-const ZERO_VALUES8: [Word; 8] = [int_to_node(0); 8];
+const NODE33: NodeIndex = NodeIndex::new_unchecked(3, 3);
 
 // TESTS
 // ================================================================================================
 
+// with_paths CONSTRUCTOR TESTS
+// ------------------------------------------------------------------------------------------------
+
 #[test]
-fn build_partial_tree() {
-    // insert single value
-    let mut pmt = PartialMerkleTree::new();
+fn get_root() {
+    let leaf0 = int_to_node(0);
+    let leaf1 = int_to_node(1);
+    let leaf2 = int_to_node(2);
+    let leaf3 = int_to_node(3);
 
-    let mut values = ZERO_VALUES8.to_vec();
-    let key = NODE36;
-    let new_node = int_to_node(7);
-    values[key.value() as usize] = new_node;
+    let parent0 = calculate_parent_hash(leaf0, 0, leaf1);
+    let parent1 = calculate_parent_hash(leaf2, 2, leaf3);
 
-    let hash0 = Rpo256::merge(&[int_to_node(0).into(), int_to_node(0).into()]);
-    let hash00 = Rpo256::merge(&[hash0, hash0]);
+    let root_exp = calculate_parent_hash(parent0, 0, parent1);
 
-    pmt.update_leaf(NODE10, hash00).expect("Failed to update leaf");
-    pmt.update_leaf(NODE22, hash0).expect("Failed to update leaf");
-    let old_value = pmt.update_leaf(key, new_node.into()).expect("Failed to update leaf");
+    let set = super::PartialMerkleTree::with_paths([(NODE20, leaf0, vec![leaf1, parent1].into())])
+        .unwrap();
 
-    let mt2 = MerkleTree::new(values.clone()).unwrap();
-    assert_eq!(mt2.root(), pmt.root());
-    assert_eq!(mt2.get_path(NODE36).unwrap(), pmt.get_path(NODE36).unwrap());
-    assert_eq!(*old_value, EMPTY_WORD);
-
-    // insert second value at distinct leaf branch
-    let key = NODE32;
-    let new_node = int_to_node(3);
-    values[key.value() as usize] = new_node;
-    pmt.update_leaf(NODE20, hash0).expect("Failed to update leaf");
-    let old_value = pmt.update_leaf(key, new_node.into()).expect("Failed to update leaf");
-    let mt3 = MerkleTree::new(values).unwrap();
-    assert_eq!(mt3.root(), pmt.root());
-    assert_eq!(mt3.get_path(NODE32).unwrap(), pmt.get_path(NODE32).unwrap());
-    assert_eq!(*old_value, EMPTY_WORD);
+    assert_eq!(set.root(), root_exp);
 }
 
 #[test]
-fn test_depth2_tree() {
-    let tree = PartialMerkleTree::with_leaves(KEYS4.into_iter().zip(DVALUES4.into_iter())).unwrap();
+fn add_and_get_paths() {
+    let value32 = int_to_node(32).into();
+    let value33 = int_to_node(33).into();
+    let value20 = int_to_node(20).into();
+    let value22 = int_to_node(22).into();
+    let value23 = int_to_node(23).into();
 
-    // check internal structure
-    let (root, node2, node3) = compute_internal_nodes();
-    assert_eq!(root, tree.root());
-    assert_eq!(node2, tree.get_node(NODE10).unwrap());
-    assert_eq!(node3, tree.get_node(NODE11).unwrap());
+    let value21 = Rpo256::merge(&[value32, value33]);
+    let value10 = Rpo256::merge(&[value20, value21]);
+    let value11 = Rpo256::merge(&[value22, value23]);
 
-    // check get_node()
-    assert_eq!(WVALUES4[0], tree.get_node(NODE20).unwrap());
-    assert_eq!(WVALUES4[1], tree.get_node(NODE21).unwrap());
-    assert_eq!(WVALUES4[2], tree.get_node(NODE22).unwrap());
-    assert_eq!(WVALUES4[3], tree.get_node(NODE23).unwrap());
+    let path_33 = vec![*value32, *value20, *value11];
 
-    // check get_path(): depth 2
-    assert_eq!(vec![WVALUES4[1], node3], *tree.get_path(NODE20).unwrap());
-    assert_eq!(vec![WVALUES4[0], node3], *tree.get_path(NODE21).unwrap());
-    assert_eq!(vec![WVALUES4[3], node2], *tree.get_path(NODE22).unwrap());
-    assert_eq!(vec![WVALUES4[2], node2], *tree.get_path(NODE23).unwrap());
+    let path_22 = vec![*value23, *value10];
 
-    // check get_path(): depth 1
-    assert_eq!(vec![node3], *tree.get_path(NODE10).unwrap());
-    assert_eq!(vec![node2], *tree.get_path(NODE11).unwrap());
+    let pmt = PartialMerkleTree::with_paths([
+        (NODE33, *value33, path_33.clone().into()),
+        (NODE22, *value22, path_22.clone().into()),
+    ])
+    .unwrap();
+    let stored_path_33 = pmt.get_path(NODE33).unwrap();
+    let stored_path_22 = pmt.get_path(NODE22).unwrap();
+
+    assert_eq!(path_33, *stored_path_33);
+    assert_eq!(path_22, *stored_path_22);
+}
+
+#[test]
+fn get_node() {
+    let path_6 = vec![int_to_node(7), int_to_node(45), int_to_node(123)];
+    let hash_6 = int_to_node(6);
+    let index = NodeIndex::make(3, 6);
+    let pmt = PartialMerkleTree::with_paths([(index, hash_6, path_6.into())]).unwrap();
+
+    assert_eq!(int_to_node(6u64), *pmt.get_node(index).unwrap());
+}
+
+#[test]
+fn update_leaf() {
+    let value32 = int_to_node(32).into();
+    let value33 = int_to_node(33).into();
+    let value20 = int_to_node(20).into();
+    let value22 = int_to_node(22).into();
+    let value23 = int_to_node(23).into();
+
+    let value21 = Rpo256::merge(&[value32, value33]);
+    let value10 = Rpo256::merge(&[value20, value21]);
+    let value11 = Rpo256::merge(&[value22, value23]);
+
+    let path_33 = vec![*value32, *value20, *value11];
+
+    let path_22 = vec![*value23, *value10];
+
+    let mut pmt = PartialMerkleTree::with_paths([
+        (NODE33, *value33, path_33.into()),
+        (NODE22, *value22, path_22.into()),
+    ])
+    .unwrap();
+
+    let new_value32 = int_to_node(132).into();
+    let new_value21 = Rpo256::merge(&[new_value32, value33]);
+    let new_value10 = Rpo256::merge(&[value20, new_value21]);
+    let expected_root = Rpo256::merge(&[new_value10, value11]);
+
+    let old_leaf = pmt.update_leaf(NODE32, new_value32).unwrap();
+
+    assert_eq!(value32, old_leaf);
+
+    let new_root = pmt.root();
+
+    assert_eq!(new_root, *expected_root);
 }
 
 #[test]
 fn test_inner_node_iterator() -> Result<(), MerkleError> {
-    let tree = PartialMerkleTree::with_leaves(KEYS4.into_iter().zip(DVALUES4.into_iter())).unwrap();
+    let value32 = int_to_node(32).into();
+    let value33 = int_to_node(33).into();
+    let value20 = int_to_node(20).into();
+    let value22 = int_to_node(22).into();
+    let value23 = int_to_node(23).into();
 
-    // check depth 2
-    assert_eq!(WVALUES4[0], tree.get_node(NODE20).unwrap());
-    assert_eq!(WVALUES4[1], tree.get_node(NODE21).unwrap());
-    assert_eq!(WVALUES4[2], tree.get_node(NODE22).unwrap());
-    assert_eq!(WVALUES4[3], tree.get_node(NODE23).unwrap());
+    let value21 = Rpo256::merge(&[value32, value33]);
+    let value10 = Rpo256::merge(&[value20, value21]);
+    let value11 = Rpo256::merge(&[value22, value23]);
+    let root = Rpo256::merge(&[value10, value11]);
 
-    // get parent nodes
-    let root = tree.root();
-    let l1n0 = tree.get_node(NODE10)?;
-    let l1n1 = tree.get_node(NODE11)?;
-    let l2n0 = tree.get_node(NODE20)?;
-    let l2n1 = tree.get_node(NODE21)?;
-    let l2n2 = tree.get_node(NODE22)?;
-    let l2n3 = tree.get_node(NODE23)?;
+    let path_33 = vec![*value32, *value20, *value11];
 
-    let nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
+    let path_22 = vec![*value23, *value10];
+
+    let pmt = PartialMerkleTree::with_paths([
+        (NODE33, *value33, path_33.into()),
+        (NODE22, *value22, path_22.into()),
+    ])
+    .unwrap();
+
+    assert_eq!(root, pmt.get_node(ROOT_NODE).unwrap());
+    assert_eq!(value10, pmt.get_node(NODE10).unwrap());
+    assert_eq!(value11, pmt.get_node(NODE11).unwrap());
+    assert_eq!(value20, pmt.get_node(NODE20).unwrap());
+    assert_eq!(value21, pmt.get_node(NODE21).unwrap());
+    assert_eq!(value22, pmt.get_node(NODE22).unwrap());
+    assert_eq!(value23, pmt.get_node(NODE23).unwrap());
+    assert_eq!(value32, pmt.get_node(NODE32).unwrap());
+    assert_eq!(value33, pmt.get_node(NODE33).unwrap());
+
+    let nodes: Vec<InnerNodeInfo> = pmt.inner_nodes().collect();
     let expected = vec![
         InnerNodeInfo {
-            value: root,
-            left: l1n0,
-            right: l1n1,
+            value: *root,
+            left: *value10,
+            right: *value11,
         },
         InnerNodeInfo {
-            value: l1n0,
-            left: l2n0,
-            right: l2n1,
+            value: *value10,
+            left: *value20,
+            right: *value21,
         },
         InnerNodeInfo {
-            value: l1n1,
-            left: l2n2,
-            right: l2n3,
+            value: *value11,
+            left: *value22,
+            right: *value23,
+        },
+        InnerNodeInfo {
+            value: *value21,
+            left: *value32,
+            right: *value33,
         },
     ];
     assert_eq!(nodes, expected);
@@ -141,92 +181,41 @@ fn test_inner_node_iterator() -> Result<(), MerkleError> {
 }
 
 #[test]
-fn small_tree_opening_is_consistent() {
-    //        ____k____
-    //       /         \
-    //     _i_         _j_
-    //    /   \       /   \
-    //   e     f     g     h
-    //  / \   / \   / \   / \
-    // a   b 0   0 c   0 0   d
+fn check_leaf_depth() {
+    let value32: RpoDigest = int_to_node(32).into();
+    let value33: RpoDigest = int_to_node(33).into();
+    let value20: RpoDigest = int_to_node(20).into();
+    let value22 = int_to_node(22).into();
+    let value23 = int_to_node(23).into();
 
-    let z = Word::from(RpoDigest::default());
+    let value11 = Rpo256::merge(&[value22, value23]);
 
-    let a = Word::from(Rpo256::merge(&[z.into(); 2]));
-    let b = Word::from(Rpo256::merge(&[a.into(); 2]));
-    let c = Word::from(Rpo256::merge(&[b.into(); 2]));
-    let d = Word::from(Rpo256::merge(&[c.into(); 2]));
+    let path_33 = vec![*value32, *value20, *value11];
 
-    let e = Word::from(Rpo256::merge(&[a.into(), b.into()]));
-    let f = Word::from(Rpo256::merge(&[z.into(), z.into()]));
-    let g = Word::from(Rpo256::merge(&[c.into(), z.into()]));
-    let h = Word::from(Rpo256::merge(&[z.into(), d.into()]));
+    let pmt = PartialMerkleTree::with_paths([(NODE33, *value33, path_33.into())]).unwrap();
 
-    let i = Word::from(Rpo256::merge(&[e.into(), f.into()]));
-    let j = Word::from(Rpo256::merge(&[g.into(), h.into()]));
-
-    let k = Word::from(Rpo256::merge(&[i.into(), j.into()]));
-
-    // let depth = 3;
-    // let entries = vec![(0, a), (1, b), (4, c), (7, d)];
-    // let tree = SimpleSmt::with_leaves(depth, entries).unwrap();
-    let entries = BTreeMap::from([
-        (NODE30, a.into()),
-        (NODE31, b.into()),
-        (NODE34, c.into()),
-        (NODE37, d.into()),
-        (NODE21, f.into()),
-    ]);
-
-    let tree = PartialMerkleTree::with_leaves(entries).unwrap();
-
-    assert_eq!(tree.root(), k);
-
-    let cases: Vec<(NodeIndex, Vec<Word>)> = vec![
-        (NODE30, vec![b, f, j]),
-        (NODE31, vec![a, f, j]),
-        (NODE34, vec![z, h, i]),
-        (NODE37, vec![z, g, i]),
-        (NODE20, vec![f, j]),
-        (NODE21, vec![e, j]),
-        (NODE22, vec![h, i]),
-        (NODE23, vec![g, i]),
-        (NODE10, vec![j]),
-        (NODE11, vec![i]),
-    ];
-
-    for (index, path) in cases {
-        let opening = tree.get_path(index).unwrap();
-
-        assert_eq!(path, *opening);
-    }
-}
-
-#[test]
-fn fail_on_duplicates() {
-    let entries = [
-        (NODE31, int_to_node(1).into()),
-        (NODE35, int_to_node(2).into()),
-        (NODE31, int_to_node(3).into()),
-    ];
-    let smt = PartialMerkleTree::with_leaves(entries);
-    assert!(smt.is_err());
-}
-
-#[test]
-fn with_no_duplicates_empty_node() {
-    let entries = [(NODE31, int_to_node(0).into()), (NODE35, int_to_node(2).into())];
-    let smt = PartialMerkleTree::with_leaves(entries);
-    assert!(smt.is_ok());
+    assert_eq!(pmt.get_leaf_depth(0).unwrap(), 2);
+    assert_eq!(pmt.get_leaf_depth(1).unwrap(), 2);
+    assert_eq!(pmt.get_leaf_depth(2).unwrap(), 3);
+    assert_eq!(pmt.get_leaf_depth(3).unwrap(), 3);
+    assert_eq!(pmt.get_leaf_depth(4).unwrap(), 1);
+    assert_eq!(pmt.get_leaf_depth(5).unwrap(), 1);
+    assert_eq!(pmt.get_leaf_depth(6).unwrap(), 1);
+    assert_eq!(pmt.get_leaf_depth(7).unwrap(), 1);
 }
 
 // HELPER FUNCTIONS
 // --------------------------------------------------------------------------------------------
 
-fn compute_internal_nodes() -> (Word, Word, Word) {
-    let node2 = Rpo256::hash_elements(&[WVALUES4[0], WVALUES4[1]].concat());
-    let node3 = Rpo256::hash_elements(&[WVALUES4[2], WVALUES4[3]].concat());
-    let root = Rpo256::merge(&[node2, node3]);
-
-    (root.into(), node2.into(), node3.into())
+/// Calculates the hash of the parent node by two sibling ones
+/// - node — current node
+/// - node_pos — position of the current node
+/// - sibling — neighboring vertex in the tree
+fn calculate_parent_hash(node: Word, node_pos: u64, sibling: Word) -> Word {
+    let parity = node_pos & 1;
+    if parity == 0 {
+        Rpo256::merge(&[node.into(), sibling.into()]).into()
+    } else {
+        Rpo256::merge(&[sibling.into(), node.into()]).into()
+    }
 }
