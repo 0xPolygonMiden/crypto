@@ -1,15 +1,25 @@
 use super::{
-    BTreeMap, BTreeSet, InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec,
+    BTreeMap, BTreeSet, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, ValuePath, Vec,
     Word, EMPTY_WORD,
 };
 
 #[cfg(test)]
 mod tests;
 
+// CONSTANTS
+// ================================================================================================
+
+/// Index of the root node.
+const ROOT_INDEX: NodeIndex = NodeIndex::root();
+
+/// An RpoDigest consisting of 4 ZERO elements.
+const EMPTY_DIGEST: RpoDigest = RpoDigest::new(EMPTY_WORD);
+
 // PARTIAL MERKLE TREE
 // ================================================================================================
 
-/// A partial Merkle tree with NodeIndex keys and 4-element RpoDigest leaf values.
+/// A partial Merkle tree with NodeIndex keys and 4-element RpoDigest leaf values. Partial Merkle
+/// Tree allows to create Merkle Tree by providing Merkle paths of different lengths.
 ///
 /// The root of the tree is recomputed on each new leaf update.
 pub struct PartialMerkleTree {
@@ -28,16 +38,11 @@ impl PartialMerkleTree {
     // CONSTANTS
     // --------------------------------------------------------------------------------------------
 
-    /// An RpoDigest consisting of 4 ZERO elements.
-    pub const EMPTY_DIGEST: RpoDigest = RpoDigest::new(EMPTY_WORD);
-
     /// Minimum supported depth.
     pub const MIN_DEPTH: u8 = 1;
 
     /// Maximum supported depth.
     pub const MAX_DEPTH: u8 = 64;
-
-    pub const ROOT_INDEX: NodeIndex = NodeIndex::new_unchecked(0, 0);
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -56,7 +61,7 @@ impl PartialMerkleTree {
     /// Analogous to [Self::add_path].
     pub fn with_paths<I>(paths: I) -> Result<Self, MerkleError>
     where
-        I: IntoIterator<Item = (NodeIndex, Word, MerklePath)>,
+        I: IntoIterator<Item = (u64, RpoDigest, MerklePath)>,
     {
         // create an empty tree
         let tree = PartialMerkleTree::new();
@@ -71,8 +76,8 @@ impl PartialMerkleTree {
     // --------------------------------------------------------------------------------------------
 
     /// Returns the root of this Merkle tree.
-    pub fn root(&self) -> Word {
-        *self.nodes.get(&Self::ROOT_INDEX).cloned().unwrap_or(Self::EMPTY_DIGEST)
+    pub fn root(&self) -> RpoDigest {
+        self.nodes.get(&ROOT_INDEX).cloned().unwrap_or(EMPTY_DIGEST)
     }
 
     /// Returns the depth of this Merkle tree.
@@ -101,38 +106,22 @@ impl PartialMerkleTree {
             }
             node_index.move_up()
         }
-        // we don't have an error for this case, maybe it makes sense to create a new error, something like
-        // NoLeafForIndex("There is no leaf for provided index"). But it will be used almost never.
-        Err(MerkleError::NodeNotInSet(node_index))
+        Ok(0_u8)
     }
 
-    /// Returns a value of the leaf at the specified NodeIndex.
-    ///
-    /// # Errors
-    /// Returns an error if the NodeIndex is not contained in the leaves set.
-    pub fn get_leaf(&self, index: NodeIndex) -> Result<Word, MerkleError> {
-        if !self.leaves.contains(&index) {
-            // This error not really suitable in this situation, should I create a new error?
-            Err(MerkleError::InvalidIndex {
-                depth: index.depth(),
-                value: index.value(),
-            })
-        } else {
-            self.nodes
-                .get(&index)
-                .ok_or(MerkleError::NodeNotInSet(index))
-                .map(|hash| **hash)
-        }
-    }
-
-    /// Returns a map of paths from every leaf to the root.
-    pub fn paths(&self) -> Result<BTreeMap<&NodeIndex, MerklePath>, MerkleError> {
-        let mut paths = BTreeMap::new();
-        for leaf_index in self.leaves.iter() {
-            let index = *leaf_index;
-            paths.insert(leaf_index, self.get_path(index)?);
-        }
-        Ok(paths)
+    /// Returns a vector of paths from every leaf to the root.
+    pub fn paths(&self) -> Vec<(NodeIndex, ValuePath)> {
+        let mut paths = Vec::new();
+        self.leaves.iter().for_each(|leaf| {
+            paths.push((
+                *leaf,
+                ValuePath {
+                    value: *self.get_node(*leaf).expect("Failed to get leaf node"),
+                    path: self.get_path(*leaf).expect("Failed to get path"),
+                },
+            ));
+        });
+        paths
     }
 
     /// Returns a Merkle path from the node at the specified index to the root.
@@ -157,11 +146,11 @@ impl PartialMerkleTree {
 
         let mut path = Vec::new();
         for _ in 0..index.depth() {
-            let sibling_index = Self::get_sibling_index(&index)?;
+            let sibling_index = index.sibling();
             index.move_up();
-            let sibling_hash =
-                self.nodes.get(&sibling_index).cloned().unwrap_or(Self::EMPTY_DIGEST);
-            path.push(Word::from(sibling_hash));
+            let sibling =
+                self.nodes.get(&sibling_index).cloned().expect("Sibling node not in the map");
+            path.push(Word::from(sibling));
         }
         Ok(MerklePath::new(path))
     }
@@ -170,28 +159,18 @@ impl PartialMerkleTree {
     // --------------------------------------------------------------------------------------------
 
     /// Returns an iterator over the leaves of this [PartialMerkleTree].
-    pub fn leaves(&self) -> impl Iterator<Item = (NodeIndex, &Word)> {
-        self.nodes
-            .iter()
-            .filter(|(index, _)| self.leaves.contains(index))
-            .map(|(index, hash)| (*index, &(**hash)))
-    }
-
-    /// Returns an iterator over the inner nodes of this Merkle tree.
-    pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
-        let inner_nodes = self.nodes.iter().filter(|(index, _)| !self.leaves.contains(index));
-        inner_nodes.map(|(index, digest)| {
-            let left_index = NodeIndex::new(index.depth() + 1, index.value() * 2)
-                .expect("Failure to get left child index");
-            let right_index = NodeIndex::new(index.depth() + 1, index.value() * 2 + 1)
-                .expect("Failure to get right child index");
-            let left_hash = self.nodes.get(&left_index).cloned().unwrap_or(Self::EMPTY_DIGEST);
-            let right_hash = self.nodes.get(&right_index).cloned().unwrap_or(Self::EMPTY_DIGEST);
-            InnerNodeInfo {
-                value: **digest,
-                left: *left_hash,
-                right: *right_hash,
-            }
+    pub fn leaves(&self) -> impl Iterator<Item = (NodeIndex, RpoDigest)> + '_ {
+        self.leaves.iter().map(|leaf| {
+            (
+                *leaf,
+                self.get_node(*leaf).unwrap_or_else(|_| {
+                    panic!(
+                        "Leaf with node index ({}, {}) is not in the nodes map",
+                        leaf.depth(),
+                        leaf.value()
+                    )
+                }),
+            )
         })
     }
 
@@ -208,55 +187,60 @@ impl PartialMerkleTree {
     ///   different root).
     pub fn add_path(
         &mut self,
-        index_value: NodeIndex,
-        value: Word,
-        mut path: MerklePath,
+        index_value: u64,
+        value: RpoDigest,
+        path: MerklePath,
     ) -> Result<(), MerkleError> {
+        let index_value = NodeIndex::new(path.len() as u8, index_value)?;
+
         Self::check_depth(index_value.depth())?;
         self.update_depth(index_value.depth());
 
-        // add node index to the leaves set
+        // add provided node and its sibling to the leaves set
         self.leaves.insert(index_value);
-        let sibling_node_index = Self::get_sibling_index(&index_value)?;
+        let sibling_node_index = index_value.sibling();
         self.leaves.insert(sibling_node_index);
 
-        // add first two nodes to the nodes map
-        self.nodes.insert(index_value, value.into());
+        // add provided node and its sibling to the nodes map
+        self.nodes.insert(index_value, value);
         self.nodes.insert(sibling_node_index, path[0].into());
-
-        // update the current path
-        let parity = index_value.value() & 1;
-        path.insert(parity as usize, value);
 
         // traverse to the root, updating the nodes
         let mut index_value = index_value;
-        let root = Rpo256::merge(&[path[0].into(), path[1].into()]);
-        let root = path.iter().skip(2).copied().fold(root, |root, hash| {
+        let node = Rpo256::merge(&index_value.build_node(value, path[0].into()));
+        let root = path.iter().skip(1).copied().fold(node, |node, hash| {
             index_value.move_up();
             // insert calculated node to the nodes map
-            self.nodes.insert(index_value, root);
+            self.nodes.insert(index_value, node);
 
-            let sibling_node = Self::get_sibling_index_unchecked(&index_value);
-            // assume for now that all path nodes are leaves and add them to the leaves set
-            self.leaves.insert(sibling_node);
+            let sibling_node = index_value.sibling();
+            // node became a leaf only if it is a new node (it wasn't in nodes map)
+            if !self.nodes.contains_key(&sibling_node) {
+                self.leaves.insert(sibling_node);
+            }
+
+            // node stops being a leaf if the path contains a node which is a child of this leaf
+            let mut parent = index_value;
+            parent.move_up();
+            if self.leaves.contains(&parent) {
+                self.leaves.remove(&parent);
+            }
 
             // insert node from Merkle path to the nodes map
             self.nodes.insert(sibling_node, hash.into());
 
-            Rpo256::merge(&index_value.build_node(root, hash.into()))
+            Rpo256::merge(&index_value.build_node(node, hash.into()))
         });
-
-        let old_root = self.nodes.get(&Self::ROOT_INDEX).cloned().unwrap_or(Self::EMPTY_DIGEST);
 
         // if the path set is empty (the root is all ZEROs), set the root to the root of the added
         // path; otherwise, the root of the added path must be identical to the current root
-        if old_root == Self::EMPTY_DIGEST {
-            self.nodes.insert(Self::ROOT_INDEX, root);
-        } else if old_root != root {
-            return Err(MerkleError::ConflictingRoots([*old_root, *root].to_vec()));
+        if self.root() == EMPTY_DIGEST {
+            self.nodes.insert(ROOT_INDEX, root);
+        } else if self.root() != root {
+            return Err(MerkleError::ConflictingRoots([*self.root(), *root].to_vec()));
         }
 
-        self.update_leaves()?;
+        // self.update_leaves()?;
 
         Ok(())
     }
@@ -277,7 +261,7 @@ impl PartialMerkleTree {
         self.leaves.insert(node_index);
 
         // add node value to the nodes Map
-        let old_value = self.nodes.insert(node_index, value).unwrap_or(Self::EMPTY_DIGEST);
+        let old_value = self.nodes.insert(node_index, value).unwrap_or(EMPTY_DIGEST);
 
         // if the old value and new value are the same, there is nothing to update
         if value == old_value {
@@ -331,35 +315,6 @@ impl PartialMerkleTree {
         } else if Self::MAX_DEPTH < depth {
             return Err(MerkleError::DepthTooBig(depth as u64));
         }
-        Ok(())
-    }
-
-    fn get_sibling_index(node_index: &NodeIndex) -> Result<NodeIndex, MerkleError> {
-        if node_index.is_value_odd() {
-            NodeIndex::new(node_index.depth(), node_index.value() - 1)
-        } else {
-            NodeIndex::new(node_index.depth(), node_index.value() + 1)
-        }
-    }
-
-    fn get_sibling_index_unchecked(node_index: &NodeIndex) -> NodeIndex {
-        if node_index.is_value_odd() {
-            NodeIndex::new_unchecked(node_index.depth(), node_index.value() - 1)
-        } else {
-            NodeIndex::new_unchecked(node_index.depth(), node_index.value() + 1)
-        }
-    }
-
-    // Removes from the leaves set indexes of nodes which have descendants.
-    fn update_leaves(&mut self) -> Result<(), MerkleError> {
-        for leaf_node in self.leaves.clone().iter() {
-            let left_child = NodeIndex::new(leaf_node.depth() + 1, leaf_node.value() * 2)?;
-            let right_child = NodeIndex::new(leaf_node.depth() + 1, leaf_node.value() * 2 + 1)?;
-            if self.nodes.contains_key(&left_child) || self.nodes.contains_key(&right_child) {
-                self.leaves.remove(leaf_node);
-            }
-        }
-
         Ok(())
     }
 }
