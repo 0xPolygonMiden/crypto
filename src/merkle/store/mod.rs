@@ -404,7 +404,7 @@ impl MerkleStore {
         if let Some(node) = source.nodes.get(&root) {
             // if the node has already been inserted, no need to process it further as all of its
             // descendants should be already cloned from the source store
-            if matches!(self.nodes.insert(root, *node), None) {
+            if self.nodes.insert(root, *node).is_none() {
                 self.clone_tree_from(node.left, source);
                 self.clone_tree_from(node.right, source);
             }
