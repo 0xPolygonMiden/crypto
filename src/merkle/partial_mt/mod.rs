@@ -213,17 +213,15 @@ impl PartialMerkleTree {
             // insert calculated node to the nodes map
             self.nodes.insert(index_value, node);
 
+            // if the calculated node was a leaf, remove it from leaves set.
+            if self.leaves.contains(&index_value) {
+                self.leaves.remove(&index_value);
+            }
+
             let sibling_node = index_value.sibling();
             // node became a leaf only if it is a new node (it wasn't in nodes map)
             if !self.nodes.contains_key(&sibling_node) {
                 self.leaves.insert(sibling_node);
-            }
-
-            // node stops being a leaf if the path contains a node which is a child of this leaf
-            let mut parent = index_value;
-            parent.move_up();
-            if self.leaves.contains(&parent) {
-                self.leaves.remove(&parent);
             }
 
             // insert node from Merkle path to the nodes map

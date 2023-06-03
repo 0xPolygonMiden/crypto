@@ -133,6 +133,9 @@ fn check_leaf_depth() {
     assert_eq!(pmt.get_leaf_depth(7).unwrap(), 1);
 }
 
+// TODO: add test for add_path function and check correctness of leaf determination (requires
+// inner_nodes iter)
+
 // HELPER FUNCTIONS
 // --------------------------------------------------------------------------------------------
 
