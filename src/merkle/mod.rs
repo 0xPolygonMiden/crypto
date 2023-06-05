@@ -101,8 +101,3 @@ impl std::error::Error for MerkleError {}
 const fn int_to_node(value: u64) -> Word {
     [Felt::new(value), ZERO, ZERO, ZERO]
 }
-
-#[cfg(test)]
-const fn int_to_digest(value: u64) -> RpoDigest {
-    RpoDigest::new([Felt::new(value), ZERO, ZERO, ZERO])
-}
