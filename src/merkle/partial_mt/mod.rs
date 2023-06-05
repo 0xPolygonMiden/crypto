@@ -3,6 +3,9 @@ use super::{
     Word, EMPTY_WORD,
 };
 
+extern crate alloc;
+use alloc::format;
+
 #[cfg(test)]
 mod tests;
 
@@ -99,15 +102,17 @@ impl PartialMerkleTree {
         self.leaves.contains(&index)
     }
 
-    pub fn get_leaf_depth(&self, index: u64) -> Result<u8, MerkleError> {
-        let mut node_index = NodeIndex::new(self.max_depth(), index)?;
+    pub fn get_leaf_depth(&self, index: u64) -> u8 {
+        let trunc_value = index.min(2_u64.pow(self.max_depth() as u32));
+        let mut node_index =
+            NodeIndex::new(self.max_depth(), trunc_value).expect("Truncated value is not valid.");
         for _ in 0..node_index.depth() {
             if self.leaves.contains(&node_index) {
-                return Ok(node_index.depth());
+                return node_index.depth();
             }
             node_index.move_up()
         }
-        Ok(0_u8)
+        0
     }
 
     /// Returns a vector of paths from every leaf to the root.
@@ -164,13 +169,7 @@ impl PartialMerkleTree {
         self.leaves.iter().map(|&leaf| {
             (
                 leaf,
-                self.get_node(leaf).unwrap_or_else(|_| {
-                    panic!(
-                        "Leaf with node index ({}, {}) is not in the nodes map",
-                        leaf.depth(),
-                        leaf.value()
-                    )
-                }),
+                self.get_node(leaf).expect(&format!("Leaf with {leaf} is not in the nodes map")),
             )
         })
     }
@@ -221,12 +220,12 @@ impl PartialMerkleTree {
 
             // Insert node from Merkle path to the nodes map. This sibling node becomes a leaf only
             // if it is a new node (it wasn't in nodes map).
-            // Node can be in 3 states: internal node, leaf of the tree and not a node at all.
+            // Node can be in 3 states: internal node, leaf of the tree and not a tree node at all.
             // - Internal node can only stay in this state -- addition of a new path can't make it
             // a leaf or remove it from the tree.
             // - Leaf node can stay in the same state (remain a leaf) or can become an internal
             // node. In the first case we don't need to do anything, and the second case is handled
-            // in the line 219.
+            // by the call of `self.leaves.remove(&index_value);`
             // - New node can be a calculated node or a "sibling" node from a Merkle Path:
             // --- Calculated node, obviously, never can be a leaf.
             // --- Sibling node can be only a leaf, because otherwise it is not a new node.
@@ -255,7 +254,7 @@ impl PartialMerkleTree {
         &mut self,
         node_index: NodeIndex,
         value: RpoDigest,
-    ) -> Result<Option<RpoDigest>, MerkleError> {
+    ) -> Result<RpoDigest, MerkleError> {
         // check correctness of the depth and update it
         Self::check_depth(node_index.depth())?;
         self.update_depth(node_index.depth());
@@ -264,10 +263,13 @@ impl PartialMerkleTree {
         self.leaves.insert(node_index);
 
         // add node value to the nodes Map
-        let old_value = self.nodes.insert(node_index, value);
+        let old_value = self
+            .nodes
+            .insert(node_index, value)
+            .ok_or(MerkleError::NodeNotInSet(node_index))?;
 
         // if the old value and new value are the same, there is nothing to update
-        if old_value.is_some() && value == old_value.unwrap() {
+        if value == old_value {
             return Ok(old_value);
         }
 

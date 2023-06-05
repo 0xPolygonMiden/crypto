@@ -35,8 +35,7 @@ fn get_root() {
     let mt = MerkleTree::new(VALUES8.to_vec()).unwrap();
     let expected_root = mt.root();
 
-    let mut store = MerkleStore::new();
-    let ms = MerkleStore::extend(&mut store, mt.inner_nodes());
+    let ms = MerkleStore::from(&mt);
 
     let path33 = ms.get_path(expected_root, NODE33).unwrap();
 
@@ -50,8 +49,7 @@ fn add_and_get_paths() {
     let mt = MerkleTree::new(VALUES8.to_vec()).unwrap();
     let expected_root = mt.root();
 
-    let mut store = MerkleStore::new();
-    let ms = MerkleStore::extend(&mut store, mt.inner_nodes());
+    let ms = MerkleStore::from(&mt);
 
     let expected_path33 = ms.get_path(expected_root, NODE33).unwrap();
     let expected_path22 = ms.get_path(expected_root, NODE22).unwrap();
@@ -74,8 +72,7 @@ fn get_node() {
     let mt = MerkleTree::new(VALUES8.to_vec()).unwrap();
     let expected_root = mt.root();
 
-    let mut store = MerkleStore::new();
-    let ms = MerkleStore::extend(&mut store, mt.inner_nodes());
+    let ms = MerkleStore::from(&mt);
 
     let path33 = ms.get_path(expected_root, NODE33).unwrap();
 
@@ -90,8 +87,7 @@ fn update_leaf() {
     let mut mt = MerkleTree::new(VALUES8.to_vec()).unwrap();
     let root = mt.root();
 
-    let mut store = MerkleStore::new();
-    let ms = MerkleStore::extend(&mut store, mt.inner_nodes());
+    let ms = MerkleStore::from(&mt);
     let path33 = ms.get_path(root, NODE33).unwrap();
 
     let mut pmt =
@@ -112,22 +108,20 @@ fn check_leaf_depth() {
     let mt = MerkleTree::new(VALUES8.to_vec()).unwrap();
     let expected_root = mt.root();
 
-    let mut store = MerkleStore::new();
-    let ms = MerkleStore::extend(&mut store, mt.inner_nodes());
+    let ms = MerkleStore::from(&mt);
 
     let path33 = ms.get_path(expected_root, NODE33).unwrap();
 
     let pmt = PartialMerkleTree::with_paths([(3_u64, path33.value.into(), path33.path)]).unwrap();
 
-    assert_eq!(pmt.get_leaf_depth(0).unwrap(), 2);
-    assert_eq!(pmt.get_leaf_depth(1).unwrap(), 2);
-    assert_eq!(pmt.get_leaf_depth(2).unwrap(), 3);
-    assert_eq!(pmt.get_leaf_depth(3).unwrap(), 3);
-    assert_eq!(pmt.get_leaf_depth(4).unwrap(), 1);
-    assert_eq!(pmt.get_leaf_depth(5).unwrap(), 1);
-    assert_eq!(pmt.get_leaf_depth(6).unwrap(), 1);
-    assert_eq!(pmt.get_leaf_depth(7).unwrap(), 1);
-    assert!(pmt.get_leaf_depth(8).is_err());
+    assert_eq!(pmt.get_leaf_depth(0), 2);
+    assert_eq!(pmt.get_leaf_depth(1), 2);
+    assert_eq!(pmt.get_leaf_depth(2), 3);
+    assert_eq!(pmt.get_leaf_depth(3), 3);
+    assert_eq!(pmt.get_leaf_depth(4), 1);
+    assert_eq!(pmt.get_leaf_depth(5), 1);
+    assert_eq!(pmt.get_leaf_depth(6), 1);
+    assert_eq!(pmt.get_leaf_depth(7), 1);
 }
 
 // TODO: add test for add_path function and check correctness of leaf determination (requires
