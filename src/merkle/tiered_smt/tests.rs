@@ -66,11 +66,19 @@ fn tsmt_insert_two_16() {
     let mut tree_root = get_init_root();
     let index_a = NodeIndex::make(32, raw_a >> 32);
     let leaf_node_a = build_leaf_node(key_a, val_a, 32);
-    tree_root = store.set_node(tree_root, index_a, leaf_node_a.into()).unwrap().root;
+    tree_root = store
+        .set_node(tree_root.into(), index_a, leaf_node_a.into())
+        .unwrap()
+        .root
+        .into();
 
     let index_b = NodeIndex::make(32, raw_b >> 32);
     let leaf_node_b = build_leaf_node(key_b, val_b, 32);
-    tree_root = store.set_node(tree_root, index_b, leaf_node_b.into()).unwrap().root;
+    tree_root = store
+        .set_node(tree_root.into(), index_b, leaf_node_b.into())
+        .unwrap()
+        .root
+        .into();
 
     // --- verify that data is consistent between store and tree --------------
 
@@ -78,12 +86,12 @@ fn tsmt_insert_two_16() {
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
-    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index_a).unwrap().path;
     assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_b), val_b);
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
-    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -122,11 +130,19 @@ fn tsmt_insert_two_32() {
     let mut tree_root = get_init_root();
     let index_a = NodeIndex::make(48, raw_a >> 16);
     let leaf_node_a = build_leaf_node(key_a, val_a, 48);
-    tree_root = store.set_node(tree_root, index_a, leaf_node_a.into()).unwrap().root;
+    tree_root = store
+        .set_node(tree_root.into(), index_a, leaf_node_a.into())
+        .unwrap()
+        .root
+        .into();
 
     let index_b = NodeIndex::make(48, raw_b >> 16);
     let leaf_node_b = build_leaf_node(key_b, val_b, 48);
-    tree_root = store.set_node(tree_root, index_b, leaf_node_b.into()).unwrap().root;
+    tree_root = store
+        .set_node(tree_root.into(), index_b, leaf_node_b.into())
+        .unwrap()
+        .root
+        .into();
 
     // --- verify that data is consistent between store and tree --------------
 
@@ -134,12 +150,12 @@ fn tsmt_insert_two_32() {
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
-    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index_a).unwrap().path;
     assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_b), val_b);
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
-    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -181,15 +197,27 @@ fn tsmt_insert_three() {
     let mut tree_root = get_init_root();
     let index_a = NodeIndex::make(32, raw_a >> 32);
     let leaf_node_a = build_leaf_node(key_a, val_a, 32);
-    tree_root = store.set_node(tree_root, index_a, leaf_node_a.into()).unwrap().root;
+    tree_root = store
+        .set_node(tree_root.into(), index_a, leaf_node_a.into())
+        .unwrap()
+        .root
+        .into();
 
     let index_b = NodeIndex::make(32, raw_b >> 32);
     let leaf_node_b = build_leaf_node(key_b, val_b, 32);
-    tree_root = store.set_node(tree_root, index_b, leaf_node_b.into()).unwrap().root;
+    tree_root = store
+        .set_node(tree_root.into(), index_b, leaf_node_b.into())
+        .unwrap()
+        .root
+        .into();
 
     let index_c = NodeIndex::make(32, raw_c >> 32);
     let leaf_node_c = build_leaf_node(key_c, val_c, 32);
-    tree_root = store.set_node(tree_root, index_c, leaf_node_c.into()).unwrap().root;
+    tree_root = store
+        .set_node(tree_root.into(), index_c, leaf_node_c.into())
+        .unwrap()
+        .root
+        .into();
 
     // --- verify that data is consistent between store and tree --------------
 
@@ -197,17 +225,17 @@ fn tsmt_insert_three() {
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
-    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index_a).unwrap().path;
     assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_b), val_b);
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
-    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_c), val_c);
     assert_eq!(smt.get_node(index_c).unwrap(), leaf_node_c);
-    let expected_path = store.get_path(tree_root, index_c).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index_c).unwrap().path;
     assert_eq!(smt.get_path(index_c).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -236,13 +264,13 @@ fn tsmt_update() {
     let mut tree_root = get_init_root();
     let index = NodeIndex::make(16, raw >> 48);
     let leaf_node = build_leaf_node(key, value_b, 16);
-    tree_root = store.set_node(tree_root, index, leaf_node.into()).unwrap().root;
+    tree_root = store.set_node(tree_root.into(), index, leaf_node.into()).unwrap().root.into();
 
     assert_eq!(smt.root(), tree_root.into());
 
     assert_eq!(smt.get_value(key), value_b);
     assert_eq!(smt.get_node(index).unwrap(), leaf_node);
-    let expected_path = store.get_path(tree_root, index).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index).unwrap().path;
     assert_eq!(smt.get_path(index).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -281,7 +309,7 @@ fn tsmt_bottom_tier() {
     // key_b is smaller than key_a.
     let leaf_node = build_bottom_leaf_node(&[key_b, key_a], &[val_b, val_a]);
     let mut tree_root = get_init_root();
-    tree_root = store.set_node(tree_root, index, leaf_node.into()).unwrap().root;
+    tree_root = store.set_node(tree_root.into(), index, leaf_node.into()).unwrap().root.into();
 
     // --- verify that data is consistent between store and tree --------------
 
@@ -291,7 +319,7 @@ fn tsmt_bottom_tier() {
     assert_eq!(smt.get_value(key_b), val_b);
 
     assert_eq!(smt.get_node(index).unwrap(), leaf_node);
-    let expected_path = store.get_path(tree_root, index).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index).unwrap().path;
     assert_eq!(smt.get_path(index).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -329,11 +357,19 @@ fn tsmt_bottom_tier_two() {
     let mut tree_root = get_init_root();
     let index_a = NodeIndex::make(64, raw_a);
     let leaf_node_a = build_bottom_leaf_node(&[key_a], &[val_a]);
-    tree_root = store.set_node(tree_root, index_a, leaf_node_a.into()).unwrap().root;
+    tree_root = store
+        .set_node(tree_root.into(), index_a, leaf_node_a.into())
+        .unwrap()
+        .root
+        .into();
 
     let index_b = NodeIndex::make(64, raw_b);
     let leaf_node_b = build_bottom_leaf_node(&[key_b], &[val_b]);
-    tree_root = store.set_node(tree_root, index_b, leaf_node_b.into()).unwrap().root;
+    tree_root = store
+        .set_node(tree_root.into(), index_b, leaf_node_b.into())
+        .unwrap()
+        .root
+        .into();
 
     // --- verify that data is consistent between store and tree --------------
 
@@ -341,12 +377,12 @@ fn tsmt_bottom_tier_two() {
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
-    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index_a).unwrap().path;
     assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_b), val_b);
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
-    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
+    let expected_path = store.get_path(tree_root.into(), index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -423,7 +459,7 @@ fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
         let mut key = Word::from(key);
         key[3] = ZERO;
         elements.extend_from_slice(&key);
-        elements.extend_from_slice(val);
+        elements.extend_from_slice(val.as_slice());
     }
 
     Rpo256::hash_elements(&elements)

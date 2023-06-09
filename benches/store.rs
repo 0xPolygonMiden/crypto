@@ -409,7 +409,7 @@ fn update_leaf_merkletree(c: &mut Criterion) {
                     // The MerkleTree automatically updates its internal root, the Store maintains
                     // the old root and adds the new one. Here we update the root to have a fair
                     // comparison
-                    store_root = store.set_node(root, index, value).unwrap().root;
+                    store_root = store.set_node(root, index, value.into()).unwrap().root;
                     black_box(store_root)
                 },
                 BatchSize::SmallInput,
@@ -455,7 +455,7 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
                     // The MerkleTree automatically updates its internal root, the Store maintains
                     // the old root and adds the new one. Here we update the root to have a fair
                     // comparison
-                    store_root = store.set_node(root, index, value).unwrap().root;
+                    store_root = store.set_node(root, index, value.into()).unwrap().root;
                     black_box(store_root)
                 },
                 BatchSize::SmallInput,

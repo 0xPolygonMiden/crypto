@@ -2,7 +2,10 @@ use super::{
     Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, INV_ALPHA, ONE, STATE_WIDTH,
     ZERO,
 };
-use crate::utils::collections::{BTreeSet, Vec};
+use crate::{
+    utils::collections::{BTreeSet, Vec},
+    Word,
+};
 use core::convert::TryInto;
 use proptest::prelude::*;
 use rand_utils::rand_value;
@@ -232,7 +235,7 @@ proptest! {
     }
 }
 
-const EXPECTED: [[Felt; 4]; 19] = [
+const EXPECTED: [Word; 19] = [
     [
         Felt::new(1502364727743950833),
         Felt::new(5880949717274681448),
