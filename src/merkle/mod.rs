@@ -40,7 +40,7 @@ mod node;
 pub use node::InnerNodeInfo;
 
 mod partial_mt;
-pub use partial_mt::PartialMerkleTree;
+pub use partial_mt::{pmt_to_text, PartialMerkleTree};
 
 // ERRORS
 // ================================================================================================

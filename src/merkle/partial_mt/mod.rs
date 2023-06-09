@@ -2,9 +2,8 @@ use super::{
     BTreeMap, BTreeSet, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, ValuePath, Vec,
     Word, EMPTY_WORD,
 };
-
-extern crate alloc;
-use alloc::format;
+use crate::utils::{format, string::String, word_to_hex};
+use core::fmt;
 
 #[cfg(test)]
 mod tests;
@@ -102,10 +101,8 @@ impl PartialMerkleTree {
         self.leaves.contains(&index)
     }
 
-    pub fn get_leaf_depth(&self, index: u64) -> u8 {
-        let trunc_value = index.min(2_u64.pow(self.max_depth() as u32));
-        let mut node_index =
-            NodeIndex::new(self.max_depth(), trunc_value).expect("Truncated value is not valid.");
+    pub fn get_leaf_depth(&self, node_index: NodeIndex) -> u8 {
+        let mut node_index = node_index;
         for _ in 0..node_index.depth() {
             if self.leaves.contains(&node_index) {
                 return node_index.depth();
@@ -303,4 +300,33 @@ impl PartialMerkleTree {
         }
         Ok(())
     }
+}
+
+/// Utility to visualize a [PartialMerkleTree] in text.
+pub fn pmt_to_text(tree: &PartialMerkleTree) -> Result<String, fmt::Error> {
+    let indent = "  ";
+    let mut s = String::new();
+    s.push_str("root: ");
+    s.push_str(&word_to_hex(&tree.root())?);
+    s.push('\n');
+    for d in 1..=tree.max_depth() {
+        let entries = 2u64.pow(d.into());
+        for i in 0..entries {
+            let index = NodeIndex::new(d, i).expect("The index must always be valid");
+            let node = tree.get_node(index);
+            let node = match node {
+                Err(_) => continue,
+                Ok(node) => node,
+            };
+
+            for _ in 0..d {
+                s.push_str(indent);
+            }
+            s.push_str(&format!("({}, {}): ", index.depth(), index.value()));
+            s.push_str(&word_to_hex(&node)?);
+            s.push('\n');
+        }
+    }
+
+    Ok(s)
 }
