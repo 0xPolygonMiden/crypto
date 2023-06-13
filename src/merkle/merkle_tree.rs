@@ -1,6 +1,6 @@
 use super::{InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word};
 use crate::utils::{string::String, uninit_vector, word_to_hex};
-use core::{fmt, slice};
+use core::{fmt, ops::Deref, slice};
 use winter_math::log2;
 
 // MERKLE TREE
@@ -117,7 +117,11 @@ impl MerkleTree {
     /// Returns an iterator over the leaves of this [MerkleTree].
     pub fn leaves(&self) -> impl Iterator<Item = (u64, &Word)> {
         let leaves_start = self.nodes.len() / 2;
-        self.nodes.iter().skip(leaves_start).enumerate().map(|(i, v)| (i as u64, &**v))
+        self.nodes
+            .iter()
+            .skip(leaves_start)
+            .enumerate()
+            .map(|(i, v)| (i as u64, v.deref()))
     }
 
     /// Returns n iterator over every inner node of this [MerkleTree].
@@ -256,29 +260,29 @@ pub fn path_to_text(path: &MerklePath) -> Result<String, fmt::Error> {
 mod tests {
     use super::*;
     use crate::{
-        merkle::{int_to_leaf, InnerNodeInfo},
+        merkle::{digests_to_words, int_to_leaf, int_to_node, InnerNodeInfo},
         Felt, Word, WORD_SIZE,
     };
     use core::mem::size_of;
     use proptest::prelude::*;
 
-    const LEAVES4: [Word; WORD_SIZE] =
-        [int_to_leaf(1), int_to_leaf(2), int_to_leaf(3), int_to_leaf(4)];
+    const LEAVES4: [RpoDigest; WORD_SIZE] =
+        [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
 
-    const LEAVES8: [Word; 8] = [
-        int_to_leaf(1),
-        int_to_leaf(2),
-        int_to_leaf(3),
-        int_to_leaf(4),
-        int_to_leaf(5),
-        int_to_leaf(6),
-        int_to_leaf(7),
-        int_to_leaf(8),
+    const LEAVES8: [RpoDigest; 8] = [
+        int_to_node(1),
+        int_to_node(2),
+        int_to_node(3),
+        int_to_node(4),
+        int_to_node(5),
+        int_to_node(6),
+        int_to_node(7),
+        int_to_node(8),
     ];
 
     #[test]
     fn build_merkle_tree() {
-        let tree = super::MerkleTree::new(LEAVES4.to_vec()).unwrap();
+        let tree = super::MerkleTree::new(digests_to_words(&LEAVES4)).unwrap();
         assert_eq!(8, tree.nodes.len());
 
         // leaves were copied correctly
@@ -297,13 +301,13 @@ mod tests {
 
     #[test]
     fn get_leaf() {
-        let tree = super::MerkleTree::new(LEAVES4.to_vec()).unwrap();
+        let tree = super::MerkleTree::new(digests_to_words(&LEAVES4)).unwrap();
 
         // check depth 2
-        assert_eq!(RpoDigest::from(LEAVES4[0]), tree.get_node(NodeIndex::make(2, 0)).unwrap());
-        assert_eq!(RpoDigest::from(LEAVES4[1]), tree.get_node(NodeIndex::make(2, 1)).unwrap());
-        assert_eq!(RpoDigest::from(LEAVES4[2]), tree.get_node(NodeIndex::make(2, 2)).unwrap());
-        assert_eq!(RpoDigest::from(LEAVES4[3]), tree.get_node(NodeIndex::make(2, 3)).unwrap());
+        assert_eq!(LEAVES4[0], tree.get_node(NodeIndex::make(2, 0)).unwrap());
+        assert_eq!(LEAVES4[1], tree.get_node(NodeIndex::make(2, 1)).unwrap());
+        assert_eq!(LEAVES4[2], tree.get_node(NodeIndex::make(2, 2)).unwrap());
+        assert_eq!(LEAVES4[3], tree.get_node(NodeIndex::make(2, 3)).unwrap());
 
         // check depth 1
         let (_, node2, node3) = compute_internal_nodes();
@@ -314,27 +318,15 @@ mod tests {
 
     #[test]
     fn get_path() {
-        let tree = super::MerkleTree::new(LEAVES4.to_vec()).unwrap();
+        let tree = super::MerkleTree::new(digests_to_words(&LEAVES4)).unwrap();
 
         let (_, node2, node3) = compute_internal_nodes();
 
         // check depth 2
-        assert_eq!(
-            vec![RpoDigest::from(LEAVES4[1]), node3],
-            *tree.get_path(NodeIndex::make(2, 0)).unwrap()
-        );
-        assert_eq!(
-            vec![RpoDigest::from(LEAVES4[0]), node3],
-            *tree.get_path(NodeIndex::make(2, 1)).unwrap()
-        );
-        assert_eq!(
-            vec![RpoDigest::from(LEAVES4[3]), node2],
-            *tree.get_path(NodeIndex::make(2, 2)).unwrap()
-        );
-        assert_eq!(
-            vec![RpoDigest::from(LEAVES4[2]), node2],
-            *tree.get_path(NodeIndex::make(2, 3)).unwrap()
-        );
+        assert_eq!(vec![LEAVES4[1], node3], *tree.get_path(NodeIndex::make(2, 0)).unwrap());
+        assert_eq!(vec![LEAVES4[0], node3], *tree.get_path(NodeIndex::make(2, 1)).unwrap());
+        assert_eq!(vec![LEAVES4[3], node2], *tree.get_path(NodeIndex::make(2, 2)).unwrap());
+        assert_eq!(vec![LEAVES4[2], node2], *tree.get_path(NodeIndex::make(2, 3)).unwrap());
 
         // check depth 1
         assert_eq!(vec![node3], *tree.get_path(NodeIndex::make(1, 0)).unwrap());
@@ -343,13 +335,13 @@ mod tests {
 
     #[test]
     fn update_leaf() {
-        let mut tree = super::MerkleTree::new(LEAVES8.to_vec()).unwrap();
+        let mut tree = super::MerkleTree::new(digests_to_words(&LEAVES8)).unwrap();
 
         // update one leaf
         let value = 3;
         let new_node = int_to_leaf(9);
-        let mut expected_leaves = LEAVES8.to_vec();
-        expected_leaves[value as usize] = new_node;
+        let mut expected_leaves = digests_to_words(&LEAVES8);
+        expected_leaves[value as usize] = new_node.into();
         let expected_tree = super::MerkleTree::new(expected_leaves.clone()).unwrap();
 
         tree.update_leaf(value, new_node).unwrap();
@@ -367,7 +359,7 @@ mod tests {
 
     #[test]
     fn nodes() -> Result<(), MerkleError> {
-        let tree = super::MerkleTree::new(LEAVES4.to_vec()).unwrap();
+        let tree = super::MerkleTree::new(digests_to_words(&LEAVES4)).unwrap();
         let root = tree.root();
         let l1n0 = tree.get_node(NodeIndex::make(1, 0))?;
         let l1n1 = tree.get_node(NodeIndex::make(1, 1))?;
