@@ -1,6 +1,10 @@
 use super::{
-    super::{int_to_node, InnerNodeInfo, MerkleError, MerkleTree, RpoDigest, SimpleSmt},
-    NodeIndex, Rpo256, Vec, Word, EMPTY_WORD,
+    super::{InnerNodeInfo, MerkleError, MerkleTree, RpoDigest, SimpleSmt},
+    NodeIndex, Rpo256, Vec,
+};
+use crate::{
+    merkle::{digests_to_words, empty_roots::EMPTY_WORD, int_to_leaf, int_to_node},
+    Word,
 };
 
 // TEST DATA
@@ -9,9 +13,9 @@ use super::{
 const KEYS4: [u64; 4] = [0, 1, 2, 3];
 const KEYS8: [u64; 8] = [0, 1, 2, 3, 4, 5, 6, 7];
 
-const VALUES4: [Word; 4] = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
+const VALUES4: [RpoDigest; 4] = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
 
-const VALUES8: [Word; 8] = [
+const VALUES8: [RpoDigest; 8] = [
     int_to_node(1),
     int_to_node(2),
     int_to_node(3),
@@ -22,7 +26,7 @@ const VALUES8: [Word; 8] = [
     int_to_node(8),
 ];
 
-const ZERO_VALUES8: [Word; 8] = [int_to_node(0); 8];
+const ZERO_VALUES8: [Word; 8] = [int_to_leaf(0); 8];
 
 // TESTS
 // ================================================================================================
@@ -42,7 +46,7 @@ fn build_sparse_tree() {
 
     // insert single value
     let key = 6;
-    let new_node = int_to_node(7);
+    let new_node = int_to_leaf(7);
     values[key as usize] = new_node;
     let old_value = smt.update_leaf(key, new_node).expect("Failed to update leaf");
     let mt2 = MerkleTree::new(values.clone()).unwrap();
@@ -55,7 +59,7 @@ fn build_sparse_tree() {
 
     // insert second value at distinct leaf branch
     let key = 2;
-    let new_node = int_to_node(3);
+    let new_node = int_to_leaf(3);
     values[key as usize] = new_node;
     let old_value = smt.update_leaf(key, new_node).expect("Failed to update leaf");
     let mt3 = MerkleTree::new(values).unwrap();
@@ -69,7 +73,9 @@ fn build_sparse_tree() {
 
 #[test]
 fn test_depth2_tree() {
-    let tree = SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(VALUES4.into_iter())).unwrap();
+    let tree =
+        SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(digests_to_words(&VALUES4).into_iter()))
+            .unwrap();
 
     // check internal structure
     let (root, node2, node3) = compute_internal_nodes();
@@ -96,7 +102,9 @@ fn test_depth2_tree() {
 
 #[test]
 fn test_inner_node_iterator() -> Result<(), MerkleError> {
-    let tree = SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(VALUES4.into_iter())).unwrap();
+    let tree =
+        SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(digests_to_words(&VALUES4).into_iter()))
+            .unwrap();
 
     // check depth 2
     assert_eq!(VALUES4[0], tree.get_node(NodeIndex::make(2, 0)).unwrap());
@@ -116,19 +124,19 @@ fn test_inner_node_iterator() -> Result<(), MerkleError> {
     let nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
     let expected = vec![
         InnerNodeInfo {
-            value: root.into(),
-            left: l1n0.into(),
-            right: l1n1.into(),
+            value: root,
+            left: l1n0,
+            right: l1n1,
         },
         InnerNodeInfo {
-            value: l1n0.into(),
-            left: l2n0.into(),
-            right: l2n1.into(),
+            value: l1n0,
+            left: l2n0,
+            right: l2n1,
         },
         InnerNodeInfo {
-            value: l1n1.into(),
-            left: l2n2.into(),
-            right: l2n3.into(),
+            value: l1n1,
+            left: l2n2,
+            right: l2n3,
         },
     ];
     assert_eq!(nodes, expected);
@@ -138,28 +146,30 @@ fn test_inner_node_iterator() -> Result<(), MerkleError> {
 
 #[test]
 fn update_leaf() {
-    let mut tree = SimpleSmt::with_leaves(3, KEYS8.into_iter().zip(VALUES8.into_iter())).unwrap();
+    let mut tree =
+        SimpleSmt::with_leaves(3, KEYS8.into_iter().zip(digests_to_words(&VALUES8).into_iter()))
+            .unwrap();
 
     // update one value
     let key = 3;
-    let new_node = int_to_node(9);
-    let mut expected_values = VALUES8.to_vec();
+    let new_node = int_to_leaf(9);
+    let mut expected_values = digests_to_words(&VALUES8);
     expected_values[key] = new_node;
     let expected_tree = MerkleTree::new(expected_values.clone()).unwrap();
 
     let old_leaf = tree.update_leaf(key as u64, new_node).unwrap();
     assert_eq!(expected_tree.root(), tree.root);
-    assert_eq!(old_leaf, VALUES8[key]);
+    assert_eq!(old_leaf, *VALUES8[key]);
 
     // update another value
     let key = 6;
-    let new_node = int_to_node(10);
+    let new_node = int_to_leaf(10);
     expected_values[key] = new_node;
     let expected_tree = MerkleTree::new(expected_values.clone()).unwrap();
 
     let old_leaf = tree.update_leaf(key as u64, new_node).unwrap();
     assert_eq!(expected_tree.root(), tree.root);
-    assert_eq!(old_leaf, VALUES8[key]);
+    assert_eq!(old_leaf, *VALUES8[key]);
 }
 
 #[test]
@@ -172,34 +182,34 @@ fn small_tree_opening_is_consistent() {
     //  / \   / \   / \   / \
     // a   b 0   0 c   0 0   d
 
-    let z = Word::from(RpoDigest::default());
+    let z = EMPTY_WORD;
 
     let a = Word::from(Rpo256::merge(&[z.into(); 2]));
     let b = Word::from(Rpo256::merge(&[a.into(); 2]));
     let c = Word::from(Rpo256::merge(&[b.into(); 2]));
     let d = Word::from(Rpo256::merge(&[c.into(); 2]));
 
-    let e = Word::from(Rpo256::merge(&[a.into(), b.into()]));
-    let f = Word::from(Rpo256::merge(&[z.into(), z.into()]));
-    let g = Word::from(Rpo256::merge(&[c.into(), z.into()]));
-    let h = Word::from(Rpo256::merge(&[z.into(), d.into()]));
+    let e = Rpo256::merge(&[a.into(), b.into()]);
+    let f = Rpo256::merge(&[z.into(), z.into()]);
+    let g = Rpo256::merge(&[c.into(), z.into()]);
+    let h = Rpo256::merge(&[z.into(), d.into()]);
 
-    let i = Word::from(Rpo256::merge(&[e.into(), f.into()]));
-    let j = Word::from(Rpo256::merge(&[g.into(), h.into()]));
+    let i = Rpo256::merge(&[e, f]);
+    let j = Rpo256::merge(&[g, h]);
 
-    let k = Word::from(Rpo256::merge(&[i.into(), j.into()]));
+    let k = Rpo256::merge(&[i, j]);
 
     let depth = 3;
     let entries = vec![(0, a), (1, b), (4, c), (7, d)];
     let tree = SimpleSmt::with_leaves(depth, entries).unwrap();
 
-    assert_eq!(tree.root(), Word::from(k));
+    assert_eq!(tree.root(), RpoDigest::from(k));
 
-    let cases: Vec<(u8, u64, Vec<Word>)> = vec![
-        (3, 0, vec![b, f, j]),
-        (3, 1, vec![a, f, j]),
-        (3, 4, vec![z, h, i]),
-        (3, 7, vec![z, g, i]),
+    let cases: Vec<(u8, u64, Vec<RpoDigest>)> = vec![
+        (3, 0, vec![b.into(), f, j]),
+        (3, 1, vec![a.into(), f, j]),
+        (3, 4, vec![z.into(), h, i]),
+        (3, 7, vec![z.into(), g, i]),
         (2, 0, vec![f, j]),
         (2, 1, vec![e, j]),
         (2, 2, vec![h, i]),
@@ -217,26 +227,26 @@ fn small_tree_opening_is_consistent() {
 
 #[test]
 fn fail_on_duplicates() {
-    let entries = [(1_u64, int_to_node(1)), (5, int_to_node(2)), (1_u64, int_to_node(3))];
+    let entries = [(1_u64, int_to_leaf(1)), (5, int_to_leaf(2)), (1_u64, int_to_leaf(3))];
     let smt = SimpleSmt::with_leaves(64, entries);
     assert!(smt.is_err());
 
-    let entries = [(1_u64, int_to_node(0)), (5, int_to_node(2)), (1_u64, int_to_node(0))];
+    let entries = [(1_u64, int_to_leaf(0)), (5, int_to_leaf(2)), (1_u64, int_to_leaf(0))];
     let smt = SimpleSmt::with_leaves(64, entries);
     assert!(smt.is_err());
 
-    let entries = [(1_u64, int_to_node(0)), (5, int_to_node(2)), (1_u64, int_to_node(1))];
+    let entries = [(1_u64, int_to_leaf(0)), (5, int_to_leaf(2)), (1_u64, int_to_leaf(1))];
     let smt = SimpleSmt::with_leaves(64, entries);
     assert!(smt.is_err());
 
-    let entries = [(1_u64, int_to_node(1)), (5, int_to_node(2)), (1_u64, int_to_node(0))];
+    let entries = [(1_u64, int_to_leaf(1)), (5, int_to_leaf(2)), (1_u64, int_to_leaf(0))];
     let smt = SimpleSmt::with_leaves(64, entries);
     assert!(smt.is_err());
 }
 
 #[test]
 fn with_no_duplicates_empty_node() {
-    let entries = [(1_u64, int_to_node(0)), (5, int_to_node(2))];
+    let entries = [(1_u64, int_to_leaf(0)), (5, int_to_leaf(2))];
     let smt = SimpleSmt::with_leaves(64, entries);
     assert!(smt.is_ok());
 }
@@ -244,10 +254,10 @@ fn with_no_duplicates_empty_node() {
 // HELPER FUNCTIONS
 // --------------------------------------------------------------------------------------------
 
-fn compute_internal_nodes() -> (Word, Word, Word) {
-    let node2 = Rpo256::hash_elements(&[VALUES4[0], VALUES4[1]].concat());
-    let node3 = Rpo256::hash_elements(&[VALUES4[2], VALUES4[3]].concat());
+fn compute_internal_nodes() -> (RpoDigest, RpoDigest, RpoDigest) {
+    let node2 = Rpo256::merge(&[VALUES4[0], VALUES4[1]]);
+    let node3 = Rpo256::merge(&[VALUES4[2], VALUES4[3]]);
     let root = Rpo256::merge(&[node2, node3]);
 
-    (root.into(), node2.into(), node3.into())
+    (root, node2, node3)
 }

@@ -1,6 +1,6 @@
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, Felt, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
-    Rpo256, RpoDigest, StarkField, Vec, Word, EMPTY_WORD, ZERO,
+    empty_roots::EMPTY_WORD, BTreeMap, BTreeSet, EmptySubtreeRoots, Felt, InnerNodeInfo,
+    MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, StarkField, Vec, Word, ZERO,
 };
 use core::cmp;
 
@@ -123,7 +123,7 @@ impl TieredSmt {
         let mut path = Vec::with_capacity(index.depth() as usize);
         for _ in 0..index.depth() {
             let node = self.get_node_unchecked(&index.sibling());
-            path.push(node.into());
+            path.push(node);
             index.move_up();
         }
 
@@ -200,9 +200,9 @@ impl TieredSmt {
         self.nodes.iter().filter_map(|(index, node)| {
             if is_inner_node(index) {
                 Some(InnerNodeInfo {
-                    value: node.into(),
-                    left: self.get_node_unchecked(&index.left_child()).into(),
-                    right: self.get_node_unchecked(&index.right_child()).into(),
+                    value: *node,
+                    left: self.get_node_unchecked(&index.left_child()),
+                    right: self.get_node_unchecked(&index.right_child()),
                 })
             } else {
                 None
@@ -456,7 +456,7 @@ impl BottomLeaf {
         let mut elements = Vec::with_capacity(self.values.len() * 2);
         for (key, val) in self.values.iter() {
             key.iter().for_each(|&v| elements.push(Felt::new(v)));
-            elements.extend_from_slice(val);
+            elements.extend_from_slice(val.as_slice());
         }
         // TODO: hash in domain
         Rpo256::hash_elements(&elements)
