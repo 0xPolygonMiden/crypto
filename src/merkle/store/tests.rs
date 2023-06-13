@@ -485,7 +485,6 @@ fn wont_open_to_different_depth_root() {
     for depth in (1..=63).rev() {
         root = Rpo256::merge(&[root, empty[depth]]);
     }
-    let root = RpoDigest::from(root);
 
     // For this example, the depth of the Merkle tree is 1, as we have only two leaves. Here we
     // attempt to fetch a node on the maximum depth, and it should fail because the root shouldn't
@@ -513,16 +512,16 @@ fn store_path_opens_from_leaf() {
     let k = Rpo256::merge(&[e.into(), f.into()]);
     let l = Rpo256::merge(&[g.into(), h.into()]);
 
-    let m = Rpo256::merge(&[i.into(), j.into()]);
-    let n = Rpo256::merge(&[k.into(), l.into()]);
+    let m = Rpo256::merge(&[i, j]);
+    let n = Rpo256::merge(&[k, l]);
 
-    let root = Rpo256::merge(&[m.into(), n.into()]);
+    let root = Rpo256::merge(&[m, n]);
 
     let mtree = MerkleTree::new(vec![a, b, c, d, e, f, g, h]).unwrap();
     let store = MerkleStore::from(&mtree);
     let path = store.get_path(root, NodeIndex::make(3, 1)).unwrap().path;
 
-    let expected = MerklePath::new([a.into(), j.into(), n.into()].to_vec());
+    let expected = MerklePath::new([a.into(), j, n].to_vec());
     assert_eq!(path, expected);
 }
 

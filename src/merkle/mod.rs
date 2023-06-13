@@ -103,6 +103,7 @@ const fn int_to_leaf(value: u64) -> Word {
     [Felt::new(value), ZERO, ZERO, ZERO]
 }
 
-pub fn digests_to_words(digests: &[RpoDigest]) -> Vec<Word> {
+#[cfg(test)]
+fn digests_to_words(digests: &[RpoDigest]) -> Vec<Word> {
     digests.iter().map(|d| d.into()).collect()
 }

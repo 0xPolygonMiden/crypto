@@ -36,7 +36,7 @@ fn build_empty_tree() {
     // tree of depth 3
     let smt = SimpleSmt::new(3).unwrap();
     let mt = MerkleTree::new(ZERO_VALUES8.to_vec()).unwrap();
-    assert_eq!(mt.root(), smt.root().into());
+    assert_eq!(mt.root(), smt.root());
 }
 
 #[test]
@@ -47,10 +47,10 @@ fn build_sparse_tree() {
     // insert single value
     let key = 6;
     let new_node = int_to_leaf(7);
-    values[key as usize] = new_node.into();
+    values[key as usize] = new_node;
     let old_value = smt.update_leaf(key, new_node).expect("Failed to update leaf");
     let mt2 = MerkleTree::new(values.clone()).unwrap();
-    assert_eq!(mt2.root(), smt.root().into());
+    assert_eq!(mt2.root(), smt.root());
     assert_eq!(
         mt2.get_path(NodeIndex::make(3, 6)).unwrap(),
         smt.get_path(NodeIndex::make(3, 6)).unwrap()
@@ -63,7 +63,7 @@ fn build_sparse_tree() {
     values[key as usize] = new_node;
     let old_value = smt.update_leaf(key, new_node).expect("Failed to update leaf");
     let mt3 = MerkleTree::new(values).unwrap();
-    assert_eq!(mt3.root(), smt.root().into());
+    assert_eq!(mt3.root(), smt.root());
     assert_eq!(
         mt3.get_path(NodeIndex::make(3, 2)).unwrap(),
         smt.get_path(NodeIndex::make(3, 2)).unwrap()
@@ -90,10 +90,10 @@ fn test_depth2_tree() {
     assert_eq!(VALUES4[3], tree.get_node(NodeIndex::make(2, 3)).unwrap());
 
     // check get_path(): depth 2
-    assert_eq!(vec![VALUES4[1].into(), node3], *tree.get_path(NodeIndex::make(2, 0)).unwrap());
-    assert_eq!(vec![VALUES4[0].into(), node3], *tree.get_path(NodeIndex::make(2, 1)).unwrap());
-    assert_eq!(vec![VALUES4[3].into(), node2], *tree.get_path(NodeIndex::make(2, 2)).unwrap());
-    assert_eq!(vec![VALUES4[2].into(), node2], *tree.get_path(NodeIndex::make(2, 3)).unwrap());
+    assert_eq!(vec![VALUES4[1], node3], *tree.get_path(NodeIndex::make(2, 0)).unwrap());
+    assert_eq!(vec![VALUES4[0], node3], *tree.get_path(NodeIndex::make(2, 1)).unwrap());
+    assert_eq!(vec![VALUES4[3], node2], *tree.get_path(NodeIndex::make(2, 2)).unwrap());
+    assert_eq!(vec![VALUES4[2], node2], *tree.get_path(NodeIndex::make(2, 3)).unwrap());
 
     // check get_path(): depth 1
     assert_eq!(vec![node3], *tree.get_path(NodeIndex::make(1, 0)).unwrap());
@@ -189,15 +189,15 @@ fn small_tree_opening_is_consistent() {
     let c = Word::from(Rpo256::merge(&[b.into(); 2]));
     let d = Word::from(Rpo256::merge(&[c.into(); 2]));
 
-    let e = RpoDigest::from(Rpo256::merge(&[a.into(), b.into()]));
-    let f = RpoDigest::from(Rpo256::merge(&[z.into(), z.into()]));
-    let g = RpoDigest::from(Rpo256::merge(&[c.into(), z.into()]));
-    let h = RpoDigest::from(Rpo256::merge(&[z.into(), d.into()]));
+    let e = Rpo256::merge(&[a.into(), b.into()]);
+    let f = Rpo256::merge(&[z.into(), z.into()]);
+    let g = Rpo256::merge(&[c.into(), z.into()]);
+    let h = Rpo256::merge(&[z.into(), d.into()]);
 
-    let i = RpoDigest::from(Rpo256::merge(&[e.into(), f.into()]));
-    let j = RpoDigest::from(Rpo256::merge(&[g.into(), h.into()]));
+    let i = Rpo256::merge(&[e, f]);
+    let j = Rpo256::merge(&[g, h]);
 
-    let k = RpoDigest::from(Rpo256::merge(&[i.into(), j.into()]));
+    let k = Rpo256::merge(&[i, j]);
 
     let depth = 3;
     let entries = vec![(0, a), (1, b), (4, c), (7, d)];
@@ -255,21 +255,9 @@ fn with_no_duplicates_empty_node() {
 // --------------------------------------------------------------------------------------------
 
 fn compute_internal_nodes() -> (RpoDigest, RpoDigest, RpoDigest) {
-    let node2 = Rpo256::hash_elements(
-        &[VALUES4[0], VALUES4[1]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<Word>>()
-            .concat(),
-    );
-    let node3 = Rpo256::hash_elements(
-        &[VALUES4[2], VALUES4[3]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<Word>>()
-            .concat(),
-    );
+    let node2 = Rpo256::merge(&[VALUES4[0], VALUES4[1]]);
+    let node3 = Rpo256::merge(&[VALUES4[2], VALUES4[3]]);
     let root = Rpo256::merge(&[node2, node3]);
 
-    (root.into(), node2.into(), node3.into())
+    (root, node2, node3)
 }

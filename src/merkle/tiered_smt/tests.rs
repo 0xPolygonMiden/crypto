@@ -21,7 +21,7 @@ fn tsmt_insert_one() {
 
     smt.insert(key, value);
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     // make sure the value was inserted, and the node is at the expected index
     assert_eq!(smt.get_value(key), value);
@@ -74,16 +74,16 @@ fn tsmt_insert_two_16() {
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
-    let expected_path = store.get_path(tree_root.into(), index_a).unwrap().path;
+    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
     assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_b), val_b);
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
-    let expected_path = store.get_path(tree_root.into(), index_b).unwrap().path;
+    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -130,16 +130,16 @@ fn tsmt_insert_two_32() {
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
-    let expected_path = store.get_path(tree_root.into(), index_a).unwrap().path;
+    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
     assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_b), val_b);
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
-    let expected_path = store.get_path(tree_root.into(), index_b).unwrap().path;
+    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -193,21 +193,21 @@ fn tsmt_insert_three() {
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
-    let expected_path = store.get_path(tree_root.into(), index_a).unwrap().path;
+    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
     assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_b), val_b);
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
-    let expected_path = store.get_path(tree_root.into(), index_b).unwrap().path;
+    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_c), val_c);
     assert_eq!(smt.get_node(index_c).unwrap(), leaf_node_c);
-    let expected_path = store.get_path(tree_root.into(), index_c).unwrap().path;
+    let expected_path = store.get_path(tree_root, index_c).unwrap().path;
     assert_eq!(smt.get_path(index_c).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -238,11 +238,11 @@ fn tsmt_update() {
     let leaf_node = build_leaf_node(key, value_b, 16);
     tree_root = store.set_node(tree_root, index, leaf_node).unwrap().root;
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key), value_b);
     assert_eq!(smt.get_node(index).unwrap(), leaf_node);
-    let expected_path = store.get_path(tree_root.into(), index).unwrap().path;
+    let expected_path = store.get_path(tree_root, index).unwrap().path;
     assert_eq!(smt.get_path(index).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -285,13 +285,13 @@ fn tsmt_bottom_tier() {
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_value(key_b), val_b);
 
     assert_eq!(smt.get_node(index).unwrap(), leaf_node);
-    let expected_path = store.get_path(tree_root.into(), index).unwrap().path;
+    let expected_path = store.get_path(tree_root, index).unwrap().path;
     assert_eq!(smt.get_path(index).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of
@@ -337,16 +337,16 @@ fn tsmt_bottom_tier_two() {
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
-    let expected_path = store.get_path(tree_root.into(), index_a).unwrap().path;
+    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
     assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
 
     assert_eq!(smt.get_value(key_b), val_b);
     assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
-    let expected_path = store.get_path(tree_root.into(), index_b).unwrap().path;
+    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
     assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
 
     // make sure inner nodes match - the store contains more entries because it keeps track of

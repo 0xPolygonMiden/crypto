@@ -1,5 +1,5 @@
 use super::{
-    super::{InnerNodeInfo, Vec, WORD_SIZE},
+    super::{InnerNodeInfo, Vec},
     bit::TrueBitPositionIterator,
     full::{high_bitmask, leaf_to_corresponding_tree, nodes_in_forest},
     Mmr, MmrPeaks, Rpo256,
@@ -118,38 +118,14 @@ fn test_mmr_simple() {
     let mut postorder = Vec::new();
     postorder.push(LEAVES[0]);
     postorder.push(LEAVES[1]);
-    postorder.push(Rpo256::hash_elements(
-        &[LEAVES[0], LEAVES[1]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    ));
+    postorder.push(Rpo256::merge(&[LEAVES[0], LEAVES[1]]));
     postorder.push(LEAVES[2]);
     postorder.push(LEAVES[3]);
-    postorder.push(Rpo256::hash_elements(
-        &[LEAVES[2], LEAVES[3]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    ));
-    postorder.push(Rpo256::hash_elements(
-        &[postorder[2], postorder[5]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    ));
+    postorder.push(Rpo256::merge(&[LEAVES[2], LEAVES[3]]));
+    postorder.push(Rpo256::merge(&[postorder[2], postorder[5]]));
     postorder.push(LEAVES[4]);
     postorder.push(LEAVES[5]);
-    postorder.push(Rpo256::hash_elements(
-        &[LEAVES[4], LEAVES[5]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    ));
+    postorder.push(Rpo256::merge(&[LEAVES[4], LEAVES[5]]));
     postorder.push(LEAVES[6]);
 
     let mut mmr = Mmr::new();
@@ -223,20 +199,8 @@ fn test_mmr_simple() {
 #[test]
 fn test_mmr_open() {
     let mmr: Mmr = LEAVES.into();
-    let h01: RpoDigest = Rpo256::hash_elements(
-        &LEAVES[0..2]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    );
-    let h23: RpoDigest = Rpo256::hash_elements(
-        &LEAVES[2..4]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    );
+    let h01 = Rpo256::merge(&[LEAVES[0], LEAVES[1]]);
+    let h23 = Rpo256::merge(&[LEAVES[2], LEAVES[3]]);
 
     // node at pos 7 is the root
     assert!(mmr.open(7).is_err(), "Element 7 is not in the tree, result should be None");
@@ -401,34 +365,10 @@ fn test_mmr_inner_nodes() {
     let mmr: Mmr = LEAVES.into();
     let nodes: Vec<InnerNodeInfo> = mmr.inner_nodes().collect();
 
-    let h01 = Rpo256::hash_elements(
-        &[LEAVES[0], LEAVES[1]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    );
-    let h23 = Rpo256::hash_elements(
-        &[LEAVES[2], LEAVES[3]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    );
-    let h0123 = Rpo256::hash_elements(
-        &[h01, h23]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    );
-    let h45 = Rpo256::hash_elements(
-        &[LEAVES[4], LEAVES[5]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    );
+    let h01 = Rpo256::merge(&[LEAVES[0], LEAVES[1]]);
+    let h23 = Rpo256::merge(&[LEAVES[2], LEAVES[3]]);
+    let h0123 = Rpo256::merge(&[h01, h23]);
+    let h45 = Rpo256::merge(&[LEAVES[4], LEAVES[5]]);
     let postorder = vec![
         InnerNodeInfo {
             value: h01,
@@ -461,28 +401,10 @@ fn test_mmr_hash_peaks() {
     let peaks = mmr.accumulator();
 
     let first_peak = Rpo256::merge(&[
-        Rpo256::hash_elements(
-            &[LEAVES[0], LEAVES[1]]
-                .iter()
-                .map(|digest| digest.into())
-                .collect::<Vec<Word>>()
-                .concat(),
-        ),
-        Rpo256::hash_elements(
-            &[LEAVES[2], LEAVES[3]]
-                .iter()
-                .map(|digest| digest.into())
-                .collect::<Vec<Word>>()
-                .concat(),
-        ),
+        Rpo256::merge(&[LEAVES[0], LEAVES[1]]),
+        Rpo256::merge(&[LEAVES[2], LEAVES[3]]),
     ]);
-    let second_peak = Rpo256::hash_elements(
-        &[LEAVES[4], LEAVES[5]]
-            .iter()
-            .map(|digest| digest.into())
-            .collect::<Vec<[Felt; WORD_SIZE]>>()
-            .concat(),
-    );
+    let second_peak = Rpo256::merge(&[LEAVES[4], LEAVES[5]]);
     let third_peak = LEAVES[6];
 
     // minimum length is 16
@@ -490,14 +412,7 @@ fn test_mmr_hash_peaks() {
     expected_peaks.resize(16, RpoDigest::default());
     assert_eq!(
         peaks.hash_peaks(),
-        *Rpo256::hash_elements(
-            &expected_peaks
-                .as_slice()
-                .iter()
-                .map(|digest| digest.into())
-                .collect::<Vec<Word>>()
-                .concat()
-        )
+        *Rpo256::hash_elements(&digests_to_elements(&expected_peaks))
     );
 }
 
@@ -517,14 +432,7 @@ fn test_mmr_peaks_hash_less_than_16() {
         expected_peaks.resize(16, RpoDigest::default());
         assert_eq!(
             accumulator.hash_peaks(),
-            *Rpo256::hash_elements(
-                &expected_peaks
-                    .as_slice()
-                    .iter()
-                    .map(|digest| digest.into())
-                    .collect::<Vec<Word>>()
-                    .concat()
-            )
+            *Rpo256::hash_elements(&digests_to_elements(&expected_peaks))
         );
     }
 }
@@ -543,14 +451,7 @@ fn test_mmr_peaks_hash_odd() {
     expected_peaks.resize(18, RpoDigest::default());
     assert_eq!(
         accumulator.hash_peaks(),
-        *Rpo256::hash_elements(
-            &expected_peaks
-                .as_slice()
-                .iter()
-                .map(|digest| digest.into())
-                .collect::<Vec<Word>>()
-                .concat()
-        )
+        *Rpo256::hash_elements(&digests_to_elements(&expected_peaks))
     );
 }
 
@@ -581,4 +482,11 @@ mod property_tests {
             assert!(mask & leaves != 0, "the result should be a tree in leaves");
         }
     }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+
+fn digests_to_elements(digests: &[RpoDigest]) -> Vec<Felt> {
+    digests.iter().flat_map(|v| Word::from(v)).collect()
 }
