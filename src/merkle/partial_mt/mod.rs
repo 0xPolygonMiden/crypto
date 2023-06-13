@@ -101,17 +101,6 @@ impl PartialMerkleTree {
         self.leaves.contains(&index)
     }
 
-    pub fn get_leaf_depth(&self, node_index: NodeIndex) -> u8 {
-        let mut node_index = node_index;
-        for _ in 0..node_index.depth() {
-            if self.leaves.contains(&node_index) {
-                return node_index.depth();
-            }
-            node_index.move_up()
-        }
-        0
-    }
-
     /// Returns a vector of paths from every leaf to the root.
     pub fn paths(&self) -> Vec<(NodeIndex, ValuePath)> {
         let mut paths = Vec::new();
@@ -247,6 +236,11 @@ impl PartialMerkleTree {
     /// Updates value of the leaf at the specified index returning the old leaf value.
     ///
     /// This also recomputes all hashes between the leaf and the root, updating the root itself.
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - The depth of the specified node_index is greater than 64 or smaller than 1.
+    /// - The specified node index is not corresponding to the leaf.
     pub fn update_leaf(
         &mut self,
         node_index: NodeIndex,
@@ -282,6 +276,38 @@ impl PartialMerkleTree {
         Ok(old_value)
     }
 
+    // UTILITY FUNCTIONS
+    // --------------------------------------------------------------------------------------------
+
+    /// Utility to visualize a [PartialMerkleTree] in text.
+    pub fn print(&self) -> Result<String, fmt::Error> {
+        let indent = "  ";
+        let mut s = String::new();
+        s.push_str("root: ");
+        s.push_str(&word_to_hex(&self.root())?);
+        s.push('\n');
+        for d in 1..=self.max_depth() {
+            let entries = 2u64.pow(d.into());
+            for i in 0..entries {
+                let index = NodeIndex::new(d, i).expect("The index must always be valid");
+                let node = self.get_node(index);
+                let node = match node {
+                    Err(_) => continue,
+                    Ok(node) => node,
+                };
+
+                for _ in 0..d {
+                    s.push_str(indent);
+                }
+                s.push_str(&format!("({}, {}): ", index.depth(), index.value()));
+                s.push_str(&word_to_hex(&node)?);
+                s.push('\n');
+            }
+        }
+
+        Ok(s)
+    }
+
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
 
@@ -300,33 +326,4 @@ impl PartialMerkleTree {
         }
         Ok(())
     }
-}
-
-/// Utility to visualize a [PartialMerkleTree] in text.
-pub fn pmt_to_text(tree: &PartialMerkleTree) -> Result<String, fmt::Error> {
-    let indent = "  ";
-    let mut s = String::new();
-    s.push_str("root: ");
-    s.push_str(&word_to_hex(&tree.root())?);
-    s.push('\n');
-    for d in 1..=tree.max_depth() {
-        let entries = 2u64.pow(d.into());
-        for i in 0..entries {
-            let index = NodeIndex::new(d, i).expect("The index must always be valid");
-            let node = tree.get_node(index);
-            let node = match node {
-                Err(_) => continue,
-                Ok(node) => node,
-            };
-
-            for _ in 0..d {
-                s.push_str(indent);
-            }
-            s.push_str(&format!("({}, {}): ", index.depth(), index.value()));
-            s.push_str(&word_to_hex(&node)?);
-            s.push('\n');
-        }
-    }
-
-    Ok(s)
 }
