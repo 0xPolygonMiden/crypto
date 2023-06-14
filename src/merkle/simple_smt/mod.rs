@@ -1,6 +1,6 @@
 use super::{
-    empty_roots::EMPTY_WORD, BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError,
-    MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
+    Rpo256, RpoDigest, Vec, Word,
 };
 
 #[cfg(test)]
@@ -30,6 +30,9 @@ impl SimpleSmt {
 
     /// Maximum supported depth.
     pub const MAX_DEPTH: u8 = 64;
+
+    /// Value of an empty leaf.
+    pub const EMPTY_VALUE: Word = super::empty_roots::EMPTY_WORD;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -91,12 +94,12 @@ impl SimpleSmt {
         let mut empty_entries = BTreeSet::new();
         for (key, value) in entries {
             let old_value = tree.update_leaf(key, value)?;
-            if old_value != EMPTY_WORD || empty_entries.contains(&key) {
+            if old_value != Self::EMPTY_VALUE || empty_entries.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(key));
             }
             // if we've processed an empty entry, add the key to the set of empty entry keys, and
             // if this key was already in the set, return an error
-            if value == EMPTY_WORD && !empty_entries.insert(key) {
+            if value == Self::EMPTY_VALUE && !empty_entries.insert(key) {
                 return Err(MerkleError::DuplicateValuesForIndex(key));
             }
         }
@@ -210,7 +213,7 @@ impl SimpleSmt {
     /// # Errors
     /// Returns an error if the index is greater than the maximum tree capacity, that is 2^{depth}.
     pub fn update_leaf(&mut self, index: u64, value: Word) -> Result<Word, MerkleError> {
-        let old_value = self.insert_leaf_node(index, value).unwrap_or(EMPTY_WORD);
+        let old_value = self.insert_leaf_node(index, value).unwrap_or(Self::EMPTY_VALUE);
 
         // if the old value and new value are the same, there is nothing to update
         if value == old_value {

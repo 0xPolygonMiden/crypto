@@ -1,6 +1,6 @@
 use super::{
-    empty_roots::EMPTY_WORD, BTreeMap, BTreeSet, EmptySubtreeRoots, Felt, InnerNodeInfo,
-    MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, StarkField, Vec, Word, ZERO,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, Felt, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
+    Rpo256, RpoDigest, StarkField, Vec, Word, ZERO,
 };
 use core::cmp;
 
@@ -54,6 +54,9 @@ impl TieredSmt {
     /// Maximum node depth. This is also the bottom tier of the tree.
     const MAX_DEPTH: u8 = 64;
 
+    /// Value of an empty leaf.
+    pub const EMPTY_VALUE: Word = super::empty_roots::EMPTY_WORD;
+
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
@@ -74,12 +77,12 @@ impl TieredSmt {
         let mut empty_entries = BTreeSet::new();
         for (key, value) in entries {
             let old_value = tree.insert(key, value);
-            if old_value != EMPTY_WORD || empty_entries.contains(&key) {
+            if old_value != Self::EMPTY_VALUE || empty_entries.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForKey(key));
             }
             // if we've processed an empty entry, add the key to the set of empty entry keys, and
             // if this key was already in the set, return an error
-            if value == EMPTY_WORD && !empty_entries.insert(key) {
+            if value == Self::EMPTY_VALUE && !empty_entries.insert(key) {
                 return Err(MerkleError::DuplicateValuesForKey(key));
             }
         }
@@ -136,7 +139,7 @@ impl TieredSmt {
     pub fn get_value(&self, key: RpoDigest) -> Word {
         match self.values.get(&key) {
             Some(value) => *value,
-            None => EMPTY_WORD,
+            None => Self::EMPTY_VALUE,
         }
     }
 
@@ -149,7 +152,7 @@ impl TieredSmt {
     /// If the value for the specified key was not previously set, [ZERO; 4] is returned.
     pub fn insert(&mut self, key: RpoDigest, value: Word) -> Word {
         // insert the value into the key-value map, and if nothing has changed, return
-        let old_value = self.values.insert(key, value).unwrap_or(EMPTY_WORD);
+        let old_value = self.values.insert(key, value).unwrap_or(Self::EMPTY_VALUE);
         if old_value == value {
             return old_value;
         }
