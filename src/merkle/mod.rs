@@ -38,6 +38,9 @@ pub use store::MerkleStore;
 mod node;
 pub use node::InnerNodeInfo;
 
+mod partial_mt;
+pub use partial_mt::PartialMerkleTree;
+
 // ERRORS
 // ================================================================================================
 

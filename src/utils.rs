@@ -2,6 +2,12 @@ use super::Word;
 use crate::utils::string::String;
 use core::fmt::{self, Write};
 
+#[cfg(not(feature = "std"))]
+pub use alloc::format;
+
+#[cfg(feature = "std")]
+pub use std::format;
+
 // RE-EXPORTS
 // ================================================================================================
 pub use winter_utils::{
