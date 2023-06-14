@@ -439,15 +439,15 @@ fn test_mmr_peaks_hash_less_than_16() {
 
 #[test]
 fn test_mmr_peaks_hash_odd() {
-    let peaks: Vec<_> = (0..=17).map(|i| int_to_node(i)).collect();
+    let peaks: Vec<_> = (0..=17).map(int_to_node).collect();
 
     let accumulator = MmrPeaks {
         num_leaves: (1 << peaks.len()) - 1,
         peaks: peaks.clone(),
     };
 
-    // odd length bigger than 16 is padded to the next even nubmer
-    let mut expected_peaks = peaks.clone();
+    // odd length bigger than 16 is padded to the next even number
+    let mut expected_peaks = peaks;
     expected_peaks.resize(18, RpoDigest::default());
     assert_eq!(
         accumulator.hash_peaks(),
@@ -488,5 +488,5 @@ mod property_tests {
 // ================================================================================================
 
 fn digests_to_elements(digests: &[RpoDigest]) -> Vec<Felt> {
-    digests.iter().flat_map(|v| Word::from(v)).collect()
+    digests.iter().flat_map(Word::from).collect()
 }

@@ -287,7 +287,7 @@ mod tests {
 
         // leaves were copied correctly
         for (a, b) in tree.nodes.iter().skip(4).zip(LEAVES4.iter()) {
-            assert_eq!(*a, RpoDigest::from(*b));
+            assert_eq!(a, b);
         }
 
         let (root, node2, node3) = compute_internal_nodes();
@@ -341,7 +341,7 @@ mod tests {
         let value = 3;
         let new_node = int_to_leaf(9);
         let mut expected_leaves = digests_to_words(&LEAVES8);
-        expected_leaves[value as usize] = new_node.into();
+        expected_leaves[value as usize] = new_node;
         let expected_tree = super::MerkleTree::new(expected_leaves.clone()).unwrap();
 
         tree.update_leaf(value, new_node).unwrap();
@@ -408,8 +408,8 @@ mod tests {
             let digest = RpoDigest::from(word);
 
             // assert the addresses are different
-            let word_ptr = (&word).as_ptr() as *const u8;
-            let digest_ptr = (&digest).as_ptr() as *const u8;
+            let word_ptr = word.as_ptr() as *const u8;
+            let digest_ptr = digest.as_ptr() as *const u8;
             assert_ne!(word_ptr, digest_ptr);
 
             // compare the bytes representation

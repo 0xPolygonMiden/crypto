@@ -432,10 +432,10 @@ fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
 fn get_non_empty_nodes(store: &MerkleStore) -> Vec<InnerNodeInfo> {
     store
         .inner_nodes()
-        .filter(|node| !is_empty_subtree(&RpoDigest::from(node.value)))
+        .filter(|node| !is_empty_subtree(&node.value))
         .collect::<Vec<_>>()
 }
 
 fn is_empty_subtree(node: &RpoDigest) -> bool {
-    EmptySubtreeRoots::empty_hashes(255).contains(&node)
+    EmptySubtreeRoots::empty_hashes(255).contains(node)
 }

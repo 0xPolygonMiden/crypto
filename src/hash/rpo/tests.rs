@@ -206,7 +206,7 @@ fn sponge_bytes_with_remainder_length_wont_panic() {
     // size.
     //
     // this is a preliminary test to the fuzzy-stress of proptest.
-    Rpo256::hash(&vec![0; 113]);
+    Rpo256::hash(&[0; 113]);
 }
 
 #[test]
@@ -230,8 +230,8 @@ fn sponge_zeroes_collision() {
 
 proptest! {
     #[test]
-    fn rpo256_wont_panic_with_arbitrary_input(ref vec in any::<Vec<u8>>()) {
-        Rpo256::hash(&vec);
+    fn rpo256_wont_panic_with_arbitrary_input(ref bytes in any::<Vec<u8>>()) {
+        Rpo256::hash(bytes);
     }
 }
 

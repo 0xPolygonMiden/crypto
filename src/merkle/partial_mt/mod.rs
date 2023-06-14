@@ -1,6 +1,5 @@
 use super::{
-    BTreeMap, BTreeSet, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, ValuePath, Vec,
-    Word, EMPTY_WORD,
+    BTreeMap, BTreeSet, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, ValuePath, Vec, ZERO,
 };
 use crate::utils::{format, string::String, word_to_hex};
 use core::fmt;
@@ -15,7 +14,7 @@ mod tests;
 const ROOT_INDEX: NodeIndex = NodeIndex::root();
 
 /// An RpoDigest consisting of 4 ZERO elements.
-const EMPTY_DIGEST: RpoDigest = RpoDigest::new(EMPTY_WORD);
+const EMPTY_DIGEST: RpoDigest = RpoDigest::new([ZERO; 4]);
 
 // PARTIAL MERKLE TREE
 // ================================================================================================
@@ -50,7 +49,7 @@ impl PartialMerkleTree {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns a new emply [PartialMerkleTree].
+    /// Returns a new empty [PartialMerkleTree].
     pub fn new() -> Self {
         PartialMerkleTree {
             max_depth: 0,
@@ -108,7 +107,7 @@ impl PartialMerkleTree {
             paths.push((
                 leaf,
                 ValuePath {
-                    value: *self.get_node(leaf).expect("Failed to get leaf node"),
+                    value: self.get_node(leaf).expect("Failed to get leaf node"),
                     path: self.get_path(leaf).expect("Failed to get path"),
                 },
             ));
@@ -142,7 +141,7 @@ impl PartialMerkleTree {
             index.move_up();
             let sibling =
                 self.nodes.get(&sibling_index).cloned().expect("Sibling node not in the map");
-            path.push(Word::from(sibling));
+            path.push(sibling);
         }
         Ok(MerklePath::new(path))
     }
@@ -189,11 +188,11 @@ impl PartialMerkleTree {
 
         // add provided node and its sibling to the nodes map
         self.nodes.insert(index_value, value);
-        self.nodes.insert(sibling_node_index, path[0].into());
+        self.nodes.insert(sibling_node_index, path[0]);
 
         // traverse to the root, updating the nodes
         let mut index_value = index_value;
-        let node = Rpo256::merge(&index_value.build_node(value, path[0].into()));
+        let node = Rpo256::merge(&index_value.build_node(value, path[0]));
         let root = path.iter().skip(1).copied().fold(node, |node, hash| {
             index_value.move_up();
             // insert calculated node to the nodes map
@@ -215,11 +214,11 @@ impl PartialMerkleTree {
             // - New node can be a calculated node or a "sibling" node from a Merkle Path:
             // --- Calculated node, obviously, never can be a leaf.
             // --- Sibling node can be only a leaf, because otherwise it is not a new node.
-            if self.nodes.insert(sibling_node, hash.into()).is_none() {
+            if self.nodes.insert(sibling_node, hash).is_none() {
                 self.leaves.insert(sibling_node);
             }
 
-            Rpo256::merge(&index_value.build_node(node, hash.into()))
+            Rpo256::merge(&index_value.build_node(node, hash))
         });
 
         // if the path set is empty (the root is all ZEROs), set the root to the root of the added
@@ -227,7 +226,7 @@ impl PartialMerkleTree {
         if self.root() == EMPTY_DIGEST {
             self.nodes.insert(ROOT_INDEX, root);
         } else if self.root() != root {
-            return Err(MerkleError::ConflictingRoots([*self.root(), *root].to_vec()));
+            return Err(MerkleError::ConflictingRoots([self.root(), root].to_vec()));
         }
 
         Ok(())

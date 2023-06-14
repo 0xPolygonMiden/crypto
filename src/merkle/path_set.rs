@@ -354,35 +354,35 @@ mod tests {
         let m = Rpo256::merge(&[i, j]);
         let n = Rpo256::merge(&[k, l]);
 
-        let root = Rpo256::merge(&[m.into(), n.into()]);
+        let root = Rpo256::merge(&[m, n]);
 
         let mut set = MerklePathSet::new(3);
 
         let value = b;
         let index = 1;
         let path = MerklePath::new([a, j, n].to_vec());
-        set.add_path(index, value.into(), path.clone()).unwrap();
+        set.add_path(index, value.into(), path).unwrap();
         assert_eq!(*value, set.get_leaf(index).unwrap());
         assert_eq!(root, set.root());
 
         let value = e;
         let index = 4;
-        let path = MerklePath::new([f.into(), l.into(), m.into()].to_vec());
-        set.add_path(index, value.into(), path.clone()).unwrap();
+        let path = MerklePath::new([f, l, m].to_vec());
+        set.add_path(index, value.into(), path).unwrap();
         assert_eq!(*value, set.get_leaf(index).unwrap());
         assert_eq!(root, set.root());
 
         let value = a;
         let index = 0;
-        let path = MerklePath::new([b.into(), j.into(), n.into()].to_vec());
-        set.add_path(index, value.into(), path.clone()).unwrap();
+        let path = MerklePath::new([b, j, n].to_vec());
+        set.add_path(index, value.into(), path).unwrap();
         assert_eq!(*value, set.get_leaf(index).unwrap());
         assert_eq!(root, set.root());
 
         let value = h;
         let index = 7;
-        let path = MerklePath::new([g.into(), k.into(), m.into()].to_vec());
-        set.add_path(index, value.into(), path.clone()).unwrap();
+        let path = MerklePath::new([g, k, m].to_vec());
+        set.add_path(index, value.into(), path).unwrap();
         assert_eq!(*value, set.get_leaf(index).unwrap());
         assert_eq!(root, set.root());
     }

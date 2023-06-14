@@ -203,7 +203,7 @@ fn small_tree_opening_is_consistent() {
     let entries = vec![(0, a), (1, b), (4, c), (7, d)];
     let tree = SimpleSmt::with_leaves(depth, entries).unwrap();
 
-    assert_eq!(tree.root(), RpoDigest::from(k));
+    assert_eq!(tree.root(), k);
 
     let cases: Vec<(u8, u64, Vec<RpoDigest>)> = vec![
         (3, 0, vec![b.into(), f, j]),
