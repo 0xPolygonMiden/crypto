@@ -1,4 +1,5 @@
 use super::{
+    data::{KvMap, RecordingMap},
     hash::rpo::{Rpo256, RpoDigest},
     utils::collections::{vec, BTreeMap, BTreeSet, Vec},
     Felt, StarkField, Word, WORD_SIZE, ZERO,
@@ -33,7 +34,10 @@ mod mmr;
 pub use mmr::{Mmr, MmrPeaks, MmrProof};
 
 mod store;
-pub use store::MerkleStore;
+pub use store::{
+    GenericMerkleStore, MerkleMap, MerkleMapT, MerkleStore, RecordingMerkleMap,
+    RecordingMerkleStore,
+};
 
 mod node;
 pub use node::InnerNodeInfo;

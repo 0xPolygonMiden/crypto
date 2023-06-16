@@ -154,7 +154,8 @@ impl PartialMerkleTree {
         self.leaves.iter().map(|&leaf| {
             (
                 leaf,
-                self.get_node(leaf).expect(&format!("Leaf with {leaf} is not in the nodes map")),
+                self.get_node(leaf)
+                    .unwrap_or_else(|_| panic!("Leaf with {leaf} is not in the nodes map")),
             )
         })
     }

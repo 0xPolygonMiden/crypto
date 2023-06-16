@@ -11,7 +11,7 @@ pub use std::format;
 // RE-EXPORTS
 // ================================================================================================
 pub use winter_utils::{
-    collections, string, uninit_vector, ByteReader, ByteWriter, Deserializable,
+    collections, string, uninit_vector, Box, ByteReader, ByteWriter, Deserializable,
     DeserializationError, Serializable, SliceReader,
 };
 

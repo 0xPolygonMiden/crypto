@@ -1,6 +1,7 @@
 use super::{
-    mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerklePathSet,
-    MerkleTree, NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, TieredSmt, ValuePath, Vec,
+    mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath,
+    MerklePathSet, MerkleTree, NodeIndex, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
+    TieredSmt, ValuePath, Vec,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::borrow::Borrow;
@@ -8,11 +9,55 @@ use core::borrow::Borrow;
 #[cfg(test)]
 mod tests;
 
+// TRAIT / TYPE DECLARATIONS
+// ================================================================================================
+/// A supertrait that defines the required traits for a type to be used as a data map backend for
+/// the [GenericMerkleStore]
+pub trait MerkleMapT:
+    KvMap<RpoDigest, Node>
+    + Extend<(RpoDigest, Node)>
+    + FromIterator<(RpoDigest, Node)>
+    + IntoIterator<Item = (RpoDigest, Node)>
+{
+}
+
+// MERKLE STORE
+// ------------------------------------------------------------------------------------------------
+
+/// Type that represents a standard MerkleStore.
+pub type MerkleStore = GenericMerkleStore<MerkleMap>;
+
+/// Declaration of a BTreeMap that uses a [RpoDigest] as a key and a [Node] as the value. This type
+/// is used as a data backend for the standard [GenericMerkleStore].
+pub type MerkleMap = BTreeMap<RpoDigest, Node>;
+
+/// Implementation of [MerkleMapT] trait on [MerkleMap].
+impl MerkleMapT for MerkleMap {}
+
+// RECORDING MERKLE STORE
+// ------------------------------------------------------------------------------------------------
+
+/// Type that represents a MerkleStore with recording capabilities.
+pub type RecordingMerkleStore = GenericMerkleStore<RecordingMerkleMap>;
+
+/// Declaration of a [RecordingMap] that uses a [RpoDigest] as a key and a [Node] as the value.
+/// This type is used as a data backend for the recording [GenericMerkleStore].
+pub type RecordingMerkleMap = RecordingMap<RpoDigest, Node>;
+
+/// Implementation of [MerkleMapT] on [RecordingMerkleMap].
+impl MerkleMapT for RecordingMerkleMap {}
+
+// NODE DEFINITION
+// ================================================================================================
+
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct Node {
     left: RpoDigest,
     right: RpoDigest,
 }
+
+// MERKLE STORE IMPLEMENTATION
+// ================================================================================================
 
 /// An in-memory data store for Merkelized data.
 ///
@@ -51,9 +96,8 @@ pub struct Node {
 /// let tree2 = MerkleTree::new(vec![A, B, C, D, E, F, G, H1]).unwrap();
 ///
 /// // populates the store with two merkle trees, common nodes are shared
-/// store
-///     .extend(tree1.inner_nodes())
-///     .extend(tree2.inner_nodes());
+/// store.extend(tree1.inner_nodes());
+/// store.extend(tree2.inner_nodes());
 ///
 /// // every leaf except the last are the same
 /// for i in 0..7 {
@@ -78,41 +122,25 @@ pub struct Node {
 /// assert_eq!(store.num_internal_nodes() - 255, 10);
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct MerkleStore {
-    nodes: BTreeMap<RpoDigest, Node>,
+pub struct GenericMerkleStore<T: MerkleMapT> {
+    nodes: T,
 }
 
-impl Default for MerkleStore {
+impl<T: MerkleMapT> Default for GenericMerkleStore<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MerkleStore {
+impl<T: MerkleMapT> GenericMerkleStore<T> {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
-    /// Creates an empty `MerkleStore` instance.
-    pub fn new() -> MerkleStore {
+    /// Creates an empty `GenericMerkleStore` instance.
+    pub fn new() -> GenericMerkleStore<T> {
         // pre-populate the store with the empty hashes
-        let subtrees = EmptySubtreeRoots::empty_hashes(255);
-        let nodes = subtrees
-            .iter()
-            .rev()
-            .copied()
-            .zip(subtrees.iter().rev().skip(1).copied())
-            .map(|(child, parent)| {
-                (
-                    parent,
-                    Node {
-                        left: child,
-                        right: child,
-                    },
-                )
-            })
-            .collect();
-
-        MerkleStore { nodes }
+        let nodes = empty_hashes().into_iter().collect();
+        GenericMerkleStore { nodes }
     }
 
     // PUBLIC ACCESSORS
@@ -261,12 +289,12 @@ impl MerkleStore {
     /// nodes which are descendants of the specified roots.
     ///
     /// The roots for which no descendants exist in this Merkle store are ignored.
-    pub fn subset<I, R>(&self, roots: I) -> MerkleStore
+    pub fn subset<I, R>(&self, roots: I) -> GenericMerkleStore<T>
     where
         I: Iterator<Item = R>,
         R: Borrow<RpoDigest>,
     {
-        let mut store = MerkleStore::new();
+        let mut store = GenericMerkleStore::new();
         for root in roots {
             let root = *root.borrow();
             store.clone_tree_from(root, self);
@@ -274,7 +302,7 @@ impl MerkleStore {
         store
     }
 
-    /// Iterator over the inner nodes of the [MerkleStore].
+    /// Iterator over the inner nodes of the [GenericMerkleStore].
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         self.nodes.iter().map(|(r, n)| InnerNodeInfo {
             value: *r,
@@ -285,23 +313,6 @@ impl MerkleStore {
 
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
-
-    /// Adds a sequence of nodes yielded by the provided iterator into the store.
-    pub fn extend<I>(&mut self, iter: I) -> &mut MerkleStore
-    where
-        I: Iterator<Item = InnerNodeInfo>,
-    {
-        for node in iter {
-            let value: RpoDigest = node.value;
-            let left: RpoDigest = node.left;
-            let right: RpoDigest = node.right;
-
-            debug_assert_eq!(Rpo256::merge(&[left, right]), value);
-            self.nodes.insert(value, Node { left, right });
-        }
-
-        self
-    }
 
     /// Adds all the nodes of a Merkle path represented by `path`, opening to `node`. Returns the
     /// new root.
@@ -332,7 +343,7 @@ impl MerkleStore {
     /// This will compute the sibling elements for each Merkle `path` and include all the nodes
     /// into the store.
     ///
-    /// For further reference, check [MerkleStore::add_merkle_path].
+    /// For further reference, check [GenericMerkleStore::add_merkle_path].
     pub fn add_merkle_paths<I>(&mut self, paths: I) -> Result<(), MerkleError>
     where
         I: IntoIterator<Item = (u64, RpoDigest, MerklePath)>,
@@ -345,7 +356,7 @@ impl MerkleStore {
 
     /// Appends the provided [MerklePathSet] into the store.
     ///
-    /// For further reference, check [MerkleStore::add_merkle_path].
+    /// For further reference, check [GenericMerkleStore::add_merkle_path].
     pub fn add_merkle_path_set(
         &mut self,
         path_set: &MerklePathSet,
@@ -420,55 +431,126 @@ impl MerkleStore {
     }
 }
 
+// RECORDING MERKLE STORE FINALIZER
+// ===============================================================================================
+
+impl RecordingMerkleStore {
+    /// Consumes the [DataRecorder] and returns a [BTreeMap] containing the key-value pairs from
+    /// the initial data set that were read during recording.
+    pub fn into_proof(self) -> MerkleMap {
+        self.nodes.into_proof()
+    }
+}
+
+// EMPTY HASHES
+// ================================================================================================
+/// Creates empty hashes for all the subtrees of a tree with a max depth of 255.
+fn empty_hashes() -> impl IntoIterator<Item = (RpoDigest, Node)> {
+    let subtrees = EmptySubtreeRoots::empty_hashes(255);
+    subtrees.iter().rev().copied().zip(subtrees.iter().rev().skip(1).copied()).map(
+        |(child, parent)| {
+            (
+                parent,
+                Node {
+                    left: child,
+                    right: child,
+                },
+            )
+        },
+    )
+}
+
+/// Consumes an iterator of [InnerNodeInfo] and returns an iterator of `(value, node)` tuples
+/// which includes the nodes associate with roots of empty subtrees up to a depth of 255.
+fn combine_nodes_with_empty_hashes(
+    nodes: impl IntoIterator<Item = InnerNodeInfo>,
+) -> impl Iterator<Item = (RpoDigest, Node)> {
+    nodes
+        .into_iter()
+        .map(|info| {
+            (
+                info.value,
+                Node {
+                    left: info.left,
+                    right: info.right,
+                },
+            )
+        })
+        .chain(empty_hashes().into_iter())
+}
+
 // CONVERSIONS
 // ================================================================================================
 
-impl From<&MerkleTree> for MerkleStore {
+impl<T: MerkleMapT> From<&MerkleTree> for GenericMerkleStore<T> {
     fn from(value: &MerkleTree) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(value.inner_nodes());
-        store
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        GenericMerkleStore { nodes }
     }
 }
 
-impl From<&SimpleSmt> for MerkleStore {
+impl<T: MerkleMapT> From<&SimpleSmt> for GenericMerkleStore<T> {
     fn from(value: &SimpleSmt) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(value.inner_nodes());
-        store
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        GenericMerkleStore { nodes }
     }
 }
 
-impl From<&Mmr> for MerkleStore {
+impl<T: MerkleMapT> From<&Mmr> for GenericMerkleStore<T> {
     fn from(value: &Mmr) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(value.inner_nodes());
-        store
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        GenericMerkleStore { nodes }
     }
 }
 
-impl From<&TieredSmt> for MerkleStore {
+impl<T: MerkleMapT> From<&TieredSmt> for GenericMerkleStore<T> {
     fn from(value: &TieredSmt) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(value.inner_nodes());
-        store
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        GenericMerkleStore { nodes }
     }
 }
 
-impl FromIterator<InnerNodeInfo> for MerkleStore {
-    fn from_iter<T: IntoIterator<Item = InnerNodeInfo>>(iter: T) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(iter.into_iter());
-        store
+impl<T: MerkleMapT> FromIterator<InnerNodeInfo> for GenericMerkleStore<T> {
+    fn from_iter<I: IntoIterator<Item = InnerNodeInfo>>(iter: I) -> Self {
+        let nodes = combine_nodes_with_empty_hashes(iter).collect();
+        GenericMerkleStore { nodes }
+    }
+}
+
+impl From<MerkleStore> for RecordingMerkleStore {
+    fn from(value: MerkleStore) -> Self {
+        GenericMerkleStore {
+            nodes: RecordingMerkleMap::new(value.nodes.into_iter()),
+        }
+    }
+}
+
+impl FromIterator<(RpoDigest, Node)> for RecordingMerkleMap {
+    fn from_iter<T: IntoIterator<Item = (RpoDigest, Node)>>(iter: T) -> Self {
+        RecordingMerkleMap::new(iter)
+    }
+}
+
+impl From<MerkleMap> for MerkleStore {
+    fn from(value: MerkleMap) -> Self {
+        GenericMerkleStore { nodes: value }
     }
 }
 
 // ITERATORS
 // ================================================================================================
 
-impl Extend<InnerNodeInfo> for MerkleStore {
-    fn extend<T: IntoIterator<Item = InnerNodeInfo>>(&mut self, iter: T) {
-        self.extend(iter.into_iter());
+impl<T: MerkleMapT> Extend<InnerNodeInfo> for GenericMerkleStore<T> {
+    fn extend<I: IntoIterator<Item = InnerNodeInfo>>(&mut self, iter: I) {
+        self.nodes.extend(iter.into_iter().map(|info| {
+            (
+                info.value,
+                Node {
+                    left: info.left,
+                    right: info.right,
+                },
+            )
+        }));
     }
 }
 
@@ -490,7 +572,7 @@ impl Deserializable for Node {
     }
 }
 
-impl Serializable for MerkleStore {
+impl<T: MerkleMapT> Serializable for GenericMerkleStore<T> {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_u64(self.nodes.len() as u64);
 
@@ -501,10 +583,10 @@ impl Serializable for MerkleStore {
     }
 }
 
-impl Deserializable for MerkleStore {
+impl Deserializable for GenericMerkleStore<MerkleMap> {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let len = source.read_u64()?;
-        let mut nodes: BTreeMap<RpoDigest, Node> = BTreeMap::new();
+        let mut nodes: MerkleMap = BTreeMap::new();
 
         for _ in 0..len {
             let key = RpoDigest::read_from(source)?;
@@ -512,6 +594,6 @@ impl Deserializable for MerkleStore {
             nodes.insert(key, value);
         }
 
-        Ok(MerkleStore { nodes })
+        Ok(GenericMerkleStore { nodes })
     }
 }
