@@ -14,7 +14,6 @@ For performance benchmarks of these hash functions and their comparison to other
 
 * `Mmr`: a Merkle mountain range structure designed to function as an append-only log.
 * `MerkleTree`: a regular fully-balanced binary Merkle tree. The depth of this tree can be at most 64.
-* `MerklePathSet`: a collection of Merkle authentication paths all resolving to the same root. The length of the paths can be at most 64.
 * `MerkleStore`: a collection of Merkle trees of different heights designed to efficiently store trees with common subtrees. When instantiated with `RecordingMap`, a Merkle store records all accesses to the original data.
 * `PartialMerkleTree`: a partial view of a Merkle tree where some sub-trees may not be known. This is similar to a collection of Merkle paths all resolving to the same root. The length of the paths can be at most 64.
 * `SimpleSmt`: a Sparse Merkle Tree (with no compaction), mapping 64-bit keys to 4-element values.

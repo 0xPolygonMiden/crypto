@@ -340,6 +340,8 @@ impl PartialMerkleTree {
     }
 
     /// Updates value of the leaf at the specified index returning the old leaf value.
+    /// By default the specified index is assumed to belong to the deepest layer. If the considered
+    /// node does not belong to the tree, the first node on the way to the root will be changed.
     ///
     /// By default the specified index is assumed to belong to the deepest layer. If the considered
     /// node does not belong to the tree, the first node on the way to the root will be changed.

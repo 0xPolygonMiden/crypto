@@ -1,5 +1,7 @@
 ## 0.7.0 (TBD)
 
+* Replaced `MerklePathSet` with `PartialMerkleTree` (#165).
+
 ## 0.6.0 (2023-06-25)
 
 * [BREAKING] Added support for recording capabilities for `MerkleStore` (#162).

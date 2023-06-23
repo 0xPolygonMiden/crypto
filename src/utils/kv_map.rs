@@ -326,8 +326,8 @@ mod tests {
         // check that the proof contains the expected values
         for (key, _) in ITEMS.iter() {
             match get_items.contains(key) {
-                true => assert_eq!(proof.contains_key(key), true),
-                false => assert_eq!(proof.contains_key(key), false),
+                true => assert!(proof.contains_key(key)),
+                false => assert!(!proof.contains_key(key)),
             }
         }
     }

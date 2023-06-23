@@ -1,7 +1,7 @@
 use super::{
     empty_roots::EMPTY_WORD, mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap,
-    MerkleError, MerklePath, MerklePathSet, MerkleStoreDelta, MerkleTree, NodeIndex, RecordingMap,
-    RootPath, Rpo256, RpoDigest, SimpleSmt, TieredSmt, TryApplyDiff, ValuePath, Vec,
+    MerkleError, MerklePath, MerkleStoreDelta, MerkleTree, NodeIndex, PartialMerkleTree,
+    RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt, TieredSmt, TryApplyDiff, ValuePath, Vec,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::borrow::Borrow;
@@ -351,20 +351,6 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
         Ok(())
     }
 
-    /// Appends the provided [MerklePathSet] into the store.
-    ///
-    /// For further reference, check [MerkleStore::add_merkle_path].
-    pub fn add_merkle_path_set(
-        &mut self,
-        path_set: &MerklePathSet,
-    ) -> Result<RpoDigest, MerkleError> {
-        let root = path_set.root();
-        for (index, path) in path_set.to_paths() {
-            self.add_merkle_path(index, path.value, path.path)?;
-        }
-        Ok(root)
-    }
-
     /// Sets a node to `value`.
     ///
     /// # Errors
@@ -462,6 +448,13 @@ impl<T: KvMap<RpoDigest, StoreNode>> From<&Mmr> for MerkleStore<T> {
 
 impl<T: KvMap<RpoDigest, StoreNode>> From<&TieredSmt> for MerkleStore<T> {
     fn from(value: &TieredSmt) -> Self {
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        Self { nodes }
+    }
+}
+
+impl<T: KvMap<RpoDigest, StoreNode>> From<&PartialMerkleTree> for MerkleStore<T> {
+    fn from(value: &PartialMerkleTree) -> Self {
         let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
         Self { nodes }
     }
