@@ -68,6 +68,12 @@ impl MerklePath {
     }
 }
 
+impl From<MerklePath> for Vec<RpoDigest> {
+    fn from(path: MerklePath) -> Self {
+        path.nodes
+    }
+}
+
 impl From<Vec<RpoDigest>> for MerklePath {
     fn from(path: Vec<RpoDigest>) -> Self {
         Self::new(path)

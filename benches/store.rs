@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
-use miden_crypto::merkle::{MerkleStore, MerkleTree, NodeIndex, SimpleSmt};
+use miden_crypto::merkle::{DefaultMerkleStore as MerkleStore, MerkleTree, NodeIndex, SimpleSmt};
 use miden_crypto::Word;
 use miden_crypto::{hash::rpo::RpoDigest, Felt};
 use rand_utils::{rand_array, rand_value};

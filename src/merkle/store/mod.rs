@@ -1,12 +1,22 @@
 use super::{
-    mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerklePathSet,
-    MerkleTree, NodeIndex, RootPath, Rpo256, RpoDigest, SimpleSmt, TieredSmt, ValuePath, Vec,
+    mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath,
+    MerklePathSet, MerkleTree, NodeIndex, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
+    TieredSmt, ValuePath, Vec,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::borrow::Borrow;
 
 #[cfg(test)]
 mod tests;
+
+// MERKLE STORE
+// ================================================================================================
+
+/// A default [MerkleStore] which uses a simple [BTreeMap] as the backing storage.
+pub type DefaultMerkleStore = MerkleStore<BTreeMap<RpoDigest, Node>>;
+
+/// A [MerkleStore] with recording capabilities which uses [RecordingMap] as the backing storage.
+pub type RecordingMerkleStore = MerkleStore<RecordingMap<RpoDigest, Node>>;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct Node {
@@ -42,7 +52,7 @@ pub struct Node {
 /// # let T1 = MerkleTree::new([A, B, C, D, E, F, G, H1].to_vec()).expect("even number of leaves provided");
 /// # let ROOT0 = T0.root();
 /// # let ROOT1 = T1.root();
-/// let mut store = MerkleStore::new();
+/// let mut store: MerkleStore = MerkleStore::new();
 ///
 /// // the store is initialized with the SMT empty nodes
 /// assert_eq!(store.num_internal_nodes(), 255);
@@ -51,9 +61,8 @@ pub struct Node {
 /// let tree2 = MerkleTree::new(vec![A, B, C, D, E, F, G, H1]).unwrap();
 ///
 /// // populates the store with two merkle trees, common nodes are shared
-/// store
-///     .extend(tree1.inner_nodes())
-///     .extend(tree2.inner_nodes());
+/// store.extend(tree1.inner_nodes());
+/// store.extend(tree2.inner_nodes());
 ///
 /// // every leaf except the last are the same
 /// for i in 0..7 {
@@ -78,40 +87,24 @@ pub struct Node {
 /// assert_eq!(store.num_internal_nodes() - 255, 10);
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct MerkleStore {
-    nodes: BTreeMap<RpoDigest, Node>,
+pub struct MerkleStore<T: KvMap<RpoDigest, Node> = BTreeMap<RpoDigest, Node>> {
+    nodes: T,
 }
 
-impl Default for MerkleStore {
+impl<T: KvMap<RpoDigest, Node>> Default for MerkleStore<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MerkleStore {
+impl<T: KvMap<RpoDigest, Node>> MerkleStore<T> {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
     /// Creates an empty `MerkleStore` instance.
-    pub fn new() -> MerkleStore {
+    pub fn new() -> MerkleStore<T> {
         // pre-populate the store with the empty hashes
-        let subtrees = EmptySubtreeRoots::empty_hashes(255);
-        let nodes = subtrees
-            .iter()
-            .rev()
-            .copied()
-            .zip(subtrees.iter().rev().skip(1).copied())
-            .map(|(child, parent)| {
-                (
-                    parent,
-                    Node {
-                        left: child,
-                        right: child,
-                    },
-                )
-            })
-            .collect();
-
+        let nodes = empty_hashes().into_iter().collect();
         MerkleStore { nodes }
     }
 
@@ -126,10 +119,10 @@ impl MerkleStore {
     /// Returns the node at `index` rooted on the tree `root`.
     ///
     /// # Errors
-    ///
     /// This method can return the following errors:
     /// - `RootNotInStore` if the `root` is not present in the store.
-    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in
+    ///   the store.
     pub fn get_node(&self, root: RpoDigest, index: NodeIndex) -> Result<RpoDigest, MerkleError> {
         let mut hash = root;
 
@@ -153,7 +146,8 @@ impl MerkleStore {
     /// # Errors
     /// This method can return the following errors:
     /// - `RootNotInStore` if the `root` is not present in the store.
-    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in
+    ///   the store.
     pub fn get_path(&self, root: RpoDigest, index: NodeIndex) -> Result<ValuePath, MerkleError> {
         let mut hash = root;
         let mut path = Vec::with_capacity(index.depth().into());
@@ -197,7 +191,7 @@ impl MerkleStore {
     /// - The path from the root continues to a depth greater than `tree_depth`.
     /// - The provided `tree_depth` is greater than `64.
     /// - The provided `index` is not valid for a depth equivalent to `tree_depth`. For more
-    /// information, check [NodeIndex::new].
+    ///   information, check [NodeIndex::new].
     pub fn get_leaf_depth(
         &self,
         root: RpoDigest,
@@ -261,7 +255,7 @@ impl MerkleStore {
     /// nodes which are descendants of the specified roots.
     ///
     /// The roots for which no descendants exist in this Merkle store are ignored.
-    pub fn subset<I, R>(&self, roots: I) -> MerkleStore
+    pub fn subset<I, R>(&self, roots: I) -> MerkleStore<T>
     where
         I: Iterator<Item = R>,
         R: Borrow<RpoDigest>,
@@ -285,23 +279,6 @@ impl MerkleStore {
 
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
-
-    /// Adds a sequence of nodes yielded by the provided iterator into the store.
-    pub fn extend<I>(&mut self, iter: I) -> &mut MerkleStore
-    where
-        I: Iterator<Item = InnerNodeInfo>,
-    {
-        for node in iter {
-            let value: RpoDigest = node.value;
-            let left: RpoDigest = node.left;
-            let right: RpoDigest = node.right;
-
-            debug_assert_eq!(Rpo256::merge(&[left, right]), value);
-            self.nodes.insert(value, Node { left, right });
-        }
-
-        self
-    }
 
     /// Adds all the nodes of a Merkle path represented by `path`, opening to `node`. Returns the
     /// new root.
@@ -360,10 +337,10 @@ impl MerkleStore {
     /// Sets a node to `value`.
     ///
     /// # Errors
-    ///
     /// This method can return the following errors:
     /// - `RootNotInStore` if the `root` is not present in the store.
-    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the store.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in
+    ///   the store.
     pub fn set_node(
         &mut self,
         mut root: RpoDigest,
@@ -401,6 +378,14 @@ impl MerkleStore {
         Ok(parent)
     }
 
+    // DESTRUCTURING
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns the inner storage of this MerkleStore while consuming `self`.
+    pub fn into_inner(self) -> T {
+        self.nodes
+    }
+
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
 
@@ -423,52 +408,69 @@ impl MerkleStore {
 // CONVERSIONS
 // ================================================================================================
 
-impl From<&MerkleTree> for MerkleStore {
+impl<T: KvMap<RpoDigest, Node>> From<&MerkleTree> for MerkleStore<T> {
     fn from(value: &MerkleTree) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(value.inner_nodes());
-        store
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        Self { nodes }
     }
 }
 
-impl From<&SimpleSmt> for MerkleStore {
+impl<T: KvMap<RpoDigest, Node>> From<&SimpleSmt> for MerkleStore<T> {
     fn from(value: &SimpleSmt) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(value.inner_nodes());
-        store
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        Self { nodes }
     }
 }
 
-impl From<&Mmr> for MerkleStore {
+impl<T: KvMap<RpoDigest, Node>> From<&Mmr> for MerkleStore<T> {
     fn from(value: &Mmr) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(value.inner_nodes());
-        store
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        Self { nodes }
     }
 }
 
-impl From<&TieredSmt> for MerkleStore {
+impl<T: KvMap<RpoDigest, Node>> From<&TieredSmt> for MerkleStore<T> {
     fn from(value: &TieredSmt) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(value.inner_nodes());
-        store
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        Self { nodes }
     }
 }
 
-impl FromIterator<InnerNodeInfo> for MerkleStore {
-    fn from_iter<T: IntoIterator<Item = InnerNodeInfo>>(iter: T) -> Self {
-        let mut store = MerkleStore::new();
-        store.extend(iter.into_iter());
-        store
+impl<T: KvMap<RpoDigest, Node>> From<T> for MerkleStore<T> {
+    fn from(values: T) -> Self {
+        let nodes = values.into_iter().chain(empty_hashes().into_iter()).collect();
+        Self { nodes }
+    }
+}
+
+impl<T: KvMap<RpoDigest, Node>> FromIterator<InnerNodeInfo> for MerkleStore<T> {
+    fn from_iter<I: IntoIterator<Item = InnerNodeInfo>>(iter: I) -> Self {
+        let nodes = combine_nodes_with_empty_hashes(iter.into_iter()).collect();
+        Self { nodes }
+    }
+}
+
+impl<T: KvMap<RpoDigest, Node>> FromIterator<(RpoDigest, Node)> for MerkleStore<T> {
+    fn from_iter<I: IntoIterator<Item = (RpoDigest, Node)>>(iter: I) -> Self {
+        let nodes = iter.into_iter().chain(empty_hashes().into_iter()).collect();
+        Self { nodes }
     }
 }
 
 // ITERATORS
 // ================================================================================================
 
-impl Extend<InnerNodeInfo> for MerkleStore {
-    fn extend<T: IntoIterator<Item = InnerNodeInfo>>(&mut self, iter: T) {
-        self.extend(iter.into_iter());
+impl<T: KvMap<RpoDigest, Node>> Extend<InnerNodeInfo> for MerkleStore<T> {
+    fn extend<I: IntoIterator<Item = InnerNodeInfo>>(&mut self, iter: I) {
+        self.nodes.extend(iter.into_iter().map(|info| {
+            (
+                info.value,
+                Node {
+                    left: info.left,
+                    right: info.right,
+                },
+            )
+        }));
     }
 }
 
@@ -490,7 +492,7 @@ impl Deserializable for Node {
     }
 }
 
-impl Serializable for MerkleStore {
+impl<T: KvMap<RpoDigest, Node>> Serializable for MerkleStore<T> {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_u64(self.nodes.len() as u64);
 
@@ -501,17 +503,55 @@ impl Serializable for MerkleStore {
     }
 }
 
-impl Deserializable for MerkleStore {
+impl<T: KvMap<RpoDigest, Node>> Deserializable for MerkleStore<T> {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let len = source.read_u64()?;
-        let mut nodes: BTreeMap<RpoDigest, Node> = BTreeMap::new();
+        let mut nodes: Vec<(RpoDigest, Node)> = Vec::with_capacity(len as usize);
 
         for _ in 0..len {
             let key = RpoDigest::read_from(source)?;
             let value = Node::read_from(source)?;
-            nodes.insert(key, value);
+            nodes.push((key, value));
         }
 
-        Ok(MerkleStore { nodes })
+        Ok(nodes.into_iter().collect())
     }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+
+/// Creates empty hashes for all the subtrees of a tree with a max depth of 255.
+fn empty_hashes() -> impl IntoIterator<Item = (RpoDigest, Node)> {
+    let subtrees = EmptySubtreeRoots::empty_hashes(255);
+    subtrees.iter().rev().copied().zip(subtrees.iter().rev().skip(1).copied()).map(
+        |(child, parent)| {
+            (
+                parent,
+                Node {
+                    left: child,
+                    right: child,
+                },
+            )
+        },
+    )
+}
+
+/// Consumes an iterator of [InnerNodeInfo] and returns an iterator of `(value, node)` tuples
+/// which includes the nodes associate with roots of empty subtrees up to a depth of 255.
+fn combine_nodes_with_empty_hashes(
+    nodes: impl IntoIterator<Item = InnerNodeInfo>,
+) -> impl Iterator<Item = (RpoDigest, Node)> {
+    nodes
+        .into_iter()
+        .map(|info| {
+            (
+                info.value,
+                Node {
+                    left: info.left,
+                    right: info.right,
+                },
+            )
+        })
+        .chain(empty_hashes().into_iter())
 }

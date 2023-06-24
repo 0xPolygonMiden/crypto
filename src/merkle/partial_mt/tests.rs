@@ -1,5 +1,8 @@
 use super::{
-    super::{digests_to_words, int_to_node, MerkleStore, MerkleTree, NodeIndex, PartialMerkleTree},
+    super::{
+        digests_to_words, int_to_node, DefaultMerkleStore as MerkleStore, MerkleTree, NodeIndex,
+        PartialMerkleTree,
+    },
     RpoDigest, ValuePath, Vec,
 };
 

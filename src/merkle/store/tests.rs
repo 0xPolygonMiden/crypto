@@ -1,12 +1,15 @@
 use super::{
-    Deserializable, EmptySubtreeRoots, MerkleError, MerklePath, MerkleStore, NodeIndex, RpoDigest,
-    Serializable,
+    DefaultMerkleStore as MerkleStore, EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex,
+    RecordingMerkleStore, RpoDigest,
 };
 use crate::{
     hash::rpo::Rpo256,
     merkle::{digests_to_words, int_to_leaf, int_to_node, MerklePathSet, MerkleTree, SimpleSmt},
-    Felt, Word, WORD_SIZE,
+    Felt, Word, ONE, WORD_SIZE, ZERO,
 };
+
+#[cfg(feature = "std")]
+use super::{Deserializable, Serializable};
 
 #[cfg(feature = "std")]
 use std::error::Error;
@@ -17,6 +20,7 @@ use std::error::Error;
 const KEYS4: [u64; 4] = [0, 1, 2, 3];
 const VALUES4: [RpoDigest; 4] = [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];
 
+const KEYS8: [u64; 8] = [0, 1, 2, 3, 4, 5, 6, 7];
 const VALUES8: [RpoDigest; 8] = [
     int_to_node(1),
     int_to_node(2),
@@ -809,4 +813,55 @@ fn test_serialization() -> Result<(), Box<dyn Error>> {
     let decoded = MerkleStore::read_from_bytes(&store.to_bytes()).expect("deserialization failed");
     assert_eq!(store, decoded);
     Ok(())
+}
+
+// MERKLE RECORDER
+// ================================================================================================
+#[test]
+fn test_recorder() {
+    // instantiate recorder from MerkleTree and SimpleSmt
+    let mtree = MerkleTree::new(digests_to_words(&VALUES4)).unwrap();
+    let smtree = SimpleSmt::with_leaves(
+        64,
+        KEYS8.into_iter().zip(VALUES8.into_iter().map(|x| x.into()).rev()),
+    )
+    .unwrap();
+
+    let mut recorder: RecordingMerkleStore =
+        mtree.inner_nodes().chain(smtree.inner_nodes()).collect();
+
+    // get nodes from both trees and make sure they are correct
+    let index_0 = NodeIndex::new(mtree.depth(), 0).unwrap();
+    let node = recorder.get_node(mtree.root(), index_0).unwrap();
+    assert_eq!(node, mtree.get_node(index_0).unwrap());
+
+    let index_1 = NodeIndex::new(smtree.depth(), 1).unwrap();
+    let node = recorder.get_node(smtree.root(), index_1).unwrap();
+    assert_eq!(node, smtree.get_node(index_1).unwrap());
+
+    // insert a value and assert that when we request it next time it is accurate
+    let new_value = [ZERO, ZERO, ONE, ONE].into();
+    let index_2 = NodeIndex::new(smtree.depth(), 2).unwrap();
+    let root = recorder.set_node(smtree.root(), index_2, new_value).unwrap().root;
+    assert_eq!(recorder.get_node(root, index_2).unwrap(), new_value);
+
+    // construct the proof
+    let rec_map = recorder.into_inner();
+    let proof = rec_map.into_proof();
+    let merkle_store: MerkleStore = proof.into();
+
+    // make sure the proof contains all nodes from both trees
+    let node = merkle_store.get_node(mtree.root(), index_0).unwrap();
+    assert_eq!(node, mtree.get_node(index_0).unwrap());
+
+    let node = merkle_store.get_node(smtree.root(), index_1).unwrap();
+    assert_eq!(node, smtree.get_node(index_1).unwrap());
+
+    let node = merkle_store.get_node(smtree.root(), index_2).unwrap();
+    assert_eq!(node, smtree.get_leaf(index_2.value()).unwrap().into());
+
+    // assert that is doesnt contain nodes that were not recorded
+    let not_recorded_index = NodeIndex::new(smtree.depth(), 4).unwrap();
+    assert!(merkle_store.get_node(smtree.root(), not_recorded_index).is_err());
+    assert!(smtree.get_node(not_recorded_index).is_ok());
 }

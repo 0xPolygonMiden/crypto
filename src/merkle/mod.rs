@@ -1,6 +1,6 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{vec, BTreeMap, BTreeSet, Vec},
+    utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, Vec},
     Felt, StarkField, Word, WORD_SIZE, ZERO,
 };
 use core::fmt;
@@ -33,7 +33,7 @@ mod mmr;
 pub use mmr::{Mmr, MmrPeaks, MmrProof};
 
 mod store;
-pub use store::MerkleStore;
+pub use store::{DefaultMerkleStore, MerkleStore, RecordingMerkleStore};
 
 mod node;
 pub use node::InnerNodeInfo;
