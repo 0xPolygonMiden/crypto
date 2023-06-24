@@ -4,7 +4,6 @@
 #[cfg_attr(test, macro_use)]
 extern crate alloc;
 
-pub mod data;
 pub mod hash;
 pub mod merkle;
 pub mod utils;

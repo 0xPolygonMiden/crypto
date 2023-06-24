@@ -1,6 +1,6 @@
 use super::{
-    EmptySubtreeRoots, MerkleError, MerklePath, MerkleStore, NodeIndex, RecordingMerkleStore,
-    RpoDigest,
+    DefaultMerkleStore as MerkleStore, EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex,
+    RecordingMerkleStore, RpoDigest,
 };
 use crate::{
     hash::rpo::Rpo256,
@@ -38,7 +38,7 @@ const VALUES8: [RpoDigest; 8] = [
 #[test]
 fn test_root_not_in_store() -> Result<(), MerkleError> {
     let mtree = MerkleTree::new(digests_to_words(&VALUES4))?;
-    let store = MerkleStore::default();
+    let store = MerkleStore::from(&mtree);
     assert_eq!(
         store.get_node(VALUES4[0], NodeIndex::make(mtree.depth(), 0)),
         Err(MerkleError::RootNotInStore(VALUES4[0])),
@@ -826,6 +826,7 @@ fn test_recorder() {
         KEYS8.into_iter().zip(VALUES8.into_iter().map(|x| x.into()).rev()),
     )
     .unwrap();
+
     let mut recorder: RecordingMerkleStore =
         mtree.inner_nodes().chain(smtree.inner_nodes()).collect();
 
@@ -845,7 +846,8 @@ fn test_recorder() {
     assert_eq!(recorder.get_node(root, index_2).unwrap(), new_value);
 
     // construct the proof
-    let proof = recorder.into_proof();
+    let rec_map = recorder.into_inner();
+    let proof = rec_map.into_proof();
     let merkle_store: MerkleStore = proof.into();
 
     // make sure the proof contains all nodes from both trees
