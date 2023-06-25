@@ -1,6 +1,6 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{vec, BTreeMap, BTreeSet, Vec},
+    utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, Vec},
     Felt, StarkField, Word, WORD_SIZE, ZERO,
 };
 use core::fmt;
@@ -10,7 +10,6 @@ use core::fmt;
 
 mod empty_roots;
 pub use empty_roots::EmptySubtreeRoots;
-use empty_roots::EMPTY_WORD;
 
 mod index;
 pub use index::NodeIndex;
@@ -34,17 +33,20 @@ mod mmr;
 pub use mmr::{Mmr, MmrPeaks, MmrProof};
 
 mod store;
-pub use store::MerkleStore;
+pub use store::{DefaultMerkleStore, MerkleStore, RecordingMerkleStore, StoreNode};
 
 mod node;
 pub use node::InnerNodeInfo;
+
+mod partial_mt;
+pub use partial_mt::PartialMerkleTree;
 
 // ERRORS
 // ================================================================================================
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MerkleError {
-    ConflictingRoots(Vec<Word>),
+    ConflictingRoots(Vec<RpoDigest>),
     DepthTooSmall(u8),
     DepthTooBig(u64),
     DuplicateValuesForIndex(u64),
@@ -54,9 +56,9 @@ pub enum MerkleError {
     InvalidPath(MerklePath),
     InvalidNumEntries(usize, usize),
     NodeNotInSet(NodeIndex),
-    NodeNotInStore(Word, NodeIndex),
+    NodeNotInStore(RpoDigest, NodeIndex),
     NumLeavesNotPowerOfTwo(usize),
-    RootNotInStore(Word),
+    RootNotInStore(RpoDigest),
 }
 
 impl fmt::Display for MerkleError {
@@ -95,6 +97,16 @@ impl std::error::Error for MerkleError {}
 // ================================================================================================
 
 #[cfg(test)]
-const fn int_to_node(value: u64) -> Word {
+const fn int_to_node(value: u64) -> RpoDigest {
+    RpoDigest::new([Felt::new(value), ZERO, ZERO, ZERO])
+}
+
+#[cfg(test)]
+const fn int_to_leaf(value: u64) -> Word {
     [Felt::new(value), ZERO, ZERO, ZERO]
+}
+
+#[cfg(test)]
+fn digests_to_words(digests: &[RpoDigest]) -> Vec<Word> {
+    digests.iter().map(|d| d.into()).collect()
 }

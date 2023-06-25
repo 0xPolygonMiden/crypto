@@ -17,11 +17,11 @@ fn tsmt_insert_one() {
     // 16 most significant bits of the key
     let index = NodeIndex::make(16, raw >> 48);
     let leaf_node = build_leaf_node(key, value, 16);
-    let tree_root = store.set_node(smt.root().into(), index, leaf_node.into()).unwrap().root;
+    let tree_root = store.set_node(smt.root(), index, leaf_node).unwrap().root;
 
     smt.insert(key, value);
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     // make sure the value was inserted, and the node is at the expected index
     assert_eq!(smt.get_value(key), value);
@@ -66,15 +66,15 @@ fn tsmt_insert_two_16() {
     let mut tree_root = get_init_root();
     let index_a = NodeIndex::make(32, raw_a >> 32);
     let leaf_node_a = build_leaf_node(key_a, val_a, 32);
-    tree_root = store.set_node(tree_root, index_a, leaf_node_a.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index_a, leaf_node_a).unwrap().root;
 
     let index_b = NodeIndex::make(32, raw_b >> 32);
     let leaf_node_b = build_leaf_node(key_b, val_b, 32);
-    tree_root = store.set_node(tree_root, index_b, leaf_node_b.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index_b, leaf_node_b).unwrap().root;
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
@@ -122,15 +122,15 @@ fn tsmt_insert_two_32() {
     let mut tree_root = get_init_root();
     let index_a = NodeIndex::make(48, raw_a >> 16);
     let leaf_node_a = build_leaf_node(key_a, val_a, 48);
-    tree_root = store.set_node(tree_root, index_a, leaf_node_a.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index_a, leaf_node_a).unwrap().root;
 
     let index_b = NodeIndex::make(48, raw_b >> 16);
     let leaf_node_b = build_leaf_node(key_b, val_b, 48);
-    tree_root = store.set_node(tree_root, index_b, leaf_node_b.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index_b, leaf_node_b).unwrap().root;
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
@@ -181,19 +181,19 @@ fn tsmt_insert_three() {
     let mut tree_root = get_init_root();
     let index_a = NodeIndex::make(32, raw_a >> 32);
     let leaf_node_a = build_leaf_node(key_a, val_a, 32);
-    tree_root = store.set_node(tree_root, index_a, leaf_node_a.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index_a, leaf_node_a).unwrap().root;
 
     let index_b = NodeIndex::make(32, raw_b >> 32);
     let leaf_node_b = build_leaf_node(key_b, val_b, 32);
-    tree_root = store.set_node(tree_root, index_b, leaf_node_b.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index_b, leaf_node_b).unwrap().root;
 
     let index_c = NodeIndex::make(32, raw_c >> 32);
     let leaf_node_c = build_leaf_node(key_c, val_c, 32);
-    tree_root = store.set_node(tree_root, index_c, leaf_node_c.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index_c, leaf_node_c).unwrap().root;
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
@@ -236,9 +236,9 @@ fn tsmt_update() {
     let mut tree_root = get_init_root();
     let index = NodeIndex::make(16, raw >> 48);
     let leaf_node = build_leaf_node(key, value_b, 16);
-    tree_root = store.set_node(tree_root, index, leaf_node.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index, leaf_node).unwrap().root;
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key), value_b);
     assert_eq!(smt.get_node(index).unwrap(), leaf_node);
@@ -281,11 +281,11 @@ fn tsmt_bottom_tier() {
     // key_b is smaller than key_a.
     let leaf_node = build_bottom_leaf_node(&[key_b, key_a], &[val_b, val_a]);
     let mut tree_root = get_init_root();
-    tree_root = store.set_node(tree_root, index, leaf_node.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index, leaf_node).unwrap().root;
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_value(key_b), val_b);
@@ -329,15 +329,15 @@ fn tsmt_bottom_tier_two() {
     let mut tree_root = get_init_root();
     let index_a = NodeIndex::make(64, raw_a);
     let leaf_node_a = build_bottom_leaf_node(&[key_a], &[val_a]);
-    tree_root = store.set_node(tree_root, index_a, leaf_node_a.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index_a, leaf_node_a).unwrap().root;
 
     let index_b = NodeIndex::make(64, raw_b);
     let leaf_node_b = build_bottom_leaf_node(&[key_b], &[val_b]);
-    tree_root = store.set_node(tree_root, index_b, leaf_node_b.into()).unwrap().root;
+    tree_root = store.set_node(tree_root, index_b, leaf_node_b).unwrap().root;
 
     // --- verify that data is consistent between store and tree --------------
 
-    assert_eq!(smt.root(), tree_root.into());
+    assert_eq!(smt.root(), tree_root);
 
     assert_eq!(smt.get_value(key_a), val_a);
     assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
@@ -406,8 +406,8 @@ fn tsmt_node_not_available() {
 // HELPER FUNCTIONS
 // ================================================================================================
 
-fn get_init_root() -> Word {
-    EmptySubtreeRoots::empty_hashes(64)[0].into()
+fn get_init_root() -> RpoDigest {
+    EmptySubtreeRoots::empty_hashes(64)[0]
 }
 
 fn build_leaf_node(key: RpoDigest, value: Word, depth: u8) -> RpoDigest {
@@ -423,7 +423,7 @@ fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
         let mut key = Word::from(key);
         key[3] = ZERO;
         elements.extend_from_slice(&key);
-        elements.extend_from_slice(val);
+        elements.extend_from_slice(val.as_slice());
     }
 
     Rpo256::hash_elements(&elements)
@@ -432,10 +432,10 @@ fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
 fn get_non_empty_nodes(store: &MerkleStore) -> Vec<InnerNodeInfo> {
     store
         .inner_nodes()
-        .filter(|node| !is_empty_subtree(&RpoDigest::from(node.value)))
+        .filter(|node| !is_empty_subtree(&node.value))
         .collect::<Vec<_>>()
 }
 
 fn is_empty_subtree(node: &RpoDigest) -> bool {
-    EmptySubtreeRoots::empty_hashes(255).contains(&node)
+    EmptySubtreeRoots::empty_hashes(255).contains(node)
 }

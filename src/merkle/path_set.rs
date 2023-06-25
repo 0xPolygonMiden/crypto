@@ -1,4 +1,5 @@
-use super::{BTreeMap, MerkleError, MerklePath, NodeIndex, Rpo256, ValuePath, Vec, Word, ZERO};
+use super::{BTreeMap, MerkleError, MerklePath, NodeIndex, Rpo256, ValuePath, Vec};
+use crate::{hash::rpo::RpoDigest, Word};
 
 // MERKLE PATH SET
 // ================================================================================================
@@ -6,7 +7,7 @@ use super::{BTreeMap, MerkleError, MerklePath, NodeIndex, Rpo256, ValuePath, Vec
 /// A set of Merkle paths.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerklePathSet {
-    root: Word,
+    root: RpoDigest,
     total_depth: u8,
     paths: BTreeMap<u64, MerklePath>,
 }
@@ -17,7 +18,7 @@ impl MerklePathSet {
 
     /// Returns an empty MerklePathSet.
     pub fn new(depth: u8) -> Self {
-        let root = [ZERO; 4];
+        let root = RpoDigest::default();
         let paths = BTreeMap::new();
 
         Self {
@@ -32,10 +33,10 @@ impl MerklePathSet {
     /// Analogous to `[Self::add_path]`.
     pub fn with_paths<I>(self, paths: I) -> Result<Self, MerkleError>
     where
-        I: IntoIterator<Item = (u64, Word, MerklePath)>,
+        I: IntoIterator<Item = (u64, RpoDigest, MerklePath)>,
     {
         paths.into_iter().try_fold(self, |mut set, (index, value, path)| {
-            set.add_path(index, value, path)?;
+            set.add_path(index, value.into(), path)?;
             Ok(set)
         })
     }
@@ -44,7 +45,7 @@ impl MerklePathSet {
     // --------------------------------------------------------------------------------------------
 
     /// Returns the root to which all paths in this set resolve.
-    pub const fn root(&self) -> Word {
+    pub const fn root(&self) -> RpoDigest {
         self.root
     }
 
@@ -61,7 +62,7 @@ impl MerklePathSet {
     /// Returns an error if:
     /// * The specified index is not valid for the depth of structure.
     /// * Requested node does not exist in the set.
-    pub fn get_node(&self, index: NodeIndex) -> Result<Word, MerkleError> {
+    pub fn get_node(&self, index: NodeIndex) -> Result<RpoDigest, MerkleError> {
         if index.depth() != self.total_depth {
             return Err(MerkleError::InvalidDepth {
                 expected: self.total_depth,
@@ -84,7 +85,7 @@ impl MerklePathSet {
     /// * Leaf with the requested path does not exist in the set.
     pub fn get_leaf(&self, index: u64) -> Result<Word, MerkleError> {
         let index = NodeIndex::new(self.depth(), index)?;
-        self.get_node(index)
+        Ok(self.get_node(index)?.into())
     }
 
     /// Returns a Merkle path to the node at the specified index. The node itself is
@@ -163,18 +164,18 @@ impl MerklePathSet {
 
         // update the current path
         let parity = index_value & 1;
-        path.insert(parity as usize, value);
+        path.insert(parity as usize, value.into());
 
         // traverse to the root, updating the nodes
-        let root: Word = Rpo256::merge(&[path[0].into(), path[1].into()]).into();
+        let root = Rpo256::merge(&[path[0], path[1]]);
         let root = path.iter().skip(2).copied().fold(root, |root, hash| {
             index.move_up();
-            Rpo256::merge(&index.build_node(root.into(), hash.into())).into()
+            Rpo256::merge(&index.build_node(root, hash))
         });
 
         // if the path set is empty (the root is all ZEROs), set the root to the root of the added
         // path; otherwise, the root of the added path must be identical to the current root
-        if self.root == [ZERO; 4] {
+        if self.root == RpoDigest::default() {
             self.root = root;
         } else if self.root != root {
             return Err(MerkleError::ConflictingRoots([self.root, root].to_vec()));
@@ -203,24 +204,24 @@ impl MerklePathSet {
         // Fill old_hashes vector -----------------------------------------------------------------
         let mut current_index = index;
         let mut old_hashes = Vec::with_capacity(path.len().saturating_sub(2));
-        let mut root: Word = Rpo256::merge(&[path[0].into(), path[1].into()]).into();
+        let mut root = Rpo256::merge(&[path[0], path[1]]);
         for hash in path.iter().skip(2).copied() {
             old_hashes.push(root);
             current_index.move_up();
-            let input = current_index.build_node(hash.into(), root.into());
-            root = Rpo256::merge(&input).into();
+            let input = current_index.build_node(hash, root);
+            root = Rpo256::merge(&input);
         }
 
         // Fill new_hashes vector -----------------------------------------------------------------
-        path[index.is_value_odd() as usize] = value;
+        path[index.is_value_odd() as usize] = value.into();
 
         let mut new_hashes = Vec::with_capacity(path.len().saturating_sub(2));
-        let mut new_root: Word = Rpo256::merge(&[path[0].into(), path[1].into()]).into();
+        let mut new_root = Rpo256::merge(&[path[0], path[1]]);
         for path_hash in path.iter().skip(2).copied() {
             new_hashes.push(new_root);
             index.move_up();
-            let input = current_index.build_node(path_hash.into(), new_root.into());
-            new_root = Rpo256::merge(&input).into();
+            let input = current_index.build_node(path_hash, new_root);
+            new_root = Rpo256::merge(&input);
         }
 
         self.root = new_root;
@@ -245,7 +246,7 @@ impl MerklePathSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::merkle::int_to_node;
+    use crate::merkle::{int_to_leaf, int_to_node};
 
     #[test]
     fn get_root() {
@@ -318,20 +319,20 @@ mod tests {
             ])
             .unwrap();
 
-        let new_hash_6 = int_to_node(100);
-        let new_hash_5 = int_to_node(55);
+        let new_hash_6 = int_to_leaf(100);
+        let new_hash_5 = int_to_leaf(55);
 
         set.update_leaf(index_6, new_hash_6).unwrap();
         let new_path_4 = set.get_path(NodeIndex::make(depth, index_4)).unwrap();
-        let new_hash_67 = calculate_parent_hash(new_hash_6, 14_u64, hash_7);
+        let new_hash_67 = calculate_parent_hash(new_hash_6.into(), 14_u64, hash_7);
         assert_eq!(new_hash_67, new_path_4[1]);
 
         set.update_leaf(index_5, new_hash_5).unwrap();
         let new_path_4 = set.get_path(NodeIndex::make(depth, index_4)).unwrap();
         let new_path_6 = set.get_path(NodeIndex::make(depth, index_6)).unwrap();
-        let new_hash_45 = calculate_parent_hash(new_hash_5, 13_u64, hash_4);
+        let new_hash_45 = calculate_parent_hash(new_hash_5.into(), 13_u64, hash_4);
         assert_eq!(new_hash_45, new_path_6[1]);
-        assert_eq!(new_hash_5, new_path_4[0]);
+        assert_eq!(RpoDigest::from(new_hash_5), new_path_4[0]);
     }
 
     #[test]
@@ -345,45 +346,45 @@ mod tests {
         let g = int_to_node(7);
         let h = int_to_node(8);
 
-        let i = Rpo256::merge(&[a.into(), b.into()]);
-        let j = Rpo256::merge(&[c.into(), d.into()]);
-        let k = Rpo256::merge(&[e.into(), f.into()]);
-        let l = Rpo256::merge(&[g.into(), h.into()]);
+        let i = Rpo256::merge(&[a, b]);
+        let j = Rpo256::merge(&[c, d]);
+        let k = Rpo256::merge(&[e, f]);
+        let l = Rpo256::merge(&[g, h]);
 
-        let m = Rpo256::merge(&[i.into(), j.into()]);
-        let n = Rpo256::merge(&[k.into(), l.into()]);
+        let m = Rpo256::merge(&[i, j]);
+        let n = Rpo256::merge(&[k, l]);
 
-        let root = Rpo256::merge(&[m.into(), n.into()]);
+        let root = Rpo256::merge(&[m, n]);
 
         let mut set = MerklePathSet::new(3);
 
         let value = b;
         let index = 1;
-        let path = MerklePath::new([a.into(), j.into(), n.into()].to_vec());
-        set.add_path(index, value, path.clone()).unwrap();
-        assert_eq!(value, set.get_leaf(index).unwrap());
-        assert_eq!(Word::from(root), set.root());
+        let path = MerklePath::new([a, j, n].to_vec());
+        set.add_path(index, value.into(), path).unwrap();
+        assert_eq!(*value, set.get_leaf(index).unwrap());
+        assert_eq!(root, set.root());
 
         let value = e;
         let index = 4;
-        let path = MerklePath::new([f.into(), l.into(), m.into()].to_vec());
-        set.add_path(index, value, path.clone()).unwrap();
-        assert_eq!(value, set.get_leaf(index).unwrap());
-        assert_eq!(Word::from(root), set.root());
+        let path = MerklePath::new([f, l, m].to_vec());
+        set.add_path(index, value.into(), path).unwrap();
+        assert_eq!(*value, set.get_leaf(index).unwrap());
+        assert_eq!(root, set.root());
 
         let value = a;
         let index = 0;
-        let path = MerklePath::new([b.into(), j.into(), n.into()].to_vec());
-        set.add_path(index, value, path.clone()).unwrap();
-        assert_eq!(value, set.get_leaf(index).unwrap());
-        assert_eq!(Word::from(root), set.root());
+        let path = MerklePath::new([b, j, n].to_vec());
+        set.add_path(index, value.into(), path).unwrap();
+        assert_eq!(*value, set.get_leaf(index).unwrap());
+        assert_eq!(root, set.root());
 
         let value = h;
         let index = 7;
-        let path = MerklePath::new([g.into(), k.into(), m.into()].to_vec());
-        set.add_path(index, value, path.clone()).unwrap();
-        assert_eq!(value, set.get_leaf(index).unwrap());
-        assert_eq!(Word::from(root), set.root());
+        let path = MerklePath::new([g, k, m].to_vec());
+        set.add_path(index, value.into(), path).unwrap();
+        assert_eq!(*value, set.get_leaf(index).unwrap());
+        assert_eq!(root, set.root());
     }
 
     // HELPER FUNCTIONS
@@ -397,11 +398,11 @@ mod tests {
     /// - node — current node
     /// - node_pos — position of the current node
     /// - sibling — neighboring vertex in the tree
-    fn calculate_parent_hash(node: Word, node_pos: u64, sibling: Word) -> Word {
+    fn calculate_parent_hash(node: RpoDigest, node_pos: u64, sibling: RpoDigest) -> RpoDigest {
         if is_even(node_pos) {
-            Rpo256::merge(&[node.into(), sibling.into()]).into()
+            Rpo256::merge(&[node, sibling])
         } else {
-            Rpo256::merge(&[sibling.into(), node.into()]).into()
+            Rpo256::merge(&[sibling, node])
         }
     }
 }

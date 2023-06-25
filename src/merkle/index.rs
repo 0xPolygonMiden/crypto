@@ -190,7 +190,7 @@ mod tests {
             if value > (1 << depth) { // round up
                 depth += 1;
             }
-            NodeIndex::new(depth, value.into()).unwrap()
+            NodeIndex::new(depth, value).unwrap()
         }
     }
 

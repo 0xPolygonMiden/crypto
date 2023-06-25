@@ -10,10 +10,10 @@
 //! depths, i.e. as part of adding adding a new element to the forest the trees with same depth are
 //! merged, creating a new tree with depth d+1, this process is continued until the property is
 //! restabilished.
-use super::bit::TrueBitPositionIterator;
 use super::{
-    super::{InnerNodeInfo, MerklePath, Vec},
-    MmrPeaks, MmrProof, Rpo256, Word,
+    super::{InnerNodeInfo, MerklePath, RpoDigest, Vec},
+    bit::TrueBitPositionIterator,
+    MmrPeaks, MmrProof, Rpo256,
 };
 use core::fmt::{Display, Formatter};
 
@@ -28,6 +28,7 @@ use std::error::Error;
 ///
 /// Since this is a full representation of the MMR, elements are never removed and the MMR will
 /// grow roughly `O(2n)` in number of leaf elements.
+#[derive(Debug, Clone)]
 pub struct Mmr {
     /// Refer to the `forest` method documentation for details of the semantics of this value.
     pub(super) forest: usize,
@@ -38,7 +39,7 @@ pub struct Mmr {
     /// the elements of every tree in the forest to be stored in the same sequential buffer. It
     /// also means new elements can be added to the forest, and merging of trees is very cheap with
     /// no need to copy elements.
-    pub(super) nodes: Vec<Word>,
+    pub(super) nodes: Vec<RpoDigest>,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -129,7 +130,7 @@ impl Mmr {
     /// Note: The leaf position is the 0-indexed number corresponding to the order the leaves were
     /// added, this corresponds to the MMR size _prior_ to adding the element. So the 1st element
     /// has position 0, the second position 1, and so on.
-    pub fn get(&self, pos: usize) -> Result<Word, MmrError> {
+    pub fn get(&self, pos: usize) -> Result<RpoDigest, MmrError> {
         // find the target tree responsible for the MMR position
         let tree_bit =
             leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::InvalidPosition(pos))?;
@@ -153,7 +154,7 @@ impl Mmr {
     }
 
     /// Adds a new element to the MMR.
-    pub fn add(&mut self, el: Word) {
+    pub fn add(&mut self, el: RpoDigest) {
         // Note: every node is also a tree of size 1, adding an element to the forest creates a new
         // rooted-tree of size 1. This may temporarily break the invariant that every tree in the
         // forest has different sizes, the loop below will eagerly merge trees of same size and
@@ -164,7 +165,7 @@ impl Mmr {
         let mut right = el;
         let mut left_tree = 1;
         while self.forest & left_tree != 0 {
-            right = *Rpo256::merge(&[self.nodes[left_offset].into(), right.into()]);
+            right = Rpo256::merge(&[self.nodes[left_offset], right]);
             self.nodes.push(right);
 
             left_offset = left_offset.saturating_sub(nodes_in_forest(left_tree));
@@ -176,7 +177,7 @@ impl Mmr {
 
     /// Returns an accumulator representing the current state of the MMR.
     pub fn accumulator(&self) -> MmrPeaks {
-        let peaks: Vec<Word> = TrueBitPositionIterator::new(self.forest)
+        let peaks: Vec<RpoDigest> = TrueBitPositionIterator::new(self.forest)
             .rev()
             .map(|bit| nodes_in_forest(1 << bit))
             .scan(0, |offset, el| {
@@ -212,7 +213,7 @@ impl Mmr {
         relative_pos: usize,
         index_offset: usize,
         mut index: usize,
-    ) -> (Word, Vec<Word>) {
+    ) -> (RpoDigest, Vec<RpoDigest>) {
         // collect the Merkle path
         let mut tree_depth = tree_bit as usize;
         let mut path = Vec::with_capacity(tree_depth + 1);
@@ -247,7 +248,7 @@ impl Mmr {
 
 impl<T> From<T> for Mmr
 where
-    T: IntoIterator<Item = Word>,
+    T: IntoIterator<Item = RpoDigest>,
 {
     fn from(values: T) -> Self {
         let mut mmr = Mmr::new();

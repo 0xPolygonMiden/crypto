@@ -1,4 +1,7 @@
-use super::{super::Vec, super::ZERO, Felt, MmrProof, Rpo256, Word};
+use super::{
+    super::{RpoDigest, Vec, ZERO},
+    Felt, MmrProof, Rpo256, Word,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MmrPeaks {
@@ -25,7 +28,7 @@ pub struct MmrPeaks {
     /// leaves, starting from the peak with most children, to the one with least.
     ///
     /// Invariant: The length of `peaks` must be equal to the number of true bits in `num_leaves`.
-    pub peaks: Vec<Word>,
+    pub peaks: Vec<RpoDigest>,
 }
 
 impl MmrPeaks {
@@ -38,7 +41,7 @@ impl MmrPeaks {
         Rpo256::hash_elements(&self.flatten_and_pad_peaks()).into()
     }
 
-    pub fn verify(&self, value: Word, opening: MmrProof) -> bool {
+    pub fn verify(&self, value: RpoDigest, opening: MmrProof) -> bool {
         let root = &self.peaks[opening.peak_index()];
         opening.merkle_path.verify(opening.relative_pos() as u64, value, root)
     }
@@ -72,7 +75,15 @@ impl MmrPeaks {
         };
 
         let mut elements = Vec::with_capacity(len);
-        elements.extend_from_slice(&self.peaks.as_slice().concat());
+        elements.extend_from_slice(
+            &self
+                .peaks
+                .as_slice()
+                .iter()
+                .map(|digest| digest.into())
+                .collect::<Vec<Word>>()
+                .concat(),
+        );
         elements.resize(len, ZERO);
         elements
     }
