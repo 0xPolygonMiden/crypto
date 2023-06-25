@@ -13,13 +13,13 @@ mod tests;
 // ================================================================================================
 
 /// A default [MerkleStore] which uses a simple [BTreeMap] as the backing storage.
-pub type DefaultMerkleStore = MerkleStore<BTreeMap<RpoDigest, Node>>;
+pub type DefaultMerkleStore = MerkleStore<BTreeMap<RpoDigest, StoreNode>>;
 
 /// A [MerkleStore] with recording capabilities which uses [RecordingMap] as the backing storage.
-pub type RecordingMerkleStore = MerkleStore<RecordingMap<RpoDigest, Node>>;
+pub type RecordingMerkleStore = MerkleStore<RecordingMap<RpoDigest, StoreNode>>;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
-pub struct Node {
+pub struct StoreNode {
     left: RpoDigest,
     right: RpoDigest,
 }
@@ -87,17 +87,17 @@ pub struct Node {
 /// assert_eq!(store.num_internal_nodes() - 255, 10);
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct MerkleStore<T: KvMap<RpoDigest, Node> = BTreeMap<RpoDigest, Node>> {
+pub struct MerkleStore<T: KvMap<RpoDigest, StoreNode> = BTreeMap<RpoDigest, StoreNode>> {
     nodes: T,
 }
 
-impl<T: KvMap<RpoDigest, Node>> Default for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> Default for MerkleStore<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: KvMap<RpoDigest, Node>> MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
@@ -297,7 +297,7 @@ impl<T: KvMap<RpoDigest, Node>> MerkleStore<T> {
             let right: RpoDigest = node.right;
 
             debug_assert_eq!(Rpo256::merge(&[left, right]), value);
-            self.nodes.insert(value, Node { left, right });
+            self.nodes.insert(value, StoreNode { left, right });
 
             node.value
         });
@@ -369,7 +369,7 @@ impl<T: KvMap<RpoDigest, Node>> MerkleStore<T> {
         let parent = Rpo256::merge(&[left_root, right_root]);
         self.nodes.insert(
             parent,
-            Node {
+            StoreNode {
                 left: left_root,
                 right: right_root,
             },
@@ -408,50 +408,50 @@ impl<T: KvMap<RpoDigest, Node>> MerkleStore<T> {
 // CONVERSIONS
 // ================================================================================================
 
-impl<T: KvMap<RpoDigest, Node>> From<&MerkleTree> for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> From<&MerkleTree> for MerkleStore<T> {
     fn from(value: &MerkleTree) -> Self {
         let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
         Self { nodes }
     }
 }
 
-impl<T: KvMap<RpoDigest, Node>> From<&SimpleSmt> for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> From<&SimpleSmt> for MerkleStore<T> {
     fn from(value: &SimpleSmt) -> Self {
         let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
         Self { nodes }
     }
 }
 
-impl<T: KvMap<RpoDigest, Node>> From<&Mmr> for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> From<&Mmr> for MerkleStore<T> {
     fn from(value: &Mmr) -> Self {
         let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
         Self { nodes }
     }
 }
 
-impl<T: KvMap<RpoDigest, Node>> From<&TieredSmt> for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> From<&TieredSmt> for MerkleStore<T> {
     fn from(value: &TieredSmt) -> Self {
         let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
         Self { nodes }
     }
 }
 
-impl<T: KvMap<RpoDigest, Node>> From<T> for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> From<T> for MerkleStore<T> {
     fn from(values: T) -> Self {
         let nodes = values.into_iter().chain(empty_hashes().into_iter()).collect();
         Self { nodes }
     }
 }
 
-impl<T: KvMap<RpoDigest, Node>> FromIterator<InnerNodeInfo> for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> FromIterator<InnerNodeInfo> for MerkleStore<T> {
     fn from_iter<I: IntoIterator<Item = InnerNodeInfo>>(iter: I) -> Self {
         let nodes = combine_nodes_with_empty_hashes(iter.into_iter()).collect();
         Self { nodes }
     }
 }
 
-impl<T: KvMap<RpoDigest, Node>> FromIterator<(RpoDigest, Node)> for MerkleStore<T> {
-    fn from_iter<I: IntoIterator<Item = (RpoDigest, Node)>>(iter: I) -> Self {
+impl<T: KvMap<RpoDigest, StoreNode>> FromIterator<(RpoDigest, StoreNode)> for MerkleStore<T> {
+    fn from_iter<I: IntoIterator<Item = (RpoDigest, StoreNode)>>(iter: I) -> Self {
         let nodes = iter.into_iter().chain(empty_hashes().into_iter()).collect();
         Self { nodes }
     }
@@ -460,12 +460,12 @@ impl<T: KvMap<RpoDigest, Node>> FromIterator<(RpoDigest, Node)> for MerkleStore<
 // ITERATORS
 // ================================================================================================
 
-impl<T: KvMap<RpoDigest, Node>> Extend<InnerNodeInfo> for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> Extend<InnerNodeInfo> for MerkleStore<T> {
     fn extend<I: IntoIterator<Item = InnerNodeInfo>>(&mut self, iter: I) {
         self.nodes.extend(iter.into_iter().map(|info| {
             (
                 info.value,
-                Node {
+                StoreNode {
                     left: info.left,
                     right: info.right,
                 },
@@ -477,22 +477,22 @@ impl<T: KvMap<RpoDigest, Node>> Extend<InnerNodeInfo> for MerkleStore<T> {
 // SERIALIZATION
 // ================================================================================================
 
-impl Serializable for Node {
+impl Serializable for StoreNode {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         self.left.write_into(target);
         self.right.write_into(target);
     }
 }
 
-impl Deserializable for Node {
+impl Deserializable for StoreNode {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let left = RpoDigest::read_from(source)?;
         let right = RpoDigest::read_from(source)?;
-        Ok(Node { left, right })
+        Ok(StoreNode { left, right })
     }
 }
 
-impl<T: KvMap<RpoDigest, Node>> Serializable for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> Serializable for MerkleStore<T> {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_u64(self.nodes.len() as u64);
 
@@ -503,14 +503,14 @@ impl<T: KvMap<RpoDigest, Node>> Serializable for MerkleStore<T> {
     }
 }
 
-impl<T: KvMap<RpoDigest, Node>> Deserializable for MerkleStore<T> {
+impl<T: KvMap<RpoDigest, StoreNode>> Deserializable for MerkleStore<T> {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let len = source.read_u64()?;
-        let mut nodes: Vec<(RpoDigest, Node)> = Vec::with_capacity(len as usize);
+        let mut nodes: Vec<(RpoDigest, StoreNode)> = Vec::with_capacity(len as usize);
 
         for _ in 0..len {
             let key = RpoDigest::read_from(source)?;
-            let value = Node::read_from(source)?;
+            let value = StoreNode::read_from(source)?;
             nodes.push((key, value));
         }
 
@@ -522,13 +522,13 @@ impl<T: KvMap<RpoDigest, Node>> Deserializable for MerkleStore<T> {
 // ================================================================================================
 
 /// Creates empty hashes for all the subtrees of a tree with a max depth of 255.
-fn empty_hashes() -> impl IntoIterator<Item = (RpoDigest, Node)> {
+fn empty_hashes() -> impl IntoIterator<Item = (RpoDigest, StoreNode)> {
     let subtrees = EmptySubtreeRoots::empty_hashes(255);
     subtrees.iter().rev().copied().zip(subtrees.iter().rev().skip(1).copied()).map(
         |(child, parent)| {
             (
                 parent,
-                Node {
+                StoreNode {
                     left: child,
                     right: child,
                 },
@@ -541,13 +541,13 @@ fn empty_hashes() -> impl IntoIterator<Item = (RpoDigest, Node)> {
 /// which includes the nodes associate with roots of empty subtrees up to a depth of 255.
 fn combine_nodes_with_empty_hashes(
     nodes: impl IntoIterator<Item = InnerNodeInfo>,
-) -> impl Iterator<Item = (RpoDigest, Node)> {
+) -> impl Iterator<Item = (RpoDigest, StoreNode)> {
     nodes
         .into_iter()
         .map(|info| {
             (
                 info.value,
-                Node {
+                StoreNode {
                     left: info.left,
                     right: info.right,
                 },
