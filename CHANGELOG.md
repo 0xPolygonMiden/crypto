@@ -1,4 +1,8 @@
-## 0.6.0 (TBD)
+## 0.6.0 (2023-06-25)
+
+* [BREAKING] Added support for recording capabilities for `MerkleStore` (#162).
+* [BREAKING] Refactored Merkle struct APIs to use `RpoDigest` instead of `Word` (#157).
+* Added initial implementation of `PartialMerkleTree` (#156).
 
 ## 0.5.0 (2023-05-26)
 
