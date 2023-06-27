@@ -1,6 +1,11 @@
 #include "sve_inv_sbox.h"
 #include <assert.h>
 
+void test_sve_shift_left();
+void test_sve_shift_right();
+void test_sve_add();
+void test_sve_substract();
+
 int main()
 {
 	test_sve_shift_left();
