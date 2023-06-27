@@ -74,10 +74,9 @@ fn test_inv_sbox() {
             sve_apply_inv_sbox(actual_c_sve.as_mut_ptr());
         }
 
-        let actual_as_u64_vec: Vec<u64> = actual.iter().map(|s| s.inner()).collect();
-        assert_eq!(actual_as_u64_vec, actual_c);
-        assert_eq!(actual_as_u64_vec, actual_c_sve);
-
+        let expected_as_u64_vec: Vec<u64> = expected.iter().map(|s| s.inner()).collect();
+        assert_eq!(expected_as_u64_vec, actual_c);
+        assert_eq!(expected_as_u64_vec, actual_c_sve);
         }
     }
 
