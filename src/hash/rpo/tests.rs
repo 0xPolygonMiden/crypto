@@ -56,11 +56,7 @@ fn test_inv_sbox() {
 
     let mut expected = state;
     expected.iter_mut().for_each(|v| *v = v.exp(INV_ALPHA));
-
     let mut actual = state;
-    Rpo256::apply_inv_sbox(&mut actual);
-
-    assert_eq!(expected, actual);
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "sve_backend")] {
@@ -84,6 +80,10 @@ fn test_inv_sbox() {
 
         }
     }
+
+    Rpo256::apply_inv_sbox(&mut actual);
+
+    assert_eq!(expected, actual);
 }
 
 #[test]
