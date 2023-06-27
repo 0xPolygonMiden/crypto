@@ -283,7 +283,7 @@ void print_array(size_t len, uint64_t arr[len])
 	printf("[");
 	for (size_t i = 0; i < len; i++)
 	{
-		printf("%lu ", arr[i]);
+		printf("%llu ", arr[i]);
 	}
 
 	printf("]\n");

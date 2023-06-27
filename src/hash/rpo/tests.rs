@@ -30,6 +30,7 @@ fn test_sbox() {
     assert_eq!(expected, actual);
 }
 
+#[cfg(feature = "sve_backend")]
 #[link(name = "sve", kind = "static")]
 extern "C" {
     fn apply_inv_sbox_c(state: *mut std::ffi::c_ulong);
@@ -57,25 +58,32 @@ fn test_inv_sbox() {
     expected.iter_mut().for_each(|v| *v = v.exp(INV_ALPHA));
 
     let mut actual = state;
-    let mut actual_c: [u64; STATE_WIDTH] = [0; STATE_WIDTH];
-    for i in 0..STATE_WIDTH {
-        actual_c[i] = actual[i].inner();
-    }
-
-    let mut actual_c_sve: [u64; STATE_WIDTH] = [0; STATE_WIDTH];
-    for i in 0..STATE_WIDTH {
-        actual_c_sve[i] = actual[i].inner();
-    }
     Rpo256::apply_inv_sbox(&mut actual);
-    unsafe {
-        apply_inv_sbox_c(actual_c.as_mut_ptr());
-        sve_apply_inv_sbox(actual_c_sve.as_mut_ptr());
-    }
 
-    let actual_as_u64_vec: Vec<u64> = actual.iter().map(|s| s.inner()).collect();
     assert_eq!(expected, actual);
-    assert_eq!(actual_as_u64_vec, actual_c);
-    assert_eq!(actual_as_u64_vec, actual_c_sve);
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "sve_backend")] {
+        let mut actual_c: [u64; STATE_WIDTH] = [0; STATE_WIDTH];
+        for i in 0..STATE_WIDTH {
+            actual_c[i] = actual[i].inner();
+        }
+
+        let mut actual_c_sve: [u64; STATE_WIDTH] = [0; STATE_WIDTH];
+        for i in 0..STATE_WIDTH {
+            actual_c_sve[i] = actual[i].inner();
+        }
+        unsafe {
+            apply_inv_sbox_c(actual_c.as_mut_ptr());
+            sve_apply_inv_sbox(actual_c_sve.as_mut_ptr());
+        }
+
+        let actual_as_u64_vec: Vec<u64> = actual.iter().map(|s| s.inner()).collect();
+        assert_eq!(actual_as_u64_vec, actual_c);
+        assert_eq!(actual_as_u64_vec, actual_c_sve);
+
+        }
+    }
 }
 
 #[test]

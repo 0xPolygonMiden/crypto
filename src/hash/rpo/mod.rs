@@ -10,9 +10,9 @@ use mds_freq::mds_multiply_freq;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "sve_backend")]
 #[link(name = "sve", kind = "static")]
 extern "C" {
-    fn apply_inv_sbox_c(state: *mut std::ffi::c_ulong);
     fn sve_apply_inv_sbox(state: *mut std::ffi::c_ulong);
 }
 
@@ -357,13 +357,18 @@ impl Rpo256 {
         // apply second half of RPO round
         Self::apply_mds(state);
         Self::add_constants(state, &ARK2[round]);
-        // Self::apply_inv_sbox(state);
-        let mut state_inner: [u64; STATE_WIDTH] = [0; STATE_WIDTH];
-        for i in 0..STATE_WIDTH {
-            state_inner[i] = state[i].inner();
-        }
-        unsafe {
-            sve_apply_inv_sbox(state_inner.as_mut_ptr());
+        cfg_if::cfg_if! {
+                if #[cfg(feature = "sve_backend")] {
+                let mut state_inner: [u64; STATE_WIDTH] = [0; STATE_WIDTH];
+                for i in 0..STATE_WIDTH {
+                    state_inner[i] = state[i].inner();
+                }
+                unsafe {
+                    sve_apply_inv_sbox(state_inner.as_mut_ptr());
+                }
+            } else {
+                Self::apply_inv_sbox(state);
+            }
         }
     }
 

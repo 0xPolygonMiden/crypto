@@ -27,9 +27,11 @@ harness = false
 [features]
 default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
 std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
+sve_backend = []
 
 [dependencies]
 blake3 = { version = "1.3", default-features = false }
+cfg-if = "1.0.0"
 winter_crypto = { version = "0.6", package = "winter-crypto", default-features = false }
 winter_math = { version = "0.6", package = "winter-math", default-features = false }
 winter_utils = { version = "0.6", package = "winter-utils", default-features = false }
