@@ -1,5 +1,7 @@
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField, ONE, ZERO};
 use core::{convert::TryInto, ops::Range};
+#[cfg(feature = "sve_backend")]
+use winter_math::fields::f64::BaseElement;
 
 mod digest;
 pub use digest::RpoDigest;
@@ -364,7 +366,7 @@ impl Rpo256 {
                     state_inner[i] = state[i].inner();
                 }
                 unsafe {
-                    sve_apply_inv_sbox(state_inner.as_mut_ptr());
+                    sve_apply_inv_sbox(std::mem::transmute::<*mut BaseElement, *mut u64>(state.as_mut_ptr()));
                 }
             } else {
                 Self::apply_inv_sbox(state);
