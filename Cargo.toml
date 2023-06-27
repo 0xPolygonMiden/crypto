@@ -38,3 +38,6 @@ winter_utils = { version = "0.6", package = "winter-utils", default-features = f
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.1.0"
 rand_utils = { version = "0.6", package = "winter-rand-utils" }
+
+[build-dependencies]
+cc = "1.0.79"

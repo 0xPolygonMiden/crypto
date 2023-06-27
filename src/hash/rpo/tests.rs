@@ -30,17 +30,52 @@ fn test_sbox() {
     assert_eq!(expected, actual);
 }
 
+#[link(name = "sve", kind = "static")]
+extern "C" {
+    fn apply_inv_sbox_c(state: *mut std::ffi::c_ulong);
+    fn sve_apply_inv_sbox(state: *mut std::ffi::c_ulong);
+}
+
 #[test]
 fn test_inv_sbox() {
-    let state = [Felt::new(rand_value()); STATE_WIDTH];
+    let state: [Felt; STATE_WIDTH] = [
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+        Felt::new(rand_value()),
+    ];
 
     let mut expected = state;
     expected.iter_mut().for_each(|v| *v = v.exp(INV_ALPHA));
 
     let mut actual = state;
-    Rpo256::apply_inv_sbox(&mut actual);
+    let mut actual_c: [u64; STATE_WIDTH] = [0; STATE_WIDTH];
+    for i in 0..STATE_WIDTH {
+        actual_c[i] = actual[i].inner();
+    }
 
+    let mut actual_c_sve: [u64; STATE_WIDTH] = [0; STATE_WIDTH];
+    for i in 0..STATE_WIDTH {
+        actual_c_sve[i] = actual[i].inner();
+    }
+    Rpo256::apply_inv_sbox(&mut actual);
+    unsafe {
+        apply_inv_sbox_c(actual_c.as_mut_ptr());
+        sve_apply_inv_sbox(actual_c_sve.as_mut_ptr());
+    }
+
+    let actual_as_u64_vec: Vec<u64> = actual.iter().map(|s| s.inner()).collect();
     assert_eq!(expected, actual);
+    assert_eq!(actual_as_u64_vec, actual_c);
+    assert_eq!(actual_as_u64_vec, actual_c_sve);
 }
 
 #[test]
