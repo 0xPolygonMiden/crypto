@@ -361,10 +361,6 @@ impl Rpo256 {
         Self::add_constants(state, &ARK2[round]);
         cfg_if::cfg_if! {
                 if #[cfg(feature = "sve_backend")] {
-                let mut state_inner: [u64; STATE_WIDTH] = [0; STATE_WIDTH];
-                for i in 0..STATE_WIDTH {
-                    state_inner[i] = state[i].inner();
-                }
                 unsafe {
                     sve_apply_inv_sbox(std::mem::transmute::<*mut BaseElement, *mut u64>(state.as_mut_ptr()));
                 }
