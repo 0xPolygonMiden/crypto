@@ -78,6 +78,62 @@ impl PartialMerkleTree {
         })
     }
 
+    /// Returns a new [PartialMerkleTree] instantiated with leaves map as specified by the provided
+    /// entries.
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - If the depth is 0 or is greater than 64.
+    /// - The number of entries exceeds the maximum tree capacity, that is 2^{depth}.
+    /// - The provided entries contain an insufficient set of nodes.
+    pub fn with_leaves<R, I>(entries: R) -> Result<Self, MerkleError>
+    where
+        R: IntoIterator<IntoIter = I>,
+        I: Iterator<Item = (NodeIndex, RpoDigest)> + ExactSizeIterator,
+    {
+        // check if the number of leaves can be accommodated by the tree's depth; we use a min
+        // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
+        let mut nodes: BTreeMap<NodeIndex, RpoDigest> = entries.into_iter().collect();
+        let max = (1_u64 << 63) as usize;
+        if nodes.len() > max {
+            return Err(MerkleError::InvalidNumEntries(max, nodes.len()));
+        }
+
+        // Get maximum depth from leaves
+        let max_depth = nodes.keys().map(|index| index.depth()).max().unwrap_or(0);
+
+        let leaves = nodes.keys().copied().collect();
+
+        // Calculate and add internal nodes
+        // The idea is to calculate parent nodes for nodes in a certain layer, starting from the
+        // deepest one
+        for layer_number in (1..max_depth + 1).rev() {
+            let layer: BTreeMap<NodeIndex, RpoDigest> = nodes
+                .iter()
+                .filter(|(index, _)| index.depth() == layer_number)
+                .map(|(index, hash)| (*index, *hash))
+                .collect();
+
+            for (&index, &hash) in layer.iter() {
+                let mut parent = index;
+                parent.move_up();
+                if !nodes.contains_key(&parent) {
+                    let sibling = nodes
+                        .get(&index.sibling())
+                        .ok_or(MerkleError::NodeNotInSet(index.sibling()))?;
+                    let parent_hash = Rpo256::merge(&index.build_node(hash, *sibling));
+                    nodes.insert(parent, parent_hash);
+                }
+            }
+        }
+
+        Ok(PartialMerkleTree {
+            max_depth,
+            nodes,
+            leaves,
+        })
+    }
+
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
@@ -353,9 +409,6 @@ impl PartialMerkleTree {
 
 impl Serializable for PartialMerkleTree {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        // write max_depth
-        target.write_u8(self.max_depth);
-
         // write leaf nodes
         target.write_u64(self.leaves.len() as u64);
         for leaf_index in self.leaves.iter() {
@@ -367,44 +420,19 @@ impl Serializable for PartialMerkleTree {
 
 impl Deserializable for PartialMerkleTree {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        // get max_depth
-        let max_depth = source.read_u8()?;
-
         // add leaf nodes to the map
-        let mut nodes = BTreeMap::new();
+        let mut leaf_nodes = BTreeMap::new();
         let leaves_len = source.read_u64()?;
         for _ in 0..leaves_len {
             let index = NodeIndex::read_from(source)?;
             let hash = RpoDigest::read_from(source)?;
-            nodes.insert(index, hash);
+            leaf_nodes.insert(index, hash);
         }
 
-        // get leaves set
-        let leaves = nodes.keys().copied().collect();
+        let pmt = PartialMerkleTree::with_leaves(leaf_nodes).map_err(|_| {
+            DeserializationError::InvalidValue("Invalid data for PartialMerkleTree creation".into())
+        })?;
 
-        // calculate and add internal nodes
-        for layer_number in (1..max_depth + 1).rev() {
-            let layer: BTreeMap<NodeIndex, RpoDigest> = nodes
-                .iter()
-                .filter(|(index, _)| index.depth() == layer_number)
-                .map(|(index, hash)| (*index, *hash))
-                .collect();
-
-            for (&index, &hash) in layer.iter() {
-                let mut parent = index;
-                parent.move_up();
-                if !nodes.contains_key(&parent) {
-                    let sibling = nodes.get(&index.sibling()).expect("sibling should exist");
-                    let parent_hash = Rpo256::merge(&index.build_node(hash, *sibling));
-                    nodes.insert(parent, parent_hash);
-                }
-            }
-        }
-
-        Ok(PartialMerkleTree {
-            max_depth,
-            nodes,
-            leaves,
-        })
+        Ok(pmt)
     }
 }

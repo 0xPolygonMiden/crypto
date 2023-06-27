@@ -1,7 +1,7 @@
 use super::{
     super::{
-        digests_to_words, int_to_node, DefaultMerkleStore as MerkleStore, MerkleTree, NodeIndex,
-        PartialMerkleTree,
+        digests_to_words, int_to_node, BTreeMap, DefaultMerkleStore as MerkleStore, MerkleTree,
+        NodeIndex, PartialMerkleTree,
     },
     Deserializable, InnerNodeInfo, RpoDigest, Serializable, ValuePath, Vec,
 };
@@ -51,6 +51,43 @@ const VALUES8: [RpoDigest; 8] = [
 // NodeIndex(3, 5) will be labeled as `35`. Leaves of the tree are shown as nodes with parenthesis
 // (33).
 
+/// Checks that creation of the PMT with `with_leaves()` constructor is working correctly.
+#[test]
+fn with_leaves() {
+    let mt = MerkleTree::new(digests_to_words(&VALUES8)).unwrap();
+    let expected_root = mt.root();
+
+    let leaf_nodes_vec = vec![
+        (NODE20, mt.get_node(NODE20).unwrap()),
+        (NODE32, mt.get_node(NODE32).unwrap()),
+        (NODE33, mt.get_node(NODE33).unwrap()),
+        (NODE22, mt.get_node(NODE22).unwrap()),
+        (NODE23, mt.get_node(NODE23).unwrap()),
+    ];
+
+    let leaf_nodes: BTreeMap<NodeIndex, RpoDigest> = leaf_nodes_vec.into_iter().collect();
+
+    let pmt = PartialMerkleTree::with_leaves(leaf_nodes).unwrap();
+
+    assert_eq!(expected_root, pmt.root())
+}
+
+/// Checks that `with_leaves()` function returns an error when using incomplete set of nodes.
+#[test]
+fn err_with_leaves() {
+    // NODE22 is missing
+    let leaf_nodes_vec = vec![
+        (NODE20, int_to_node(20)),
+        (NODE32, int_to_node(32)),
+        (NODE33, int_to_node(33)),
+        (NODE23, int_to_node(23)),
+    ];
+
+    let leaf_nodes: BTreeMap<NodeIndex, RpoDigest> = leaf_nodes_vec.into_iter().collect();
+
+    assert!(PartialMerkleTree::with_leaves(leaf_nodes).is_err());
+}
+
 /// Checks that root returned by `root()` function is equal to the expected one.
 #[test]
 fn get_root() {
@@ -62,7 +99,7 @@ fn get_root() {
 
     let pmt = PartialMerkleTree::with_paths([(3, path33.value, path33.path)]).unwrap();
 
-    assert_eq!(pmt.root(), expected_root);
+    assert_eq!(expected_root, pmt.root());
 }
 
 /// This test checks correctness of the `add_path()` and `get_path()` functions. First it creates a
@@ -322,6 +359,8 @@ fn test_inner_node_iterator() {
     assert_eq!(actual, expected);
 }
 
+/// Checks that serialization and deserialization implementations for the PMT are working
+/// correctly.
 #[test]
 fn serialization() {
     let mt = MerkleTree::new(digests_to_words(&VALUES8)).unwrap();
@@ -342,6 +381,23 @@ fn serialization() {
     let deserialized_pmt = PartialMerkleTree::read_from_bytes(&serialized_pmt).unwrap();
 
     assert_eq!(deserialized_pmt, pmt);
+}
+
+/// Checks that deserialization fails with incorrect data.
+#[test]
+fn err_deserialization() {
+    let mut tree_bytes: Vec<u8> = vec![5];
+    tree_bytes.append(&mut NODE20.to_bytes());
+    tree_bytes.append(&mut int_to_node(20).to_bytes());
+
+    tree_bytes.append(&mut NODE21.to_bytes());
+    tree_bytes.append(&mut int_to_node(21).to_bytes());
+
+    // node with depth 1 could have index 0 or 1, but it has 2
+    tree_bytes.append(&mut vec![1, 2]);
+    tree_bytes.append(&mut int_to_node(11).to_bytes());
+
+    assert!(PartialMerkleTree::read_from_bytes(&tree_bytes).is_err());
 }
 
 /// Checks that addition of the path with different root will cause an error.
