@@ -19,7 +19,7 @@ void test_sve_shift_left()
 	sve_shift_left(x, y, result);
 	print_array(STATE_WIDTH, result);
 
-	uint64_t expected = {
+	uint64_t expected[STATE_WIDTH] = {
 	    0, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096,
 	};
 	assert(result == expected);
@@ -33,7 +33,7 @@ void test_sve_shift_right()
 	sve_shift_right(x, y, result);
 	print_array(STATE_WIDTH, result);
 
-	uint64_t expected = {
+	uint64_t expected[STATE_WIDTH] = {
 	    0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024,
 	};
 	assert(result == expected);
@@ -49,10 +49,10 @@ void test_sve_add()
 	print_array(STATE_WIDTH, result);
 	print_array(STATE_WIDTH, overflowed);
 
-	uint64_t expected_result = {
+	uint64_t expected_result[STATE_WIDTH] = {
 	    0, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
 	};
-	uint64_t expected_overflowed = {
+	uint64_t expected_overflowed[STATE_WIDTH] = {
 	    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	};
 	assert(result == expected_result);
@@ -70,10 +70,10 @@ void test_sve_substract()
 	print_array(STATE_WIDTH, result);
 	print_array(STATE_WIDTH, unverflowed);
 
-	uint64_t expected_result = {
+	uint64_t expected_result[STATE_WIDTH] = {
 	    2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
 	};
-	uint64_t expected_unverflowed = {
+	uint64_t expected_unverflowed[STATE_WIDTH] = {
 	    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	};
 	assert(result == expected_result);
@@ -88,7 +88,7 @@ void test_sve_substract_as_u32()
 	sve_substract_as_u32(x, y, result);
 	print_array(STATE_WIDTH, result);
 
-	uint64_t expected_result = {
+	uint64_t expected_result[STATE_WIDTH] = {
 	    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	};
 	assert(result == expected_result);
