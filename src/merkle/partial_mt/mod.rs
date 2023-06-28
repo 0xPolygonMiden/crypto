@@ -420,13 +420,13 @@ impl Serializable for PartialMerkleTree {
 
 impl Deserializable for PartialMerkleTree {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        // add leaf nodes to the map
-        let mut leaf_nodes = BTreeMap::new();
+        // add leaf nodes to the vector
+        let mut leaf_nodes = Vec::new();
         let leaves_len = source.read_u64()?;
         for _ in 0..leaves_len {
             let index = NodeIndex::read_from(source)?;
             let hash = RpoDigest::read_from(source)?;
-            leaf_nodes.insert(index, hash);
+            leaf_nodes.push((index, hash));
         }
 
         let pmt = PartialMerkleTree::with_leaves(leaf_nodes).map_err(|_| {

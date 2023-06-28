@@ -173,9 +173,8 @@ impl Deserializable for NodeIndex {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let depth = source.read_u8()?;
         let value = source.read_u64()?;
-        let node = NodeIndex::new(depth, value)
-            .map_err(|_| DeserializationError::InvalidValue("Invalid index".into()))?;
-        Ok(node)
+        NodeIndex::new(depth, value)
+            .map_err(|_| DeserializationError::InvalidValue("Invalid index".into()))
     }
 }
 
