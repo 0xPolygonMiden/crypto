@@ -91,25 +91,21 @@ impl PartialMerkleTree {
         R: IntoIterator<IntoIter = I>,
         I: Iterator<Item = (NodeIndex, RpoDigest)> + ExactSizeIterator,
     {
-        let nodes_vec: Vec<(u8, (u64, RpoDigest))> = entries
-            .into_iter()
-            .map(|(node_index, hash)| (node_index.depth(), (node_index.value(), hash)))
-            .collect();
-
-        let leaves = nodes_vec
-            .iter()
-            .map(|(depth, (index, _))| NodeIndex::new_unchecked(*depth, *index))
-            .collect();
-
-        // convert Vec<(u8, (u64, RpoDigest))> into BTreeMap<u8, Vec<(u64, RpoDigest)>>
+        // a map where the key is the depth of the node, and the value is the vector of indexes and
+        // hashes of nodes with this depth
         let mut layer_nodes: BTreeMap<u8, Vec<(u64, RpoDigest)>> = BTreeMap::new();
-        nodes_vec.into_iter().for_each(|(depth, (index, hash))| {
-            if layer_nodes.get(&depth).is_some() {
-                layer_nodes.get_mut(&depth).unwrap().push((index, hash));
-            } else {
-                layer_nodes.insert(depth, vec![(index, hash)]);
-            }
-        });
+
+        let mut leaves = BTreeSet::new();
+        let mut nodes = BTreeMap::new();
+
+        for (node_index, hash) in entries.into_iter() {
+            leaves.insert(node_index);
+            nodes.insert(node_index, hash);
+            layer_nodes
+                .entry(node_index.depth())
+                .and_modify(|layer_vec| layer_vec.push((node_index.value(), hash)))
+                .or_insert(vec![(node_index.value(), hash)]);
+        }
 
         // check if the number of leaves can be accommodated by the tree's depth; we use a min
         // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
@@ -127,47 +123,27 @@ impl PartialMerkleTree {
         for depth in (1..max_depth + 1).rev() {
             let layer = layer_nodes.get(&depth).cloned().unwrap_or(vec![]);
             for (index_value, hash) in layer.iter() {
-                // create NodeIndex
-                let index = NodeIndex::new_unchecked(depth, *index_value);
-
-                // get sibling node's index and hash
-                let sibling_node = layer
-                    .iter()
-                    .find(|(sibling_index, _)| *sibling_index == index.sibling().value());
-
-                // get parent node's index and hash
-                let parent_node = match layer_nodes.get(&(depth - 1)) {
-                    None => None,
-                    Some(vec) => {
-                        vec.iter().find(|(parent_index, _)| *parent_index == index_value / 2)
-                    }
-                };
+                // create NodeIndex from depth and index_value
+                let index = NodeIndex::new(depth, *index_value)?;
+                // create parent node index
+                let mut parent_index = index;
+                parent_index.move_up();
 
                 // checks that we don't push the same parent node to the layer nodes
-                if parent_node.is_none() {
-                    let sibling_hash =
-                        sibling_node.ok_or(MerkleError::NodeNotInSet(index.sibling()))?.1;
-                    let parent_hash = Rpo256::merge(&index.build_node(*hash, sibling_hash));
-                    if layer_nodes.get(&(depth - 1)).is_some() {
-                        layer_nodes
-                            .get_mut(&(depth - 1))
-                            .unwrap()
-                            .push((index.value() / 2, parent_hash));
-                    } else {
-                        layer_nodes.insert(depth - 1, vec![(index.value() / 2, parent_hash)]);
-                    }
+                if !nodes.contains_key(&parent_index) {
+                    let sibling_hash = nodes
+                        .get(&index.sibling())
+                        .ok_or(MerkleError::NodeNotInSet(index.sibling()))?;
+                    let parent_hash = Rpo256::merge(&index.build_node(*hash, *sibling_hash));
+
+                    layer_nodes
+                        .entry(depth - 1)
+                        .and_modify(|layer_vec| layer_vec.push((parent_index.value(), parent_hash)))
+                        .or_insert(vec![(parent_index.value(), parent_hash)]);
+                    nodes.insert(parent_index, parent_hash);
                 }
             }
         }
-
-        // create BTreeMap<NodeIndex, RpoDigest> from BTreeMap<u8, Vec<(u64, RpoDigest)>>
-        let mut nodes: BTreeMap<NodeIndex, RpoDigest> = BTreeMap::new();
-        layer_nodes.into_iter().for_each(|(depth, nodes_vec)| {
-            nodes_vec.iter().for_each(|(index, hash)| {
-                let node_index = NodeIndex::new(depth, *index).unwrap();
-                nodes.insert(node_index, *hash);
-            })
-        });
 
         Ok(PartialMerkleTree {
             max_depth,
