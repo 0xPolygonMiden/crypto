@@ -3,7 +3,7 @@ use super::{
     ValuePath, Vec, Word, ZERO,
 };
 use crate::utils::{
-    format, string::String, word_to_hex, ByteReader, ByteWriter, Deserializable,
+    format, string::String, vec, word_to_hex, ByteReader, ByteWriter, Deserializable,
     DeserializationError, Serializable,
 };
 use core::fmt;
@@ -91,41 +91,83 @@ impl PartialMerkleTree {
         R: IntoIterator<IntoIter = I>,
         I: Iterator<Item = (NodeIndex, RpoDigest)> + ExactSizeIterator,
     {
+        let nodes_vec: Vec<(u8, (u64, RpoDigest))> = entries
+            .into_iter()
+            .map(|(node_index, hash)| (node_index.depth(), (node_index.value(), hash)))
+            .collect();
+
+        let leaves = nodes_vec
+            .iter()
+            .map(|(depth, (index, _))| NodeIndex::new_unchecked(*depth, *index))
+            .collect();
+
+        // convert Vec<(u8, (u64, RpoDigest))> into BTreeMap<u8, Vec<(u64, RpoDigest)>>
+        let mut layer_nodes: BTreeMap<u8, Vec<(u64, RpoDigest)>> = BTreeMap::new();
+        nodes_vec.into_iter().for_each(|(depth, (index, hash))| {
+            if layer_nodes.get(&depth).is_some() {
+                layer_nodes.get_mut(&depth).unwrap().push((index, hash));
+            } else {
+                layer_nodes.insert(depth, vec![(index, hash)]);
+            }
+        });
+
         // check if the number of leaves can be accommodated by the tree's depth; we use a min
         // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
-        let mut nodes: BTreeMap<NodeIndex, RpoDigest> = entries.into_iter().collect();
         let max = (1_u64 << 63) as usize;
-        if nodes.len() > max {
-            return Err(MerkleError::InvalidNumEntries(max, nodes.len()));
+        if layer_nodes.len() > max {
+            return Err(MerkleError::InvalidNumEntries(max, layer_nodes.len()));
         }
 
         // Get maximum depth from leaves
-        let max_depth = nodes.keys().map(|index| index.depth()).max().unwrap_or(0);
-
-        let leaves = nodes.keys().copied().collect();
+        let max_depth = *layer_nodes.last_key_value().unwrap_or((&0, &vec![])).0;
 
         // Calculate and add internal nodes
         // The idea is to calculate parent nodes for nodes in a certain layer, starting from the
         // deepest one
-        for layer_number in (1..max_depth + 1).rev() {
-            let layer: BTreeMap<NodeIndex, RpoDigest> = nodes
-                .iter()
-                .filter(|(index, _)| index.depth() == layer_number)
-                .map(|(index, hash)| (*index, *hash))
-                .collect();
+        for depth in (1..max_depth + 1).rev() {
+            let layer = layer_nodes.get(&depth).cloned().unwrap_or(vec![]);
+            for (index_value, hash) in layer.iter() {
+                // create NodeIndex
+                let index = NodeIndex::new_unchecked(depth, *index_value);
 
-            for (&index, &hash) in layer.iter() {
-                let mut parent = index;
-                parent.move_up();
-                if !nodes.contains_key(&parent) {
-                    let sibling = nodes
-                        .get(&index.sibling())
-                        .ok_or(MerkleError::NodeNotInSet(index.sibling()))?;
-                    let parent_hash = Rpo256::merge(&index.build_node(hash, *sibling));
-                    nodes.insert(parent, parent_hash);
+                // get sibling node's index and hash
+                let sibling_node = layer
+                    .iter()
+                    .find(|(sibling_index, _)| *sibling_index == index.sibling().value());
+
+                // get parent node's index and hash
+                let parent_node = match layer_nodes.get(&(depth - 1)) {
+                    None => None,
+                    Some(vec) => {
+                        vec.iter().find(|(parent_index, _)| *parent_index == index_value / 2)
+                    }
+                };
+
+                // checks that we don't push the same parent node to the layer nodes
+                if parent_node.is_none() {
+                    let sibling_hash =
+                        sibling_node.ok_or(MerkleError::NodeNotInSet(index.sibling()))?.1;
+                    let parent_hash = Rpo256::merge(&index.build_node(*hash, sibling_hash));
+                    if layer_nodes.get(&(depth - 1)).is_some() {
+                        layer_nodes
+                            .get_mut(&(depth - 1))
+                            .unwrap()
+                            .push((index.value() / 2, parent_hash));
+                    } else {
+                        layer_nodes.insert(depth - 1, vec![(index.value() / 2, parent_hash)]);
+                    }
                 }
             }
         }
+
+        // create BTreeMap<NodeIndex, RpoDigest> from BTreeMap<u8, Vec<(u64, RpoDigest)>>
+        let mut nodes: BTreeMap<NodeIndex, RpoDigest> = BTreeMap::new();
+        layer_nodes.into_iter().for_each(|(depth, nodes_vec)| {
+            nodes_vec.iter().for_each(|(index, hash)| {
+                let node_index = NodeIndex::new(depth, *index).unwrap();
+                nodes.insert(node_index, *hash);
+            })
+        });
 
         Ok(PartialMerkleTree {
             max_depth,
@@ -420,9 +462,10 @@ impl Serializable for PartialMerkleTree {
 
 impl Deserializable for PartialMerkleTree {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let leaves_len = source.read_u64()? as usize;
+        let mut leaf_nodes = Vec::with_capacity(leaves_len);
+
         // add leaf nodes to the vector
-        let mut leaf_nodes = Vec::new();
-        let leaves_len = source.read_u64()?;
         for _ in 0..leaves_len {
             let index = NodeIndex::read_from(source)?;
             let hash = RpoDigest::read_from(source)?;
