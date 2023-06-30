@@ -91,56 +91,62 @@ impl PartialMerkleTree {
         R: IntoIterator<IntoIter = I>,
         I: Iterator<Item = (NodeIndex, RpoDigest)> + ExactSizeIterator,
     {
-        // a map where the key is the depth of the node, and the value is the vector of indexes and
-        // hashes of nodes with this depth
-        let mut layer_nodes: BTreeMap<u8, Vec<(u64, RpoDigest)>> = BTreeMap::new();
-
+        let mut layers: BTreeMap<u8, Vec<u64>> = BTreeMap::new();
         let mut leaves = BTreeSet::new();
         let mut nodes = BTreeMap::new();
 
+        // add data to the leaves and nodes maps and also fill layers map, where the key is the
+        // depth of the node and value is its index.
         for (node_index, hash) in entries.into_iter() {
             leaves.insert(node_index);
             nodes.insert(node_index, hash);
-            layer_nodes
+            layers
                 .entry(node_index.depth())
-                .and_modify(|layer_vec| layer_vec.push((node_index.value(), hash)))
-                .or_insert(vec![(node_index.value(), hash)]);
+                .and_modify(|layer_vec| layer_vec.push(node_index.value()))
+                .or_insert(vec![node_index.value()]);
         }
 
         // check if the number of leaves can be accommodated by the tree's depth; we use a min
         // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
         let max = (1_u64 << 63) as usize;
-        if layer_nodes.len() > max {
-            return Err(MerkleError::InvalidNumEntries(max, layer_nodes.len()));
+        if layers.len() > max {
+            return Err(MerkleError::InvalidNumEntries(max, layers.len()));
         }
 
-        // Get maximum depth from leaves
-        let max_depth = *layer_nodes.last_key_value().unwrap_or((&0, &vec![])).0;
+        // Get maximum depth
+        let max_depth = *layers.keys().next_back().unwrap_or(&0);
 
         // Calculate and add internal nodes
         // The idea is to calculate parent nodes for nodes in a certain layer, starting from the
         // deepest one
         for depth in (1..max_depth + 1).rev() {
-            let layer = layer_nodes.get(&depth).cloned().unwrap_or(vec![]);
-            for (index_value, hash) in layer.iter() {
-                // create NodeIndex from depth and index_value
-                let index = NodeIndex::new(depth, *index_value)?;
-                // create parent node index
-                let mut parent_index = index;
-                parent_index.move_up();
+            let layer = layers.get(&depth).cloned().unwrap_or(vec![]);
+            for index_value in layer {
+                // get the parent node index
+                let parent_node = NodeIndex::new(depth - 1, index_value / 2)?;
 
-                // checks that we don't push the same parent node to the layer nodes
-                if !nodes.contains_key(&parent_index) {
-                    let sibling_hash = nodes
+                // Check if the parent hash was already calculated. In about half of the cases, we
+                // don't need to do anything.
+                if !nodes.contains_key(&parent_node) {
+                    // create current node index
+                    let index = NodeIndex::new(depth, index_value)?;
+
+                    // get hash of the current node
+                    let node = nodes.get(&index).ok_or(MerkleError::NodeNotInSet(index))?;
+                    // get hash of the sibling node
+                    let sibling = nodes
                         .get(&index.sibling())
                         .ok_or(MerkleError::NodeNotInSet(index.sibling()))?;
-                    let parent_hash = Rpo256::merge(&index.build_node(*hash, *sibling_hash));
+                    // get parent hash
+                    let parent = Rpo256::merge(&index.build_node(*node, *sibling));
 
-                    layer_nodes
-                        .entry(depth - 1)
-                        .and_modify(|layer_vec| layer_vec.push((parent_index.value(), parent_hash)))
-                        .or_insert(vec![(parent_index.value(), parent_hash)]);
-                    nodes.insert(parent_index, parent_hash);
+                    // add index value of the calculated node to the parents layer
+                    layers
+                        .entry(parent_node.depth())
+                        .and_modify(|layer_vec| layer_vec.push(parent_node.value()))
+                        .or_insert(vec![parent_node.value()]);
+                    // add index and hash to the nodes map
+                    nodes.insert(parent_node, parent);
                 }
             }
         }
