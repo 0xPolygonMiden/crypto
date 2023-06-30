@@ -3,7 +3,10 @@ use super::{
     MerklePathSet, MerkleTree, NodeIndex, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
     TieredSmt, ValuePath, Vec,
 };
-use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use crate::utils::{
+    collections::{ApplyDiff, Diff, KvMapDiff},
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
+};
 use core::borrow::Borrow;
 
 #[cfg(test)]
@@ -438,21 +441,21 @@ impl<T: KvMap<RpoDigest, StoreNode>> From<&TieredSmt> for MerkleStore<T> {
 
 impl<T: KvMap<RpoDigest, StoreNode>> From<T> for MerkleStore<T> {
     fn from(values: T) -> Self {
-        let nodes = values.into_iter().chain(empty_hashes().into_iter()).collect();
+        let nodes = values.into_iter().chain(empty_hashes()).collect();
         Self { nodes }
     }
 }
 
 impl<T: KvMap<RpoDigest, StoreNode>> FromIterator<InnerNodeInfo> for MerkleStore<T> {
     fn from_iter<I: IntoIterator<Item = InnerNodeInfo>>(iter: I) -> Self {
-        let nodes = combine_nodes_with_empty_hashes(iter.into_iter()).collect();
+        let nodes = combine_nodes_with_empty_hashes(iter).collect();
         Self { nodes }
     }
 }
 
 impl<T: KvMap<RpoDigest, StoreNode>> FromIterator<(RpoDigest, StoreNode)> for MerkleStore<T> {
     fn from_iter<I: IntoIterator<Item = (RpoDigest, StoreNode)>>(iter: I) -> Self {
-        let nodes = iter.into_iter().chain(empty_hashes().into_iter()).collect();
+        let nodes = iter.into_iter().chain(empty_hashes()).collect();
         Self { nodes }
     }
 }
@@ -471,6 +474,24 @@ impl<T: KvMap<RpoDigest, StoreNode>> Extend<InnerNodeInfo> for MerkleStore<T> {
                 },
             )
         }));
+    }
+}
+
+// DiffT & ApplyDiffT TRAIT IMPLEMENTATION
+// ================================================================================================
+impl<T: KvMap<RpoDigest, StoreNode>> Diff<RpoDigest, StoreNode> for MerkleStore<T> {
+    type DiffType = KvMapDiff<RpoDigest, StoreNode>;
+
+    fn diff(&self, other: &Self) -> Self::DiffType {
+        self.nodes.diff(&other.nodes)
+    }
+}
+
+impl<T: KvMap<RpoDigest, StoreNode>> ApplyDiff<RpoDigest, StoreNode> for MerkleStore<T> {
+    type DiffType = KvMapDiff<RpoDigest, StoreNode>;
+
+    fn apply(&mut self, diff: Self::DiffType) {
+        self.nodes.apply(diff);
     }
 }
 
@@ -553,5 +574,5 @@ fn combine_nodes_with_empty_hashes(
                 },
             )
         })
-        .chain(empty_hashes().into_iter())
+        .chain(empty_hashes())
 }
