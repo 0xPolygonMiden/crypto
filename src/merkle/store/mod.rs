@@ -438,21 +438,21 @@ impl<T: KvMap<RpoDigest, StoreNode>> From<&TieredSmt> for MerkleStore<T> {
 
 impl<T: KvMap<RpoDigest, StoreNode>> From<T> for MerkleStore<T> {
     fn from(values: T) -> Self {
-        let nodes = values.into_iter().chain(empty_hashes().into_iter()).collect();
+        let nodes = values.into_iter().chain(empty_hashes()).collect();
         Self { nodes }
     }
 }
 
 impl<T: KvMap<RpoDigest, StoreNode>> FromIterator<InnerNodeInfo> for MerkleStore<T> {
     fn from_iter<I: IntoIterator<Item = InnerNodeInfo>>(iter: I) -> Self {
-        let nodes = combine_nodes_with_empty_hashes(iter.into_iter()).collect();
+        let nodes = combine_nodes_with_empty_hashes(iter).collect();
         Self { nodes }
     }
 }
 
 impl<T: KvMap<RpoDigest, StoreNode>> FromIterator<(RpoDigest, StoreNode)> for MerkleStore<T> {
     fn from_iter<I: IntoIterator<Item = (RpoDigest, StoreNode)>>(iter: I) -> Self {
-        let nodes = iter.into_iter().chain(empty_hashes().into_iter()).collect();
+        let nodes = iter.into_iter().chain(empty_hashes()).collect();
         Self { nodes }
     }
 }
@@ -553,5 +553,5 @@ fn combine_nodes_with_empty_hashes(
                 },
             )
         })
-        .chain(empty_hashes().into_iter())
+        .chain(empty_hashes())
 }
