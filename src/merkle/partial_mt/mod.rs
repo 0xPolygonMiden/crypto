@@ -116,12 +116,21 @@ impl PartialMerkleTree {
         // Get maximum depth
         let max_depth = *layers.keys().next_back().unwrap_or(&0);
 
-        // Calculate and add internal nodes
-        // The idea is to calculate parent nodes for nodes in a certain layer, starting from the
-        // deepest one
+        // fill layers without nodes with empty vector
+        for depth in 0..max_depth {
+            layers.entry(depth).or_insert(vec![]);
+        }
+
+        let mut layer_iter = layers.into_values().rev();
+        let mut parent_layer = layer_iter.next().unwrap();
+        let mut current_layer;
+
         for depth in (1..max_depth + 1).rev() {
-            let layer = layers.get(&depth).cloned().unwrap_or(vec![]);
-            for index_value in layer {
+            // set current_layer = parent_layer and parent_layer = layer_iter.next()
+            current_layer = layer_iter.next().unwrap();
+            core::mem::swap(&mut current_layer, &mut parent_layer);
+
+            for index_value in current_layer {
                 // get the parent node index
                 let parent_node = NodeIndex::new(depth - 1, index_value / 2)?;
 
@@ -141,10 +150,7 @@ impl PartialMerkleTree {
                     let parent = Rpo256::merge(&index.build_node(*node, *sibling));
 
                     // add index value of the calculated node to the parents layer
-                    layers
-                        .entry(parent_node.depth())
-                        .and_modify(|layer_vec| layer_vec.push(parent_node.value()))
-                        .or_insert(vec![parent_node.value()]);
+                    parent_layer.push(parent_node.value());
                     // add index and hash to the nodes map
                     nodes.insert(parent_node, parent);
                 }
