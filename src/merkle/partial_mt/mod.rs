@@ -136,7 +136,7 @@ impl PartialMerkleTree {
 
                 // Check if the parent hash was already calculated. In about half of the cases, we
                 // don't need to do anything.
-                if !nodes.contains_key(&parent_node) {
+                if !parent_layer.contains(&parent_node.value()) {
                     // create current node index
                     let index = NodeIndex::new(depth, index_value)?;
 
