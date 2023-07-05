@@ -2,10 +2,10 @@ use super::{utils::string::String, Word};
 use core::fmt::{self, Write};
 
 #[cfg(not(feature = "std"))]
-pub use alloc::format;
+pub use alloc::{format, vec};
 
 #[cfg(feature = "std")]
-pub use std::format;
+pub use std::{format, vec};
 
 mod kv_map;
 

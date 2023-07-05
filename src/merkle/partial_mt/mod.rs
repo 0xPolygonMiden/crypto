@@ -1,7 +1,11 @@
 use super::{
-    BTreeMap, BTreeSet, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, ValuePath, Vec, ZERO,
+    BTreeMap, BTreeSet, InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest,
+    ValuePath, Vec, Word, ZERO,
 };
-use crate::utils::{format, string::String, word_to_hex};
+use crate::utils::{
+    format, string::String, vec, word_to_hex, ByteReader, ByteWriter, Deserializable,
+    DeserializationError, Serializable,
+};
 use core::fmt;
 
 #[cfg(test)]
@@ -74,6 +78,92 @@ impl PartialMerkleTree {
         })
     }
 
+    /// Returns a new [PartialMerkleTree] instantiated with leaves map as specified by the provided
+    /// entries.
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - If the depth is 0 or is greater than 64.
+    /// - The number of entries exceeds the maximum tree capacity, that is 2^{depth}.
+    /// - The provided entries contain an insufficient set of nodes.
+    pub fn with_leaves<R, I>(entries: R) -> Result<Self, MerkleError>
+    where
+        R: IntoIterator<IntoIter = I>,
+        I: Iterator<Item = (NodeIndex, RpoDigest)> + ExactSizeIterator,
+    {
+        let mut layers: BTreeMap<u8, Vec<u64>> = BTreeMap::new();
+        let mut leaves = BTreeSet::new();
+        let mut nodes = BTreeMap::new();
+
+        // add data to the leaves and nodes maps and also fill layers map, where the key is the
+        // depth of the node and value is its index.
+        for (node_index, hash) in entries.into_iter() {
+            leaves.insert(node_index);
+            nodes.insert(node_index, hash);
+            layers
+                .entry(node_index.depth())
+                .and_modify(|layer_vec| layer_vec.push(node_index.value()))
+                .or_insert(vec![node_index.value()]);
+        }
+
+        // check if the number of leaves can be accommodated by the tree's depth; we use a min
+        // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
+        let max = (1_u64 << 63) as usize;
+        if layers.len() > max {
+            return Err(MerkleError::InvalidNumEntries(max, layers.len()));
+        }
+
+        // Get maximum depth
+        let max_depth = *layers.keys().next_back().unwrap_or(&0);
+
+        // fill layers without nodes with empty vector
+        for depth in 0..max_depth {
+            layers.entry(depth).or_insert(vec![]);
+        }
+
+        let mut layer_iter = layers.into_values().rev();
+        let mut parent_layer = layer_iter.next().unwrap();
+        let mut current_layer;
+
+        for depth in (1..max_depth + 1).rev() {
+            // set current_layer = parent_layer and parent_layer = layer_iter.next()
+            current_layer = layer_iter.next().unwrap();
+            core::mem::swap(&mut current_layer, &mut parent_layer);
+
+            for index_value in current_layer {
+                // get the parent node index
+                let parent_node = NodeIndex::new(depth - 1, index_value / 2)?;
+
+                // Check if the parent hash was already calculated. In about half of the cases, we
+                // don't need to do anything.
+                if !parent_layer.contains(&parent_node.value()) {
+                    // create current node index
+                    let index = NodeIndex::new(depth, index_value)?;
+
+                    // get hash of the current node
+                    let node = nodes.get(&index).ok_or(MerkleError::NodeNotInSet(index))?;
+                    // get hash of the sibling node
+                    let sibling = nodes
+                        .get(&index.sibling())
+                        .ok_or(MerkleError::NodeNotInSet(index.sibling()))?;
+                    // get parent hash
+                    let parent = Rpo256::merge(&index.build_node(*node, *sibling));
+
+                    // add index value of the calculated node to the parents layer
+                    parent_layer.push(parent_node.value());
+                    // add index and hash to the nodes map
+                    nodes.insert(parent_node, parent);
+                }
+            }
+        }
+
+        Ok(PartialMerkleTree {
+            max_depth,
+            nodes,
+            leaves,
+        })
+    }
+
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
@@ -101,7 +191,7 @@ impl PartialMerkleTree {
     }
 
     /// Returns a vector of paths from every leaf to the root.
-    pub fn paths(&self) -> Vec<(NodeIndex, ValuePath)> {
+    pub fn to_paths(&self) -> Vec<(NodeIndex, ValuePath)> {
         let mut paths = Vec::new();
         self.leaves.iter().for_each(|&leaf| {
             paths.push((
@@ -157,6 +247,22 @@ impl PartialMerkleTree {
                 self.get_node(leaf)
                     .unwrap_or_else(|_| panic!("Leaf with {leaf} is not in the nodes map")),
             )
+        })
+    }
+
+    /// Returns an iterator over the inner nodes of this Merkle tree.
+    pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+        let inner_nodes = self.nodes.iter().filter(|(index, _)| !self.leaves.contains(index));
+        inner_nodes.map(|(index, digest)| {
+            let left_hash =
+                self.nodes.get(&index.left_child()).expect("Failed to get left child hash");
+            let right_hash =
+                self.nodes.get(&index.right_child()).expect("Failed to get right child hash");
+            InnerNodeInfo {
+                value: *digest,
+                left: *left_hash,
+                right: *right_hash,
+            }
         })
     }
 
@@ -235,37 +341,37 @@ impl PartialMerkleTree {
 
     /// Updates value of the leaf at the specified index returning the old leaf value.
     ///
+    /// By default the specified index is assumed to belong to the deepest layer. If the considered
+    /// node does not belong to the tree, the first node on the way to the root will be changed.
+    ///
     /// This also recomputes all hashes between the leaf and the root, updating the root itself.
     ///
     /// # Errors
     /// Returns an error if:
-    /// - The depth of the specified node_index is greater than 64 or smaller than 1.
-    /// - The specified node index is not corresponding to the leaf.
-    pub fn update_leaf(
-        &mut self,
-        node_index: NodeIndex,
-        value: RpoDigest,
-    ) -> Result<RpoDigest, MerkleError> {
-        // check correctness of the depth and update it
-        Self::check_depth(node_index.depth())?;
-        self.update_depth(node_index.depth());
+    /// - The specified index is greater than the maximum number of nodes on the deepest layer.
+    pub fn update_leaf(&mut self, index: u64, value: Word) -> Result<RpoDigest, MerkleError> {
+        let mut node_index = NodeIndex::new(self.max_depth(), index)?;
 
-        // insert NodeIndex to the leaves Set
-        self.leaves.insert(node_index);
+        // proceed to the leaf
+        for _ in 0..node_index.depth() {
+            if !self.leaves.contains(&node_index) {
+                node_index.move_up();
+            }
+        }
 
         // add node value to the nodes Map
         let old_value = self
             .nodes
-            .insert(node_index, value)
+            .insert(node_index, value.into())
             .ok_or(MerkleError::NodeNotInSet(node_index))?;
 
         // if the old value and new value are the same, there is nothing to update
-        if value == old_value {
+        if value == *old_value {
             return Ok(old_value);
         }
 
         let mut node_index = node_index;
-        let mut value = value;
+        let mut value = value.into();
         for _ in 0..node_index.depth() {
             let sibling = self.nodes.get(&node_index.sibling()).expect("sibling should exist");
             value = Rpo256::merge(&node_index.build_node(value, *sibling));
@@ -325,5 +431,39 @@ impl PartialMerkleTree {
             return Err(MerkleError::DepthTooBig(depth as u64));
         }
         Ok(())
+    }
+}
+
+// SERIALIZATION
+// ================================================================================================
+
+impl Serializable for PartialMerkleTree {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        // write leaf nodes
+        target.write_u64(self.leaves.len() as u64);
+        for leaf_index in self.leaves.iter() {
+            leaf_index.write_into(target);
+            self.get_node(*leaf_index).expect("Leaf hash not found").write_into(target);
+        }
+    }
+}
+
+impl Deserializable for PartialMerkleTree {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let leaves_len = source.read_u64()? as usize;
+        let mut leaf_nodes = Vec::with_capacity(leaves_len);
+
+        // add leaf nodes to the vector
+        for _ in 0..leaves_len {
+            let index = NodeIndex::read_from(source)?;
+            let hash = RpoDigest::read_from(source)?;
+            leaf_nodes.push((index, hash));
+        }
+
+        let pmt = PartialMerkleTree::with_leaves(leaf_nodes).map_err(|_| {
+            DeserializationError::InvalidValue("Invalid data for PartialMerkleTree creation".into())
+        })?;
+
+        Ok(pmt)
     }
 }
