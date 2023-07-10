@@ -847,7 +847,7 @@ fn test_recorder() {
 
     // construct the proof
     let rec_map = recorder.into_inner();
-    let proof = rec_map.into_proof();
+    let (_, proof) = rec_map.finalize();
     let merkle_store: MerkleStore = proof.into();
 
     // make sure the proof contains all nodes from both trees

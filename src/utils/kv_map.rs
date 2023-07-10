@@ -97,10 +97,12 @@ impl<K: Ord + Clone, V: Clone> RecordingMap<K, V> {
     // FINALIZER
     // --------------------------------------------------------------------------------------------
 
-    /// Consumes the [RecordingMap] and returns a [BTreeMap] containing the key-value pairs from
-    /// the initial data set that were read during recording.
-    pub fn into_proof(self) -> BTreeMap<K, V> {
-        self.trace.take()
+    /// Consumes the [RecordingMap] and returns a ([BTreeMap], [BTreeMap]) tuple.  The first
+    /// element of the tuple is a map that represents the state of the map at the time `.finalize()`
+    /// is called.  The second element contains the key-value pairs from the initial data set that
+    /// were read during recording.
+    pub fn finalize(self) -> (BTreeMap<K, V>, BTreeMap<K, V>) {
+        (self.data, self.trace.take())
     }
 
     // TEST HELPERS
@@ -217,8 +219,8 @@ impl<K: Clone + Ord, V: Clone> IntoIterator for RecordingMap<K, V> {
 /// - `removed` - a set of keys that were removed from the second map compared to the first map.
 #[derive(Debug, Clone)]
 pub struct KvMapDiff<K, V> {
-    updated: BTreeMap<K, V>,
-    removed: BTreeSet<K>,
+    pub updated: BTreeMap<K, V>,
+    pub removed: BTreeSet<K>,
 }
 
 impl<K, V> KvMapDiff<K, V> {
@@ -296,7 +298,7 @@ mod tests {
         }
 
         // convert the map into a proof
-        let proof = map.into_proof();
+        let (_, proof) = map.finalize();
 
         // check that the proof contains the expected values
         for (key, value) in ITEMS.iter() {
@@ -319,7 +321,7 @@ mod tests {
         }
 
         // convert the map into a proof
-        let proof = map.into_proof();
+        let (_, proof) = map.finalize();
 
         // check that the proof contains the expected values
         for (key, _) in ITEMS.iter() {
@@ -383,7 +385,7 @@ mod tests {
 
         // Note: The length reported by the proof will be different to the length originally
         // reported by the map.
-        let proof = map.into_proof();
+        let (_, proof) = map.finalize();
 
         // length of the proof should be equal to get_items + 1. The extra item is the original
         // value at key = 4u64
@@ -458,7 +460,7 @@ mod tests {
         assert_eq!(map.updates_len(), 2);
 
         // convert the map into a proof
-        let proof = map.into_proof();
+        let (_, proof) = map.finalize();
 
         // check that the proof contains the expected values
         for (key, value) in ITEMS.iter() {
