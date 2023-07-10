@@ -24,7 +24,7 @@ mod path_set;
 pub use path_set::MerklePathSet;
 
 mod simple_smt;
-pub use simple_smt::SimpleSmt;
+pub use simple_smt::{SimpleSmt, SimpleSmtConfig};
 
 mod tiered_smt;
 pub use tiered_smt::TieredSmt;

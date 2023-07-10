@@ -1,7 +1,7 @@
 use super::{
     mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath,
     MerklePathSet, MerkleTree, NodeIndex, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
-    TieredSmt, ValuePath, Vec, Word,
+    SimpleSmtConfig, TieredSmt, ValuePath, Vec, Word,
 };
 use crate::utils::{
     collections::{ApplyDiff, Diff, KvMapDiff},
@@ -591,11 +591,6 @@ pub trait TryFromMerkleStore: Sized {
 
 // TryFromMerkleStore IMPLEMENTATION
 // ================================================================================================
-pub struct SimpleSmtConfig {
-    pub root: RpoDigest,
-    pub depth: u8,
-}
-
 impl TryFromMerkleStore for SimpleSmt {
     type Error = MerkleError;
     type MerkleConfig = SimpleSmtConfig;

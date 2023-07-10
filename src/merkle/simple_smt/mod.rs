@@ -275,3 +275,10 @@ impl BranchNode {
         Rpo256::merge(&[self.left, self.right])
     }
 }
+
+// CONFIG
+// ================================================================================================
+pub struct SimpleSmtConfig {
+    pub root: RpoDigest,
+    pub depth: u8,
+}
