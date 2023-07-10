@@ -1,7 +1,7 @@
 use super::{
     mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath,
     MerklePathSet, MerkleTree, NodeIndex, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
-    TieredSmt, ValuePath, Vec,
+    TieredSmt, ValuePath, Vec, Word,
 };
 use crate::utils::{
     collections::{ApplyDiff, Diff, KvMapDiff},
@@ -575,4 +575,92 @@ fn combine_nodes_with_empty_hashes(
             )
         })
         .chain(empty_hashes())
+}
+
+// TryFromMerkleStore TRAIT
+// ================================================================================================
+pub trait TryFromMerkleStore: Sized {
+    type Error;
+    type MerkleConfig;
+
+    fn try_from_merkle_store(
+        config: Self::MerkleConfig,
+        store: &MerkleStore,
+    ) -> Result<Self, Self::Error>;
+}
+
+// TryFromMerkleStore IMPLEMENTATION
+// ================================================================================================
+pub struct SimpleSmtConfig {
+    pub root: RpoDigest,
+    pub depth: u8,
+}
+
+impl TryFromMerkleStore for SimpleSmt {
+    type Error = MerkleError;
+    type MerkleConfig = SimpleSmtConfig;
+
+    fn try_from_merkle_store(
+        config: Self::MerkleConfig,
+        store: &super::MerkleStore,
+    ) -> Result<Self, Self::Error> {
+        let empty_hashes = EmptySubtreeRoots::empty_hashes(config.depth).to_vec();
+        if config.root == empty_hashes[0] {
+            return SimpleSmt::new(config.depth);
+        }
+
+        let node = store.nodes.get(&config.root).ok_or(MerkleError::RootNotInStore(config.root))?;
+        let mut entries = Vec::new();
+        collect_entries(node, 0, 1, config.depth, &mut entries, &empty_hashes, store)?;
+        SimpleSmt::with_leaves(config.depth, entries)
+    }
+}
+
+fn collect_entries(
+    node: &StoreNode,
+    idx: u64,
+    cur_depth: u8,
+    leaf_depth: u8,
+    leaves: &mut Vec<(u64, Word)>,
+    empty_hashes: &[RpoDigest],
+    store: &MerkleStore,
+) -> Result<(), MerkleError> {
+    // we have reached the leafs lets add them to leaves Vec
+    if cur_depth == leaf_depth {
+        if !empty_hashes.contains(&node.left) {
+            leaves.push((idx * 2, *node.left));
+        }
+
+        if !empty_hashes.contains(&node.right) {
+            leaves.push(((idx * 2) + 1, *node.right));
+        }
+
+        return Ok(());
+    }
+
+    if !empty_hashes.contains(&node.left) {
+        let node = store.nodes.get(&node.left).ok_or(MerkleError::NodeNotInStore(
+            node.left,
+            NodeIndex::new_unchecked(cur_depth, (idx * 2) as u64),
+        ))?;
+        collect_entries(node, idx * 2, cur_depth + 1, leaf_depth, leaves, empty_hashes, store)?;
+    }
+
+    if !empty_hashes.contains(&node.right) {
+        let node = store.nodes.get(&node.right).ok_or(MerkleError::NodeNotInStore(
+            node.right,
+            NodeIndex::new_unchecked(cur_depth, ((idx * 2) + 1) as u64),
+        ))?;
+        collect_entries(
+            node,
+            (idx * 2) + 1,
+            cur_depth + 1,
+            leaf_depth,
+            leaves,
+            empty_hashes,
+            store,
+        )?;
+    }
+
+    Ok(())
 }

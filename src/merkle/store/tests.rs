@@ -1,6 +1,6 @@
 use super::{
     DefaultMerkleStore as MerkleStore, EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex,
-    RecordingMerkleStore, RpoDigest,
+    RecordingMerkleStore, RpoDigest, SimpleSmtConfig, TryFromMerkleStore,
 };
 use crate::{
     hash::rpo::Rpo256,
@@ -864,4 +864,26 @@ fn test_recorder() {
     let not_recorded_index = NodeIndex::new(smtree.depth(), 4).unwrap();
     assert!(merkle_store.get_node(smtree.root(), not_recorded_index).is_err());
     assert!(smtree.get_node(not_recorded_index).is_ok());
+}
+
+// TryFromMerkleStore
+// ================================================================================================
+#[test]
+fn try_from_merkle_store_simple_smt() {
+    let entries = vec![
+        (10, [Felt::new(0), Felt::new(1), Felt::new(2), Felt::new(3)]),
+        (15, [Felt::new(4), Felt::new(5), Felt::new(6), Felt::new(7)]),
+        (20, [Felt::new(8), Felt::new(9), Felt::new(10), Felt::new(11)]),
+        (31, [Felt::new(12), Felt::new(13), Felt::new(14), Felt::new(15)]),
+    ];
+    let simple_smt = SimpleSmt::with_leaves(30, entries).unwrap();
+    let config = SimpleSmtConfig {
+        root: simple_smt.root(),
+        depth: simple_smt.depth(),
+    };
+
+    let store: MerkleStore = (&simple_smt).into();
+    let extracted_smt = SimpleSmt::try_from_merkle_store(config, &store).unwrap();
+
+    assert_eq!(extracted_smt, simple_smt);
 }

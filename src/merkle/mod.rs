@@ -33,7 +33,9 @@ mod mmr;
 pub use mmr::{Mmr, MmrPeaks, MmrProof};
 
 mod store;
-pub use store::{DefaultMerkleStore, MerkleStore, RecordingMerkleStore, StoreNode};
+pub use store::{
+    DefaultMerkleStore, MerkleStore, RecordingMerkleStore, StoreNode, TryFromMerkleStore,
+};
 
 mod node;
 pub use node::InnerNodeInfo;
