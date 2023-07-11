@@ -81,7 +81,6 @@
 // yyySUPERCOP-
 
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #if defined FALCON_AVX2 && FALCON_AVX2 // yyyAVX2+1
