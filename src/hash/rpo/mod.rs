@@ -88,9 +88,19 @@ const INV_ALPHA: u64 = 10540996611094048183;
 /// to deserialize them into field elements and then hash them using
 /// [hash_elements()](Rpo256::hash_elements) function rather then hashing the serialized bytes
 /// using [hash()](Rpo256::hash) function.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rpo256();
 
 impl Hasher for Rpo256 {
+    /// Rpo256 collision resistance is the same as the security level, that is 128-bits.
+    ///
+    /// #### Collision resistance
+    ///
+    /// However, our setup of the capacity registers might drop it to 126.
+    ///
+    /// Related issue: [#69](https://github.com/0xPolygonMiden/crypto/issues/69)
+    const COLLISION_RESISTANCE: u32 = 128;
+
     type Digest = RpoDigest;
 
     fn hash(bytes: &[u8]) -> Self::Digest {
@@ -202,7 +212,7 @@ impl ElementHasher for Rpo256 {
 
     fn hash_elements<E: FieldElement<BaseField = Self::BaseField>>(elements: &[E]) -> Self::Digest {
         // convert the elements into a list of base field elements
-        let elements = E::as_base_elements(elements);
+        let elements = E::slice_as_base_elements(elements);
 
         // initialize state to all zeros, except for the first element of the capacity part, which
         // is set to 1 if the number of elements is not a multiple of RATE_WIDTH.

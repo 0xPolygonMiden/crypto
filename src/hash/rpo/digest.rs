@@ -2,7 +2,7 @@ use super::{Digest, Felt, StarkField, DIGEST_SIZE, ZERO};
 use crate::utils::{
     string::String, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
 };
-use core::{cmp::Ordering, ops::Deref};
+use core::{cmp::Ordering, fmt::Display, ops::Deref};
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
@@ -46,7 +46,7 @@ impl Digest for RpoDigest {
 
 impl Serializable for RpoDigest {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        target.write_u8_slice(&self.as_bytes());
+        target.write_bytes(&self.as_bytes());
     }
 }
 
@@ -73,9 +73,43 @@ impl From<[Felt; DIGEST_SIZE]> for RpoDigest {
     }
 }
 
+impl From<&RpoDigest> for [Felt; DIGEST_SIZE] {
+    fn from(value: &RpoDigest) -> Self {
+        value.0
+    }
+}
+
 impl From<RpoDigest> for [Felt; DIGEST_SIZE] {
     fn from(value: RpoDigest) -> Self {
         value.0
+    }
+}
+
+impl From<&RpoDigest> for [u64; DIGEST_SIZE] {
+    fn from(value: &RpoDigest) -> Self {
+        [
+            value.0[0].as_int(),
+            value.0[1].as_int(),
+            value.0[2].as_int(),
+            value.0[3].as_int(),
+        ]
+    }
+}
+
+impl From<RpoDigest> for [u64; DIGEST_SIZE] {
+    fn from(value: RpoDigest) -> Self {
+        [
+            value.0[0].as_int(),
+            value.0[1].as_int(),
+            value.0[2].as_int(),
+            value.0[3].as_int(),
+        ]
+    }
+}
+
+impl From<&RpoDigest> for [u8; 32] {
+    fn from(value: &RpoDigest) -> Self {
+        value.as_bytes()
     }
 }
 
@@ -106,20 +140,28 @@ impl Ord for RpoDigest {
         // finally, we use `Felt::inner` instead of `Felt::as_int` so we avoid performing a
         // montgomery reduction for every limb. that is safe because every inner element of the
         // digest is guaranteed to be in its canonical form (that is, `x in [0,p)`).
-        self.0
-            .iter()
-            .map(Felt::inner)
-            .zip(other.0.iter().map(Felt::inner))
-            .fold(Ordering::Equal, |ord, (a, b)| match ord {
+        self.0.iter().map(Felt::inner).zip(other.0.iter().map(Felt::inner)).fold(
+            Ordering::Equal,
+            |ord, (a, b)| match ord {
                 Ordering::Equal => a.cmp(&b),
                 _ => ord,
-            })
+            },
+        )
     }
 }
 
 impl PartialOrd for RpoDigest {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl Display for RpoDigest {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for byte in self.as_bytes() {
+            write!(f, "{byte:02x}")?;
+        }
+        Ok(())
     }
 }
 

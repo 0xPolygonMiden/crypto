@@ -1,14 +1,16 @@
 [package]
 name = "miden-crypto"
-version = "0.1.1"
-description="Miden Cryptographic primitives"
+version = "0.7.0"
+description = "Miden Cryptographic primitives"
 authors = ["miden contributors"]
-readme="README.md"
+readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
+documentation = "https://docs.rs/miden-crypto/0.7.0"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
+rust-version = "1.67"
 
 [[bench]]
 name = "hash"
@@ -18,17 +20,21 @@ harness = false
 name = "smt"
 harness = false
 
+[[bench]]
+name = "store"
+harness = false
+
 [features]
 default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
 std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
 
 [dependencies]
-blake3 = { version = "1.0", default-features = false }
-winter_crypto = { version = "0.4.1", package = "winter-crypto", default-features = false }
-winter_math = { version = "0.4.1", package = "winter-math", default-features = false }
-winter_utils = { version = "0.4.1", package = "winter-utils", default-features = false }
+blake3 = { version = "1.3", default-features = false }
+winter_crypto = { version = "0.6", package = "winter-crypto", default-features = false }
+winter_math = { version = "0.6", package = "winter-math", default-features = false }
+winter_utils = { version = "0.6", package = "winter-utils", default-features = false }
 
 [dev-dependencies]
-criterion = { version = "0.4", features = ["html_reports"] }
-proptest = "1.0.0"
-rand_utils = { version = "0.4", package = "winter-rand-utils" }
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.1.0"
+rand_utils = { version = "0.6", package = "winter-rand-utils" }

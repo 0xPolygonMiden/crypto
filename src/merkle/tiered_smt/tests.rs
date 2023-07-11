@@ -1,189 +1,441 @@
-use super::*;
-use crate::{utils::collections::BTreeSet, ONE, WORD_SIZE};
-use core::ops::{Deref, DerefMut};
-use proptest::prelude::*;
-use proptest::sample::size_range;
+use super::{
+    super::{super::ONE, Felt, MerkleStore, WORD_SIZE, ZERO},
+    get_remaining_path, EmptySubtreeRoots, InnerNodeInfo, NodeIndex, Rpo256, RpoDigest, TieredSmt,
+    Vec, Word,
+};
 
 #[test]
-fn append_to_bottom_level_is_consistent() {
-    let mut test = TieredTestEngine::default();
+fn tsmt_insert_one() {
+    let mut smt = TieredSmt::default();
+    let mut store = MerkleStore::default();
 
-    // insert a leaf into the empty tree. should be allocated to the first tier.
-    let raw_a = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
-    let key_a = [Felt::new(raw_a); WORD_SIZE];
-    test.insert(key_a, Word::default())
-        .expect_path_with_depth(key_a, 16);
+    let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let value = [ONE; WORD_SIZE];
 
-    // insert another leaf and diverge on the first bit, causing both `a` and `b` to be on depth
-    // `16. should produce an empty path until the last element.
-    let raw_b = 0b_11101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
-    let key_b = [Felt::new(raw_b); WORD_SIZE];
-    test.insert(key_b, Word::default())
-        .expect_path_with_depth(key_a, 16)
-        .expect_path_with_depth(key_b, 16);
+    // since the tree is empty, the first node will be inserted at depth 16 and the index will be
+    // 16 most significant bits of the key
+    let index = NodeIndex::make(16, raw >> 48);
+    let leaf_node = build_leaf_node(key, value, 16);
+    let tree_root = store.set_node(smt.root(), index, leaf_node).unwrap().root;
 
-    // this new leaf will have the same path of `a` until the first bit of the second tier, where
-    // they diverge. both `a` and `c` should be on the depth `32` after this mutation.
-    let raw_c = 0b_01101001_01101100_10011111_11111111_10010110_10010011_11100000_00000000_u64;
-    let key_c = [Felt::new(raw_c); WORD_SIZE];
-    // expect the path of `a` to be mutated as well.
-    test.insert(key_c, Word::default())
-        .expect_path_with_depth(key_a, 32)
-        .expect_path_with_depth(key_b, 16)
-        .expect_path_with_depth(key_c, 32);
+    smt.insert(key, value);
 
-    // this new leaf will have the same path of `c` until the first bit of the third tier, where
-    // they diverge. both `c` and `d` should be on the depth `48` after this mutation.
-    let raw_d = 0b_01101001_01101100_10011111_11111111_00010110_10010011_11100000_00000000_u64;
-    let key_d = [Felt::new(raw_d); WORD_SIZE];
-    // expect the path of `c` to be mutated as well.
-    test.insert(key_d, Word::default())
-        .expect_path_with_depth(key_a, 32)
-        .expect_path_with_depth(key_b, 16)
-        .expect_path_with_depth(key_c, 48)
-        .expect_path_with_depth(key_d, 48);
+    assert_eq!(smt.root(), tree_root);
 
-    // this new leaf will have the same path of `d` ultil the first bit of the fourth tier, where
-    // they will diverge. both `d` and `e` should be on the depth `64` after this mutation.
-    let raw_e = 0b_01101001_01101100_10011111_11111111_00010110_10010011_01100000_00000000_u64;
-    let key_e = [Felt::new(raw_e); WORD_SIZE];
-    // expect the path of `d` to be mutated as well.
-    test.insert(key_e, Word::default())
-        .expect_path_with_depth(key_a, 32)
-        .expect_path_with_depth(key_b, 16)
-        .expect_path_with_depth(key_c, 48)
-        .expect_path_with_depth(key_d, 64)
-        .expect_path_with_depth(key_e, 64);
+    // make sure the value was inserted, and the node is at the expected index
+    assert_eq!(smt.get_value(key), value);
+    assert_eq!(smt.get_node(index).unwrap(), leaf_node);
 
-    // this new leaf will collide with `e` until the last tier, that is depth `64`. it means they
-    // should be inserted as ordered list of the bottom level, and will have the same path.
-    let mut key_f = key_e;
-    key_f[0] += ONE;
-    // expect both `e` and `f` to have the same path.
-    test.insert(key_f, Word::default())
-        .expect_path_with_depth(key_a, 32)
-        .expect_path_with_depth(key_b, 16)
-        .expect_path_with_depth(key_c, 48)
-        .expect_path_with_depth(key_d, 64)
-        .expect_path_with_depth(key_e, 64)
-        .expect_path_with_depth(key_f, 64);
+    // make sure the paths we get from the store and the tree match
+    let expected_path = store.get_path(tree_root, index).unwrap();
+    assert_eq!(smt.get_path(index).unwrap(), expected_path.path);
+
+    // make sure inner nodes match
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    assert_eq!(actual_nodes.len(), expected_nodes.len());
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    // make sure leaves are returned correctly
+    let mut leaves = smt.upper_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node, key, value)));
+    assert_eq!(leaves.next(), None);
 }
 
-proptest! {
-    #[test]
-    fn arbitrary_leaves_are_inserted(ref leaves in any_with::<Vec<u64>>(size_range(50).lift())) {
-        // dedup keys.
-        let leaves: BTreeSet<_> = leaves
-            .iter()
-            .copied()
-            .map(|v| Felt::new(v).as_int())
-            .collect();
+#[test]
+fn tsmt_insert_two_16() {
+    let mut smt = TieredSmt::default();
+    let mut store = MerkleStore::default();
 
-        // create a leaves set.
-        let leaves: Vec<_> = leaves
-            .into_iter()
-            .map(|x| {
-                let x = Felt::new(x);
-                let key = [x; WORD_SIZE];
-                let value = Rpo256::hash_elements(&key);
-                Leaf::new(key.into(), value.into())
-            })
-            .collect();
+    // --- insert the first value ---------------------------------------------
+    let raw_a = 0b_10101010_10101010_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let val_a = [ONE; WORD_SIZE];
+    smt.insert(key_a, val_a);
 
-        // initialize the tests engine.
-        let mut test = TieredTestEngine::default();
+    // --- insert the second value --------------------------------------------
+    // the key for this value has the same 16-bit prefix as the key for the first value,
+    // thus, on insertions, both values should be pushed to depth 32 tier
+    let raw_b = 0b_10101010_10101010_10011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let val_b = [Felt::new(2); WORD_SIZE];
+    smt.insert(key_b, val_b);
 
-        // append the leaves to the engine.
-        leaves.iter().for_each(|leaf| {
-            test.insert(leaf.key, leaf.value);
-        });
+    // --- build Merkle store with equivalent data ----------------------------
+    let mut tree_root = get_init_root();
+    let index_a = NodeIndex::make(32, raw_a >> 32);
+    let leaf_node_a = build_leaf_node(key_a, val_a, 32);
+    tree_root = store.set_node(tree_root, index_a, leaf_node_a).unwrap().root;
 
-        // assert the values are available. the tree will be able to provide the value if, and only
-        // if, it can traverse from the root to the leaf - therefore, if they are available, the
-        // full path is also correct.
-        leaves.iter().for_each(|leaf| {
-            let value = test.get_leaf_value(&leaf.key.into()).unwrap().unwrap();
-            assert_eq!(value, leaf.value);
-        });
-    }
+    let index_b = NodeIndex::make(32, raw_b >> 32);
+    let leaf_node_b = build_leaf_node(key_b, val_b, 32);
+    tree_root = store.set_node(tree_root, index_b, leaf_node_b).unwrap().root;
+
+    // --- verify that data is consistent between store and tree --------------
+
+    assert_eq!(smt.root(), tree_root);
+
+    assert_eq!(smt.get_value(key_a), val_a);
+    assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
+    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
+    assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
+
+    assert_eq!(smt.get_value(key_b), val_b);
+    assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
+    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
+    assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    // make sure leaves are returned correctly
+    let mut leaves = smt.upper_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node_a, key_a, val_a)));
+    assert_eq!(leaves.next(), Some((leaf_node_b, key_b, val_b)));
+    assert_eq!(leaves.next(), None);
 }
 
-// TIERED SPARSE MERKLE TREE TEST ENGINE
+#[test]
+fn tsmt_insert_two_32() {
+    let mut smt = TieredSmt::default();
+    let mut store = MerkleStore::default();
+
+    // --- insert the first value ---------------------------------------------
+    let raw_a = 0b_10101010_10101010_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let val_a = [ONE; WORD_SIZE];
+    smt.insert(key_a, val_a);
+
+    // --- insert the second value --------------------------------------------
+    // the key for this value has the same 32-bit prefix as the key for the first value,
+    // thus, on insertions, both values should be pushed to depth 48 tier
+    let raw_b = 0b_10101010_10101010_00011111_11111111_00010110_10010011_11100000_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let val_b = [Felt::new(2); WORD_SIZE];
+    smt.insert(key_b, val_b);
+
+    // --- build Merkle store with equivalent data ----------------------------
+    let mut tree_root = get_init_root();
+    let index_a = NodeIndex::make(48, raw_a >> 16);
+    let leaf_node_a = build_leaf_node(key_a, val_a, 48);
+    tree_root = store.set_node(tree_root, index_a, leaf_node_a).unwrap().root;
+
+    let index_b = NodeIndex::make(48, raw_b >> 16);
+    let leaf_node_b = build_leaf_node(key_b, val_b, 48);
+    tree_root = store.set_node(tree_root, index_b, leaf_node_b).unwrap().root;
+
+    // --- verify that data is consistent between store and tree --------------
+
+    assert_eq!(smt.root(), tree_root);
+
+    assert_eq!(smt.get_value(key_a), val_a);
+    assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
+    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
+    assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
+
+    assert_eq!(smt.get_value(key_b), val_b);
+    assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
+    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
+    assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+}
+
+#[test]
+fn tsmt_insert_three() {
+    let mut smt = TieredSmt::default();
+    let mut store = MerkleStore::default();
+
+    // --- insert the first value ---------------------------------------------
+    let raw_a = 0b_10101010_10101010_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let val_a = [ONE; WORD_SIZE];
+    smt.insert(key_a, val_a);
+
+    // --- insert the second value --------------------------------------------
+    // the key for this value has the same 16-bit prefix as the key for the first value,
+    // thus, on insertions, both values should be pushed to depth 32 tier
+    let raw_b = 0b_10101010_10101010_10011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let val_b = [Felt::new(2); WORD_SIZE];
+    smt.insert(key_b, val_b);
+
+    // --- insert the third value ---------------------------------------------
+    // the key for this value has the same 16-bit prefix as the keys for the first two,
+    // values; thus, on insertions, it will be inserted into depth 32 tier, but will not
+    // affect locations of the other two values
+    let raw_c = 0b_10101010_10101010_11011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    let val_c = [Felt::new(3); WORD_SIZE];
+    smt.insert(key_c, val_c);
+
+    // --- build Merkle store with equivalent data ----------------------------
+    let mut tree_root = get_init_root();
+    let index_a = NodeIndex::make(32, raw_a >> 32);
+    let leaf_node_a = build_leaf_node(key_a, val_a, 32);
+    tree_root = store.set_node(tree_root, index_a, leaf_node_a).unwrap().root;
+
+    let index_b = NodeIndex::make(32, raw_b >> 32);
+    let leaf_node_b = build_leaf_node(key_b, val_b, 32);
+    tree_root = store.set_node(tree_root, index_b, leaf_node_b).unwrap().root;
+
+    let index_c = NodeIndex::make(32, raw_c >> 32);
+    let leaf_node_c = build_leaf_node(key_c, val_c, 32);
+    tree_root = store.set_node(tree_root, index_c, leaf_node_c).unwrap().root;
+
+    // --- verify that data is consistent between store and tree --------------
+
+    assert_eq!(smt.root(), tree_root);
+
+    assert_eq!(smt.get_value(key_a), val_a);
+    assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
+    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
+    assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
+
+    assert_eq!(smt.get_value(key_b), val_b);
+    assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
+    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
+    assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
+
+    assert_eq!(smt.get_value(key_c), val_c);
+    assert_eq!(smt.get_node(index_c).unwrap(), leaf_node_c);
+    let expected_path = store.get_path(tree_root, index_c).unwrap().path;
+    assert_eq!(smt.get_path(index_c).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+}
+
+#[test]
+fn tsmt_update() {
+    let mut smt = TieredSmt::default();
+    let mut store = MerkleStore::default();
+
+    // --- insert a value into the tree ---------------------------------------
+    let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let value_a = [ONE; WORD_SIZE];
+    smt.insert(key, value_a);
+
+    // --- update the value ---------------------------------------------------
+    let value_b = [Felt::new(2); WORD_SIZE];
+    smt.insert(key, value_b);
+
+    // --- verify consistency -------------------------------------------------
+    let mut tree_root = get_init_root();
+    let index = NodeIndex::make(16, raw >> 48);
+    let leaf_node = build_leaf_node(key, value_b, 16);
+    tree_root = store.set_node(tree_root, index, leaf_node).unwrap().root;
+
+    assert_eq!(smt.root(), tree_root);
+
+    assert_eq!(smt.get_value(key), value_b);
+    assert_eq!(smt.get_node(index).unwrap(), leaf_node);
+    let expected_path = store.get_path(tree_root, index).unwrap().path;
+    assert_eq!(smt.get_path(index).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+}
+
+// BOTTOM TIER TESTS
 // ================================================================================================
 
-pub struct TieredTestEngine {
-    tree: TieredSmt,
+#[test]
+fn tsmt_bottom_tier() {
+    let mut smt = TieredSmt::default();
+    let mut store = MerkleStore::default();
+
+    // common prefix for the keys
+    let prefix = 0b_10101010_10101010_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+
+    // --- insert the first value ---------------------------------------------
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(prefix)]);
+    let val_a = [ONE; WORD_SIZE];
+    smt.insert(key_a, val_a);
+
+    // --- insert the second value --------------------------------------------
+    // this key has the same 64-bit prefix and thus both values should end up in the same
+    // node at depth 64
+    let key_b = RpoDigest::from([ZERO, ONE, ONE, Felt::new(prefix)]);
+    let val_b = [Felt::new(2); WORD_SIZE];
+    smt.insert(key_b, val_b);
+
+    // --- build Merkle store with equivalent data ----------------------------
+    let index = NodeIndex::make(64, prefix);
+    // to build bottom leaf we sort by key starting with the least significant element, thus
+    // key_b is smaller than key_a.
+    let leaf_node = build_bottom_leaf_node(&[key_b, key_a], &[val_b, val_a]);
+    let mut tree_root = get_init_root();
+    tree_root = store.set_node(tree_root, index, leaf_node).unwrap().root;
+
+    // --- verify that data is consistent between store and tree --------------
+
+    assert_eq!(smt.root(), tree_root);
+
+    assert_eq!(smt.get_value(key_a), val_a);
+    assert_eq!(smt.get_value(key_b), val_b);
+
+    assert_eq!(smt.get_node(index).unwrap(), leaf_node);
+    let expected_path = store.get_path(tree_root, index).unwrap().path;
+    assert_eq!(smt.get_path(index).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    // make sure leaves are returned correctly
+    let mut leaves = smt.bottom_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node, vec![(key_b, val_b), (key_a, val_a)])));
+    assert_eq!(leaves.next(), None);
 }
 
-impl Default for TieredTestEngine {
-    fn default() -> Self {
-        let storage = Storage::default();
-        let tree = TieredSmt::with_storage(storage).unwrap();
-        let root = RpoDigest::from(*tree.root());
-        assert_eq!(root, EMPTY_SUBTREES[0]);
-        Self { tree }
-    }
+#[test]
+fn tsmt_bottom_tier_two() {
+    let mut smt = TieredSmt::default();
+    let mut store = MerkleStore::default();
+
+    // --- insert the first value ---------------------------------------------
+    let raw_a = 0b_10101010_10101010_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let val_a = [ONE; WORD_SIZE];
+    smt.insert(key_a, val_a);
+
+    // --- insert the second value --------------------------------------------
+    // the key for this value has the same 48-bit prefix as the key for the first value,
+    // thus, on insertions, both should end up in different nodes at depth 64
+    let raw_b = 0b_10101010_10101010_00011111_11111111_10010110_10010011_01100000_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let val_b = [Felt::new(2); WORD_SIZE];
+    smt.insert(key_b, val_b);
+
+    // --- build Merkle store with equivalent data ----------------------------
+    let mut tree_root = get_init_root();
+    let index_a = NodeIndex::make(64, raw_a);
+    let leaf_node_a = build_bottom_leaf_node(&[key_a], &[val_a]);
+    tree_root = store.set_node(tree_root, index_a, leaf_node_a).unwrap().root;
+
+    let index_b = NodeIndex::make(64, raw_b);
+    let leaf_node_b = build_bottom_leaf_node(&[key_b], &[val_b]);
+    tree_root = store.set_node(tree_root, index_b, leaf_node_b).unwrap().root;
+
+    // --- verify that data is consistent between store and tree --------------
+
+    assert_eq!(smt.root(), tree_root);
+
+    assert_eq!(smt.get_value(key_a), val_a);
+    assert_eq!(smt.get_node(index_a).unwrap(), leaf_node_a);
+    let expected_path = store.get_path(tree_root, index_a).unwrap().path;
+    assert_eq!(smt.get_path(index_a).unwrap(), expected_path);
+
+    assert_eq!(smt.get_value(key_b), val_b);
+    assert_eq!(smt.get_node(index_b).unwrap(), leaf_node_b);
+    let expected_path = store.get_path(tree_root, index_b).unwrap().path;
+    assert_eq!(smt.get_path(index_b).unwrap(), expected_path);
+
+    // make sure inner nodes match - the store contains more entries because it keeps track of
+    // all prior state - so, we don't check that the number of inner nodes is the same in both
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    // make sure leaves are returned correctly
+    let mut leaves = smt.bottom_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node_b, vec![(key_b, val_b)])));
+    assert_eq!(leaves.next(), Some((leaf_node_a, vec![(key_a, val_a)])));
+    assert_eq!(leaves.next(), None);
 }
 
-impl Deref for TieredTestEngine {
-    type Target = TieredSmt;
+// ERROR TESTS
+// ================================================================================================
 
-    fn deref(&self) -> &Self::Target {
-        &self.tree
-    }
+#[test]
+fn tsmt_node_not_available() {
+    let mut smt = TieredSmt::default();
+
+    let raw = 0b_10101010_10101010_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let value = [ONE; WORD_SIZE];
+
+    // build an index which is just below the inserted leaf node
+    let index = NodeIndex::make(17, raw >> 47);
+
+    // since we haven't inserted the node yet, we should be able to get node and path to this index
+    assert!(smt.get_node(index).is_ok());
+    assert!(smt.get_path(index).is_ok());
+
+    smt.insert(key, value);
+
+    // but once the node is inserted, everything under it should be unavailable
+    assert!(smt.get_node(index).is_err());
+    assert!(smt.get_path(index).is_err());
+
+    let index = NodeIndex::make(32, raw >> 32);
+    assert!(smt.get_node(index).is_err());
+    assert!(smt.get_path(index).is_err());
+
+    let index = NodeIndex::make(34, raw >> 30);
+    assert!(smt.get_node(index).is_err());
+    assert!(smt.get_path(index).is_err());
+
+    let index = NodeIndex::make(50, raw >> 14);
+    assert!(smt.get_node(index).is_err());
+    assert!(smt.get_path(index).is_err());
+
+    let index = NodeIndex::make(64, raw);
+    assert!(smt.get_node(index).is_err());
+    assert!(smt.get_path(index).is_err());
 }
 
-impl DerefMut for TieredTestEngine {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.tree
-    }
+// HELPER FUNCTIONS
+// ================================================================================================
+
+fn get_init_root() -> RpoDigest {
+    EmptySubtreeRoots::empty_hashes(64)[0]
 }
 
-impl TieredTestEngine {
-    pub fn insert<K, V>(&mut self, key: K, value: V) -> &mut Self
-    where
-        Word: From<K>,
-        Word: From<V>,
-    {
-        let key = Word::from(key);
-        let value = Word::from(value);
+fn build_leaf_node(key: RpoDigest, value: Word, depth: u8) -> RpoDigest {
+    let remaining_path = get_remaining_path(key, depth as u32);
+    Rpo256::merge_in_domain(&[remaining_path, value.into()], depth.into())
+}
 
-        // assert non-membership
-        let root = self.tree.root();
-        let path = self.tree.get_leaf_proof(key).unwrap();
-        assert!(path.verify_non_membership(key, value, root));
+fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
+    assert_eq!(keys.len(), values.len());
 
-        self.tree.insert(key, value).unwrap();
-
-        // assert membership
-        let root = self.tree.root();
-        let path = self.tree.get_leaf_proof(key).unwrap();
-        assert!(path.verify_membership(key, value, root));
-
-        self
+    let mut elements = Vec::with_capacity(keys.len());
+    for (key, val) in keys.iter().zip(values.iter()) {
+        let mut key = Word::from(key);
+        key[3] = ZERO;
+        elements.extend_from_slice(&key);
+        elements.extend_from_slice(val.as_slice());
     }
 
-    pub fn expect_path_with_depth<W>(&mut self, key: W, mut depth: u8) -> &mut Self
-    where
-        Word: From<W>,
-    {
-        let key = Word::from(key);
-        let canonical = key[3].as_int();
-        let mut path = Vec::with_capacity(depth as usize);
-        while depth > 0 {
-            let index = canonical >> (64 - depth).min(63);
-            let index = index ^ 1;
-            let node = self
-                .tree
-                .storage
-                .get_node(&NodeIndex::new(depth, index))
-                .unwrap()
-                .unwrap_or_else(|| EMPTY_SUBTREES[depth as usize].into());
-            path.push(node);
-            depth -= 1;
-        }
-        let opening = self.tree.get_leaf_path(key).unwrap();
-        assert_eq!(opening.deref(), path);
-        self
-    }
+    Rpo256::hash_elements(&elements)
+}
+
+fn get_non_empty_nodes(store: &MerkleStore) -> Vec<InnerNodeInfo> {
+    store
+        .inner_nodes()
+        .filter(|node| !is_empty_subtree(&node.value))
+        .collect::<Vec<_>>()
+}
+
+fn is_empty_subtree(node: &RpoDigest) -> bool {
+    EmptySubtreeRoots::empty_hashes(255).contains(node)
 }

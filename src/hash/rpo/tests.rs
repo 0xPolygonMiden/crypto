@@ -2,7 +2,10 @@ use super::{
     Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, INV_ALPHA, ONE, STATE_WIDTH,
     ZERO,
 };
-use crate::utils::collections::{BTreeSet, Vec};
+use crate::{
+    utils::collections::{BTreeSet, Vec},
+    Word,
+};
 use core::convert::TryInto;
 use proptest::prelude::*;
 use rand_utils::rand_value;
@@ -203,7 +206,7 @@ fn sponge_bytes_with_remainder_length_wont_panic() {
     // size.
     //
     // this is a preliminary test to the fuzzy-stress of proptest.
-    Rpo256::hash(&vec![0; 113]);
+    Rpo256::hash(&[0; 113]);
 }
 
 #[test]
@@ -227,12 +230,12 @@ fn sponge_zeroes_collision() {
 
 proptest! {
     #[test]
-    fn rpo256_wont_panic_with_arbitrary_input(ref vec in any::<Vec<u8>>()) {
-        Rpo256::hash(&vec);
+    fn rpo256_wont_panic_with_arbitrary_input(ref bytes in any::<Vec<u8>>()) {
+        Rpo256::hash(bytes);
     }
 }
 
-const EXPECTED: [[Felt; 4]; 19] = [
+const EXPECTED: [Word; 19] = [
     [
         Felt::new(1502364727743950833),
         Felt::new(5880949717274681448),

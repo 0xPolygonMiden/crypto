@@ -1,4 +1,4 @@
-# Miden VM Hash Functions 
+# Miden VM Hash Functions
 In the Miden VM, we make use of different hash functions. Some of these are "traditional" hash functions, like `BLAKE3`, which are optimized for out-of-STARK performance, while others are algebraic hash functions, like `Rescue Prime`, and are more optimized for a better performance inside the STARK. In what follows, we benchmark several such hash functions and compare against other constructions that are used by other proving systems. More precisely, we benchmark:
 
 * **BLAKE3** as specified [here](https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf) and implemented [here](https://github.com/BLAKE3-team/BLAKE3) (with a wrapper exposed via this crate).
@@ -13,7 +13,7 @@ In the Miden VM, we make use of different hash functions. Some of these are "tra
 We benchmark the above hash functions using two scenarios. The first is a 2-to-1 $(a,b)\mapsto h(a,b)$ hashing where both $a$, $b$ and $h(a,b)$ are the digests corresponding to each of the hash functions.
 The second scenario is that of sequential hashing where we take a sequence of length $100$ field elements and hash these to produce a single digest. The digests are $4$ field elements in a prime field with modulus $2^{64} - 2^{32} + 1$ (i.e., 32 bytes) for Poseidon, Rescue Prime and RPO, and an array `[u8; 32]` for SHA3 and BLAKE3.
 
-#### Scenario 1: 2-to-1 hashing `h(a,b)` 
+#### Scenario 1: 2-to-1 hashing `h(a,b)`
 
 | Function            | BLAKE3 | SHA3    | Poseidon  | Rp64_256  | RPO_256 |
 | ------------------- | ------ | --------| --------- | --------- | ------- |
@@ -28,7 +28,7 @@ The second scenario is that of sequential hashing where we take a sequence of le
 
 | Function            | BLAKE3 | SHA3    | Poseidon  | Rp64_256  | RPO_256 |
 | ------------------- | -------| ------- | --------- | --------- | ------- |
-| Apple M1 Pro        | 1.1 us | 1.5 us  |  19.4 us  |   118 us  | 70 us   |
+| Apple M1 Pro        | 1.0 us | 1.5 us  |  19.4 us  |   118 us  | 70 us   |
 | Apple M2            | 1.0 us | 1.5 us  |  17.4 us  |   103 us  | 65 us   |
 | Amazon Graviton 3   | 1.4 us |         |           |           | 114 us  |
 | AMD Ryzen 9 5950X   | 0.8 us | 1.7 us  |  15.7 us  |   120 us  | 72 us   |
