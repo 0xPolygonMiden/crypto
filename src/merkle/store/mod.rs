@@ -3,7 +3,10 @@ use super::{
     MerklePathSet, MerkleTree, NodeIndex, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
     TieredSmt, ValuePath, Vec,
 };
-use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use crate::utils::{
+    collections::{ApplyDiff, Diff, KvMapDiff},
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
+};
 use core::borrow::Borrow;
 
 #[cfg(test)]
@@ -471,6 +474,24 @@ impl<T: KvMap<RpoDigest, StoreNode>> Extend<InnerNodeInfo> for MerkleStore<T> {
                 },
             )
         }));
+    }
+}
+
+// DiffT & ApplyDiffT TRAIT IMPLEMENTATION
+// ================================================================================================
+impl<T: KvMap<RpoDigest, StoreNode>> Diff<RpoDigest, StoreNode> for MerkleStore<T> {
+    type DiffType = KvMapDiff<RpoDigest, StoreNode>;
+
+    fn diff(&self, other: &Self) -> Self::DiffType {
+        self.nodes.diff(&other.nodes)
+    }
+}
+
+impl<T: KvMap<RpoDigest, StoreNode>> ApplyDiff<RpoDigest, StoreNode> for MerkleStore<T> {
+    type DiffType = KvMapDiff<RpoDigest, StoreNode>;
+
+    fn apply(&mut self, diff: Self::DiffType) {
+        self.nodes.apply(diff);
     }
 }
 
