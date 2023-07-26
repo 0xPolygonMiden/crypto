@@ -1,6 +1,6 @@
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
-    Rpo256, RpoDigest, Vec, Word,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerkleTreeDelta,
+    NodeIndex, Rpo256, RpoDigest, StoreNode, TryApplyDiff, Vec, Word,
 };
 
 #[cfg(test)]
@@ -273,5 +273,31 @@ struct BranchNode {
 impl BranchNode {
     fn parent(&self) -> RpoDigest {
         Rpo256::merge(&[self.left, self.right])
+    }
+}
+
+// TRY APPLY DIFF
+// ================================================================================================
+impl TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt {
+    type Error = MerkleError;
+    type DiffType = MerkleTreeDelta;
+
+    fn try_apply(&mut self, diff: MerkleTreeDelta) -> Result<(), MerkleError> {
+        if diff.depth() != self.depth() {
+            return Err(MerkleError::InvalidDepth {
+                expected: self.depth(),
+                provided: diff.depth(),
+            });
+        }
+
+        for slot in diff.cleared_slots() {
+            self.update_leaf(*slot, Self::EMPTY_VALUE)?;
+        }
+
+        for (slot, value) in diff.updated_slots() {
+            self.update_leaf(*slot, *value)?;
+        }
+
+        Ok(())
     }
 }

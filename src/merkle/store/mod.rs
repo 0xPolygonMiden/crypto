@@ -1,12 +1,9 @@
 use super::{
-    mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath,
-    MerklePathSet, MerkleTree, NodeIndex, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
-    TieredSmt, ValuePath, Vec,
+    empty_roots::EMPTY_WORD, mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap,
+    MerkleError, MerklePath, MerklePathSet, MerkleStoreDelta, MerkleTree, NodeIndex, RecordingMap,
+    RootPath, Rpo256, RpoDigest, SimpleSmt, TieredSmt, TryApplyDiff, ValuePath, Vec,
 };
-use crate::utils::{
-    collections::{ApplyDiff, Diff, KvMapDiff},
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
-};
+use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::borrow::Borrow;
 
 #[cfg(test)]
@@ -280,6 +277,37 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
         })
     }
 
+    /// Iterator over the non-empty leaves of the Merkle tree associated with the specified `root`
+    /// and `max_depth`.
+    pub fn non_empty_leaves(
+        &self,
+        root: RpoDigest,
+        max_depth: u8,
+    ) -> impl Iterator<Item = (NodeIndex, RpoDigest)> + '_ {
+        let empty_roots = EmptySubtreeRoots::empty_hashes(max_depth);
+        let mut stack = Vec::new();
+        stack.push((NodeIndex::new_unchecked(0, 0), root));
+
+        core::iter::from_fn(move || {
+            while let Some((index, node_hash)) = stack.pop() {
+                if index.depth() == max_depth {
+                    return Some((index, node_hash));
+                }
+
+                if let Some(node) = self.nodes.get(&node_hash) {
+                    if !empty_roots.contains(&node.left) {
+                        stack.push((index.left_child(), node.left));
+                    }
+                    if !empty_roots.contains(&node.right) {
+                        stack.push((index.right_child(), node.right));
+                    }
+                }
+            }
+
+            None
+        })
+    }
+
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
@@ -462,7 +490,6 @@ impl<T: KvMap<RpoDigest, StoreNode>> FromIterator<(RpoDigest, StoreNode)> for Me
 
 // ITERATORS
 // ================================================================================================
-
 impl<T: KvMap<RpoDigest, StoreNode>> Extend<InnerNodeInfo> for MerkleStore<T> {
     fn extend<I: IntoIterator<Item = InnerNodeInfo>>(&mut self, iter: I) {
         self.nodes.extend(iter.into_iter().map(|info| {
@@ -479,19 +506,34 @@ impl<T: KvMap<RpoDigest, StoreNode>> Extend<InnerNodeInfo> for MerkleStore<T> {
 
 // DiffT & ApplyDiffT TRAIT IMPLEMENTATION
 // ================================================================================================
-impl<T: KvMap<RpoDigest, StoreNode>> Diff<RpoDigest, StoreNode> for MerkleStore<T> {
-    type DiffType = KvMapDiff<RpoDigest, StoreNode>;
+impl<T: KvMap<RpoDigest, StoreNode>> TryApplyDiff<RpoDigest, StoreNode> for MerkleStore<T> {
+    type Error = MerkleError;
+    type DiffType = MerkleStoreDelta;
 
-    fn diff(&self, other: &Self) -> Self::DiffType {
-        self.nodes.diff(&other.nodes)
-    }
-}
+    fn try_apply(&mut self, diff: Self::DiffType) -> Result<(), MerkleError> {
+        for (root, delta) in diff.0 {
+            let mut root = root;
+            for cleared_slot in delta.cleared_slots() {
+                root = self
+                    .set_node(
+                        root,
+                        NodeIndex::new(delta.depth(), *cleared_slot)?,
+                        EMPTY_WORD.into(),
+                    )?
+                    .root;
+            }
+            for (updated_slot, updated_value) in delta.updated_slots() {
+                root = self
+                    .set_node(
+                        root,
+                        NodeIndex::new(delta.depth(), *updated_slot)?,
+                        (*updated_value).into(),
+                    )?
+                    .root;
+            }
+        }
 
-impl<T: KvMap<RpoDigest, StoreNode>> ApplyDiff<RpoDigest, StoreNode> for MerkleStore<T> {
-    type DiffType = KvMapDiff<RpoDigest, StoreNode>;
-
-    fn apply(&mut self, diff: Self::DiffType) {
-        self.nodes.apply(diff);
+        Ok(())
     }
 }
 

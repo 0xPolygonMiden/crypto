@@ -1,6 +1,6 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, Vec},
+    utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, TryApplyDiff, Vec},
     Felt, StarkField, Word, WORD_SIZE, ZERO,
 };
 use core::fmt;
@@ -10,6 +10,9 @@ use core::fmt;
 
 mod empty_roots;
 pub use empty_roots::EmptySubtreeRoots;
+
+mod delta;
+pub use delta::{merkle_tree_delta, MerkleStoreDelta, MerkleTreeDelta};
 
 mod index;
 pub use index::NodeIndex;
