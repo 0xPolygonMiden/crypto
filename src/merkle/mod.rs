@@ -23,9 +23,6 @@ pub use merkle_tree::{path_to_text, tree_to_text, MerkleTree};
 mod path;
 pub use path::{MerklePath, RootPath, ValuePath};
 
-mod path_set;
-pub use path_set::MerklePathSet;
-
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
 

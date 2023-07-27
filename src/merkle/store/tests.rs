@@ -1,10 +1,10 @@
 use super::{
     DefaultMerkleStore as MerkleStore, EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex,
-    RecordingMerkleStore, RpoDigest,
+    PartialMerkleTree, RecordingMerkleStore, RpoDigest,
 };
 use crate::{
     hash::rpo::Rpo256,
-    merkle::{digests_to_words, int_to_leaf, int_to_node, MerklePathSet, MerkleTree, SimpleSmt},
+    merkle::{digests_to_words, int_to_leaf, int_to_node, MerkleTree, SimpleSmt},
     Felt, Word, ONE, WORD_SIZE, ZERO,
 };
 
@@ -378,97 +378,96 @@ fn test_add_merkle_paths() -> Result<(), MerkleError> {
     let mut store = MerkleStore::default();
     store.add_merkle_paths(paths.clone()).expect("the valid paths must work");
 
-    let depth = 2;
-    let set = MerklePathSet::new(depth).with_paths(paths).unwrap();
+    let pmt = PartialMerkleTree::with_paths(paths).unwrap();
 
     // STORE LEAVES ARE CORRECT ==============================================================
     // checks the leaves in the store corresponds to the expected values
     assert_eq!(
-        store.get_node(set.root(), NodeIndex::make(set.depth(), 0)),
+        store.get_node(pmt.root(), NodeIndex::make(pmt.max_depth(), 0)),
         Ok(VALUES4[0]),
-        "node 0 must be in the set"
+        "node 0 must be in the pmt"
     );
     assert_eq!(
-        store.get_node(set.root(), NodeIndex::make(set.depth(), 1)),
+        store.get_node(pmt.root(), NodeIndex::make(pmt.max_depth(), 1)),
         Ok(VALUES4[1]),
-        "node 1 must be in the set"
+        "node 1 must be in the pmt"
     );
     assert_eq!(
-        store.get_node(set.root(), NodeIndex::make(set.depth(), 2)),
+        store.get_node(pmt.root(), NodeIndex::make(pmt.max_depth(), 2)),
         Ok(VALUES4[2]),
-        "node 2 must be in the set"
+        "node 2 must be in the pmt"
     );
     assert_eq!(
-        store.get_node(set.root(), NodeIndex::make(set.depth(), 3)),
+        store.get_node(pmt.root(), NodeIndex::make(pmt.max_depth(), 3)),
         Ok(VALUES4[3]),
-        "node 3 must be in the set"
+        "node 3 must be in the pmt"
     );
 
-    // STORE LEAVES MATCH SET ================================================================
-    // sanity check the values returned by the store and the set
+    // STORE LEAVES MATCH PMT ================================================================
+    // sanity check the values returned by the store and the pmt
     assert_eq!(
-        set.get_node(NodeIndex::make(set.depth(), 0)),
-        store.get_node(set.root(), NodeIndex::make(set.depth(), 0)),
-        "node 0 must be the same for both SparseMerkleTree and MerkleStore"
+        pmt.get_node(NodeIndex::make(pmt.max_depth(), 0)),
+        store.get_node(pmt.root(), NodeIndex::make(pmt.max_depth(), 0)),
+        "node 0 must be the same for both PartialMerkleTree and MerkleStore"
     );
     assert_eq!(
-        set.get_node(NodeIndex::make(set.depth(), 1)),
-        store.get_node(set.root(), NodeIndex::make(set.depth(), 1)),
-        "node 1 must be the same for both SparseMerkleTree and MerkleStore"
+        pmt.get_node(NodeIndex::make(pmt.max_depth(), 1)),
+        store.get_node(pmt.root(), NodeIndex::make(pmt.max_depth(), 1)),
+        "node 1 must be the same for both PartialMerkleTree and MerkleStore"
     );
     assert_eq!(
-        set.get_node(NodeIndex::make(set.depth(), 2)),
-        store.get_node(set.root(), NodeIndex::make(set.depth(), 2)),
-        "node 2 must be the same for both SparseMerkleTree and MerkleStore"
+        pmt.get_node(NodeIndex::make(pmt.max_depth(), 2)),
+        store.get_node(pmt.root(), NodeIndex::make(pmt.max_depth(), 2)),
+        "node 2 must be the same for both PartialMerkleTree and MerkleStore"
     );
     assert_eq!(
-        set.get_node(NodeIndex::make(set.depth(), 3)),
-        store.get_node(set.root(), NodeIndex::make(set.depth(), 3)),
-        "node 3 must be the same for both SparseMerkleTree and MerkleStore"
+        pmt.get_node(NodeIndex::make(pmt.max_depth(), 3)),
+        store.get_node(pmt.root(), NodeIndex::make(pmt.max_depth(), 3)),
+        "node 3 must be the same for both PartialMerkleTree and MerkleStore"
     );
 
     // STORE MERKLE PATH MATCHS ==============================================================
-    // assert the merkle path returned by the store is the same as the one in the set
-    let result = store.get_path(set.root(), NodeIndex::make(set.depth(), 0)).unwrap();
+    // assert the merkle path returned by the store is the same as the one in the pmt
+    let result = store.get_path(pmt.root(), NodeIndex::make(pmt.max_depth(), 0)).unwrap();
     assert_eq!(
         VALUES4[0], result.value,
         "Value for merkle path at index 0 must match leaf value"
     );
     assert_eq!(
-        set.get_path(NodeIndex::make(set.depth(), 0)),
+        pmt.get_path(NodeIndex::make(pmt.max_depth(), 0)),
         Ok(result.path),
         "merkle path for index 0 must be the same for the MerkleTree and MerkleStore"
     );
 
-    let result = store.get_path(set.root(), NodeIndex::make(set.depth(), 1)).unwrap();
+    let result = store.get_path(pmt.root(), NodeIndex::make(pmt.max_depth(), 1)).unwrap();
     assert_eq!(
         VALUES4[1], result.value,
         "Value for merkle path at index 0 must match leaf value"
     );
     assert_eq!(
-        set.get_path(NodeIndex::make(set.depth(), 1)),
+        pmt.get_path(NodeIndex::make(pmt.max_depth(), 1)),
         Ok(result.path),
         "merkle path for index 1 must be the same for the MerkleTree and MerkleStore"
     );
 
-    let result = store.get_path(set.root(), NodeIndex::make(set.depth(), 2)).unwrap();
+    let result = store.get_path(pmt.root(), NodeIndex::make(pmt.max_depth(), 2)).unwrap();
     assert_eq!(
         VALUES4[2], result.value,
         "Value for merkle path at index 0 must match leaf value"
     );
     assert_eq!(
-        set.get_path(NodeIndex::make(set.depth(), 2)),
+        pmt.get_path(NodeIndex::make(pmt.max_depth(), 2)),
         Ok(result.path),
         "merkle path for index 0 must be the same for the MerkleTree and MerkleStore"
     );
 
-    let result = store.get_path(set.root(), NodeIndex::make(set.depth(), 3)).unwrap();
+    let result = store.get_path(pmt.root(), NodeIndex::make(pmt.max_depth(), 3)).unwrap();
     assert_eq!(
         VALUES4[3], result.value,
         "Value for merkle path at index 0 must match leaf value"
     );
     assert_eq!(
-        set.get_path(NodeIndex::make(set.depth(), 3)),
+        pmt.get_path(NodeIndex::make(pmt.max_depth(), 3)),
         Ok(result.path),
         "merkle path for index 0 must be the same for the MerkleTree and MerkleStore"
     );
@@ -585,16 +584,16 @@ fn test_constructors() -> Result<(), MerkleError> {
     store2.add_merkle_path(1, VALUES4[1], mtree.get_path(NodeIndex::make(d, 1))?)?;
     store2.add_merkle_path(2, VALUES4[2], mtree.get_path(NodeIndex::make(d, 2))?)?;
     store2.add_merkle_path(3, VALUES4[3], mtree.get_path(NodeIndex::make(d, 3))?)?;
-    let set = MerklePathSet::new(d).with_paths(paths).unwrap();
+    let pmt = PartialMerkleTree::with_paths(paths).unwrap();
 
     for key in [0, 1, 2, 3] {
         let index = NodeIndex::make(d, key);
-        let value_path1 = store1.get_path(set.root(), index)?;
-        let value_path2 = store2.get_path(set.root(), index)?;
+        let value_path1 = store1.get_path(pmt.root(), index)?;
+        let value_path2 = store2.get_path(pmt.root(), index)?;
         assert_eq!(value_path1, value_path2);
 
         let index = NodeIndex::make(d, key);
-        assert_eq!(set.get_path(index)?, value_path1.path);
+        assert_eq!(pmt.get_path(index)?, value_path1.path);
     }
 
     Ok(())
