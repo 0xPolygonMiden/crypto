@@ -1,6 +1,6 @@
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, Felt, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
-    Rpo256, RpoDigest, StarkField, Vec, Word, ZERO,
+    Rpo256, RpoDigest, StarkField, Vec, Word,
 };
 use core::cmp;
 
@@ -27,8 +27,8 @@ mod tests;
 ///
 /// To differentiate between internal and leaf nodes, node values are computed as follows:
 /// - Internal nodes: hash(left_child, right_child).
-/// - Leaf node at depths 16, 32, or 64: hash(rem_key, value, domain=depth).
-/// - Leaf node at depth 64: hash([rem_key_0, value_0, ..., rem_key_n, value_n, domain=64]).
+/// - Leaf node at depths 16, 32, or 64: hash(key, value, domain=depth).
+/// - Leaf node at depth 64: hash([key_0, value_0, ..., key_n, value_n, domain=64]).
 ///
 /// Where rem_key is computed by replacing d most significant bits of the key with zeros where d
 /// is depth (i.e., for a leaf at depth 16, we replace 16 most significant bits of the key with 0).
@@ -36,7 +36,7 @@ mod tests;
 pub struct TieredSmt {
     root: RpoDigest,
     nodes: BTreeMap<NodeIndex, RpoDigest>,
-    upper_leaves: BTreeMap<NodeIndex, RpoDigest>, // node_index |-> key map
+    upper_leaves: BTreeMap<NodeIndex, RpoDigest>, // node_index |-> key
     bottom_leaves: BTreeMap<u64, BottomLeaf>,     // leaves of depth 64
     values: BTreeMap<RpoDigest, Word>,
 }
@@ -180,7 +180,7 @@ impl TieredSmt {
                 let other_index = key_to_index(&other_key, depth);
                 let other_value = *self.values.get(&other_key).expect("no value for other key");
                 self.upper_leaves.remove(&index).expect("other node key not in map");
-                self.insert_node(other_index, other_key, other_value);
+                self.insert_leaf_node(other_index, other_key, other_value);
 
                 // the new leaf also needs to move down to the same tier
                 index = key_to_index(&key, depth);
@@ -188,7 +188,7 @@ impl TieredSmt {
         }
 
         // insert the node and return the old value
-        self.insert_node(index, key, value);
+        self.insert_leaf_node(index, key, value);
         old_value
     }
 
@@ -307,8 +307,9 @@ impl TieredSmt {
 
     /// Inserts the provided key-value pair at the specified index and updates the root of this
     /// Merkle tree by recomputing the path to the root.
-    fn insert_node(&mut self, mut index: NodeIndex, key: RpoDigest, value: Word) {
+    fn insert_leaf_node(&mut self, mut index: NodeIndex, key: RpoDigest, value: Word) {
         let depth = index.depth();
+        debug_assert!(Self::TIER_DEPTHS.contains(&depth));
 
         // insert the key into index-key map and compute the new value of the node
         let mut node = if index.depth() == Self::MAX_DEPTH {
@@ -323,9 +324,8 @@ impl TieredSmt {
             // for the upper tiers, we just update the index-key map and compute the value of the
             // node
             self.upper_leaves.insert(index, key);
-            // the node value is computed as: hash(remaining_key || value, domain = depth)
-            let remaining_path = get_remaining_path(key, depth.into());
-            Rpo256::merge_in_domain(&[remaining_path, value.into()], depth.into())
+            // the node value is computed as: hash(key || value, domain = depth)
+            Rpo256::merge_in_domain(&[key, value.into()], depth.into())
         };
 
         // insert the node and update the path from the node to the root
@@ -356,21 +356,6 @@ impl Default for TieredSmt {
 
 // HELPER FUNCTIONS
 // ================================================================================================
-
-/// Returns the remaining path for the specified key at the specified depth.
-///
-/// Remaining path is computed by setting n most significant bits of the key to zeros, where n is
-/// the specified depth.
-fn get_remaining_path(key: RpoDigest, depth: u32) -> RpoDigest {
-    let mut key = Word::from(key);
-    key[3] = if depth == 64 {
-        ZERO
-    } else {
-        // remove `depth` bits from the most significant key element
-        ((key[3].as_int() << depth) >> depth).into()
-    };
-    key.into()
-}
 
 /// Returns index for the specified key inserted at the specified depth.
 ///
@@ -443,14 +428,12 @@ impl BottomLeaf {
     pub fn new(key: RpoDigest, value: Word) -> Self {
         let prefix = Word::from(key)[3].as_int();
         let mut values = BTreeMap::new();
-        let key = get_remaining_path(key, TieredSmt::MAX_DEPTH as u32);
         values.insert(key.into(), value);
         Self { prefix, values }
     }
 
     /// Adds a new key-value pair to this leaf.
     pub fn add_value(&mut self, key: RpoDigest, value: Word) {
-        let key = get_remaining_path(key, TieredSmt::MAX_DEPTH as u32);
         self.values.insert(key.into(), value);
     }
 
@@ -476,7 +459,7 @@ impl BottomLeaf {
                     Felt::new(key[0]),
                     Felt::new(key[1]),
                     Felt::new(key[2]),
-                    Felt::new(self.prefix),
+                    Felt::new(key[3]),
                 ]);
                 (key, *val)
             })

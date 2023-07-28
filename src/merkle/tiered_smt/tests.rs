@@ -1,7 +1,6 @@
 use super::{
     super::{super::ONE, Felt, MerkleStore, WORD_SIZE, ZERO},
-    get_remaining_path, EmptySubtreeRoots, InnerNodeInfo, NodeIndex, Rpo256, RpoDigest, TieredSmt,
-    Vec, Word,
+    EmptySubtreeRoots, InnerNodeInfo, NodeIndex, Rpo256, RpoDigest, TieredSmt, Vec, Word,
 };
 
 #[test]
@@ -411,8 +410,7 @@ fn get_init_root() -> RpoDigest {
 }
 
 fn build_leaf_node(key: RpoDigest, value: Word, depth: u8) -> RpoDigest {
-    let remaining_path = get_remaining_path(key, depth as u32);
-    Rpo256::merge_in_domain(&[remaining_path, value.into()], depth.into())
+    Rpo256::merge_in_domain(&[key, value.into()], depth.into())
 }
 
 fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
@@ -420,9 +418,7 @@ fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
 
     let mut elements = Vec::with_capacity(keys.len());
     for (key, val) in keys.iter().zip(values.iter()) {
-        let mut key = Word::from(key);
-        key[3] = ZERO;
-        elements.extend_from_slice(&key);
+        elements.extend_from_slice(key.as_elements());
         elements.extend_from_slice(val.as_slice());
     }
 
