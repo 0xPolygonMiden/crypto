@@ -1,4 +1,4 @@
-use super::{get_key_prefix, is_leaf_node, BTreeMap, NodeIndex, RpoDigest, StarkField, Vec, Word};
+use super::{get_key_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, Vec, Word};
 use crate::utils::vec;
 use core::{
     cmp::{Ord, Ordering},
@@ -23,7 +23,8 @@ const MAX_DEPTH: u8 = super::TieredSmt::MAX_DEPTH;
 /// the values are the corresponding key-value pairs (or a list of key-value pairs if more that
 /// a single key-value pair shares the same 64-bit prefix).
 ///
-/// The store supports lookup by the full key as well as by the 64-bit key prefix.
+/// The store supports lookup by the full key (i.e. [RpoDigest]) as well as by the 64-bit key
+/// prefix.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ValueStore {
     values: BTreeMap<u64, StoreEntry>,
@@ -76,26 +77,29 @@ impl ValueStore {
     ///
     /// This method assumes that the key-value pair for the specified index has already been
     /// removed from the store.
-    pub fn get_lone_sibling(&self, index: NodeIndex) -> Option<(&RpoDigest, &Word, NodeIndex)> {
-        debug_assert!(is_leaf_node(&index));
-
+    pub fn get_lone_sibling(
+        &self,
+        index: LeafNodeIndex,
+    ) -> Option<(&RpoDigest, &Word, LeafNodeIndex)> {
         // iterate over tiers from top to bottom, looking at the tiers which are strictly above
         // the depth of the index. This implies that only tiers at depth 32 and 48 will be
         // considered. For each tier, check if the parent of the index at the higher tier
-        // contains a single node.
-        for &tier in TIER_DEPTHS.iter().filter(|&t| index.depth() > *t) {
+        // contains a single node. The fist tier (depth 16) is excluded because we cannot move
+        // nodes at depth 16 to a higher tier. This implies that nodes at the first tier will
+        // never have "lone siblings".
+        for &tier_depth in TIER_DEPTHS.iter().filter(|&t| index.depth() > *t) {
             // compute the index of the root at a higher tier
             let mut parent_index = index;
-            parent_index.move_up_to(tier);
+            parent_index.move_up_to(tier_depth);
 
             // find the lone sibling, if any; we need to handle the "last node" at a given tier
             // separately specify the bounds for the search correctly.
-            let start_prefix = parent_index.value() << (MAX_DEPTH - tier);
-            let sibling = if start_prefix.leading_ones() as u8 == tier {
+            let start_prefix = parent_index.value() << (MAX_DEPTH - tier_depth);
+            let sibling = if start_prefix.leading_ones() as u8 == tier_depth {
                 let mut iter = self.range(start_prefix..);
                 iter.next().filter(|_| iter.next().is_none())
             } else {
-                let end_prefix = (parent_index.value() + 1) << (MAX_DEPTH - tier);
+                let end_prefix = (parent_index.value() + 1) << (MAX_DEPTH - tier_depth);
                 let mut iter = self.range(start_prefix..end_prefix);
                 iter.next().filter(|_| iter.next().is_none())
             };
@@ -346,12 +350,8 @@ fn cmp_digests(d1: &RpoDigest, d2: &RpoDigest) -> Ordering {
 
 #[cfg(test)]
 mod tests {
-
-    use super::{RpoDigest, ValueStore};
-    use crate::{
-        merkle::{tiered_smt::values::StoreEntry, NodeIndex},
-        Felt, ONE, WORD_SIZE, ZERO,
-    };
+    use super::{LeafNodeIndex, RpoDigest, StoreEntry, ValueStore};
+    use crate::{Felt, ONE, WORD_SIZE, ZERO};
 
     #[test]
     fn test_insert() {
@@ -569,17 +569,17 @@ mod tests {
         store.insert(key_b, value_b);
 
         // check sibling node for `a`
-        let index = NodeIndex::make(32, 0b_10101010_10101010_00011111_11111110);
-        let parent_index = NodeIndex::make(16, 0b_10101010_10101010);
+        let index = LeafNodeIndex::make(32, 0b_10101010_10101010_00011111_11111110);
+        let parent_index = LeafNodeIndex::make(16, 0b_10101010_10101010);
         assert_eq!(store.get_lone_sibling(index), Some((&key_a, &value_a, parent_index)));
 
         // check sibling node for `b`
-        let index = NodeIndex::make(32, 0b_11111111_11111111_00011111_11111111);
-        let parent_index = NodeIndex::make(16, 0b_11111111_11111111);
+        let index = LeafNodeIndex::make(32, 0b_11111111_11111111_00011111_11111111);
+        let parent_index = LeafNodeIndex::make(16, 0b_11111111_11111111);
         assert_eq!(store.get_lone_sibling(index), Some((&key_b, &value_b, parent_index)));
 
         // check some other sibling for some other index
-        let index = NodeIndex::make(32, 0b_11101010_10101010);
+        let index = LeafNodeIndex::make(32, 0b_11101010_10101010);
         assert_eq!(store.get_lone_sibling(index), None);
     }
 }

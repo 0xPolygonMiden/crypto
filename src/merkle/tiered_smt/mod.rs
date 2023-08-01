@@ -2,7 +2,7 @@ use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
     Rpo256, RpoDigest, StarkField, Vec, Word,
 };
-use core::cmp;
+use core::{cmp, ops::Deref};
 
 mod nodes;
 use nodes::NodeStore;
@@ -148,32 +148,36 @@ impl TieredSmt {
             return self.remove_leaf_node(key);
         }
 
-        // insert the value into the value store, and if nothing has changed, return
-        let (old_value, is_update) = match self.values.insert(key, value) {
-            Some(old_value) => {
-                if old_value == value {
-                    return old_value;
-                }
-                (old_value, true)
+        // insert the value into the value store, and if the key was already in the store, update
+        // it with the new value
+        if let Some(old_value) = self.values.insert(key, value) {
+            if old_value != value {
+                // if the new value is different from the old value, determine the location of
+                // the leaf node for this key, build the node, and update the root
+                let (index, leaf_exists) = self.nodes.get_leaf_index(&key);
+                debug_assert!(leaf_exists);
+                let node = self.build_leaf_node(index, key, value);
+                self.root = self.nodes.update_leaf_node(index, node);
             }
-            None => (Self::EMPTY_VALUE, false),
+            return old_value;
         };
 
-        // determine the index for the value node; this index could have 3 different meanings:
-        // - it points to a root of an empty subtree (excluding depth = 64); in this case, we can
-        //   replace the node with the value node immediately.
-        // - it points to a node at the bottom tier (i.e., depth = 64); in this case, we need to
-        //   process bottom-tier insertion which will be handled by insert_leaf_node().
-        // - it points to an existing leaf node; this node could be a node with the same key or a
-        //   different key with a common prefix; in the latter case, we'll need to move the leaf
-        //   to a lower tier
-        let (index, leaf_exists) = self.nodes.get_insert_location(&key);
-        debug_assert!(!is_update || leaf_exists);
+        // determine the location for the leaf node; this index could have 3 different meanings:
+        // - it points to a root of an empty subtree or an empty node at depth 64; in this case,
+        //   we can replace the node with the value node immediately.
+        // - it points to an existing leaf at the bottom tier (i.e., depth = 64); in this case,
+        //   we need to process update the bottom leaf.
+        // - it points to an existing leaf node for a different key with the same prefix (same
+        //   key case was handled above); in this case, we need to move the leaf to a lower tier
+        let (index, leaf_exists) = self.nodes.get_leaf_index(&key);
 
-        // if the returned index points to a leaf, and this leaf is for a different key (i.e., we
-        // are not updating a value for an existing key), we need to replace this leaf with a tree
-        // containing leaves for both the old and the new key-value pairs
-        if leaf_exists && !is_update {
+        self.root = if leaf_exists && index.depth() == Self::MAX_DEPTH {
+            // returned index points to a leaf at the bottom tier
+            let node = self.build_leaf_node(index, key, value);
+            self.nodes.update_leaf_node(index, node)
+        } else if leaf_exists {
+            // returned index pointes to a leaf for a different key with the same prefix
+
             // get the key-value pair for the key with the same prefix; since the key-value
             // pair has already been inserted into the value store, we need to filter it out
             // when looking for the other key-value pair
@@ -183,12 +187,12 @@ impl TieredSmt {
                 .expect("other key-value pair not found");
 
             // determine how far down the tree should we move the leaves
-            let common_prefix_len = get_common_prefix_tier(&key, other_key);
+            let common_prefix_len = get_common_prefix_tier_depth(&key, other_key);
             let depth = cmp::min(common_prefix_len + Self::TIER_SIZE, Self::MAX_DEPTH);
 
             // compute node locations for new and existing key-value paris
-            let new_index = key_to_index(&key, depth);
-            let other_index = key_to_index(other_key, depth);
+            let new_index = LeafNodeIndex::from_key(&key, depth);
+            let other_index = LeafNodeIndex::from_key(other_key, depth);
 
             // compute node values for the new and existing key-value pairs
             let new_node = self.build_leaf_node(new_index, key, value);
@@ -196,19 +200,17 @@ impl TieredSmt {
 
             // replace the leaf located at index with a subtree containing nodes for new and
             // existing key-value paris
-            self.root = self.nodes.replace_leaf_with_subtree(
+            self.nodes.replace_leaf_with_subtree(
                 index,
                 [(new_index, new_node), (other_index, other_node)],
-            );
+            )
         } else {
-            // if the returned index points to an empty subtree, or a leaf with the same key (i.e.,
-            // we are performing an update), or a leaf is at the bottom tier, compute its node
-            // value and do a simple insert
+            // returned index points to an empty subtree or an empty leaf at the bottom tier
             let node = self.build_leaf_node(index, key, value);
-            self.root = self.nodes.insert_leaf_node(index, node);
-        }
+            self.nodes.insert_leaf_node(index, node)
+        };
 
-        old_value
+        Self::EMPTY_VALUE
     }
 
     // ITERATORS
@@ -235,7 +237,7 @@ impl TieredSmt {
         self.nodes.upper_leaves().map(|(index, node)| {
             let key_prefix = index_to_prefix(index);
             let (key, value) = self.values.get_first(key_prefix).expect("upper leaf not found");
-            debug_assert_eq!(key_to_index(key, index.depth()), *index);
+            debug_assert_eq!(*index, LeafNodeIndex::from_key(key, index.depth()).into());
             (*node, *key, *value)
         })
     }
@@ -269,8 +271,8 @@ impl TieredSmt {
         };
 
         // determine the location of the leaf holding the key-value pair to be removed
-        let (index, leaf_exists) = self.nodes.get_insert_location(&key);
-        debug_assert!(index.depth() == Self::MAX_DEPTH || leaf_exists);
+        let (index, leaf_exists) = self.nodes.get_leaf_index(&key);
+        debug_assert!(leaf_exists);
 
         // if the leaf is at the bottom tier and after removing the key-value pair from it, the
         // leaf is still not empty, just recompute its hash and update the leaf node.
@@ -286,7 +288,7 @@ impl TieredSmt {
         // higher tier, we need to move the sibling to a higher tier
         if let Some((sib_key, sib_val, new_sib_index)) = self.values.get_lone_sibling(index) {
             // determine the current index of the sibling node
-            let sib_index = key_to_index(sib_key, index.depth());
+            let sib_index = LeafNodeIndex::from_key(sib_key, index.depth());
             debug_assert!(sib_index.depth() > new_sib_index.depth());
 
             // compute node value for the new location of the sibling leaf and replace the subtree
@@ -309,9 +311,8 @@ impl TieredSmt {
     /// the value store, however, for depths 16, 32, and 48, the node is computed directly from
     /// the passed-in values (for depth 64, the value store is queried to get all the key-value
     /// pairs located at the specified index).
-    fn build_leaf_node(&self, index: NodeIndex, key: RpoDigest, value: Word) -> RpoDigest {
+    fn build_leaf_node(&self, index: LeafNodeIndex, key: RpoDigest, value: Word) -> RpoDigest {
         let depth = index.depth();
-        debug_assert!(Self::TIER_DEPTHS.contains(&depth));
 
         // insert the key into index-key map and compute the new value of the node
         if index.depth() == Self::MAX_DEPTH {
@@ -337,6 +338,71 @@ impl Default for TieredSmt {
     }
 }
 
+// LEAF NODE INDEX
+// ================================================================================================
+/// A wrapper around [NodeIndex] to provide type-safe references to nodes at depths 16, 32, 48, and
+/// 64.
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub struct LeafNodeIndex(NodeIndex);
+
+impl LeafNodeIndex {
+    /// Returns a new [LeafNodeIndex] instantiated from the provided [NodeIndex].
+    ///
+    /// In debug mode, panics if index depth is not 16, 32, 48, or 64.
+    pub fn new(index: NodeIndex) -> Self {
+        // check if the depth is 16, 32, 48, or 64; this works because for a valid depth,
+        // depth - 16, can be 0, 16, 32, or 48 - i.e., the value is either 0 or any of the 4th
+        // or 5th bits are set. We can test for this by computing a bitwise AND with a value
+        // which has all but the 4th and 5th bits set (which is !48).
+        debug_assert_eq!(((index.depth() - 16) & !48), 0, "invalid tier depth {}", index.depth());
+        Self(index)
+    }
+
+    /// Returns a new [LeafNodeIndex] instantiated from the specified key inserted at the specified
+    /// depth.
+    ///
+    /// The value for the key is computed by taking n most significant bits from the most significant
+    /// element of the key, where n is the specified depth.
+    pub fn from_key(key: &RpoDigest, depth: u8) -> Self {
+        let mse = get_key_prefix(key);
+        Self::new(NodeIndex::new_unchecked(depth, mse >> (TieredSmt::MAX_DEPTH - depth)))
+    }
+
+    /// Returns a new [LeafNodeIndex] instantiated for testing purposes.
+    #[cfg(test)]
+    pub fn make(depth: u8, value: u64) -> Self {
+        Self::new(NodeIndex::make(depth, value))
+    }
+
+    /// Traverses towards the root until the specified depth is reached.
+    ///
+    /// The new depth must be a valid tier depth - i.e., 16, 32, 48, or 64.
+    pub fn move_up_to(&mut self, depth: u8) {
+        debug_assert_eq!(((depth - 16) & !48), 0, "invalid tier depth: {depth}");
+        self.0.move_up_to(depth);
+    }
+}
+
+impl Deref for LeafNodeIndex {
+    type Target = NodeIndex;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<NodeIndex> for LeafNodeIndex {
+    fn from(value: NodeIndex) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<LeafNodeIndex> for NodeIndex {
+    fn from(value: LeafNodeIndex) -> Self {
+        value.0
+    }
+}
+
 // HELPER FUNCTIONS
 // ================================================================================================
 
@@ -351,19 +417,6 @@ fn index_to_prefix(index: &NodeIndex) -> u64 {
     index.value() << (TieredSmt::MAX_DEPTH - index.depth())
 }
 
-/// Returns index for the specified key inserted at the specified depth.
-///
-/// The value for the key is computed by taking n most significant bits from the most significant
-/// element of the key, where n is the specified depth.
-fn key_to_index(key: &RpoDigest, depth: u8) -> NodeIndex {
-    let mse = get_key_prefix(key);
-    let value = match depth {
-        16 | 32 | 48 | 64 => mse >> ((TieredSmt::MAX_DEPTH - depth) as u32),
-        _ => unreachable!("invalid depth: {depth}"),
-    };
-    NodeIndex::new_unchecked(depth, value)
-}
-
 /// Returns tiered common prefix length between the most significant elements of the provided keys.
 ///
 /// Specifically:
@@ -372,34 +425,11 @@ fn key_to_index(key: &RpoDigest, depth: u8) -> NodeIndex {
 /// - returns 32 if the common prefix is between 32 and 47 bits.
 /// - returns 16 if the common prefix is between 16 and 31 bits.
 /// - returns 0 if the common prefix is fewer than 16 bits.
-fn get_common_prefix_tier(key1: &RpoDigest, key2: &RpoDigest) -> u8 {
+fn get_common_prefix_tier_depth(key1: &RpoDigest, key2: &RpoDigest) -> u8 {
     let e1 = get_key_prefix(key1);
     let e2 = get_key_prefix(key2);
     let ex = (e1 ^ e2).leading_zeros() as u8;
     (ex / 16) * 16
-}
-
-/// Returns a tier for the specified index.
-///
-/// The tiers are defined as follows:
-/// - Tier 0: depth 0 through 16 (inclusive).
-/// - Tier 1: depth 17 through 32 (inclusive).
-/// - Tier 2: depth 33 through 48 (inclusive).
-/// - Tier 3: depth 49 through 64 (inclusive).
-const fn get_index_tier(index: &NodeIndex) -> usize {
-    debug_assert!(index.depth() <= TieredSmt::MAX_DEPTH, "invalid depth");
-    match index.depth() {
-        0..=16 => 0,
-        17..=32 => 1,
-        33..=48 => 2,
-        _ => 3,
-    }
-}
-
-/// Returns true if the specified index is an index for an leaf node (i.e., the depth is 16, 32,
-/// 48, or 64).
-const fn is_leaf_node(index: &NodeIndex) -> bool {
-    matches!(index.depth(), 16 | 32 | 48 | 64)
 }
 
 /// Computes node value for leaves at tiers 16, 32, or 48.
@@ -413,7 +443,10 @@ pub fn hash_upper_leaf(key: RpoDigest, value: Word, depth: u8) -> RpoDigest {
 
 /// Computes node value for leaves at the bottom tier (depth 64).
 ///
-/// Node value is computed as: hash([key_0, value_0, ..., key_n, value_n, domain=64]).
+/// Node value is computed as: hash([key_0, value_0, ..., key_n, value_n], domain=64).
+///
+/// TODO: when hashing in domain is implemented for `hash_elements()`, combine this function with
+/// `hash_upper_leaf()` function.
 pub fn hash_bottom_leaf(values: &[(RpoDigest, Word)]) -> RpoDigest {
     let mut elements = Vec::with_capacity(values.len() * 8);
     for (key, val) in values.iter() {

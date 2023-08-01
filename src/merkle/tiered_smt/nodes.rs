@@ -1,6 +1,6 @@
 use super::{
-    get_index_tier, get_key_prefix, is_leaf_node, BTreeMap, BTreeSet, EmptySubtreeRoots,
-    InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, LeafNodeIndex, MerkleError, MerklePath,
+    NodeIndex, Rpo256, RpoDigest, Vec,
 };
 
 // CONSTANTS
@@ -21,7 +21,8 @@ const MAX_DEPTH: u8 = super::TieredSmt::MAX_DEPTH;
 /// A store of nodes for a Tiered Sparse Merkle tree.
 ///
 /// The store contains information about all nodes as well as information about which of the nodes
-/// represent leaf nodes in a Tiered Sparse Merkle tree.
+/// represent leaf nodes in a Tiered Sparse Merkle tree. In the current implementation, [BTreeSet]s
+/// are used to determine the position of the leaves in the tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NodeStore {
     nodes: BTreeMap<NodeIndex, RpoDigest>,
@@ -88,14 +89,13 @@ impl NodeStore {
     /// Returns an index at which a leaf node for the specified key should be inserted.
     ///
     /// The second value in the returned tuple is set to true if the node at the returned index
-    /// is already a leaf node, excluding leaves at the bottom tier (i.e., if the leaf is at the
-    /// bottom tier, false is returned).
-    pub fn get_insert_location(&self, key: &RpoDigest) -> (NodeIndex, bool) {
+    /// is already a leaf node.
+    pub fn get_leaf_index(&self, key: &RpoDigest) -> (LeafNodeIndex, bool) {
         // traverse the tree from the root down checking nodes at tiers 16, 32, and 48. Return if
         // a node at any of the tiers is either a leaf or a root of an empty subtree.
-        let mse = get_key_prefix(key);
-        for depth in (TIER_DEPTHS[0]..MAX_DEPTH).step_by(TIER_SIZE as usize) {
-            let index = NodeIndex::new_unchecked(depth, mse >> (MAX_DEPTH - depth));
+        const NUM_UPPER_TIERS: usize = TIER_DEPTHS.len() - 1;
+        for &tier_depth in TIER_DEPTHS[..NUM_UPPER_TIERS].iter() {
+            let index = LeafNodeIndex::from_key(key, tier_depth);
             if self.upper_leaves.contains(&index) {
                 return (index, true);
             } else if !self.nodes.contains_key(&index) {
@@ -105,8 +105,8 @@ impl NodeStore {
 
         // if we got here, that means all of the nodes checked so far are internal nodes, and
         // the new node would need to be inserted in the bottom tier.
-        let index = NodeIndex::new_unchecked(MAX_DEPTH, mse);
-        (index, false)
+        let index = LeafNodeIndex::from_key(key, MAX_DEPTH);
+        (index, self.bottom_leaves.contains(&index.value()))
     }
 
     // ITERATORS
@@ -118,7 +118,7 @@ impl NodeStore {
     /// The iterator order is unspecified.
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         self.nodes.iter().filter_map(|(index, node)| {
-            if !is_leaf_node(index) {
+            if self.is_internal_node(index) {
                 Some(InnerNodeInfo {
                     value: *node,
                     left: self.get_node_unchecked(&index.left_child()),
@@ -152,20 +152,26 @@ impl NodeStore {
     /// at the specified indexes. Recomputes and returns the new root.
     pub fn replace_leaf_with_subtree(
         &mut self,
-        leaf_index: NodeIndex,
-        subtree_leaves: [(NodeIndex, RpoDigest); 2],
+        leaf_index: LeafNodeIndex,
+        subtree_leaves: [(LeafNodeIndex, RpoDigest); 2],
     ) -> RpoDigest {
-        debug_assert!(is_leaf_node(&leaf_index));
-        debug_assert!(is_leaf_node(&subtree_leaves[0].0));
-        debug_assert!(is_leaf_node(&subtree_leaves[1].0));
+        debug_assert!(self.is_non_empty_leaf(&leaf_index));
         debug_assert!(!is_empty_root(&subtree_leaves[0].1));
         debug_assert!(!is_empty_root(&subtree_leaves[1].1));
         debug_assert_eq!(subtree_leaves[0].0.depth(), subtree_leaves[1].0.depth());
         debug_assert!(leaf_index.depth() < subtree_leaves[0].0.depth());
 
         self.upper_leaves.remove(&leaf_index);
-        self.insert_leaf_node(subtree_leaves[0].0, subtree_leaves[0].1);
-        self.insert_leaf_node(subtree_leaves[1].0, subtree_leaves[1].1)
+
+        if subtree_leaves[0].0 == subtree_leaves[1].0 {
+            // if the subtree is for a single node at depth 64, we only need to insert one node
+            debug_assert_eq!(subtree_leaves[0].0.depth(), MAX_DEPTH);
+            debug_assert_eq!(subtree_leaves[0].1, subtree_leaves[1].1);
+            self.insert_leaf_node(subtree_leaves[0].0, subtree_leaves[0].1)
+        } else {
+            self.insert_leaf_node(subtree_leaves[0].0, subtree_leaves[0].1);
+            self.insert_leaf_node(subtree_leaves[1].0, subtree_leaves[1].1)
+        }
     }
 
     /// Replaces a subtree containing the retained and the removed leaf nodes, with a leaf node
@@ -175,14 +181,14 @@ impl NodeStore {
     /// moving the node at the `retained_leaf` index up to the tier specified by `new_depth`.
     pub fn replace_subtree_with_leaf(
         &mut self,
-        removed_leaf: NodeIndex,
-        retained_leaf: NodeIndex,
+        removed_leaf: LeafNodeIndex,
+        retained_leaf: LeafNodeIndex,
         new_depth: u8,
         node: RpoDigest,
     ) -> RpoDigest {
         debug_assert!(!is_empty_root(&node));
-        debug_assert!(self.is_leaf(&removed_leaf));
-        debug_assert!(self.is_leaf(&retained_leaf));
+        debug_assert!(self.is_non_empty_leaf(&removed_leaf));
+        debug_assert!(self.is_non_empty_leaf(&retained_leaf));
         debug_assert_eq!(removed_leaf.depth(), retained_leaf.depth());
         debug_assert!(removed_leaf.depth() > new_depth);
 
@@ -202,7 +208,6 @@ impl NodeStore {
         // compute the index of the common root for retained and removed leaves
         let mut new_index = retained_leaf;
         new_index.move_up_to(new_depth);
-        debug_assert!(is_leaf_node(&new_index));
 
         // insert the node at the root index
         self.insert_leaf_node(new_index, node)
@@ -211,19 +216,21 @@ impl NodeStore {
     /// Inserts the specified node at the specified index; recomputes and returns the new root
     /// of the Tiered Sparse Merkle tree.
     ///
-    /// This method assumes that node is a non-empty value.
-    pub fn insert_leaf_node(&mut self, mut index: NodeIndex, mut node: RpoDigest) -> RpoDigest {
-        debug_assert!(is_leaf_node(&index));
+    /// This method assumes that the provided node is a non-empty value, and that there is no node
+    /// at the specified index.
+    pub fn insert_leaf_node(&mut self, index: LeafNodeIndex, mut node: RpoDigest) -> RpoDigest {
         debug_assert!(!is_empty_root(&node));
+        debug_assert_eq!(self.nodes.get(&index), None);
 
         // mark the node as the leaf
         if index.depth() == MAX_DEPTH {
             self.bottom_leaves.insert(index.value());
         } else {
-            self.upper_leaves.insert(index);
+            self.upper_leaves.insert(index.into());
         };
 
         // insert the node and update the path from the node to the root
+        let mut index: NodeIndex = index.into();
         for _ in 0..index.depth() {
             self.nodes.insert(index, node);
             let sibling = self.get_node_unchecked(&index.sibling());
@@ -240,8 +247,8 @@ impl NodeStore {
     /// returns the new root of the Tiered Sparse Merkle tree.
     ///
     /// This method can accept `node` as either an empty or a non-empty value.
-    pub fn update_leaf_node(&mut self, mut index: NodeIndex, mut node: RpoDigest) -> RpoDigest {
-        debug_assert!(self.is_leaf(&index));
+    pub fn update_leaf_node(&mut self, index: LeafNodeIndex, mut node: RpoDigest) -> RpoDigest {
+        debug_assert!(self.is_non_empty_leaf(&index));
 
         // if the value we are updating the node to is a root of an empty tree, clear the leaf
         // flag for this node
@@ -256,6 +263,7 @@ impl NodeStore {
         }
 
         // update the path from the node to the root
+        let mut index: NodeIndex = index.into();
         for _ in 0..index.depth() {
             if node == EmptySubtreeRoots::empty_hashes(MAX_DEPTH)[index.depth() as usize] {
                 self.nodes.remove(&index);
@@ -275,8 +283,8 @@ impl NodeStore {
 
     /// Replaces the leaf node at the specified index with a root of an empty subtree; recomputes
     /// and returns the new root of the Tiered Sparse Merkle tree.
-    pub fn clear_leaf_node(&mut self, index: NodeIndex) -> RpoDigest {
-        debug_assert!(self.is_leaf(&index));
+    pub fn clear_leaf_node(&mut self, index: LeafNodeIndex) -> RpoDigest {
+        debug_assert!(self.is_non_empty_leaf(&index));
         let node = EmptySubtreeRoots::empty_hashes(MAX_DEPTH)[index.depth() as usize];
         self.update_leaf_node(index, node)
     }
@@ -285,12 +293,21 @@ impl NodeStore {
     // --------------------------------------------------------------------------------------------
 
     /// Returns true if the node at the specified index is a leaf node.
-    fn is_leaf(&self, index: &NodeIndex) -> bool {
-        debug_assert!(is_leaf_node(index));
+    fn is_non_empty_leaf(&self, index: &LeafNodeIndex) -> bool {
         if index.depth() == MAX_DEPTH {
             self.bottom_leaves.contains(&index.value())
         } else {
             self.upper_leaves.contains(index)
+        }
+    }
+
+    /// Returns true if the node at the specified index is an internal node - i.e., there is
+    /// no leaf at that node and the node does not belong to the bottom tier.
+    fn is_internal_node(&self, index: &NodeIndex) -> bool {
+        if index.depth() == MAX_DEPTH {
+            false
+        } else {
+            !self.upper_leaves.contains(index)
         }
     }
 
@@ -309,7 +326,7 @@ impl NodeStore {
         } else {
             // make sure that there are no leaf nodes in the ancestors of the index; since leaf
             // nodes can live at specific depth, we just need to check these depths.
-            let tier = get_index_tier(&index);
+            let tier = ((index.depth() - 1) / TIER_SIZE) as usize;
             let mut tier_index = index;
             for &depth in TIER_DEPTHS[..tier].iter().rev() {
                 tier_index.move_up_to(depth);
@@ -335,12 +352,13 @@ impl NodeStore {
     }
 
     /// Removes a sequence of nodes starting at the specified index and traversing the
-    /// tree up to the specified depth.
+    /// tree up to the specified depth. The node at the `end_depth` is also removed.
     ///
     /// This method does not update any other nodes and does not recompute the tree root.
-    fn remove_branch(&mut self, mut index: NodeIndex, end_depth: u8) {
+    fn remove_branch(&mut self, index: LeafNodeIndex, end_depth: u8) {
+        let mut index: NodeIndex = index.into();
         assert!(index.depth() > end_depth);
-        for _ in 0..(index.depth() - end_depth) {
+        for _ in 0..(index.depth() - end_depth + 1) {
             self.nodes.remove(&index);
             index.move_up()
         }

@@ -509,8 +509,25 @@ fn tsmt_bottom_tier() {
     actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
 
     // make sure leaves are returned correctly
-    let mut leaves = smt.bottom_leaves();
+    let smt_clone = smt.clone();
+    let mut leaves = smt_clone.bottom_leaves();
     assert_eq!(leaves.next(), Some((leaf_node, vec![(key_b, val_b), (key_a, val_a)])));
+    assert_eq!(leaves.next(), None);
+
+    // --- update a leaf at the bottom tier -------------------------------------------------------
+
+    let val_a2 = [Felt::new(3); WORD_SIZE];
+    assert_eq!(smt.insert(key_a, val_a2), val_a);
+
+    let leaf_node = build_bottom_leaf_node(&[key_b, key_a], &[val_b, val_a2]);
+    store.set_node(tree_root, index, leaf_node).unwrap();
+
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    let mut leaves = smt.bottom_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node, vec![(key_b, val_b), (key_a, val_a2)])));
     assert_eq!(leaves.next(), None);
 }
 

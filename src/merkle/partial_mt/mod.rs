@@ -118,7 +118,7 @@ impl PartialMerkleTree {
 
         // fill layers without nodes with empty vector
         for depth in 0..max_depth {
-            layers.entry(depth).or_insert(vec![]);
+            layers.entry(depth).or_default();
         }
 
         let mut layer_iter = layers.into_values().rev();
@@ -370,7 +370,6 @@ impl PartialMerkleTree {
             return Ok(old_value);
         }
 
-        let mut node_index = node_index;
         let mut value = value.into();
         for _ in 0..node_index.depth() {
             let sibling = self.nodes.get(&node_index.sibling()).expect("sibling should exist");
