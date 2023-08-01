@@ -108,6 +108,11 @@ impl ValueStore {
         None
     }
 
+    /// Returns an iterator over all key-value pairs in this store.
+    pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
+        self.values.iter().flat_map(|(_, entry)| entry.iter())
+    }
+
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 

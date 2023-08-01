@@ -214,6 +214,11 @@ impl TieredSmt {
     // ITERATORS
     // --------------------------------------------------------------------------------------------
 
+    /// Returns an iterator over all key-value pairs in this [TieredSmt].
+    pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
+        self.values.iter()
+    }
+
     /// Returns an iterator over all inner nodes of this [TieredSmt] (i.e., nodes not at depths 16
     /// 32, 48, or 64).
     ///
@@ -230,6 +235,7 @@ impl TieredSmt {
         self.nodes.upper_leaves().map(|(index, node)| {
             let key_prefix = index_to_prefix(index);
             let (key, value) = self.values.get_first(key_prefix).expect("upper leaf not found");
+            debug_assert_eq!(key_to_index(key, index.depth()), *index);
             (*node, *key, *value)
         })
     }
