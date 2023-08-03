@@ -21,6 +21,7 @@ pub const EMPTY_VALUE: Word = super::TieredSmt::EMPTY_VALUE;
 /// The proof consists of a Merkle path and one or more key-value entries which describe the node
 /// located at the base of the path. If the node at the base of the path resolves to [ZERO; 4],
 /// the entries will contain a single item with value set to [ZERO; 4].
+#[derive(PartialEq, Eq, Debug)]
 pub struct TieredSmtProof {
     path: MerklePath,
     entries: Vec<(RpoDigest, Word)>,
@@ -38,7 +39,11 @@ impl TieredSmtProof {
     /// - Entries contains more than 1 item, but the length of the path is not 64.
     /// - Entries contains more than 1 item, and one of the items has value set to [ZERO; 4].
     /// - Entries contains multiple items with keys which don't share the same 64-bit prefix.
-    pub fn new(path: MerklePath, entries: Vec<(RpoDigest, Word)>) -> Self {
+    pub fn new<I>(path: MerklePath, entries: I) -> Self
+    where
+        I: IntoIterator<Item = (RpoDigest, Word)>,
+    {
+        let entries: Vec<(RpoDigest, Word)> = entries.into_iter().collect();
         assert!(path.depth() <= MAX_DEPTH);
         assert!(!entries.is_empty());
         if entries.len() > 1 {
@@ -108,6 +113,11 @@ impl TieredSmtProof {
         self.path
             .compute_root(index.value(), node)
             .expect("failed to compute Merkle path root")
+    }
+
+    /// Consume the proof and returns its parts.
+    pub fn into_parts(self) -> (MerklePath, Vec<(RpoDigest, Word)>) {
+        (self.path, self.entries)
     }
 
     // HELPER METHODS
