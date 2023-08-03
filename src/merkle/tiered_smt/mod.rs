@@ -14,6 +14,9 @@ use values::ValueStore;
 mod proof;
 pub use proof::TieredSmtProof;
 
+mod error;
+pub use error::TieredSmtProofError;
+
 #[cfg(test)]
 mod tests;
 
@@ -159,7 +162,7 @@ impl TieredSmt {
             vec![(key, Self::EMPTY_VALUE)]
         };
 
-        TieredSmtProof::new(path, entries)
+        TieredSmtProof::new(path, entries).expect("Bug detected, TSMT produced invalid proof")
     }
 
     // STATE MUTATORS
