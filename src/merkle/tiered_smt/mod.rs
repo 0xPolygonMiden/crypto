@@ -2,6 +2,7 @@ use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
     Rpo256, RpoDigest, StarkField, Vec, Word,
 };
+use crate::utils::vec;
 use core::{cmp, ops::Deref};
 
 mod nodes;
@@ -9,6 +10,9 @@ use nodes::NodeStore;
 
 mod values;
 use values::ValueStore;
+
+mod proof;
+pub use proof::TieredSmtProof;
 
 #[cfg(test)]
 mod tests;
@@ -132,6 +136,30 @@ impl TieredSmt {
             Some(value) => *value,
             None => Self::EMPTY_VALUE,
         }
+    }
+
+    /// Returns a proof for a key-value pair defined by the specified key.
+    ///
+    /// The proof can be used to attest membership of this key-value pair in a Tiered Sparse Merkle
+    /// Tree defined by the same root as this tree.
+    pub fn prove(&self, key: RpoDigest) -> TieredSmtProof {
+        let (path, index, leaf_exists) = self.nodes.get_proof(&key);
+
+        let entries = if index.depth() == Self::MAX_DEPTH {
+            match self.values.get_all(index.value()) {
+                Some(entries) => entries,
+                None => vec![(key, Self::EMPTY_VALUE)],
+            }
+        } else if leaf_exists {
+            let entry =
+                self.values.get_first(index_to_prefix(&index)).expect("leaf entry not found");
+            debug_assert_eq!(entry.0, key);
+            vec![*entry]
+        } else {
+            vec![(key, Self::EMPTY_VALUE)]
+        };
+
+        TieredSmtProof::new(path, entries)
     }
 
     // STATE MUTATORS

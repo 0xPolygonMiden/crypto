@@ -86,6 +86,15 @@ impl NodeStore {
         Ok(path.into())
     }
 
+    /// Returns a Merkle path to the node specified by the key together with a flag indicating,
+    /// whether this node is a leaf at depths 16, 32, or 48.
+    pub fn get_proof(&self, key: &RpoDigest) -> (MerklePath, NodeIndex, bool) {
+        let (index, leaf_exists) = self.get_leaf_index(key);
+        let index: NodeIndex = index.into();
+        let path = self.get_path(index).expect("failed to retrieve Merkle path for a node index");
+        (path, index, leaf_exists)
+    }
+
     /// Returns an index at which a leaf node for the specified key should be inserted.
     ///
     /// The second value in the returned tuple is set to true if the node at the returned index
