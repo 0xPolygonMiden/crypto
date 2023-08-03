@@ -1,6 +1,6 @@
 use super::{
     get_common_prefix_tier_depth, get_key_prefix, hash_bottom_leaf, hash_upper_leaf,
-    EmptySubtreeRoots, LeafNodeIndex, MerklePath, RpoDigest, Vec, Word,
+    EmptySubtreeRoots, LeafNodeIndex, MerklePath, RpoDigest, TieredSmtProofError, Vec, Word,
 };
 
 // CONSTANTS
@@ -11,6 +11,9 @@ const MAX_DEPTH: u8 = super::TieredSmt::MAX_DEPTH;
 
 /// Value of an empty leaf.
 pub const EMPTY_VALUE: Word = super::TieredSmt::EMPTY_VALUE;
+
+/// Depths at which leaves can exist in a tiered SMT.
+pub const TIER_DEPTHS: [u8; 4] = super::TieredSmt::TIER_DEPTHS;
 
 // TIERED SPARSE MERKLE TREE PROOF
 // ================================================================================================
@@ -39,23 +42,38 @@ impl TieredSmtProof {
     /// - Entries contains more than 1 item, but the length of the path is not 64.
     /// - Entries contains more than 1 item, and one of the items has value set to [ZERO; 4].
     /// - Entries contains multiple items with keys which don't share the same 64-bit prefix.
-    pub fn new<I>(path: MerklePath, entries: I) -> Self
+    pub fn new<I>(path: MerklePath, entries: I) -> Result<Self, TieredSmtProofError>
     where
         I: IntoIterator<Item = (RpoDigest, Word)>,
     {
         let entries: Vec<(RpoDigest, Word)> = entries.into_iter().collect();
-        assert!(path.depth() <= MAX_DEPTH);
-        assert!(!entries.is_empty());
+
+        if !TIER_DEPTHS.into_iter().any(|e| e == path.depth()) {
+            return Err(TieredSmtProofError::NotATierPath(path.depth()));
+        }
+
+        if entries.is_empty() {
+            return Err(TieredSmtProofError::EntriesEmpty);
+        }
+
         if entries.len() > 1 {
-            assert!(path.depth() == MAX_DEPTH);
+            if path.depth() != MAX_DEPTH {
+                return Err(TieredSmtProofError::MultipleEntriesOutsideLastTier);
+            }
+
             let prefix = get_key_prefix(&entries[0].0);
             for entry in entries.iter().skip(1) {
-                assert_ne!(entry.1, EMPTY_VALUE);
-                assert_eq!(prefix, get_key_prefix(&entry.0));
+                if entry.1 == EMPTY_VALUE {
+                    return Err(TieredSmtProofError::EmptyValueNotAllowed);
+                }
+                let current = get_key_prefix(&entry.0);
+                if prefix != current {
+                    return Err(TieredSmtProofError::UnmatchingPrefixes(prefix, current));
+                }
             }
         }
 
-        Self { path, entries }
+        Ok(Self { path, entries })
     }
 
     // PROOF VERIFIER
