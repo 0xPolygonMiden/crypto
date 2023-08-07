@@ -41,7 +41,7 @@ mod tests;
 /// To differentiate between internal and leaf nodes, node values are computed as follows:
 /// - Internal nodes: hash(left_child, right_child).
 /// - Leaf node at depths 16, 32, or 64: hash(key, value, domain=depth).
-/// - Leaf node at depth 64: hash([key_0, value_0, ..., key_n, value_n, domain=64]).
+/// - Leaf node at depth 64: hash([key_0, value_0, ..., key_n, value_n], domain=64).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TieredSmt {
     root: RpoDigest,
@@ -306,10 +306,23 @@ impl TieredSmt {
         debug_assert!(leaf_exists);
 
         // if the leaf is at the bottom tier and after removing the key-value pair from it, the
-        // leaf is still not empty, just recompute its hash and update the leaf node.
+        // leaf is still not empty, we either just update it, or move it up to a higher tier (if
+        // the leaf doesn't have siblings at lower tiers)
         if index.depth() == Self::MAX_DEPTH {
-            if let Some(values) = self.values.get_all(index.value()) {
-                let node = hash_bottom_leaf(&values);
+            if let Some(entries) = self.values.get_all(index.value()) {
+                // if there is only one key-value pair left at the bottom leaf, and it can be
+                // moved up to a higher tier, truncate the branch and return
+                if entries.len() == 1 {
+                    let new_depth = self.nodes.get_last_single_child_parent_depth(index.value());
+                    if new_depth != Self::MAX_DEPTH {
+                        let node = hash_upper_leaf(entries[0].0, entries[0].1, new_depth);
+                        self.root = self.nodes.truncate_branch(index.value(), new_depth, node);
+                        return old_value;
+                    }
+                }
+
+                // otherwise just recompute the leaf hash and update the leaf node
+                let node = hash_bottom_leaf(&entries);
                 self.root = self.nodes.update_leaf_node(index, node);
                 return old_value;
             };

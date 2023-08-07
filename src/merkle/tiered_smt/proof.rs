@@ -68,7 +68,7 @@ impl TieredSmtProof {
                 }
                 let current = get_key_prefix(&entry.0);
                 if prefix != current {
-                    return Err(TieredSmtProofError::UnmatchingPrefixes(prefix, current));
+                    return Err(TieredSmtProofError::MismatchedPrefixes(prefix, current));
                 }
             }
         }

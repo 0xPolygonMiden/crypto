@@ -460,6 +460,131 @@ fn tsmt_delete_64() {
     assert_eq!(smt, smt0);
 }
 
+#[test]
+fn tsmt_delete_64_leaf_promotion() {
+    let mut smt = TieredSmt::default();
+
+    // --- delete from bottom tier (no promotion to upper tiers) --------------
+
+    // insert a value into the tree
+    let raw_a = 0b_01010101_01010101_11111111_11111111_10101010_10101010_11111111_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let value_a = [ONE, ONE, ONE, ONE];
+    smt.insert(key_a, value_a);
+
+    // insert another value with a key having the same 64-bit prefix
+    let key_b = RpoDigest::from([ONE, ONE, ZERO, Felt::new(raw_a)]);
+    let value_b = [ONE, ONE, ONE, ZERO];
+    smt.insert(key_b, value_b);
+
+    // insert a value with a key which shared the same 48-bit prefix
+    let raw_c = 0b_01010101_01010101_11111111_11111111_10101010_10101010_00111111_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    let value_c = [ONE, ONE, ZERO, ZERO];
+    smt.insert(key_c, value_c);
+
+    // delete entry A and compare to the tree which was built from B and C
+    smt.insert(key_a, EMPTY_WORD);
+
+    let mut expected_smt = TieredSmt::default();
+    expected_smt.insert(key_b, value_b);
+    expected_smt.insert(key_c, value_c);
+    assert_eq!(smt, expected_smt);
+
+    // entries B and C should stay at depth 64
+    assert_eq!(smt.nodes.get_leaf_index(&key_b).0.depth(), 64);
+    assert_eq!(smt.nodes.get_leaf_index(&key_c).0.depth(), 64);
+
+    // --- delete from bottom tier (promotion to depth 48) --------------------
+
+    let mut smt = TieredSmt::default();
+    smt.insert(key_a, value_a);
+    smt.insert(key_b, value_b);
+
+    // insert a value with a key which shared the same 32-bit prefix
+    let raw_c = 0b_01010101_01010101_11111111_11111111_11101010_10101010_11111111_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    smt.insert(key_c, value_c);
+
+    // delete entry A and compare to the tree which was built from B and C
+    smt.insert(key_a, EMPTY_WORD);
+
+    let mut expected_smt = TieredSmt::default();
+    expected_smt.insert(key_b, value_b);
+    expected_smt.insert(key_c, value_c);
+    assert_eq!(smt, expected_smt);
+
+    // entry B moves to depth 48, entry C stays at depth 48
+    assert_eq!(smt.nodes.get_leaf_index(&key_b).0.depth(), 48);
+    assert_eq!(smt.nodes.get_leaf_index(&key_c).0.depth(), 48);
+
+    // --- delete from bottom tier (promotion to depth 32) --------------------
+
+    let mut smt = TieredSmt::default();
+    smt.insert(key_a, value_a);
+    smt.insert(key_b, value_b);
+
+    // insert a value with a key which shared the same 16-bit prefix
+    let raw_c = 0b_01010101_01010101_01111111_11111111_10101010_10101010_11111111_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    smt.insert(key_c, value_c);
+
+    // delete entry A and compare to the tree which was built from B and C
+    smt.insert(key_a, EMPTY_WORD);
+
+    let mut expected_smt = TieredSmt::default();
+    expected_smt.insert(key_b, value_b);
+    expected_smt.insert(key_c, value_c);
+    assert_eq!(smt, expected_smt);
+
+    // entry B moves to depth 32, entry C stays at depth 32
+    assert_eq!(smt.nodes.get_leaf_index(&key_b).0.depth(), 32);
+    assert_eq!(smt.nodes.get_leaf_index(&key_c).0.depth(), 32);
+
+    // --- delete from bottom tier (promotion to depth 16) --------------------
+
+    let mut smt = TieredSmt::default();
+    smt.insert(key_a, value_a);
+    smt.insert(key_b, value_b);
+
+    // insert a value with a key which shared prefix < 16 bits
+    let raw_c = 0b_01010101_01010100_11111111_11111111_10101010_10101010_11111111_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    smt.insert(key_c, value_c);
+
+    // delete entry A and compare to the tree which was built from B and C
+    smt.insert(key_a, EMPTY_WORD);
+
+    let mut expected_smt = TieredSmt::default();
+    expected_smt.insert(key_b, value_b);
+    expected_smt.insert(key_c, value_c);
+    assert_eq!(smt, expected_smt);
+
+    // entry B moves to depth 16, entry C stays at depth 16
+    assert_eq!(smt.nodes.get_leaf_index(&key_b).0.depth(), 16);
+    assert_eq!(smt.nodes.get_leaf_index(&key_c).0.depth(), 16);
+}
+
+#[test]
+fn test_order_sensitivity() {
+    let raw = 0b_10101010_10101010_00011111_11111111_10010110_10010011_11100000_00000001_u64;
+    let value = [ONE; WORD_SIZE];
+
+    let key_1 = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let key_2 = RpoDigest::from([ONE, ONE, ZERO, Felt::new(raw)]);
+
+    let mut smt_1 = TieredSmt::default();
+
+    smt_1.insert(key_1, value);
+    smt_1.insert(key_2, value);
+    smt_1.insert(key_2, [ZERO; WORD_SIZE]);
+
+    let mut smt_2 = TieredSmt::default();
+    smt_2.insert(key_1, value);
+
+    assert_eq!(smt_1.root(), smt_2.root());
+}
+
 // BOTTOM TIER TESTS
 // ================================================================================================
 

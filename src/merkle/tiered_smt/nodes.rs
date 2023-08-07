@@ -118,6 +118,24 @@ impl NodeStore {
         (index, self.bottom_leaves.contains(&index.value()))
     }
 
+    /// Traverses the tree up from the bottom tier starting at the specified leaf index and
+    /// returns the depth of the first node which hash more than one child. The returned depth
+    /// is rounded up to the next tier.
+    pub fn get_last_single_child_parent_depth(&self, leaf_index: u64) -> u8 {
+        let mut index = NodeIndex::new_unchecked(MAX_DEPTH, leaf_index);
+
+        for _ in (TIER_DEPTHS[0]..MAX_DEPTH).rev() {
+            let sibling_index = index.sibling();
+            if self.nodes.contains_key(&sibling_index) {
+                break;
+            }
+            index.move_up();
+        }
+
+        let tier = (index.depth() - 1) / TIER_SIZE;
+        TIER_DEPTHS[tier as usize]
+    }
+
     // ITERATORS
     // --------------------------------------------------------------------------------------------
 
@@ -200,15 +218,6 @@ impl NodeStore {
         debug_assert!(self.is_non_empty_leaf(&retained_leaf));
         debug_assert_eq!(removed_leaf.depth(), retained_leaf.depth());
         debug_assert!(removed_leaf.depth() > new_depth);
-
-        // clear leaf flags
-        if removed_leaf.depth() == MAX_DEPTH {
-            self.bottom_leaves.remove(&removed_leaf.value());
-            self.bottom_leaves.remove(&retained_leaf.value());
-        } else {
-            self.upper_leaves.remove(&removed_leaf);
-            self.upper_leaves.remove(&retained_leaf);
-        }
 
         // remove the branches leading up to the tier to which the retained leaf is to be moved
         self.remove_branch(removed_leaf, new_depth);
@@ -298,6 +307,25 @@ impl NodeStore {
         self.update_leaf_node(index, node)
     }
 
+    /// Truncates a branch starting with specified leaf at the bottom tier to new depth.
+    ///
+    /// This involves removing the part of the branch below the new depth, and then inserting a new
+    /// // node at the new depth.
+    pub fn truncate_branch(
+        &mut self,
+        leaf_index: u64,
+        new_depth: u8,
+        node: RpoDigest,
+    ) -> RpoDigest {
+        debug_assert!(self.bottom_leaves.contains(&leaf_index));
+
+        let mut leaf_index = LeafNodeIndex::new(NodeIndex::new_unchecked(MAX_DEPTH, leaf_index));
+        self.remove_branch(leaf_index, new_depth);
+
+        leaf_index.move_up_to(new_depth);
+        self.insert_leaf_node(leaf_index, node)
+    }
+
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
 
@@ -360,11 +388,18 @@ impl NodeStore {
         }
     }
 
-    /// Removes a sequence of nodes starting at the specified index and traversing the
-    /// tree up to the specified depth. The node at the `end_depth` is also removed.
+    /// Removes a sequence of nodes starting at the specified index and traversing the tree up to
+    /// the specified depth. The node at the `end_depth` is also removed, and the appropriate leaf
+    /// flag is cleared.
     ///
     /// This method does not update any other nodes and does not recompute the tree root.
     fn remove_branch(&mut self, index: LeafNodeIndex, end_depth: u8) {
+        if index.depth() == MAX_DEPTH {
+            self.bottom_leaves.remove(&index.value());
+        } else {
+            self.upper_leaves.remove(&index);
+        }
+
         let mut index: NodeIndex = index.into();
         assert!(index.depth() > end_depth);
         for _ in 0..(index.depth() - end_depth + 1) {
