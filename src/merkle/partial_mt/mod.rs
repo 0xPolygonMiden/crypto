@@ -28,6 +28,7 @@ const EMPTY_DIGEST: RpoDigest = RpoDigest::new([ZERO; 4]);
 ///
 /// The root of the tree is recomputed on each new leaf update.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PartialMerkleTree {
     max_depth: u8,
     nodes: BTreeMap<NodeIndex, RpoDigest>,

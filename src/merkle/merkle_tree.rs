@@ -8,6 +8,7 @@ use winter_math::log2;
 
 /// A fully-balanced binary Merkle tree (i.e., a tree where the number of leaves is a power of two).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MerkleTree {
     nodes: Vec<RpoDigest>,
 }

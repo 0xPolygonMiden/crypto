@@ -19,6 +19,7 @@ pub type DefaultMerkleStore = MerkleStore<BTreeMap<RpoDigest, StoreNode>>;
 pub type RecordingMerkleStore = MerkleStore<RecordingMap<RpoDigest, StoreNode>>;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct StoreNode {
     left: RpoDigest,
     right: RpoDigest,
@@ -87,6 +88,7 @@ pub struct StoreNode {
 /// assert_eq!(store.num_internal_nodes() - 255, 10);
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MerkleStore<T: KvMap<RpoDigest, StoreNode> = BTreeMap<RpoDigest, StoreNode>> {
     nodes: T,
 }

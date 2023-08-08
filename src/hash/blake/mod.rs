@@ -1,5 +1,8 @@
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField};
-use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use crate::utils::{
+    bytes_to_hex_string, hex_to_bytes, string::String, ByteReader, ByteWriter, Deserializable,
+    DeserializationError, HexParseError, Serializable,
+};
 use core::{
     mem::{size_of, transmute, transmute_copy},
     ops::Deref,
@@ -24,6 +27,8 @@ const DIGEST20_BYTES: usize = 20;
 /// Note: `N` can't be greater than `32` because [`Digest::as_bytes`] currently supports only 32
 /// bytes.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(into = "String", try_from = "&str"))]
 pub struct Blake3Digest<const N: usize>([u8; N]);
 
 impl<const N: usize> Default for Blake3Digest<N> {
@@ -49,6 +54,20 @@ impl<const N: usize> From<Blake3Digest<N>> for [u8; N] {
 impl<const N: usize> From<[u8; N]> for Blake3Digest<N> {
     fn from(value: [u8; N]) -> Self {
         Self(value)
+    }
+}
+
+impl<const N: usize> From<Blake3Digest<N>> for String {
+    fn from(value: Blake3Digest<N>) -> Self {
+        bytes_to_hex_string(value.as_bytes())
+    }
+}
+
+impl<const N: usize> TryFrom<&str> for Blake3Digest<N> {
+    type Error = HexParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        hex_to_bytes(value).map(|v| v.into())
     }
 }
 

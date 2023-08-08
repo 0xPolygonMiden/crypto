@@ -43,6 +43,7 @@ mod tests;
 /// - Leaf node at depths 16, 32, or 64: hash(key, value, domain=depth).
 /// - Leaf node at depth 64: hash([key_0, value_0, ..., key_n, value_n], domain=64).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TieredSmt {
     root: RpoDigest,
     nodes: NodeStore,
