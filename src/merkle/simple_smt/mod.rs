@@ -13,6 +13,7 @@ mod tests;
 ///
 /// The root of the tree is recomputed on each new leaf update.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SimpleSmt {
     depth: u8,
     root: RpoDigest,
@@ -265,6 +266,7 @@ impl SimpleSmt {
 // ================================================================================================
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct BranchNode {
     left: RpoDigest,
     right: RpoDigest,

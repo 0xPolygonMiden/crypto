@@ -13,6 +13,7 @@ use super::{empty_roots::EMPTY_WORD, Felt, SimpleSmt};
 /// [RpoDigest] represents the root of the Merkle tree and [MerkleTreeDelta] represents the
 /// differences between the initial and final Merkle tree states.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MerkleStoreDelta(pub Vec<(RpoDigest, MerkleTreeDelta)>);
 
 // MERKLE TREE DELTA
@@ -26,6 +27,7 @@ pub struct MerkleStoreDelta(pub Vec<(RpoDigest, MerkleTreeDelta)>);
 /// - updated_slots: index-value pairs of slots where values were set to non [ZERO; 4] values.
 #[cfg(not(test))]
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MerkleTreeDelta {
     depth: u8,
     cleared_slots: Vec<u64>,
@@ -107,6 +109,7 @@ pub fn merkle_tree_delta<T: KvMap<RpoDigest, StoreNode>>(
 // --------------------------------------------------------------------------------------------
 #[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MerkleTreeDelta {
     pub depth: u8,
     pub cleared_slots: Vec<u64>,

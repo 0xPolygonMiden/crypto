@@ -3,6 +3,7 @@ use super::super::MerklePath;
 use super::full::{high_bitmask, leaf_to_corresponding_tree};
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MmrProof {
     /// The state of the MMR when the MmrProof was created.
     pub forest: usize,

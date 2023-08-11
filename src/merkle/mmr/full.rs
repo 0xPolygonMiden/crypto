@@ -29,6 +29,7 @@ use std::error::Error;
 /// Since this is a full representation of the MMR, elements are never removed and the MMR will
 /// grow roughly `O(2n)` in number of leaf elements.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Mmr {
     /// Refer to the `forest` method documentation for details of the semantics of this value.
     pub(super) forest: usize,

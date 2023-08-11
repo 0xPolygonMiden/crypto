@@ -6,6 +6,7 @@ use core::ops::{Deref, DerefMut};
 
 /// A merkle path container, composed of a sequence of nodes of a Merkle tree.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MerklePath {
     nodes: Vec<RpoDigest>,
 }

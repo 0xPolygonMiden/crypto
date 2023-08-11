@@ -24,6 +24,7 @@ const MAX_DEPTH: u8 = super::TieredSmt::MAX_DEPTH;
 /// represent leaf nodes in a Tiered Sparse Merkle tree. In the current implementation, [BTreeSet]s
 /// are used to determine the position of the leaves in the tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct NodeStore {
     nodes: BTreeMap<NodeIndex, RpoDigest>,
     upper_leaves: BTreeSet<NodeIndex>,

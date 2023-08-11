@@ -26,6 +26,7 @@ const MAX_DEPTH: u8 = super::TieredSmt::MAX_DEPTH;
 /// The store supports lookup by the full key (i.e. [RpoDigest]) as well as by the 64-bit key
 /// prefix.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ValueStore {
     values: BTreeMap<u64, StoreEntry>,
 }
@@ -173,6 +174,7 @@ impl ValueStore {
 /// An entry can contain either a single key-value pair or a vector of key-value pairs sorted by
 /// key.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum StoreEntry {
     Single((RpoDigest, Word)),
     List(Vec<(RpoDigest, Word)>),

@@ -21,6 +21,7 @@ use core::fmt::Display;
 /// The root is represented by the pair $(0, 0)$, its left child is $(1, 0)$ and its right child
 /// $(1, 1)$.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct NodeIndex {
     depth: u8,
     value: u64,
