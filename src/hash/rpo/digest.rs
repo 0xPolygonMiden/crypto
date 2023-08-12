@@ -50,34 +50,53 @@ impl Digest for RpoDigest {
     }
 }
 
-impl Serializable for RpoDigest {
-    fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        target.write_bytes(&self.as_bytes());
+impl Deref for RpoDigest {
+    type Target = [Felt; DIGEST_SIZE];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl Deserializable for RpoDigest {
-    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        let mut inner: [Felt; DIGEST_SIZE] = [ZERO; DIGEST_SIZE];
-        for inner in inner.iter_mut() {
-            let e = source.read_u64()?;
-            if e >= Felt::MODULUS {
-                return Err(DeserializationError::InvalidValue(String::from(
-                    "Value not in the appropriate range",
-                )));
-            }
-            *inner = Felt::new(e);
-        }
-
-        Ok(Self(inner))
+impl Ord for RpoDigest {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // compare the inner u64 of both elements.
+        //
+        // it will iterate the elements and will return the first computation different than
+        // `Equal`. Otherwise, the ordering is equal.
+        //
+        // the endianness is irrelevant here because since, this being a cryptographically secure
+        // hash computation, the digest shouldn't have any ordered property of its input.
+        //
+        // finally, we use `Felt::inner` instead of `Felt::as_int` so we avoid performing a
+        // montgomery reduction for every limb. that is safe because every inner element of the
+        // digest is guaranteed to be in its canonical form (that is, `x in [0,p)`).
+        self.0.iter().map(Felt::inner).zip(other.0.iter().map(Felt::inner)).fold(
+            Ordering::Equal,
+            |ord, (a, b)| match ord {
+                Ordering::Equal => a.cmp(&b),
+                _ => ord,
+            },
+        )
     }
 }
 
-impl From<[Felt; DIGEST_SIZE]> for RpoDigest {
-    fn from(value: [Felt; DIGEST_SIZE]) -> Self {
-        Self(value)
+impl PartialOrd for RpoDigest {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
+
+impl Display for RpoDigest {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let encoded: String = self.into();
+        write!(f, "{}", encoded)?;
+        Ok(())
+    }
+}
+
+// CONVERSIONS: FROM RPO DIGEST
+// ================================================================================================
 
 impl From<&RpoDigest> for [Felt; DIGEST_SIZE] {
     fn from(value: &RpoDigest) -> Self {
@@ -126,14 +145,25 @@ impl From<RpoDigest> for [u8; DIGEST_BYTES] {
 }
 
 impl From<RpoDigest> for String {
+    /// The returned string starts with `0x`.
     fn from(value: RpoDigest) -> Self {
         bytes_to_hex_string(value.as_bytes())
     }
 }
 
 impl From<&RpoDigest> for String {
+    /// The returned string starts with `0x`.
     fn from(value: &RpoDigest) -> Self {
         (*value).into()
+    }
+}
+
+// CONVERSIONS: TO DIGEST
+// ================================================================================================
+
+impl From<[Felt; DIGEST_SIZE]> for RpoDigest {
+    fn from(value: [Felt; DIGEST_SIZE]) -> Self {
+        Self(value)
     }
 }
 
@@ -159,6 +189,7 @@ impl TryFrom<[u8; DIGEST_BYTES]> for RpoDigest {
 impl TryFrom<&str> for RpoDigest {
     type Error = HexParseError;
 
+    /// Expects the string to start with `0x`.
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         hex_to_bytes(value).and_then(|v| v.try_into())
     }
@@ -167,6 +198,7 @@ impl TryFrom<&str> for RpoDigest {
 impl TryFrom<String> for RpoDigest {
     type Error = HexParseError;
 
+    /// Expects the string to start with `0x`.
     fn try_from(value: String) -> Result<Self, Self::Error> {
         value.as_str().try_into()
     }
@@ -175,53 +207,35 @@ impl TryFrom<String> for RpoDigest {
 impl TryFrom<&String> for RpoDigest {
     type Error = HexParseError;
 
+    /// Expects the string to start with `0x`.
     fn try_from(value: &String) -> Result<Self, Self::Error> {
         value.as_str().try_into()
     }
 }
 
-impl Deref for RpoDigest {
-    type Target = [Felt; DIGEST_SIZE];
+// SERIALIZATION / DESERIALIZATION
+// ================================================================================================
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Serializable for RpoDigest {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write_bytes(&self.as_bytes());
     }
 }
 
-impl Ord for RpoDigest {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // compare the inner u64 of both elements.
-        //
-        // it will iterate the elements and will return the first computation different than
-        // `Equal`. Otherwise, the ordering is equal.
-        //
-        // the endianness is irrelevant here because since, this being a cryptographically secure
-        // hash computation, the digest shouldn't have any ordered property of its input.
-        //
-        // finally, we use `Felt::inner` instead of `Felt::as_int` so we avoid performing a
-        // montgomery reduction for every limb. that is safe because every inner element of the
-        // digest is guaranteed to be in its canonical form (that is, `x in [0,p)`).
-        self.0.iter().map(Felt::inner).zip(other.0.iter().map(Felt::inner)).fold(
-            Ordering::Equal,
-            |ord, (a, b)| match ord {
-                Ordering::Equal => a.cmp(&b),
-                _ => ord,
-            },
-        )
-    }
-}
+impl Deserializable for RpoDigest {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let mut inner: [Felt; DIGEST_SIZE] = [ZERO; DIGEST_SIZE];
+        for inner in inner.iter_mut() {
+            let e = source.read_u64()?;
+            if e >= Felt::MODULUS {
+                return Err(DeserializationError::InvalidValue(String::from(
+                    "Value not in the appropriate range",
+                )));
+            }
+            *inner = Felt::new(e);
+        }
 
-impl PartialOrd for RpoDigest {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Display for RpoDigest {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let encoded: String = self.into();
-        write!(f, "{}", encoded)?;
-        Ok(())
+        Ok(Self(inner))
     }
 }
 
