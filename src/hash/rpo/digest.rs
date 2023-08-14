@@ -4,6 +4,7 @@ use crate::utils::{
     DeserializationError, HexParseError, Serializable,
 };
 use core::{cmp::Ordering, fmt::Display, ops::Deref};
+use winter_utils::Randomizable;
 
 /// The number of bytes needed to encoded a digest
 pub const DIGEST_BYTES: usize = 32;
@@ -92,6 +93,19 @@ impl Display for RpoDigest {
         let encoded: String = self.into();
         write!(f, "{}", encoded)?;
         Ok(())
+    }
+}
+
+impl Randomizable for RpoDigest {
+    const VALUE_SIZE: usize = DIGEST_BYTES;
+
+    fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
+        let bytes_array: Option<[u8; 32]> = bytes.try_into().ok();
+        if let Some(bytes_array) = bytes_array {
+            Self::try_from(bytes_array).ok()
+        } else {
+            None
+        }
     }
 }
 

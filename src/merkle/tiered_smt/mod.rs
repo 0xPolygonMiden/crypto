@@ -274,6 +274,12 @@ impl TieredSmt {
         })
     }
 
+    /// Returns an iterator over upper leaves (i.e., depth = 16, 32, or 48) for this [TieredSmt]
+    /// where each yielded item is a (node_index, value) tuple.
+    pub fn upper_leaf_nodes(&self) -> impl Iterator<Item = (&NodeIndex, &RpoDigest)> {
+        self.nodes.upper_leaves()
+    }
+
     /// Returns an iterator over bottom leaves (i.e., depth = 64) of this [TieredSmt].
     ///
     /// Each yielded item consists of the hash of the leaf and its contents, where contents is
