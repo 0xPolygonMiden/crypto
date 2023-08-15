@@ -3,7 +3,7 @@ use super::{
     Rpo256, RpoDigest, StarkField, Vec, Word,
 };
 use crate::utils::vec;
-use core::{cmp, ops::Deref};
+use core::{cmp, fmt::Debug, ops::Deref};
 
 mod nodes;
 use nodes::NodeStore;
@@ -44,60 +44,17 @@ mod tests;
 /// - Leaf node at depth 64: hash([key_0, value_0, ..., key_n, value_n], domain=64).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct TieredSmt {
+pub struct TieredSmt<T> {
     root: RpoDigest,
     nodes: NodeStore,
-    values: ValueStore,
+    values: ValueStore<T>,
 }
 
-impl TieredSmt {
-    // CONSTANTS
-    // --------------------------------------------------------------------------------------------
+const TIER_DEPTHS: [u8; 4] = [16, 32, 48, 64];
+const TIER_SIZE: u8 = 16;
+const MAX_DEPTH: u8 = 64;
 
-    /// The number of levels between tiers.
-    const TIER_SIZE: u8 = 16;
-
-    /// Depths at which leaves can exist in a tiered SMT.
-    const TIER_DEPTHS: [u8; 4] = [16, 32, 48, 64];
-
-    /// Maximum node depth. This is also the bottom tier of the tree.
-    const MAX_DEPTH: u8 = 64;
-
-    /// Value of an empty leaf.
-    pub const EMPTY_VALUE: Word = super::empty_roots::EMPTY_WORD;
-
-    // CONSTRUCTORS
-    // --------------------------------------------------------------------------------------------
-
-    /// Returns a new [TieredSmt] instantiated with the specified key-value pairs.
-    ///
-    /// # Errors
-    /// Returns an error if the provided entries contain multiple values for the same key.
-    pub fn with_leaves<R, I>(entries: R) -> Result<Self, MerkleError>
-    where
-        R: IntoIterator<IntoIter = I>,
-        I: Iterator<Item = (RpoDigest, Word)> + ExactSizeIterator,
-    {
-        // create an empty tree
-        let mut tree = Self::default();
-
-        // append leaves to the tree returning an error if a duplicate entry for the same key
-        // is found
-        let mut empty_entries = BTreeSet::new();
-        for (key, value) in entries {
-            let old_value = tree.insert(key, value);
-            if old_value != Self::EMPTY_VALUE || empty_entries.contains(&key) {
-                return Err(MerkleError::DuplicateValuesForKey(key));
-            }
-            // if we've processed an empty entry, add the key to the set of empty entry keys, and
-            // if this key was already in the set, return an error
-            if value == Self::EMPTY_VALUE && !empty_entries.insert(key) {
-                return Err(MerkleError::DuplicateValuesForKey(key));
-            }
-        }
-        Ok(tree)
-    }
-
+impl<T> TieredSmt<T> {
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
@@ -132,51 +89,81 @@ impl TieredSmt {
         self.nodes.get_path(index)
     }
 
+    // ITERATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns an iterator over all key-value pairs in this [TieredSmt].
+    pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, T)> {
+        self.values.iter()
+    }
+
+    /// Returns an iterator over all inner nodes of this [TieredSmt] (i.e., nodes not at depths 16
+    /// 32, 48, or 64).
+    ///
+    /// The iterator order is unspecified.
+    pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+        self.nodes.inner_nodes()
+    }
+}
+
+impl<T> TieredSmt<T>
+where
+    T: Copy,
+{
+    /// Returns an iterator over bottom leaves (i.e., depth = 64) of this [TieredSmt].
+    ///
+    /// Each yielded item consists of the hash of the leaf and its contents, where contents is
+    /// a vector containing key-value pairs of entries storied in this leaf.
+    ///
+    /// The iterator order is unspecified.
+    pub fn bottom_leaves(&self) -> impl Iterator<Item = (RpoDigest, Vec<(RpoDigest, T)>)> + '_ {
+        self.nodes.bottom_leaves().map(|(&prefix, node)| {
+            let values = self.values.get_all(prefix).expect("bottom leaf not found");
+            (*node, values)
+        })
+    }
+
+    /// Returns an iterator over upper leaves (i.e., depth = 16, 32, or 48) for this [TieredSmt]
+    /// where each yielded item is a (node, key, value) tuple.
+    ///
+    /// The iterator order is unspecified.
+    pub fn upper_leaves(&self) -> impl Iterator<Item = (RpoDigest, RpoDigest, T)> + '_ {
+        self.nodes.upper_leaves().map(|(index, node)| {
+            let key_prefix = index_to_prefix(index);
+            let (key, value) = self.values.get_first(key_prefix).expect("upper leaf not found");
+            debug_assert_eq!(*index, LeafNodeIndex::from_key(key, index.depth()).into());
+            (*node, *key, *value)
+        })
+    }
+}
+
+impl<T> TieredSmt<T>
+where
+    T: Default + Copy,
+{
     /// Returns the value associated with the specified key.
     ///
     /// If nothing was inserted into this tree for the specified key, [ZERO; 4] is returned.
-    pub fn get_value(&self, key: RpoDigest) -> Word {
+    pub fn get_value(&self, key: RpoDigest) -> T {
         match self.values.get(&key) {
             Some(value) => *value,
-            None => Self::EMPTY_VALUE,
+            None => T::default(),
         }
     }
+}
 
-    /// Returns a proof for a key-value pair defined by the specified key.
-    ///
-    /// The proof can be used to attest membership of this key-value pair in a Tiered Sparse Merkle
-    /// Tree defined by the same root as this tree.
-    pub fn prove(&self, key: RpoDigest) -> TieredSmtProof {
-        let (path, index, leaf_exists) = self.nodes.get_proof(&key);
-
-        let entries = if index.depth() == Self::MAX_DEPTH {
-            match self.values.get_all(index.value()) {
-                Some(entries) => entries,
-                None => vec![(key, Self::EMPTY_VALUE)],
-            }
-        } else if leaf_exists {
-            let entry =
-                self.values.get_first(index_to_prefix(&index)).expect("leaf entry not found");
-            debug_assert_eq!(entry.0, key);
-            vec![*entry]
-        } else {
-            vec![(key, Self::EMPTY_VALUE)]
-        };
-
-        TieredSmtProof::new(path, entries).expect("Bug detected, TSMT produced invalid proof")
-    }
-
-    // STATE MUTATORS
-    // --------------------------------------------------------------------------------------------
-
+impl<T> TieredSmt<T>
+where
+    T: Default + Copy + PartialEq + Debug + Into<RpoDigest>,
+{
     /// Inserts the provided value into the tree under the specified key and returns the value
     /// previously stored under this key.
     ///
     /// If the value for the specified key was not previously set, [ZERO; 4] is returned.
-    pub fn insert(&mut self, key: RpoDigest, value: Word) -> Word {
+    pub fn insert(&mut self, key: RpoDigest, value: T) -> T {
         // if an empty value is being inserted, remove the leaf node to make it look as if the
         // value was never inserted
-        if value == Self::EMPTY_VALUE {
+        if value == T::default() {
             return self.remove_leaf_node(key);
         }
 
@@ -203,7 +190,7 @@ impl TieredSmt {
         //   key case was handled above); in this case, we need to move the leaf to a lower tier
         let (index, leaf_exists) = self.nodes.get_leaf_index(&key);
 
-        self.root = if leaf_exists && index.depth() == Self::MAX_DEPTH {
+        self.root = if leaf_exists && index.depth() == MAX_DEPTH {
             // returned index points to a leaf at the bottom tier
             let node = self.build_leaf_node(index, key, value);
             self.nodes.update_leaf_node(index, node)
@@ -220,7 +207,7 @@ impl TieredSmt {
 
             // determine how far down the tree should we move the leaves
             let common_prefix_len = get_common_prefix_tier_depth(&key, other_key);
-            let depth = cmp::min(common_prefix_len + Self::TIER_SIZE, Self::MAX_DEPTH);
+            let depth = cmp::min(common_prefix_len + TIER_SIZE, MAX_DEPTH);
 
             // compute node locations for new and existing key-value paris
             let new_index = LeafNodeIndex::from_key(&key, depth);
@@ -242,64 +229,108 @@ impl TieredSmt {
             self.nodes.insert_leaf_node(index, node)
         };
 
-        Self::EMPTY_VALUE
+        T::default()
     }
 
-    // ITERATORS
-    // --------------------------------------------------------------------------------------------
-
-    /// Returns an iterator over all key-value pairs in this [TieredSmt].
-    pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
-        self.values.iter()
-    }
-
-    /// Returns an iterator over all inner nodes of this [TieredSmt] (i.e., nodes not at depths 16
-    /// 32, 48, or 64).
+    /// Returns a new [TieredSmt] instantiated with the specified key-value pairs.
     ///
-    /// The iterator order is unspecified.
-    pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
-        self.nodes.inner_nodes()
+    /// # Errors
+    /// Returns an error if the provided entries contain multiple values for the same key.
+    pub fn with_leaves<R, I>(entries: R) -> Result<Self, MerkleError>
+    where
+        R: IntoIterator<IntoIter = I>,
+        I: Iterator<Item = (RpoDigest, T)> + ExactSizeIterator,
+    {
+        // create an empty tree
+        let mut tree = Self::default();
+
+        // append leaves to the tree returning an error if a duplicate entry for the same key
+        // is found
+        let mut empty_entries = BTreeSet::new();
+        for (key, value) in entries {
+            let old_value = tree.insert(key, value);
+            if old_value != T::default() || empty_entries.contains(&key) {
+                return Err(MerkleError::DuplicateValuesForKey(key));
+            }
+            // if we've processed an empty entry, add the key to the set of empty entry keys, and
+            // if this key was already in the set, return an error
+            if value == T::default() && !empty_entries.insert(key) {
+                return Err(MerkleError::DuplicateValuesForKey(key));
+            }
+        }
+        Ok(tree)
     }
+}
 
-    /// Returns an iterator over upper leaves (i.e., depth = 16, 32, or 48) for this [TieredSmt]
-    /// where each yielded item is a (node, key, value) tuple.
+impl<T> TieredSmt<T>
+where
+    T: Default + Copy + PartialEq,
+{
+    /// Returns a proof for a key-value pair defined by the specified key.
     ///
-    /// The iterator order is unspecified.
-    pub fn upper_leaves(&self) -> impl Iterator<Item = (RpoDigest, RpoDigest, Word)> + '_ {
-        self.nodes.upper_leaves().map(|(index, node)| {
-            let key_prefix = index_to_prefix(index);
-            let (key, value) = self.values.get_first(key_prefix).expect("upper leaf not found");
-            debug_assert_eq!(*index, LeafNodeIndex::from_key(key, index.depth()).into());
-            (*node, *key, *value)
-        })
+    /// The proof can be used to attest membership of this key-value pair in a Tiered Sparse Merkle
+    /// Tree defined by the same root as this tree.
+    pub fn prove(&self, key: RpoDigest) -> TieredSmtProof<T> {
+        let (path, index, leaf_exists) = self.nodes.get_proof(&key);
+
+        let entries = if index.depth() == MAX_DEPTH {
+            match self.values.get_all(index.value()) {
+                Some(entries) => entries,
+                None => vec![(key, T::default())],
+            }
+        } else if leaf_exists {
+            let entry =
+                self.values.get_first(index_to_prefix(&index)).expect("leaf entry not found");
+            debug_assert_eq!(entry.0, key);
+            vec![*entry]
+        } else {
+            vec![(key, T::default())]
+        };
+
+        TieredSmtProof::new(path, entries).expect("Bug detected, TSMT produced invalid proof")
     }
+}
 
-    /// Returns an iterator over bottom leaves (i.e., depth = 64) of this [TieredSmt].
+impl<T> TieredSmt<T>
+where
+    T: Copy + PartialEq + Debug + Into<RpoDigest>,
+{
+    /// Builds and returns a leaf node value for the node located as the specified index.
     ///
-    /// Each yielded item consists of the hash of the leaf and its contents, where contents is
-    /// a vector containing key-value pairs of entries storied in this leaf.
-    ///
-    /// The iterator order is unspecified.
-    pub fn bottom_leaves(&self) -> impl Iterator<Item = (RpoDigest, Vec<(RpoDigest, Word)>)> + '_ {
-        self.nodes.bottom_leaves().map(|(&prefix, node)| {
-            let values = self.values.get_all(prefix).expect("bottom leaf not found");
-            (*node, values)
-        })
+    /// This method assumes that the key-value pair for the node has already been inserted into
+    /// the value store, however, for depths 16, 32, and 48, the node is computed directly from
+    /// the passed-in values (for depth 64, the value store is queried to get all the key-value
+    /// pairs located at the specified index).
+    fn build_leaf_node(&self, index: LeafNodeIndex, key: RpoDigest, value: T) -> RpoDigest {
+        let depth = index.depth();
+
+        // insert the key into index-key map and compute the new value of the node
+        if index.depth() == MAX_DEPTH {
+            // for the bottom tier, we add the key-value pair to the existing leaf, or create a
+            // new leaf with this key-value pair
+            let values = self.values.get_all(index.value()).unwrap();
+            hash_bottom_leaf(&values)
+        } else {
+            debug_assert_eq!(self.values.get_first(index_to_prefix(&index)), Some(&(key, value)));
+            hash_upper_leaf(key, &value, depth)
+        }
     }
+}
 
-    // HELPER METHODS
-    // --------------------------------------------------------------------------------------------
-
+impl<T> TieredSmt<T>
+where
+    T: Default + Copy + Debug + PartialEq + Into<RpoDigest>,
+{
     /// Removes the node holding the key-value pair for the specified key from this tree, and
     /// returns the value associated with the specified key.
     ///
     /// If no value was associated with the specified key, [ZERO; 4] is returned.
-    fn remove_leaf_node(&mut self, key: RpoDigest) -> Word {
+    fn remove_leaf_node(&mut self, key: RpoDigest) -> T {
         // remove the key-value pair from the value store; if no value was associated with the
         // specified key, return.
         let old_value = match self.values.remove(&key) {
             Some(old_value) => old_value,
-            None => return Self::EMPTY_VALUE,
+            None => return T::default(),
         };
 
         // determine the location of the leaf holding the key-value pair to be removed
@@ -309,14 +340,14 @@ impl TieredSmt {
         // if the leaf is at the bottom tier and after removing the key-value pair from it, the
         // leaf is still not empty, we either just update it, or move it up to a higher tier (if
         // the leaf doesn't have siblings at lower tiers)
-        if index.depth() == Self::MAX_DEPTH {
+        if index.depth() == MAX_DEPTH {
             if let Some(entries) = self.values.get_all(index.value()) {
                 // if there is only one key-value pair left at the bottom leaf, and it can be
                 // moved up to a higher tier, truncate the branch and return
                 if entries.len() == 1 {
                     let new_depth = self.nodes.get_last_single_child_parent_depth(index.value());
-                    if new_depth != Self::MAX_DEPTH {
-                        let node = hash_upper_leaf(entries[0].0, entries[0].1, new_depth);
+                    if new_depth != MAX_DEPTH {
+                        let node = hash_upper_leaf(entries[0].0, &entries[0].1, new_depth);
                         self.root = self.nodes.truncate_branch(index.value(), new_depth, node);
                         return old_value;
                     }
@@ -349,32 +380,11 @@ impl TieredSmt {
 
         old_value
     }
-
-    /// Builds and returns a leaf node value for the node located as the specified index.
-    ///
-    /// This method assumes that the key-value pair for the node has already been inserted into
-    /// the value store, however, for depths 16, 32, and 48, the node is computed directly from
-    /// the passed-in values (for depth 64, the value store is queried to get all the key-value
-    /// pairs located at the specified index).
-    fn build_leaf_node(&self, index: LeafNodeIndex, key: RpoDigest, value: Word) -> RpoDigest {
-        let depth = index.depth();
-
-        // insert the key into index-key map and compute the new value of the node
-        if index.depth() == Self::MAX_DEPTH {
-            // for the bottom tier, we add the key-value pair to the existing leaf, or create a
-            // new leaf with this key-value pair
-            let values = self.values.get_all(index.value()).unwrap();
-            hash_bottom_leaf(&values)
-        } else {
-            debug_assert_eq!(self.values.get_first(index_to_prefix(&index)), Some(&(key, value)));
-            hash_upper_leaf(key, value, depth)
-        }
-    }
 }
 
-impl Default for TieredSmt {
+impl<T> Default for TieredSmt<T> {
     fn default() -> Self {
-        let root = EmptySubtreeRoots::empty_hashes(Self::MAX_DEPTH)[0];
+        let root = EmptySubtreeRoots::empty_hashes(MAX_DEPTH)[0];
         Self {
             root,
             nodes: NodeStore::new(root),
@@ -410,7 +420,7 @@ impl LeafNodeIndex {
     /// element of the key, where n is the specified depth.
     pub fn from_key(key: &RpoDigest, depth: u8) -> Self {
         let mse = get_key_prefix(key);
-        Self::new(NodeIndex::new_unchecked(depth, mse >> (TieredSmt::MAX_DEPTH - depth)))
+        Self::new(NodeIndex::new_unchecked(depth, mse >> (MAX_DEPTH - depth)))
     }
 
     /// Returns a new [LeafNodeIndex] instantiated for testing purposes.
@@ -459,7 +469,7 @@ fn get_key_prefix(key: &RpoDigest) -> u64 {
 /// Returns the index value shifted to be in the most significant bit positions of the returned
 /// u64 value.
 fn index_to_prefix(index: &NodeIndex) -> u64 {
-    index.value() << (TieredSmt::MAX_DEPTH - index.depth())
+    index.value() << (MAX_DEPTH - index.depth())
 }
 
 /// Returns tiered common prefix length between the most significant elements of the provided keys.
@@ -480,10 +490,13 @@ fn get_common_prefix_tier_depth(key1: &RpoDigest, key2: &RpoDigest) -> u8 {
 /// Computes node value for leaves at tiers 16, 32, or 48.
 ///
 /// Node value is computed as: hash(key || value, domain = depth).
-pub fn hash_upper_leaf(key: RpoDigest, value: Word, depth: u8) -> RpoDigest {
-    const NUM_UPPER_TIERS: usize = TieredSmt::TIER_DEPTHS.len() - 1;
-    debug_assert!(TieredSmt::TIER_DEPTHS[..NUM_UPPER_TIERS].contains(&depth));
-    Rpo256::merge_in_domain(&[key, value.into()], depth.into())
+pub fn hash_upper_leaf<T>(key: RpoDigest, value: &T, depth: u8) -> RpoDigest
+where
+    T: Copy + Into<RpoDigest>,
+{
+    const NUM_UPPER_TIERS: usize = TIER_DEPTHS.len() - 1;
+    debug_assert!(TIER_DEPTHS[..NUM_UPPER_TIERS].contains(&depth));
+    Rpo256::merge_in_domain(&[key, (*value).into()], depth.into())
 }
 
 /// Computes node value for leaves at the bottom tier (depth 64).
@@ -492,11 +505,15 @@ pub fn hash_upper_leaf(key: RpoDigest, value: Word, depth: u8) -> RpoDigest {
 ///
 /// TODO: when hashing in domain is implemented for `hash_elements()`, combine this function with
 /// `hash_upper_leaf()` function.
-pub fn hash_bottom_leaf(values: &[(RpoDigest, Word)]) -> RpoDigest {
+pub fn hash_bottom_leaf<T>(values: &[(RpoDigest, T)]) -> RpoDigest
+where
+    T: Copy + Into<RpoDigest>,
+{
     let mut elements = Vec::with_capacity(values.len() * 8);
     for (key, val) in values.iter() {
         elements.extend_from_slice(key.as_elements());
-        elements.extend_from_slice(val.as_slice());
+        let digest: RpoDigest = (*val).into();
+        elements.extend_from_slice(digest.as_slice());
     }
     // TODO: hash in domain
     Rpo256::hash_elements(&elements)

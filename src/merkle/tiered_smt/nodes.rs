@@ -1,19 +1,7 @@
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, LeafNodeIndex, MerkleError, MerklePath,
-    NodeIndex, Rpo256, RpoDigest, Vec,
+    NodeIndex, Rpo256, RpoDigest, Vec, MAX_DEPTH, TIER_DEPTHS, TIER_SIZE,
 };
-
-// CONSTANTS
-// ================================================================================================
-
-/// The number of levels between tiers.
-const TIER_SIZE: u8 = super::TieredSmt::TIER_SIZE;
-
-/// Depths at which leaves can exist in a tiered SMT.
-const TIER_DEPTHS: [u8; 4] = super::TieredSmt::TIER_DEPTHS;
-
-/// Maximum node depth. This is also the bottom tier of the tree.
-const MAX_DEPTH: u8 = super::TieredSmt::MAX_DEPTH;
 
 // NODE STORE
 // ================================================================================================

@@ -448,8 +448,8 @@ impl<T: KvMap<RpoDigest, StoreNode>> From<&Mmr> for MerkleStore<T> {
     }
 }
 
-impl<T: KvMap<RpoDigest, StoreNode>> From<&TieredSmt> for MerkleStore<T> {
-    fn from(value: &TieredSmt) -> Self {
+impl<T: KvMap<RpoDigest, StoreNode>, V> From<&TieredSmt<V>> for MerkleStore<T> {
+    fn from(value: &TieredSmt<V>) -> Self {
         let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
         Self { nodes }
     }

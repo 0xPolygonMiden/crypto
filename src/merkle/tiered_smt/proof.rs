@@ -1,19 +1,8 @@
 use super::{
     get_common_prefix_tier_depth, get_key_prefix, hash_bottom_leaf, hash_upper_leaf,
-    EmptySubtreeRoots, LeafNodeIndex, MerklePath, RpoDigest, TieredSmtProofError, Vec, Word,
+    EmptySubtreeRoots, LeafNodeIndex, MerklePath, RpoDigest, TieredSmtProofError, Vec, MAX_DEPTH,
+    TIER_DEPTHS,
 };
-
-// CONSTANTS
-// ================================================================================================
-
-/// Maximum node depth. This is also the bottom tier of the tree.
-const MAX_DEPTH: u8 = super::TieredSmt::MAX_DEPTH;
-
-/// Value of an empty leaf.
-pub const EMPTY_VALUE: Word = super::TieredSmt::EMPTY_VALUE;
-
-/// Depths at which leaves can exist in a tiered SMT.
-pub const TIER_DEPTHS: [u8; 4] = super::TieredSmt::TIER_DEPTHS;
 
 // TIERED SPARSE MERKLE TREE PROOF
 // ================================================================================================
@@ -25,12 +14,28 @@ pub const TIER_DEPTHS: [u8; 4] = super::TieredSmt::TIER_DEPTHS;
 /// located at the base of the path. If the node at the base of the path resolves to [ZERO; 4],
 /// the entries will contain a single item with value set to [ZERO; 4].
 #[derive(PartialEq, Eq, Debug)]
-pub struct TieredSmtProof {
+pub struct TieredSmtProof<T> {
     path: MerklePath,
-    entries: Vec<(RpoDigest, Word)>,
+    entries: Vec<(RpoDigest, T)>,
 }
 
-impl TieredSmtProof {
+impl<T> TieredSmtProof<T> {
+    // PUBLIC ACCESSORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Consume the proof and returns its parts.
+    pub fn into_parts(self) -> (MerklePath, Vec<(RpoDigest, T)>) {
+        (self.path, self.entries)
+    }
+
+    // HELPER METHODS
+    // --------------------------------------------------------------------------------------------
+}
+
+impl<T> TieredSmtProof<T>
+where
+    T: Default + PartialEq,
+{
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     /// Returns a new instance of [TieredSmtProof] instantiated from the specified path and entries.
@@ -44,9 +49,9 @@ impl TieredSmtProof {
     /// - Entries contains multiple items with keys which don't share the same 64-bit prefix.
     pub fn new<I>(path: MerklePath, entries: I) -> Result<Self, TieredSmtProofError>
     where
-        I: IntoIterator<Item = (RpoDigest, Word)>,
+        I: IntoIterator<Item = (RpoDigest, T)>,
     {
-        let entries: Vec<(RpoDigest, Word)> = entries.into_iter().collect();
+        let entries: Vec<(RpoDigest, T)> = entries.into_iter().collect();
 
         if !TIER_DEPTHS.into_iter().any(|e| e == path.depth()) {
             return Err(TieredSmtProofError::NotATierPath(path.depth()));
@@ -63,7 +68,7 @@ impl TieredSmtProof {
 
             let prefix = get_key_prefix(&entries[0].0);
             for entry in entries.iter().skip(1) {
-                if entry.1 == EMPTY_VALUE {
+                if entry.1 == T::default() {
                     return Err(TieredSmtProofError::EmptyValueNotAllowed);
                 }
                 let current = get_key_prefix(&entry.0);
@@ -76,17 +81,24 @@ impl TieredSmtProof {
         Ok(Self { path, entries })
     }
 
-    // PROOF VERIFIER
-    // --------------------------------------------------------------------------------------------
+    /// Returns true if the proof is for an empty value.
+    fn is_value_empty(&self) -> bool {
+        self.entries[0].1 == T::default()
+    }
+}
 
+impl<T> TieredSmtProof<T>
+where
+    T: Default + PartialEq + Into<RpoDigest> + Copy,
+{
     /// Returns true if a Tiered Sparse Merkle tree with the specified root contains the provided
     /// key-value pair.
     ///
     /// Note: this method cannot be used to assert non-membership. That is, if false is returned,
     /// it does not mean that the provided key-value pair is not in the tree.
-    pub fn verify_membership(&self, key: &RpoDigest, value: &Word, root: &RpoDigest) -> bool {
+    pub fn verify_membership(&self, key: &RpoDigest, value: &T, root: &RpoDigest) -> bool {
         if self.is_value_empty() {
-            if value != &EMPTY_VALUE {
+            if value != &T::default() {
                 return false;
             }
             // if the proof is for an empty value, we can verify it against any key which has a
@@ -96,7 +108,7 @@ impl TieredSmtProof {
             if common_prefix_tier < self.path.depth() {
                 return false;
             }
-        } else if !self.entries.contains(&(*key, *value)) {
+        } else if !self.entries.iter().any(|(k, v)| k == key && v == value) {
             return false;
         }
 
@@ -104,20 +116,17 @@ impl TieredSmtProof {
         root == &self.compute_root()
     }
 
-    // PUBLIC ACCESSORS
-    // --------------------------------------------------------------------------------------------
-
     /// Returns the value associated with the specific key according to this proof, or None if
     /// this proof does not contain a value for the specified key.
     ///
     /// A key-value pair generated by using this method should pass the `verify_membership()` check.
-    pub fn get(&self, key: &RpoDigest) -> Option<Word> {
+    pub fn get(&self, key: &RpoDigest) -> Option<T> {
         if self.is_value_empty() {
             let common_prefix_tier = get_common_prefix_tier_depth(key, &self.entries[0].0);
             if common_prefix_tier < self.path.depth() {
                 None
             } else {
-                Some(EMPTY_VALUE)
+                Some(T::default())
             }
         } else {
             self.entries.iter().find(|(k, _)| k == key).map(|(_, value)| *value)
@@ -133,19 +142,6 @@ impl TieredSmtProof {
             .expect("failed to compute Merkle path root")
     }
 
-    /// Consume the proof and returns its parts.
-    pub fn into_parts(self) -> (MerklePath, Vec<(RpoDigest, Word)>) {
-        (self.path, self.entries)
-    }
-
-    // HELPER METHODS
-    // --------------------------------------------------------------------------------------------
-
-    /// Returns true if the proof is for an empty value.
-    fn is_value_empty(&self) -> bool {
-        self.entries[0].1 == EMPTY_VALUE
-    }
-
     /// Converts the entries contained in this proof into a node value for node at the base of the
     /// path contained in this proof.
     fn build_node(&self) -> RpoDigest {
@@ -155,8 +151,8 @@ impl TieredSmtProof {
         } else if depth == MAX_DEPTH {
             hash_bottom_leaf(&self.entries)
         } else {
-            let (key, value) = self.entries[0];
-            hash_upper_leaf(key, value, depth)
+            let (key, value) = &self.entries[0];
+            hash_upper_leaf(*key, value, depth)
         }
     }
 }

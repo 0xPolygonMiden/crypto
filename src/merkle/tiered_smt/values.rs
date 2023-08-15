@@ -1,19 +1,14 @@
-use super::{get_key_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, Vec, Word};
+use super::{
+    get_key_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, Vec, Word, MAX_DEPTH,
+    TIER_DEPTHS,
+};
 use crate::utils::vec;
 use core::{
     cmp::{Ord, Ordering},
+    mem,
     ops::RangeBounds,
 };
 use winter_utils::collections::btree_map::Entry;
-
-// CONSTANTS
-// ================================================================================================
-
-/// Depths at which leaves can exist in a tiered SMT.
-const TIER_DEPTHS: [u8; 4] = super::TieredSmt::TIER_DEPTHS;
-
-/// Maximum node depth. This is also the bottom tier of the tree.
-const MAX_DEPTH: u8 = super::TieredSmt::MAX_DEPTH;
 
 // VALUE STORE
 // ================================================================================================
@@ -25,26 +20,26 @@ const MAX_DEPTH: u8 = super::TieredSmt::MAX_DEPTH;
 ///
 /// The store supports lookup by the full key (i.e. [RpoDigest]) as well as by the 64-bit key
 /// prefix.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct ValueStore {
-    values: BTreeMap<u64, StoreEntry>,
+pub struct ValueStore<T> {
+    values: BTreeMap<u64, StoreEntry<T>>,
 }
 
-impl ValueStore {
+impl<T> ValueStore<T> {
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
     /// Returns a reference to the value stored under the specified key, or None if there is no
     /// value associated with the specified key.
-    pub fn get(&self, key: &RpoDigest) -> Option<&Word> {
+    pub fn get(&self, key: &RpoDigest) -> Option<&T> {
         let prefix = get_key_prefix(key);
         self.values.get(&prefix).and_then(|entry| entry.get(key))
     }
 
     /// Returns the first key-value pair such that the key prefix is greater than or equal to the
     /// specified prefix.
-    pub fn get_first(&self, prefix: u64) -> Option<&(RpoDigest, Word)> {
+    pub fn get_first(&self, prefix: u64) -> Option<&(RpoDigest, T)> {
         self.range(prefix..).next()
     }
 
@@ -54,17 +49,8 @@ impl ValueStore {
         &self,
         prefix: u64,
         exclude_key: &RpoDigest,
-    ) -> Option<&(RpoDigest, Word)> {
+    ) -> Option<&(RpoDigest, T)> {
         self.range(prefix..).find(|(key, _)| key != exclude_key)
-    }
-
-    /// Returns a vector with key-value pairs for all keys with the specified 64-bit prefix, or
-    /// None if no keys with the specified prefix are present in this store.
-    pub fn get_all(&self, prefix: u64) -> Option<Vec<(RpoDigest, Word)>> {
-        self.values.get(&prefix).map(|entry| match entry {
-            StoreEntry::Single(kv_pair) => vec![*kv_pair],
-            StoreEntry::List(kv_pairs) => kv_pairs.clone(),
-        })
     }
 
     /// Returns information about a sibling of a leaf node with the specified index, but only if
@@ -81,7 +67,7 @@ impl ValueStore {
     pub fn get_lone_sibling(
         &self,
         index: LeafNodeIndex,
-    ) -> Option<(&RpoDigest, &Word, LeafNodeIndex)> {
+    ) -> Option<(&RpoDigest, &T, LeafNodeIndex)> {
         // iterate over tiers from top to bottom, looking at the tiers which are strictly above
         // the depth of the index. This implies that only tiers at depth 32 and 48 will be
         // considered. For each tier, check if the parent of the index at the higher tier
@@ -114,18 +100,34 @@ impl ValueStore {
     }
 
     /// Returns an iterator over all key-value pairs in this store.
-    pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
+    pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, T)> {
         self.values.iter().flat_map(|(_, entry)| entry.iter())
     }
 
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
+    // HELPER METHODS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns an iterator over all key-value pairs contained in this store such that the most
+    /// significant 64 bits of the key lay within the specified bounds.
+    ///
+    /// The order of iteration is from the smallest to the largest key.
+    fn range<R: RangeBounds<u64>>(&self, bounds: R) -> impl Iterator<Item = &(RpoDigest, T)> {
+        self.values.range(bounds).flat_map(|(_, entry)| entry.iter())
+    }
+}
+
+impl<T> ValueStore<T>
+where
+    T: Clone,
+{
     /// Inserts the specified key-value pair into this store and returns the value previously
     /// associated with the specified key.
     ///
     /// If no value was previously associated with the specified key, None is returned.
-    pub fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
+    pub fn insert(&mut self, key: RpoDigest, value: T) -> Option<T> {
         let prefix = get_key_prefix(&key);
         match self.values.entry(prefix) {
             Entry::Occupied(mut entry) => entry.get_mut().insert(key, value),
@@ -136,11 +138,25 @@ impl ValueStore {
         }
     }
 
+    /// Returns a vector with key-value pairs for all keys with the specified 64-bit prefix, or
+    /// None if no keys with the specified prefix are present in this store.
+    pub fn get_all(&self, prefix: u64) -> Option<Vec<(RpoDigest, T)>> {
+        self.values.get(&prefix).map(|entry| match entry {
+            StoreEntry::Single(kv_pair) => vec![kv_pair.clone()],
+            StoreEntry::List(kv_pairs) => kv_pairs.clone(),
+        })
+    }
+}
+
+impl<T> ValueStore<T>
+where
+    T: Default,
+{
     /// Removes the key-value pair for the specified key from this store and returns the value
     /// associated with this key.
     ///
     /// If no value was associated with the specified key, None is returned.
-    pub fn remove(&mut self, key: &RpoDigest) -> Option<Word> {
+    pub fn remove(&mut self, key: &RpoDigest) -> Option<T> {
         let prefix = get_key_prefix(key);
         match self.values.entry(prefix) {
             Entry::Occupied(mut entry) => {
@@ -153,16 +169,13 @@ impl ValueStore {
             Entry::Vacant(_) => None,
         }
     }
+}
 
-    // HELPER METHODS
-    // --------------------------------------------------------------------------------------------
-
-    /// Returns an iterator over all key-value pairs contained in this store such that the most
-    /// significant 64 bits of the key lay within the specified bounds.
-    ///
-    /// The order of iteration is from the smallest to the largest key.
-    fn range<R: RangeBounds<u64>>(&self, bounds: R) -> impl Iterator<Item = &(RpoDigest, Word)> {
-        self.values.range(bounds).flat_map(|(_, entry)| entry.iter())
+impl<T> Default for ValueStore<T> {
+    fn default() -> Self {
+        ValueStore {
+            values: BTreeMap::default(),
+        }
     }
 }
 
@@ -175,16 +188,16 @@ impl ValueStore {
 /// key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum StoreEntry {
-    Single((RpoDigest, Word)),
-    List(Vec<(RpoDigest, Word)>),
+pub enum StoreEntry<T> {
+    Single((RpoDigest, T)),
+    List(Vec<(RpoDigest, T)>),
 }
 
-impl StoreEntry {
+impl<T> StoreEntry<T> {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     /// Returns a new [StoreEntry] instantiated with a single key-value pair.
-    pub fn new(key: RpoDigest, value: Word) -> Self {
+    pub fn new(key: RpoDigest, value: T) -> Self {
         Self::Single((key, value))
     }
 
@@ -193,7 +206,7 @@ impl StoreEntry {
 
     /// Returns the value associated with the specified key, or None if this entry does not contain
     /// a value associated with the specified key.
-    pub fn get(&self, key: &RpoDigest) -> Option<&Word> {
+    pub fn get(&self, key: &RpoDigest) -> Option<&T> {
         match self {
             StoreEntry::Single(kv_pair) => {
                 if kv_pair.0 == *key {
@@ -212,34 +225,36 @@ impl StoreEntry {
     }
 
     /// Returns an iterator over all key-value pairs in this entry.
-    pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
+    pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, T)> {
         EntryIterator {
             entry: self,
             pos: 0,
         }
     }
+}
 
-    // STATE MUTATORS
-    // --------------------------------------------------------------------------------------------
-
+impl<T> StoreEntry<T>
+where
+    T: Clone,
+{
     /// Inserts the specified key-value pair into this entry and returns the value previously
     /// associated with the specified key, or None if no value was associated with the specified
     /// key.
     ///
     /// If a new key is inserted, this will also transform a `SingleEntry` into a `ListEntry`.
-    pub fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
+    pub fn insert(&mut self, key: RpoDigest, value: T) -> Option<T> {
         match self {
             StoreEntry::Single(kv_pair) => {
                 // if the key is already in this entry, update the value and return
                 if kv_pair.0 == key {
-                    let old_value = kv_pair.1;
+                    let old_value = kv_pair.clone().1;
                     kv_pair.1 = value;
                     return Some(old_value);
                 }
 
                 // transform the entry into a list entry, and make sure the key-value pairs
                 // are sorted by key
-                let mut pairs = vec![*kv_pair, (key, value)];
+                let mut pairs = vec![kv_pair.clone(), (key, value)];
                 pairs.sort_by(|a, b| cmp_digests(&a.0, &b.0));
 
                 *self = StoreEntry::List(pairs);
@@ -247,11 +262,7 @@ impl StoreEntry {
             }
             StoreEntry::List(pairs) => {
                 match pairs.binary_search_by(|kv_pair| cmp_digests(&kv_pair.0, &key)) {
-                    Ok(pos) => {
-                        let old_value = pairs[pos].1;
-                        pairs[pos].1 = value;
-                        Some(old_value)
-                    }
+                    Ok(pos) => Some(mem::replace(&mut pairs[pos].1, value)),
                     Err(pos) => {
                         pairs.insert(pos, (key, value));
                         None
@@ -260,18 +271,23 @@ impl StoreEntry {
             }
         }
     }
+}
 
+impl<T> StoreEntry<T>
+where
+    T: Default,
+{
     /// Removes the key-value pair with the specified key from this entry, and returns the value
     /// of the removed pair. If the entry did not contain a key-value pair for the specified key,
     /// None is returned.
     ///
     /// If the last last key-value pair was removed from the entry, the second tuple value will
     /// be set to true.
-    pub fn remove(&mut self, key: &RpoDigest) -> (Option<Word>, bool) {
+    pub fn remove(&mut self, key: &RpoDigest) -> (Option<T>, bool) {
         match self {
             StoreEntry::Single(kv_pair) => {
                 if kv_pair.0 == *key {
-                    (Some(kv_pair.1), true)
+                    (Some(mem::take(&mut kv_pair.1)), true)
                 } else {
                     (None, false)
                 }
@@ -281,7 +297,9 @@ impl StoreEntry {
                     Ok(pos) => {
                         let kv_pair = kv_pairs.remove(pos);
                         if kv_pairs.len() == 1 {
-                            *self = StoreEntry::Single(kv_pairs[0]);
+                            // unwrap is safe because of the check above
+                            let last = kv_pairs.pop().unwrap();
+                            *self = StoreEntry::Single(last);
                         }
                         (Some(kv_pair.1), false)
                     }
@@ -296,13 +314,13 @@ impl StoreEntry {
 ///
 /// For a `SingleEntry` this returns only one value, but for `ListEntry`, this iterates over the
 /// entire list of key-value pairs.
-pub struct EntryIterator<'a> {
-    entry: &'a StoreEntry,
+pub struct EntryIterator<'a, T> {
+    entry: &'a StoreEntry<T>,
     pos: usize,
 }
 
-impl<'a> Iterator for EntryIterator<'a> {
-    type Item = &'a (RpoDigest, Word);
+impl<'a, T> Iterator for EntryIterator<'a, T> {
+    type Item = &'a (RpoDigest, T);
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.entry {
