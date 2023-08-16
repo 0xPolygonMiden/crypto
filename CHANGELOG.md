@@ -1,6 +1,11 @@
 ## 0.7.0 (TBD)
 
 * Replaced `MerklePathSet` with `PartialMerkleTree` (#165).
+* Implemented clearing of nodes in `TieredSmt` (#173).
+* Added ability to generate inclusion proofs for `TieredSmt` (#174).
+* Added conditional `serde`` support for various structs (#180).
+* Implemented benchmarking for `TieredSmt` (#182).
+* Added more leaf traversal methods for `MerkleStore` (#185).
 
 ## 0.6.0 (2023-06-25)
 

@@ -637,6 +637,9 @@ fn node_path_should_be_truncated_by_midtier_insert() {
     assert!(store.get_node(root, index).is_err());
 }
 
+// LEAF TRAVERSAL
+// ================================================================================================
+
 #[test]
 fn get_leaf_depth_works_depth_64() {
     let mut store = MerkleStore::new();
@@ -745,6 +748,67 @@ fn get_leaf_depth_works_with_depth_8() {
     let index = NodeIndex::new(8, a).unwrap();
     root = store.set_node(root, index, root).unwrap().root;
     assert_eq!(Err(MerkleError::DepthTooBig(9)), store.get_leaf_depth(root, 8, a));
+}
+
+#[test]
+fn find_lone_leaf() {
+    let mut store = MerkleStore::new();
+    let empty = EmptySubtreeRoots::empty_hashes(64);
+    let mut root: RpoDigest = empty[0];
+
+    // insert a single leaf into the store at depth 64
+    let key_a = 0b01010101_10101010_00001111_01110100_00111011_10101101_00000100_01000001_u64;
+    let idx_a = NodeIndex::make(64, key_a);
+    let val_a = RpoDigest::from([ONE, ONE, ONE, ONE]);
+    root = store.set_node(root, idx_a, val_a).unwrap().root;
+
+    // for every ancestor of A, A should be a long leaf
+    for depth in 1..64 {
+        let parent_index = NodeIndex::make(depth, key_a >> (64 - depth));
+        let parent = store.get_node(root, parent_index).unwrap();
+
+        let res = store.find_lone_leaf(parent, parent_index, 64).unwrap();
+        assert_eq!(res, Some((idx_a, val_a)));
+    }
+
+    // insert another leaf into the store such that it has the same 8 bit prefix as A
+    let key_b = 0b01010101_01111010_00001111_01110100_00111011_10101101_00000100_01000001_u64;
+    let idx_b = NodeIndex::make(64, key_b);
+    let val_b = RpoDigest::from([ONE, ONE, ONE, ZERO]);
+    root = store.set_node(root, idx_b, val_b).unwrap().root;
+
+    // for any node which is common between A and B, find_lone_leaf() should return None as the
+    // node has two descendants
+    for depth in 1..9 {
+        let parent_index = NodeIndex::make(depth, key_a >> (64 - depth));
+        let parent = store.get_node(root, parent_index).unwrap();
+
+        let res = store.find_lone_leaf(parent, parent_index, 64).unwrap();
+        assert_eq!(res, None);
+    }
+
+    // for other ancestors of A and B, A and B should be lone leaves respectively
+    for depth in 9..64 {
+        let parent_index = NodeIndex::make(depth, key_a >> (64 - depth));
+        let parent = store.get_node(root, parent_index).unwrap();
+
+        let res = store.find_lone_leaf(parent, parent_index, 64).unwrap();
+        assert_eq!(res, Some((idx_a, val_a)));
+    }
+
+    for depth in 9..64 {
+        let parent_index = NodeIndex::make(depth, key_b >> (64 - depth));
+        let parent = store.get_node(root, parent_index).unwrap();
+
+        let res = store.find_lone_leaf(parent, parent_index, 64).unwrap();
+        assert_eq!(res, Some((idx_b, val_b)));
+    }
+
+    // for any other node, find_lone_leaf() should return None as they have no leaf nodes
+    let parent_index = NodeIndex::make(16, 0b01010101_11111111);
+    let parent = store.get_node(root, parent_index).unwrap();
+    let res = store.find_lone_leaf(parent, parent_index, 64).unwrap();
+    assert_eq!(res, None);
 }
 
 // SUBSET EXTRACTION
