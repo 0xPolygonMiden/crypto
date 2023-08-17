@@ -19,18 +19,6 @@ pub struct BenchmarkCmd {
     /// Size of the tree
     #[clap(short = 's', long = "size")]
     size: u64,
-
-    /// Run the construction benchmark
-    #[clap(short = 'c', long = "construction")]
-    construction: bool,
-
-    /// Run the insertion benchmark
-    #[clap(short = 'i', long = "insertion")]
-    insertion: bool,
-
-    /// Run the proof generation benchmark
-    #[clap(short = 'p', long = "proof-generation")]
-    proof_generation: bool,
 }
 
 fn main() {
@@ -50,35 +38,12 @@ pub fn benchmark_tsmt() {
         leaves.push((key, value));
     }
 
-    let mut tree: Option<TieredSmt> = None;
-
-    // if the `-c` argument was specified
-    if args.construction {
-        tree = Some(construction(leaves.clone(), tree_size).unwrap());
-    }
-
-    // if the `-i` argument was specified
-    if args.insertion {
-        if let Some(inner_tree) = tree {
-            tree = Some(insertion(inner_tree, tree_size).unwrap());
-        } else {
-            let inner_tree = TieredSmt::with_leaves(leaves.clone()).unwrap();
-            tree = Some(insertion(inner_tree, tree_size).unwrap());
-        }
-    }
-
-    // if the `-p` argument was specified
-    if args.proof_generation {
-        if let Some(inner_tree) = tree {
-            proof_generation(inner_tree, tree_size).unwrap();
-        } else {
-            let inner_tree = TieredSmt::with_leaves(leaves).unwrap();
-            proof_generation(inner_tree, tree_size).unwrap();
-        }
-    }
+    let mut tree = construction(leaves, tree_size).unwrap();
+    insertion(&mut tree, tree_size).unwrap();
+    proof_generation(&mut tree, tree_size).unwrap();
 }
 
-/// Run the construction benchmark for the Tiered SMT.
+/// Runs the construction benchmark for the Tiered SMT, returning the constructed tree.
 pub fn construction(leaves: Vec<(RpoDigest, Word)>, size: u64) -> Result<TieredSmt, MerkleError> {
     println!("Running a construction benchmark:");
     let now = Instant::now();
@@ -108,8 +73,8 @@ pub fn construction(leaves: Vec<(RpoDigest, Word)>, size: u64) -> Result<TieredS
     Ok(tree)
 }
 
-/// Run the insertion benchmark for the Tiered SMT.
-pub fn insertion(mut tree: TieredSmt, size: u64) -> Result<TieredSmt, MerkleError> {
+/// Runs the insertion benchmark for the Tiered SMT.
+pub fn insertion(tree: &mut TieredSmt, size: u64) -> Result<(), MerkleError> {
     println!("Running an insertion benchmark:");
 
     let mut insertion_times = Vec::new();
@@ -132,11 +97,11 @@ pub fn insertion(mut tree: TieredSmt, size: u64) -> Result<TieredSmt, MerkleErro
         insertion_times.iter().sum::<f32>() * 50f32,
     );
 
-    Ok(tree)
+    Ok(())
 }
 
-/// Run the proof generation benchmark for the Tiered SMT.
-pub fn proof_generation(mut tree: TieredSmt, size: u64) -> Result<(), MerkleError> {
+/// Runs the proof generation benchmark for the Tiered SMT.
+pub fn proof_generation(tree: &mut TieredSmt, size: u64) -> Result<(), MerkleError> {
     println!("Running a proof generation benchmark:");
 
     let mut insertion_times = Vec::new();
