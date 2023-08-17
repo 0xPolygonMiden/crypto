@@ -12,6 +12,13 @@ keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
 rust-version = "1.67"
 
+[[bin]]
+name = "miden-crypto"
+path = "src/main.rs"
+bench = false
+doctest = false
+required-features = ["std"]
+
 [[bench]]
 name = "hash"
 harness = false
@@ -26,15 +33,17 @@ harness = false
 
 [features]
 default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
-std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
+std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std", "rand_utils"]
 serde = ["winter_math/serde", "dep:serde", "serde/alloc"]
 
 [dependencies]
 blake3 = { version = "1.4", default-features = false }
+clap = { version = "4.3.21", features = ["derive"] }
 winter_crypto = { version = "0.6", package = "winter-crypto", default-features = false }
 winter_math = { version = "0.6", package = "winter-math", default-features = false }
 winter_utils = { version = "0.6", package = "winter-utils", default-features = false }
 serde = { version = "1.0", features = [ "derive" ], optional = true, default-features = false }
+rand_utils = { version = "0.6", package = "winter-rand-utils", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
