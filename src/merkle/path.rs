@@ -160,6 +160,16 @@ pub struct ValuePath {
     pub path: MerklePath,
 }
 
+impl ValuePath {
+    /// Returns a new [ValuePath] instantiated from the specified value and path.
+    pub fn new(value: RpoDigest, path: Vec<RpoDigest>) -> Self {
+        Self {
+            value,
+            path: MerklePath::new(path),
+        }
+    }
+}
+
 /// A container for a [MerklePath] and its [Word] root.
 ///
 /// This structure does not provide any guarantees regarding the correctness of the path to the

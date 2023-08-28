@@ -55,13 +55,13 @@ impl TieredSmt {
     // --------------------------------------------------------------------------------------------
 
     /// The number of levels between tiers.
-    const TIER_SIZE: u8 = 16;
+    pub const TIER_SIZE: u8 = 16;
 
     /// Depths at which leaves can exist in a tiered SMT.
-    const TIER_DEPTHS: [u8; 4] = [16, 32, 48, 64];
+    pub const TIER_DEPTHS: [u8; 4] = [16, 32, 48, 64];
 
     /// Maximum node depth. This is also the bottom tier of the tree.
-    const MAX_DEPTH: u8 = 64;
+    pub const MAX_DEPTH: u8 = 64;
 
     /// Value of an empty leaf.
     pub const EMPTY_VALUE: Word = super::empty_roots::EMPTY_WORD;
