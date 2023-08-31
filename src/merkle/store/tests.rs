@@ -478,7 +478,7 @@ fn test_add_merkle_paths() -> Result<(), MerkleError> {
 #[test]
 fn wont_open_to_different_depth_root() {
     let empty = EmptySubtreeRoots::empty_hashes(64);
-    let a = [Felt::new(1); 4];
+    let a = [ONE; 4];
     let b = [Felt::new(2); 4];
 
     // Compute the root for a different depth. We cherry-pick this specific depth to prevent a
@@ -501,7 +501,7 @@ fn wont_open_to_different_depth_root() {
 
 #[test]
 fn store_path_opens_from_leaf() {
-    let a = [Felt::new(1); 4];
+    let a = [ONE; 4];
     let b = [Felt::new(2); 4];
     let c = [Felt::new(3); 4];
     let d = [Felt::new(4); 4];

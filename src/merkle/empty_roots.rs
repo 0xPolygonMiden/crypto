@@ -1,11 +1,5 @@
-use super::{Felt, RpoDigest, Word, WORD_SIZE, ZERO};
+use super::{Felt, RpoDigest, EMPTY_WORD};
 use core::slice;
-
-// CONSTANTS
-// ================================================================================================
-
-/// A word consisting of 4 ZERO elements.
-pub const EMPTY_WORD: Word = [ZERO; WORD_SIZE];
 
 // EMPTY NODES SUBTREES
 // ================================================================================================
@@ -1556,7 +1550,7 @@ const EMPTY_SUBTREES: [RpoDigest; 256] = [
         Felt::new(0xd3ad9fb0cea61624),
         Felt::new(0x66ab5c684fbb8597),
     ]),
-    RpoDigest::new([ZERO; WORD_SIZE]),
+    RpoDigest::new(EMPTY_WORD),
 ];
 
 #[test]

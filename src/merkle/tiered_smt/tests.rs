@@ -1,5 +1,5 @@
 use super::{
-    super::{super::ONE, empty_roots::EMPTY_WORD, Felt, MerkleStore, WORD_SIZE, ZERO},
+    super::{super::ONE, super::WORD_SIZE, Felt, MerkleStore, EMPTY_WORD, ZERO},
     EmptySubtreeRoots, InnerNodeInfo, NodeIndex, Rpo256, RpoDigest, TieredSmt, Vec, Word,
 };
 
@@ -279,11 +279,11 @@ fn tsmt_delete_16() {
     smt.insert(key_b, value_b);
 
     // --- delete the last inserted value -------------------------------------
-    assert_eq!(smt.insert(key_b, [ZERO; 4]), value_b);
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
     assert_eq!(smt, smt1);
 
     // --- delete the first inserted value ------------------------------------
-    assert_eq!(smt.insert(key_a, [ZERO; 4]), value_a);
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
     assert_eq!(smt, smt0);
 }
 
@@ -313,15 +313,15 @@ fn tsmt_delete_32() {
     smt.insert(key_c, value_c);
 
     // --- delete the last inserted value -------------------------------------
-    assert_eq!(smt.insert(key_c, [ZERO; 4]), value_c);
+    assert_eq!(smt.insert(key_c, EMPTY_WORD), value_c);
     assert_eq!(smt, smt2);
 
     // --- delete the last inserted value -------------------------------------
-    assert_eq!(smt.insert(key_b, [ZERO; 4]), value_b);
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
     assert_eq!(smt, smt1);
 
     // --- delete the first inserted value ------------------------------------
-    assert_eq!(smt.insert(key_a, [ZERO; 4]), value_a);
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
     assert_eq!(smt, smt0);
 }
 
@@ -353,15 +353,15 @@ fn tsmt_delete_48_same_32_bit_prefix() {
     smt.insert(key_c, value_c);
 
     // --- delete the last inserted value -------------------------------------
-    assert_eq!(smt.insert(key_c, [ZERO; 4]), value_c);
+    assert_eq!(smt.insert(key_c, EMPTY_WORD), value_c);
     assert_eq!(smt, smt2);
 
     // --- delete the last inserted value -------------------------------------
-    assert_eq!(smt.insert(key_b, [ZERO; 4]), value_b);
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
     assert_eq!(smt, smt1);
 
     // --- delete the first inserted value ------------------------------------
-    assert_eq!(smt.insert(key_a, [ZERO; 4]), value_a);
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
     assert_eq!(smt, smt0);
 }
 
@@ -400,16 +400,16 @@ fn tsmt_delete_48_mixed_prefix() {
     smt.insert(key_d, value_d);
 
     // --- delete the inserted values one-by-one ------------------------------
-    assert_eq!(smt.insert(key_d, [ZERO; 4]), value_d);
+    assert_eq!(smt.insert(key_d, EMPTY_WORD), value_d);
     assert_eq!(smt, smt3);
 
-    assert_eq!(smt.insert(key_c, [ZERO; 4]), value_c);
+    assert_eq!(smt.insert(key_c, EMPTY_WORD), value_c);
     assert_eq!(smt, smt2);
 
-    assert_eq!(smt.insert(key_b, [ZERO; 4]), value_b);
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
     assert_eq!(smt, smt1);
 
-    assert_eq!(smt.insert(key_a, [ZERO; 4]), value_a);
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
     assert_eq!(smt, smt0);
 }
 
@@ -447,16 +447,16 @@ fn tsmt_delete_64() {
     smt.insert(key_d, value_d);
 
     // --- delete the last inserted value -------------------------------------
-    assert_eq!(smt.insert(key_d, [ZERO; 4]), value_d);
+    assert_eq!(smt.insert(key_d, EMPTY_WORD), value_d);
     assert_eq!(smt, smt3);
 
-    assert_eq!(smt.insert(key_c, [ZERO; 4]), value_c);
+    assert_eq!(smt.insert(key_c, EMPTY_WORD), value_c);
     assert_eq!(smt, smt2);
 
-    assert_eq!(smt.insert(key_b, [ZERO; 4]), value_b);
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
     assert_eq!(smt, smt1);
 
-    assert_eq!(smt.insert(key_a, [ZERO; 4]), value_a);
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
     assert_eq!(smt, smt0);
 }
 
@@ -577,7 +577,7 @@ fn test_order_sensitivity() {
 
     smt_1.insert(key_1, value);
     smt_1.insert(key_2, value);
-    smt_1.insert(key_2, [ZERO; WORD_SIZE]);
+    smt_1.insert(key_2, EMPTY_WORD);
 
     let mut smt_2 = TieredSmt::default();
     smt_2.insert(key_1, value);

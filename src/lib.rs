@@ -32,6 +32,9 @@ pub const ZERO: Felt = Felt::ZERO;
 /// Field element representing ONE in the Miden base filed.
 pub const ONE: Felt = Felt::ONE;
 
+/// Array of field elements representing word of ZEROs in the Miden base field.
+pub const EMPTY_WORD: [Felt; 4] = [ZERO; WORD_SIZE];
+
 // TESTS
 // ================================================================================================
 

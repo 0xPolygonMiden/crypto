@@ -4,7 +4,7 @@ use super::{
 use crate::utils::collections::Diff;
 
 #[cfg(test)]
-use super::{empty_roots::EMPTY_WORD, Felt, SimpleSmt};
+use super::{super::ONE, Felt, SimpleSmt, EMPTY_WORD, ZERO};
 
 // MERKLE STORE DELTA
 // ================================================================================================
@@ -121,7 +121,7 @@ pub struct MerkleTreeDelta {
 #[test]
 fn test_compute_merkle_delta() {
     let entries = vec![
-        (10, [Felt::new(0), Felt::new(1), Felt::new(2), Felt::new(3)]),
+        (10, [ZERO, ONE, Felt::new(2), Felt::new(3)]),
         (15, [Felt::new(4), Felt::new(5), Felt::new(6), Felt::new(7)]),
         (20, [Felt::new(8), Felt::new(9), Felt::new(10), Felt::new(11)]),
         (31, [Felt::new(12), Felt::new(13), Felt::new(14), Felt::new(15)]),

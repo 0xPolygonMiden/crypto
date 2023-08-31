@@ -1,9 +1,9 @@
 use super::{
-    super::{InnerNodeInfo, MerkleError, MerkleTree, RpoDigest, SimpleSmt},
+    super::{InnerNodeInfo, MerkleError, MerkleTree, RpoDigest, SimpleSmt, EMPTY_WORD},
     NodeIndex, Rpo256, Vec,
 };
 use crate::{
-    merkle::{digests_to_words, empty_roots::EMPTY_WORD, int_to_leaf, int_to_node},
+    merkle::{digests_to_words, int_to_leaf, int_to_node},
     Word,
 };
 
