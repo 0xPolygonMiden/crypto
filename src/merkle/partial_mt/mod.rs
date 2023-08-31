@@ -1,6 +1,6 @@
 use super::{
     BTreeMap, BTreeSet, InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest,
-    ValuePath, Vec, Word, ZERO,
+    ValuePath, Vec, Word, EMPTY_WORD,
 };
 use crate::utils::{
     format, string::String, vec, word_to_hex, ByteReader, ByteWriter, Deserializable,
@@ -18,7 +18,7 @@ mod tests;
 const ROOT_INDEX: NodeIndex = NodeIndex::root();
 
 /// An RpoDigest consisting of 4 ZERO elements.
-const EMPTY_DIGEST: RpoDigest = RpoDigest::new([ZERO; 4]);
+const EMPTY_DIGEST: RpoDigest = RpoDigest::new(EMPTY_WORD);
 
 // PARTIAL MERKLE TREE
 // ================================================================================================

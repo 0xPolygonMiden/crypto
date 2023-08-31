@@ -105,7 +105,7 @@ fn hash_elements_vs_merge_with_int() {
 
     let mut elements = seed.as_elements().to_vec();
     elements.push(Felt::new(val));
-    elements.push(Felt::new(1));
+    elements.push(ONE);
     let h_result = Rpo256::hash_elements(&elements);
 
     assert_eq!(m_result, h_result);
@@ -147,8 +147,8 @@ fn hash_elements_padding() {
 #[test]
 fn hash_elements() {
     let elements = [
-        Felt::new(0),
-        Felt::new(1),
+        ZERO,
+        ONE,
         Felt::new(2),
         Felt::new(3),
         Felt::new(4),
@@ -170,8 +170,8 @@ fn hash_elements() {
 #[test]
 fn hash_test_vectors() {
     let elements = [
-        Felt::new(0),
-        Felt::new(1),
+        ZERO,
+        ONE,
         Felt::new(2),
         Felt::new(3),
         Felt::new(4),

@@ -1,7 +1,7 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, TryApplyDiff, Vec},
-    Felt, StarkField, Word, WORD_SIZE, ZERO,
+    Felt, StarkField, Word, EMPTY_WORD, ZERO,
 };
 
 // REEXPORTS

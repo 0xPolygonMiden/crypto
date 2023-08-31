@@ -33,7 +33,7 @@ impl SimpleSmt {
     pub const MAX_DEPTH: u8 = 64;
 
     /// Value of an empty leaf.
-    pub const EMPTY_VALUE: Word = super::empty_roots::EMPTY_WORD;
+    pub const EMPTY_VALUE: Word = super::EMPTY_WORD;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
