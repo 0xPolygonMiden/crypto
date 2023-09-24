@@ -39,7 +39,7 @@ jobs:
       matrix:
         toolchain: [stable, nightly]
         os: [ubuntu]
-        features: [--all-features, --no-default-features]
+        features: ["--features default,std,serde", --no-default-features]
     steps:
       - uses: actions/checkout@main
       - name: Install rust
@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        features: [--all-features, --no-default-features]
+        features: ["--features default,std,serde", --no-default-features]
     steps:
       - uses: actions/checkout@main
       - name: Install minimal nightly with clippy
