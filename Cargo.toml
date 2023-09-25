@@ -32,6 +32,7 @@ name = "store"
 harness = false
 
 [features]
+arch-arm64-sve = ["dep:cc"]
 default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
 std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std", "rand_utils"]
 serde = ["winter_math/serde", "dep:serde", "serde/alloc"]
@@ -49,3 +50,6 @@ rand_utils = { version = "0.6", package = "winter-rand-utils", optional = true }
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.1.0"
 rand_utils = { version = "0.6", package = "winter-rand-utils" }
+
+[build-dependencies]
+cc = { version = "1.0.79", optional = true }
