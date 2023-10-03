@@ -123,21 +123,9 @@ fn test_inner_node_iterator() -> Result<(), MerkleError> {
 
     let nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
     let expected = vec![
-        InnerNodeInfo {
-            value: root,
-            left: l1n0,
-            right: l1n1,
-        },
-        InnerNodeInfo {
-            value: l1n0,
-            left: l2n0,
-            right: l2n1,
-        },
-        InnerNodeInfo {
-            value: l1n1,
-            left: l2n2,
-            right: l2n3,
-        },
+        InnerNodeInfo { value: root, left: l1n0, right: l1n1 },
+        InnerNodeInfo { value: l1n0, left: l2n0, right: l2n1 },
+        InnerNodeInfo { value: l1n1, left: l2n2, right: l2n3 },
     ];
     assert_eq!(nodes, expected);
 

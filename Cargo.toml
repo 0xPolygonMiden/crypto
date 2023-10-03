@@ -17,7 +17,7 @@ name = "miden-crypto"
 path = "src/main.rs"
 bench = false
 doctest = false
-required-features = ["std"]
+required-features = ["executable"]
 
 [[bench]]
 name = "hash"
@@ -34,12 +34,15 @@ harness = false
 [features]
 arch-arm64-sve = ["dep:cc"]
 default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
-std = ["blake3/std", "winter_crypto/std", "winter_math/std", "winter_utils/std", "rand_utils"]
+executable = ["dep:clap", "dep:rand_utils", "std"]
+std = ["blake3/std", "dep:cc", "dep:libc", "dep:rand", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
 serde = ["winter_math/serde", "dep:serde", "serde/alloc"]
 
 [dependencies]
 blake3 = { version = "1.4", default-features = false }
-clap = { version = "4.3.21", features = ["derive"] }
+clap = { version = "4.3", features = ["derive"], optional = true}
+libc = { version =  "0.2", optional = true, default-features = false }
+rand = { version =  "0.8", optional = true, default-features = false }
 winter_crypto = { version = "0.6", package = "winter-crypto", default-features = false }
 winter_math = { version = "0.6", package = "winter-math", default-features = false }
 winter_utils = { version = "0.6", package = "winter-utils", default-features = false }
@@ -52,4 +55,5 @@ proptest = "1.1.0"
 rand_utils = { version = "0.6", package = "winter-rand-utils" }
 
 [build-dependencies]
-cc = { version = "1.0.79", optional = true }
+cc = { version = "1.0", features = ["parallel"], optional = true }
+glob = "*"

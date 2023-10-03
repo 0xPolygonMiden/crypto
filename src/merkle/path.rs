@@ -137,11 +137,7 @@ impl<'a> Iterator for InnerNodeIterator<'a> {
             self.value = Rpo256::merge(&[left, right]);
             self.index.move_up();
 
-            Some(InnerNodeInfo {
-                value: self.value,
-                left,
-                right,
-            })
+            Some(InnerNodeInfo { value: self.value, left, right })
         } else {
             None
         }
@@ -163,10 +159,7 @@ pub struct ValuePath {
 impl ValuePath {
     /// Returns a new [ValuePath] instantiated from the specified value and path.
     pub fn new(value: RpoDigest, path: Vec<RpoDigest>) -> Self {
-        Self {
-            value,
-            path: MerklePath::new(path),
-        }
+        Self { value, path: MerklePath::new(path) }
     }
 }
 
