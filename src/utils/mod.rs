@@ -83,10 +83,7 @@ impl std::error::Error for HexParseError {}
 pub fn hex_to_bytes<const N: usize>(value: &str) -> Result<[u8; N], HexParseError> {
     let expected: usize = (N * 2) + 2;
     if value.len() != expected {
-        return Err(HexParseError::InvalidLength {
-            expected,
-            got: value.len(),
-        });
+        return Err(HexParseError::InvalidLength { expected, got: value.len() });
     }
 
     if !value.starts_with("0x") {

@@ -213,10 +213,7 @@ impl StoreEntry {
 
     /// Returns an iterator over all key-value pairs in this entry.
     pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
-        EntryIterator {
-            entry: self,
-            pos: 0,
-        }
+        EntryIterator { entry: self, pos: 0 }
     }
 
     // STATE MUTATORS

@@ -249,10 +249,7 @@ impl SimpleSmt {
     fn get_branch_node(&self, index: &NodeIndex) -> BranchNode {
         self.branches.get(index).cloned().unwrap_or_else(|| {
             let node = self.empty_hashes[index.depth() as usize + 1];
-            BranchNode {
-                left: node,
-                right: node,
-            }
+            BranchNode { left: node, right: node }
         })
     }
 

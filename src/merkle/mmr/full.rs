@@ -71,10 +71,7 @@ impl Mmr {
 
     /// Constructor for an empty `Mmr`.
     pub fn new() -> Mmr {
-        Mmr {
-            forest: 0,
-            nodes: Vec::new(),
-        }
+        Mmr { forest: 0, nodes: Vec::new() }
     }
 
     // ACCESSORS
@@ -188,10 +185,7 @@ impl Mmr {
             .map(|offset| self.nodes[offset - 1])
             .collect();
 
-        MmrPeaks {
-            num_leaves: self.forest,
-            peaks,
-        }
+        MmrPeaks { num_leaves: self.forest, peaks }
     }
 
     /// An iterator over inner nodes in the MMR. The order of iteration is unspecified.

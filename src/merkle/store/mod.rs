@@ -326,11 +326,9 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
 
     /// Iterator over the inner nodes of the [MerkleStore].
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
-        self.nodes.iter().map(|(r, n)| InnerNodeInfo {
-            value: *r,
-            left: n.left,
-            right: n.right,
-        })
+        self.nodes
+            .iter()
+            .map(|(r, n)| InnerNodeInfo { value: *r, left: n.left, right: n.right })
     }
 
     /// Iterator over the non-empty leaves of the Merkle tree associated with the specified `root`
@@ -450,13 +448,7 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
         right_root: RpoDigest,
     ) -> Result<RpoDigest, MerkleError> {
         let parent = Rpo256::merge(&[left_root, right_root]);
-        self.nodes.insert(
-            parent,
-            StoreNode {
-                left: left_root,
-                right: right_root,
-            },
-        );
+        self.nodes.insert(parent, StoreNode { left: left_root, right: right_root });
 
         Ok(parent)
     }
@@ -551,15 +543,10 @@ impl<T: KvMap<RpoDigest, StoreNode>> FromIterator<(RpoDigest, StoreNode)> for Me
 // ================================================================================================
 impl<T: KvMap<RpoDigest, StoreNode>> Extend<InnerNodeInfo> for MerkleStore<T> {
     fn extend<I: IntoIterator<Item = InnerNodeInfo>>(&mut self, iter: I) {
-        self.nodes.extend(iter.into_iter().map(|info| {
-            (
-                info.value,
-                StoreNode {
-                    left: info.left,
-                    right: info.right,
-                },
-            )
-        }));
+        self.nodes.extend(
+            iter.into_iter()
+                .map(|info| (info.value, StoreNode { left: info.left, right: info.right })),
+        );
     }
 }
 
@@ -646,17 +633,12 @@ impl<T: KvMap<RpoDigest, StoreNode>> Deserializable for MerkleStore<T> {
 /// Creates empty hashes for all the subtrees of a tree with a max depth of 255.
 fn empty_hashes() -> impl IntoIterator<Item = (RpoDigest, StoreNode)> {
     let subtrees = EmptySubtreeRoots::empty_hashes(255);
-    subtrees.iter().rev().copied().zip(subtrees.iter().rev().skip(1).copied()).map(
-        |(child, parent)| {
-            (
-                parent,
-                StoreNode {
-                    left: child,
-                    right: child,
-                },
-            )
-        },
-    )
+    subtrees
+        .iter()
+        .rev()
+        .copied()
+        .zip(subtrees.iter().rev().skip(1).copied())
+        .map(|(child, parent)| (parent, StoreNode { left: child, right: child }))
 }
 
 /// Consumes an iterator of [InnerNodeInfo] and returns an iterator of `(value, node)` tuples
@@ -666,14 +648,6 @@ fn combine_nodes_with_empty_hashes(
 ) -> impl Iterator<Item = (RpoDigest, StoreNode)> {
     nodes
         .into_iter()
-        .map(|info| {
-            (
-                info.value,
-                StoreNode {
-                    left: info.left,
-                    right: info.right,
-                },
-            )
-        })
+        .map(|info| (info.value, StoreNode { left: info.left, right: info.right }))
         .chain(empty_hashes())
 }

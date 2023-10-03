@@ -158,11 +158,7 @@ impl PartialMerkleTree {
             }
         }
 
-        Ok(PartialMerkleTree {
-            max_depth,
-            nodes,
-            leaves,
-        })
+        Ok(PartialMerkleTree { max_depth, nodes, leaves })
     }
 
     // PUBLIC ACCESSORS
