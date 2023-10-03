@@ -346,10 +346,13 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
 
         core::iter::from_fn(move || {
             while let Some((index, node_hash)) = stack.pop() {
+                // if we are at the max depth then we have reached a leaf
                 if index.depth() == max_depth {
                     return Some((index, node_hash));
                 }
 
+                // fetch the nodes children and push them onto the stack if they are not the roots
+                // of empty subtrees
                 if let Some(node) = self.nodes.get(&node_hash) {
                     if !empty_roots.contains(&node.left) {
                         stack.push((index.left_child(), node.left));
@@ -357,6 +360,13 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
                     if !empty_roots.contains(&node.right) {
                         stack.push((index.right_child(), node.right));
                     }
+
+                // if the node is not in the store assume it is a leaf
+                } else {
+                    // assert that if we have a leaf that is not at the max depth then it must be
+                    // at the depth of one of the tiers of an TSMT.
+                    debug_assert!(TieredSmt::TIER_DEPTHS[..3].contains(&index.depth()));
+                    return Some((index, node_hash));
                 }
             }
 
