@@ -31,6 +31,12 @@ Both of these features imply the use of [alloc](https://doc.rust-lang.org/alloc/
 
 To compile with `no_std`, disable default features via `--no-default-features` flag.
 
+### SVE acceleration
+On platforms with [SVE](https://en.wikipedia.org/wiki/AArch64#Scalable_Vector_Extension_(SVE)) support, RPO hash function can be accelerated by using the vector processing unit. To enable SVE acceleration, the code needs to be compiled with the `sve` feature enabled. This feature has an effect only if the platform exposes `target-feature=sve` flag. On some platforms (e.g., Graviton 3), for this flag to be set, the compilation must be done in "native" mode. For example, to enable SVE acceleration on Graviton 3, we can execute the following:
+```shell
+RUSTFLAGS="-C target-cpu=native" cargo build --release --features sve
+```
+
 ## Testing
 
 You can use cargo defaults to test the library:

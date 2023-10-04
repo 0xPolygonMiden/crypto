@@ -3,6 +3,7 @@ use libc::c_int;
 // C IMPLEMENTATION INTERFACE
 // ================================================================================================
 
+#[link(name = "rpo_falcon512", kind = "static")]
 extern "C" {
     /// Generate a new key pair. Public key goes into pk[], private key in sk[].
     /// Key sizes are exact (in bytes):
@@ -97,19 +98,18 @@ pub struct Rpo128Context {
 mod tests {
     use super::*;
     use crate::dsa::rpo_falcon512::{NONCE_LEN, PK_LEN, SIG_LEN, SK_LEN};
-    use rand::Rng;
+    use rand_utils::{rand_array, rand_value, rand_vector};
 
     #[test]
     fn falcon_ffi() {
         unsafe {
-            let mut rng = rand::thread_rng();
+            //let mut rng = rand::thread_rng();
 
             // --- generate a key pair from a seed ----------------------------
 
             let mut pk = [0u8; PK_LEN];
             let mut sk = [0u8; SK_LEN];
-            let seed: [u8; NONCE_LEN] =
-                (0..NONCE_LEN).map(|_| rng.gen()).collect::<Vec<u8>>().try_into().unwrap();
+            let seed: [u8; NONCE_LEN] = rand_array();
 
             assert_eq!(
                 0,
@@ -122,8 +122,8 @@ mod tests {
 
             // --- sign a message and make sure it verifies -------------------
 
-            let mlen: usize = rng.gen::<u16>() as usize;
-            let msg: Vec<u8> = (0..mlen).map(|_| rng.gen()).collect();
+            let mlen: usize = rand_value::<u16>() as usize;
+            let msg: Vec<u8> = rand_vector(mlen);
             let mut detached_sig = [0u8; NONCE_LEN + SIG_LEN];
             let mut siglen = 0;
 

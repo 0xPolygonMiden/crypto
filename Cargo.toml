@@ -32,22 +32,21 @@ name = "store"
 harness = false
 
 [features]
-arch-arm64-sve = ["dep:cc"]
-default = ["blake3/default", "std", "winter_crypto/default", "winter_math/default", "winter_utils/default"]
+default = ["std"]
 executable = ["dep:clap", "dep:rand_utils", "std"]
-std = ["blake3/std", "dep:cc", "dep:libc", "dep:rand", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
-serde = ["winter_math/serde", "dep:serde", "serde/alloc"]
+serde = ["dep:serde", "serde?/alloc", "winter_math/serde"]
+std = ["blake3/std", "dep:cc", "dep:libc", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
+sve = ["std"]
 
 [dependencies]
 blake3 = { version = "1.4", default-features = false }
-clap = { version = "4.3", features = ["derive"], optional = true}
-libc = { version =  "0.2", optional = true, default-features = false }
-rand = { version =  "0.8", optional = true, default-features = false }
+clap = { version = "4.3", features = ["derive"], optional = true }
+libc = { version =  "0.2", default-features = false, optional = true }
+rand_utils = { version = "0.6", package = "winter-rand-utils", optional = true }
+serde = { version = "1.0", features = [ "derive" ], default-features = false, optional = true }
 winter_crypto = { version = "0.6", package = "winter-crypto", default-features = false }
 winter_math = { version = "0.6", package = "winter-math", default-features = false }
 winter_utils = { version = "0.6", package = "winter-utils", default-features = false }
-serde = { version = "1.0", features = [ "derive" ], optional = true, default-features = false }
-rand_utils = { version = "0.6", package = "winter-rand-utils", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

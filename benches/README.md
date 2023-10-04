@@ -19,7 +19,7 @@ The second scenario is that of sequential hashing where we take a sequence of le
 | ------------------- | ------ | --------| --------- | --------- | ------- |
 | Apple M1 Pro        | 80 ns  | 245 ns  |  1.5 us   |  9.1 us   | 5.4 us  |
 | Apple M2            | 76 ns  | 233 ns  |  1.3 us   |  7.9 us   | 5.0 us  |
-| Amazon Graviton 3   | 116 ns |         |           |           | 8.8 us  |
+| Amazon Graviton 3   | 108 ns |         |           |           | 5.3 us  |
 | AMD Ryzen 9 5950X   | 64 ns  | 273 ns  |  1.2 us   |  9.1 us   | 5.5 us  |
 | Intel Core i5-8279U | 80 ns  |         |           |           | 8.7 us  |
 | Intel Xeon 8375C    | 67 ns  |         |           |           | 8.2 us  |
@@ -30,10 +30,13 @@ The second scenario is that of sequential hashing where we take a sequence of le
 | ------------------- | -------| ------- | --------- | --------- | ------- |
 | Apple M1 Pro        | 1.0 us | 1.5 us  |  19.4 us  |   118 us  | 70 us   |
 | Apple M2            | 1.0 us | 1.5 us  |  17.4 us  |   103 us  | 65 us   |
-| Amazon Graviton 3   | 1.4 us |         |           |           | 114 us  |
+| Amazon Graviton 3   | 1.4 us |         |           |           | 69 us   |
 | AMD Ryzen 9 5950X   | 0.8 us | 1.7 us  |  15.7 us  |   120 us  | 72 us   |
 | Intel Core i5-8279U | 1.0 us |         |           |           | 116 us  |
 | Intel Xeon 8375C    | 0.8 ns |         |           |           | 110 us  |
+
+Notes:
+- On Graviton 3, RPO256 is run with SVE acceleration enabled.
 
 ### Instructions
 Before you can run the benchmarks, you'll need to make sure you have Rust [installed](https://www.rust-lang.org/tools/install). After that, to run the benchmarks for RPO and BLAKE3, clone the current repository, and from the root directory of the repo run the following:

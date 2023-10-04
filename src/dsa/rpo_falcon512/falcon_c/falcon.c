@@ -4,7 +4,7 @@
 
 #include <string.h>
 #include "randombytes.h"
-#include "api_rpo.h"
+#include "falcon.h"
 #include "inner.h"
 #include "rpo.h"
 
@@ -37,10 +37,12 @@
  *      (signature length is 1+len(value), not counting the nonce)
  */
 
-/* see api_rpo.h */
+/* see falcon.h */
 int PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair_from_seed_rpo(
-    uint8_t *pk, uint8_t *sk, unsigned char *seed)
-{
+    uint8_t *pk,
+    uint8_t *sk,
+    unsigned char *seed
+) {
     union
     {
         uint8_t b[FALCON_KEYGEN_TEMP_9];
@@ -111,8 +113,9 @@ int PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair_from_seed_rpo(
 }
 
 int PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair_rpo(
-    uint8_t *pk, uint8_t *sk)
-{
+    uint8_t *pk,
+    uint8_t *sk
+) {
     unsigned char seed[48];
 
     /*
@@ -137,10 +140,14 @@ int PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair_rpo(
  *
  * Return value: 0 on success, -1 on error.
  */
-static int
-do_sign(uint8_t *nonce, uint8_t *sigbuf, size_t *sigbuflen,
-        const uint8_t *m, size_t mlen, const uint8_t *sk)
-{
+static int do_sign(
+    uint8_t *nonce,
+    uint8_t *sigbuf,
+    size_t *sigbuflen,
+    const uint8_t *m,
+    size_t mlen,
+    const uint8_t *sk
+) {
     union
     {
         uint8_t b[72 * 512];
@@ -261,11 +268,14 @@ do_sign(uint8_t *nonce, uint8_t *sigbuf, size_t *sigbuflen,
  * (of size sigbuflen) contains the signature value, not including the
  * header byte or nonce. Return value is 0 on success, -1 on error.
  */
-static int
-do_verify(
-    const uint8_t *nonce, const uint8_t *sigbuf, size_t sigbuflen,
-    const uint8_t *m, size_t mlen, const uint8_t *pk)
-{
+static int do_verify(
+    const uint8_t *nonce,
+    const uint8_t *sigbuf,
+    size_t sigbuflen,
+    const uint8_t *m,
+    size_t mlen,
+    const uint8_t *pk
+) {
     union
     {
         uint8_t b[2 * 512];
@@ -341,11 +351,14 @@ do_verify(
     return 0;
 }
 
-/* see api_rpo.h */
+/* see falcon.h */
 int PQCLEAN_FALCON512_CLEAN_crypto_sign_signature_rpo(
-    uint8_t *sig, size_t *siglen,
-    const uint8_t *m, size_t mlen, const uint8_t *sk)
-{
+    uint8_t *sig,
+    size_t *siglen,
+    const uint8_t *m,
+    size_t mlen,
+    const uint8_t *sk
+) {
     /*
      * The PQCLEAN_FALCON512_CLEAN_CRYPTO_BYTES constant is used for
      * the signed message object (as produced by crypto_sign())
@@ -369,11 +382,14 @@ int PQCLEAN_FALCON512_CLEAN_crypto_sign_signature_rpo(
     return 0;
 }
 
-/* see api_rpo.h */
+/* see falcon.h */
 int PQCLEAN_FALCON512_CLEAN_crypto_sign_verify_rpo(
-    const uint8_t *sig, size_t siglen,
-    const uint8_t *m, size_t mlen, const uint8_t *pk)
-{
+    const uint8_t *sig,
+    size_t siglen,
+    const uint8_t *m,
+    size_t mlen,
+    const uint8_t *pk
+) {
     if (siglen < 1 + NONCELEN)
     {
         return -1;
@@ -382,6 +398,5 @@ int PQCLEAN_FALCON512_CLEAN_crypto_sign_verify_rpo(
     {
         return -1;
     }
-    return do_verify(sig + 1,
-                     sig + 1 + NONCELEN, siglen - 1 - NONCELEN, m, mlen, pk);
+    return do_verify(sig + 1, sig + 1 + NONCELEN, siglen - 1 - NONCELEN, m, mlen, pk);
 }
