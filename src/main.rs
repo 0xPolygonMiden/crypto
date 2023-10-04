@@ -31,23 +31,23 @@ pub fn benchmark_tsmt() {
     let tree_size = args.size;
 
     // prepare the `leaves` vector for tree creation
-    let mut leaves = Vec::new();
+    let mut entries = Vec::new();
     for i in 0..tree_size {
         let key = rand_value::<RpoDigest>();
         let value = [ONE, ONE, ONE, Felt::new(i)];
-        leaves.push((key, value));
+        entries.push((key, value));
     }
 
-    let mut tree = construction(leaves, tree_size).unwrap();
+    let mut tree = construction(entries, tree_size).unwrap();
     insertion(&mut tree, tree_size).unwrap();
     proof_generation(&mut tree, tree_size).unwrap();
 }
 
 /// Runs the construction benchmark for the Tiered SMT, returning the constructed tree.
-pub fn construction(leaves: Vec<(RpoDigest, Word)>, size: u64) -> Result<TieredSmt, MerkleError> {
+pub fn construction(entries: Vec<(RpoDigest, Word)>, size: u64) -> Result<TieredSmt, MerkleError> {
     println!("Running a construction benchmark:");
     let now = Instant::now();
-    let tree = TieredSmt::with_leaves(leaves)?;
+    let tree = TieredSmt::with_entries(entries)?;
     let elapsed = now.elapsed();
     println!(
         "Constructed a TSMT with {} key-value pairs in {:.3} seconds",

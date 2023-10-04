@@ -10,7 +10,7 @@ use mds_freq::mds_multiply_freq;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "arch-arm64-sve")]
+#[cfg(all(target_feature = "sve", feature = "sve"))]
 #[link(name = "rpo_sve", kind = "static")]
 extern "C" {
     fn add_constants_and_apply_sbox(
@@ -375,7 +375,7 @@ impl Rpo256 {
     // --------------------------------------------------------------------------------------------
 
     #[inline(always)]
-    #[cfg(feature = "arch-arm64-sve")]
+    #[cfg(all(target_feature = "sve", feature = "sve"))]
     fn optimized_add_constants_and_apply_sbox(
         state: &mut [Felt; STATE_WIDTH],
         ark: &[Felt; STATE_WIDTH],
@@ -386,7 +386,7 @@ impl Rpo256 {
     }
 
     #[inline(always)]
-    #[cfg(not(feature = "arch-arm64-sve"))]
+    #[cfg(not(all(target_feature = "sve", feature = "sve")))]
     fn optimized_add_constants_and_apply_sbox(
         _state: &mut [Felt; STATE_WIDTH],
         _ark: &[Felt; STATE_WIDTH],
@@ -395,7 +395,7 @@ impl Rpo256 {
     }
 
     #[inline(always)]
-    #[cfg(feature = "arch-arm64-sve")]
+    #[cfg(all(target_feature = "sve", feature = "sve"))]
     fn optimized_add_constants_and_apply_inv_sbox(
         state: &mut [Felt; STATE_WIDTH],
         ark: &[Felt; STATE_WIDTH],
@@ -409,7 +409,7 @@ impl Rpo256 {
     }
 
     #[inline(always)]
-    #[cfg(not(feature = "arch-arm64-sve"))]
+    #[cfg(not(all(target_feature = "sve", feature = "sve")))]
     fn optimized_add_constants_and_apply_inv_sbox(
         _state: &mut [Felt; STATE_WIDTH],
         _ark: &[Felt; STATE_WIDTH],

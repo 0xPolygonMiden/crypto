@@ -73,7 +73,7 @@ impl TieredSmt {
     ///
     /// # Errors
     /// Returns an error if the provided entries contain multiple values for the same key.
-    pub fn with_leaves<R, I>(entries: R) -> Result<Self, MerkleError>
+    pub fn with_entries<R, I>(entries: R) -> Result<Self, MerkleError>
     where
         R: IntoIterator<IntoIter = I>,
         I: Iterator<Item = (RpoDigest, Word)> + ExactSizeIterator,

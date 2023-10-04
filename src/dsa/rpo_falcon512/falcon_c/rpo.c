@@ -14,7 +14,7 @@
 #define M 12289
 
 // From https://github.com/ncw/iprime/blob/master/mod_math_noasm.go
-uint64_t add_mod_p(uint64_t a, uint64_t b)
+static uint64_t add_mod_p(uint64_t a, uint64_t b)
 {
     a = P - a;
     uint64_t res = b - a;
@@ -23,7 +23,7 @@ uint64_t add_mod_p(uint64_t a, uint64_t b)
     return res;
 }
 
-uint64_t sub_mod_p(uint64_t a, uint64_t b)
+static uint64_t sub_mod_p(uint64_t a, uint64_t b)
 {
     uint64_t r = a - b;
     if (a < b)
@@ -31,7 +31,7 @@ uint64_t sub_mod_p(uint64_t a, uint64_t b)
     return r;
 }
 
-uint64_t reduce_mod_p(uint64_t b, uint64_t a)
+static uint64_t reduce_mod_p(uint64_t b, uint64_t a)
 {
     uint32_t d = b >> 32,
              c = b;
@@ -43,7 +43,7 @@ uint64_t reduce_mod_p(uint64_t b, uint64_t a)
     return a;
 }
 
-uint64_t mult_mod_p(uint64_t x, uint64_t y)
+static uint64_t mult_mod_p(uint64_t x, uint64_t y)
 {
     uint32_t a = x,
              b = x >> 32,
@@ -85,7 +85,7 @@ static const uint64_t NUM_ROUNDS = 7;
 /*
  * MDS matrix
  */
-const uint64_t MDS[12][12] = {
+static const uint64_t MDS[12][12] = {
     {  7, 23,  8, 26, 13, 10,  9,  7,  6, 22, 21,  8 },
     {  8,  7, 23,  8, 26, 13, 10,  9,  7,  6, 22, 21 },
     { 21,  8,  7, 23,  8, 26, 13, 10,  9,  7,  6, 22 },
@@ -103,7 +103,7 @@ const uint64_t MDS[12][12] = {
 /*
  * Round constants.
  */
-const uint64_t ARK1[7][12] = {
+static const uint64_t ARK1[7][12] = {
     {
         5789762306288267392ULL,
         6522564764413701783ULL,
@@ -304,7 +304,7 @@ const uint64_t ARK2[7][12] = {
     },
 };
 
-void apply_sbox(uint64_t *const state)
+static void apply_sbox(uint64_t *const state)
 {
     for (uint64_t i = 0; i < STATE_WIDTH; i++)
     {
@@ -315,7 +315,7 @@ void apply_sbox(uint64_t *const state)
     }
 }
 
-void apply_mds(uint64_t *state)
+static void apply_mds(uint64_t *state)
 {
     uint64_t res[STATE_WIDTH];
     for (uint64_t i = 0; i < STATE_WIDTH; i++)
@@ -336,7 +336,7 @@ void apply_mds(uint64_t *state)
     }
 }
 
-void apply_constants(uint64_t *const state, const uint64_t *ark)
+static void apply_constants(uint64_t *const state, const uint64_t *ark)
 {
     for (uint64_t i = 0; i < STATE_WIDTH; i++)
     {
@@ -344,7 +344,7 @@ void apply_constants(uint64_t *const state, const uint64_t *ark)
     }
 }
 
-void exp_acc(const uint64_t m, const uint64_t *base, const uint64_t *tail, uint64_t *const res)
+static  void exp_acc(const uint64_t m, const uint64_t *base, const uint64_t *tail, uint64_t *const res)
 {
     for (uint64_t i = 0; i < m; i++)
     {
@@ -367,7 +367,7 @@ void exp_acc(const uint64_t m, const uint64_t *base, const uint64_t *tail, uint6
     }
 }
 
-void apply_inv_sbox(uint64_t *const state)
+static void apply_inv_sbox(uint64_t *const state)
 {
     uint64_t t1[STATE_WIDTH];
     for (uint64_t i = 0; i < STATE_WIDTH; i++)
@@ -435,7 +435,7 @@ void apply_inv_sbox(uint64_t *const state)
     }
 }
 
-void apply_round(uint64_t *const state, const uint64_t round)
+static void apply_round(uint64_t *const state, const uint64_t round)
 {
     apply_mds(state);
     apply_constants(state, ARK1[round]);
