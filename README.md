@@ -21,6 +21,13 @@ For performance benchmarks of these hash functions and their comparison to other
 
 The module also contains additional supporting components such as `NodeIndex`, `MerklePath`,  and `MerkleError`  to assist with tree indexation, opening proofs, and reporting inconsistent arguments/state.
 
+## Signatures
+[DAS module](./src/dsa) provides a set of digital signature schemes supported by default in Miden VM. Currently, these schemes are:
+
+* `RPO Falcon512`: a variant of the [Falcon](https://falcon-sign.info/) signature scheme. This variant differs from the standard in that instead of using SHAKE256 hash function in the *hash-to-point* algorithm we use RPO256. This makes the signature more efficient to verify in Miden VM.
+
+For the above signatures, key generation and signing is available only in the `std` context (see [crate features](#crate-features) below), while signature verification is available in `no_std` context as well.
+
 ## Crate features
 This crate can be compiled with the following features:
 
