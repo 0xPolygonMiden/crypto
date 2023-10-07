@@ -35,8 +35,8 @@ repos:
       name: Cargo check --all-targets --no-default-features
       args: ["+stable", "check", "--all-targets", "--no-default-features"]
     - id: cargo
-      name: Cargo check --all-targets --all-features
-      args: ["+stable", "check", "--all-targets", "--all-features"]
+      name: Cargo check --all-targets --features default,std,serde
+      args: ["+stable", "check", "--all-targets", "--features", "default,std,serde"]
     # Unlike fmt, clippy will not be automatically applied
     - id: cargo
       name: Cargo clippy

@@ -380,11 +380,7 @@ fn test_mmr_inner_nodes() {
             left: LEAVES[2],
             right: LEAVES[3],
         },
-        InnerNodeInfo {
-            value: h0123,
-            left: h01,
-            right: h23,
-        },
+        InnerNodeInfo { value: h0123, left: h01, right: h23 },
         InnerNodeInfo {
             value: h45,
             left: LEAVES[4],

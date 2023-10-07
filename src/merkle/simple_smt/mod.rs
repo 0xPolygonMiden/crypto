@@ -1,6 +1,6 @@
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
-    Rpo256, RpoDigest, Vec, Word,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerkleTreeDelta,
+    NodeIndex, Rpo256, RpoDigest, StoreNode, TryApplyDiff, Vec, Word,
 };
 
 #[cfg(test)]
@@ -13,6 +13,7 @@ mod tests;
 ///
 /// The root of the tree is recomputed on each new leaf update.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SimpleSmt {
     depth: u8,
     root: RpoDigest,
@@ -32,7 +33,7 @@ impl SimpleSmt {
     pub const MAX_DEPTH: u8 = 64;
 
     /// Value of an empty leaf.
-    pub const EMPTY_VALUE: Word = super::empty_roots::EMPTY_WORD;
+    pub const EMPTY_VALUE: Word = super::EMPTY_WORD;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -248,10 +249,7 @@ impl SimpleSmt {
     fn get_branch_node(&self, index: &NodeIndex) -> BranchNode {
         self.branches.get(index).cloned().unwrap_or_else(|| {
             let node = self.empty_hashes[index.depth() as usize + 1];
-            BranchNode {
-                left: node,
-                right: node,
-            }
+            BranchNode { left: node, right: node }
         })
     }
 
@@ -265,6 +263,7 @@ impl SimpleSmt {
 // ================================================================================================
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 struct BranchNode {
     left: RpoDigest,
     right: RpoDigest,
@@ -273,5 +272,31 @@ struct BranchNode {
 impl BranchNode {
     fn parent(&self) -> RpoDigest {
         Rpo256::merge(&[self.left, self.right])
+    }
+}
+
+// TRY APPLY DIFF
+// ================================================================================================
+impl TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt {
+    type Error = MerkleError;
+    type DiffType = MerkleTreeDelta;
+
+    fn try_apply(&mut self, diff: MerkleTreeDelta) -> Result<(), MerkleError> {
+        if diff.depth() != self.depth() {
+            return Err(MerkleError::InvalidDepth {
+                expected: self.depth(),
+                provided: diff.depth(),
+            });
+        }
+
+        for slot in diff.cleared_slots() {
+            self.update_leaf(*slot, Self::EMPTY_VALUE)?;
+        }
+
+        for (slot, value) in diff.updated_slots() {
+            self.update_leaf(*slot, *value)?;
+        }
+
+        Ok(())
     }
 }

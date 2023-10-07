@@ -8,6 +8,7 @@ use winter_math::log2;
 
 /// A fully-balanced binary Merkle tree (i.e., a tree where the number of leaves is a power of two).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MerkleTree {
     nodes: Vec<RpoDigest>,
 }
@@ -370,21 +371,9 @@ mod tests {
 
         let nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
         let expected = vec![
-            InnerNodeInfo {
-                value: root,
-                left: l1n0,
-                right: l1n1,
-            },
-            InnerNodeInfo {
-                value: l1n0,
-                left: l2n0,
-                right: l2n1,
-            },
-            InnerNodeInfo {
-                value: l1n1,
-                left: l2n2,
-                right: l2n3,
-            },
+            InnerNodeInfo { value: root, left: l1n0, right: l1n1 },
+            InnerNodeInfo { value: l1n0, left: l2n0, right: l2n1 },
+            InnerNodeInfo { value: l1n1, left: l2n2, right: l2n3 },
         ];
         assert_eq!(nodes, expected);
 

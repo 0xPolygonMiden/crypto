@@ -1,4 +1,5 @@
 use super::{Felt, MerkleError, RpoDigest, StarkField};
+use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::fmt::Display;
 
 // NODE INDEX
@@ -20,6 +21,7 @@ use core::fmt::Display;
 /// The root is represented by the pair $(0, 0)$, its left child is $(1, 0)$ and its right child
 /// $(1, 1)$.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct NodeIndex {
     depth: u8,
     value: u64,
@@ -158,6 +160,22 @@ impl NodeIndex {
 impl Display for NodeIndex {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "depth={}, value={}", self.depth, self.value)
+    }
+}
+
+impl Serializable for NodeIndex {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write_u8(self.depth);
+        target.write_u64(self.value);
+    }
+}
+
+impl Deserializable for NodeIndex {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let depth = source.read_u8()?;
+        let value = source.read_u64()?;
+        NodeIndex::new(depth, value)
+            .map_err(|_| DeserializationError::InvalidValue("Invalid index".into()))
     }
 }
 

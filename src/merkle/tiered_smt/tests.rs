@@ -1,8 +1,10 @@
 use super::{
-    super::{super::ONE, Felt, MerkleStore, WORD_SIZE, ZERO},
-    get_remaining_path, EmptySubtreeRoots, InnerNodeInfo, NodeIndex, Rpo256, RpoDigest, TieredSmt,
-    Vec, Word,
+    super::{super::ONE, super::WORD_SIZE, Felt, MerkleStore, EMPTY_WORD, ZERO},
+    EmptySubtreeRoots, InnerNodeInfo, NodeIndex, Rpo256, RpoDigest, TieredSmt, Vec, Word,
 };
+
+// INSERTION TESTS
+// ================================================================================================
 
 #[test]
 fn tsmt_insert_one() {
@@ -217,6 +219,9 @@ fn tsmt_insert_three() {
     actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
 }
 
+// UPDATE TESTS
+// ================================================================================================
+
 #[test]
 fn tsmt_update() {
     let mut smt = TieredSmt::default();
@@ -250,6 +255,334 @@ fn tsmt_update() {
     let expected_nodes = get_non_empty_nodes(&store);
     let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
     actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+}
+
+// DELETION TESTS
+// ================================================================================================
+
+#[test]
+fn tsmt_delete_16() {
+    let mut smt = TieredSmt::default();
+
+    // --- insert a value into the tree ---------------------------------------
+    let smt0 = smt.clone();
+    let raw_a = 0b_01010101_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let value_a = [ONE, ONE, ONE, ONE];
+    smt.insert(key_a, value_a);
+
+    // --- insert another value into the tree ---------------------------------
+    let smt1 = smt.clone();
+    let raw_b = 0b_01011111_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let value_b = [ONE, ONE, ONE, ZERO];
+    smt.insert(key_b, value_b);
+
+    // --- delete the last inserted value -------------------------------------
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
+    assert_eq!(smt, smt1);
+
+    // --- delete the first inserted value ------------------------------------
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
+    assert_eq!(smt, smt0);
+}
+
+#[test]
+fn tsmt_delete_32() {
+    let mut smt = TieredSmt::default();
+
+    // --- insert a value into the tree ---------------------------------------
+    let smt0 = smt.clone();
+    let raw_a = 0b_01010101_01101100_01111111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let value_a = [ONE, ONE, ONE, ONE];
+    smt.insert(key_a, value_a);
+
+    // --- insert another with the same 16-bit prefix into the tree -----------
+    let smt1 = smt.clone();
+    let raw_b = 0b_01010101_01101100_00111111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let value_b = [ONE, ONE, ONE, ZERO];
+    smt.insert(key_b, value_b);
+
+    // --- insert the 3rd value with the same 16-bit prefix into the tree -----
+    let smt2 = smt.clone();
+    let raw_c = 0b_01010101_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    let value_c = [ONE, ONE, ZERO, ZERO];
+    smt.insert(key_c, value_c);
+
+    // --- delete the last inserted value -------------------------------------
+    assert_eq!(smt.insert(key_c, EMPTY_WORD), value_c);
+    assert_eq!(smt, smt2);
+
+    // --- delete the last inserted value -------------------------------------
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
+    assert_eq!(smt, smt1);
+
+    // --- delete the first inserted value ------------------------------------
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
+    assert_eq!(smt, smt0);
+}
+
+#[test]
+fn tsmt_delete_48_same_32_bit_prefix() {
+    let mut smt = TieredSmt::default();
+
+    // test the case when all values share the same 32-bit prefix
+
+    // --- insert a value into the tree ---------------------------------------
+    let smt0 = smt.clone();
+    let raw_a = 0b_01010101_01010101_11111111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let value_a = [ONE, ONE, ONE, ONE];
+    smt.insert(key_a, value_a);
+
+    // --- insert another with the same 32-bit prefix into the tree -----------
+    let smt1 = smt.clone();
+    let raw_b = 0b_01010101_01010101_11111111_11111111_11010110_10010011_11100000_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let value_b = [ONE, ONE, ONE, ZERO];
+    smt.insert(key_b, value_b);
+
+    // --- insert the 3rd value with the same 32-bit prefix into the tree -----
+    let smt2 = smt.clone();
+    let raw_c = 0b_01010101_01010101_11111111_11111111_11110110_10010011_11100000_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    let value_c = [ONE, ONE, ZERO, ZERO];
+    smt.insert(key_c, value_c);
+
+    // --- delete the last inserted value -------------------------------------
+    assert_eq!(smt.insert(key_c, EMPTY_WORD), value_c);
+    assert_eq!(smt, smt2);
+
+    // --- delete the last inserted value -------------------------------------
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
+    assert_eq!(smt, smt1);
+
+    // --- delete the first inserted value ------------------------------------
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
+    assert_eq!(smt, smt0);
+}
+
+#[test]
+fn tsmt_delete_48_mixed_prefix() {
+    let mut smt = TieredSmt::default();
+
+    // test the case when some values share a 32-bit prefix and others share a 16-bit prefix
+
+    // --- insert a value into the tree ---------------------------------------
+    let smt0 = smt.clone();
+    let raw_a = 0b_01010101_01010101_11111111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let value_a = [ONE, ONE, ONE, ONE];
+    smt.insert(key_a, value_a);
+
+    // --- insert another with the same 16-bit prefix into the tree -----------
+    let smt1 = smt.clone();
+    let raw_b = 0b_01010101_01010101_01111111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let value_b = [ONE, ONE, ONE, ZERO];
+    smt.insert(key_b, value_b);
+
+    // --- insert a value with the same 32-bit prefix as the first value -----
+    let smt2 = smt.clone();
+    let raw_c = 0b_01010101_01010101_11111111_11111111_11010110_10010011_11100000_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    let value_c = [ONE, ONE, ZERO, ZERO];
+    smt.insert(key_c, value_c);
+
+    // --- insert another value with the same 32-bit prefix as the first value
+    let smt3 = smt.clone();
+    let raw_d = 0b_01010101_01010101_11111111_11111111_11110110_10010011_11100000_00000000_u64;
+    let key_d = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_d)]);
+    let value_d = [ONE, ZERO, ZERO, ZERO];
+    smt.insert(key_d, value_d);
+
+    // --- delete the inserted values one-by-one ------------------------------
+    assert_eq!(smt.insert(key_d, EMPTY_WORD), value_d);
+    assert_eq!(smt, smt3);
+
+    assert_eq!(smt.insert(key_c, EMPTY_WORD), value_c);
+    assert_eq!(smt, smt2);
+
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
+    assert_eq!(smt, smt1);
+
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
+    assert_eq!(smt, smt0);
+}
+
+#[test]
+fn tsmt_delete_64() {
+    let mut smt = TieredSmt::default();
+
+    // test the case when all values share the same 48-bit prefix
+
+    // --- insert a value into the tree ---------------------------------------
+    let smt0 = smt.clone();
+    let raw_a = 0b_01010101_01010101_11111111_11111111_10110101_10101010_11111100_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let value_a = [ONE, ONE, ONE, ONE];
+    smt.insert(key_a, value_a);
+
+    // --- insert a value with the same 48-bit prefix into the tree -----------
+    let smt1 = smt.clone();
+    let raw_b = 0b_01010101_01010101_11111111_11111111_10110101_10101010_10111100_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let value_b = [ONE, ONE, ONE, ZERO];
+    smt.insert(key_b, value_b);
+
+    // --- insert a value with the same 32-bit prefix into the tree -----------
+    let smt2 = smt.clone();
+    let raw_c = 0b_01010101_01010101_11111111_11111111_11111101_10101010_10111100_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    let value_c = [ONE, ONE, ZERO, ZERO];
+    smt.insert(key_c, value_c);
+
+    let smt3 = smt.clone();
+    let raw_d = 0b_01010101_01010101_11111111_11111111_10110101_10101010_11111100_00000000_u64;
+    let key_d = RpoDigest::from([ZERO, ZERO, ONE, Felt::new(raw_d)]);
+    let value_d = [ONE, ZERO, ZERO, ZERO];
+    smt.insert(key_d, value_d);
+
+    // --- delete the last inserted value -------------------------------------
+    assert_eq!(smt.insert(key_d, EMPTY_WORD), value_d);
+    assert_eq!(smt, smt3);
+
+    assert_eq!(smt.insert(key_c, EMPTY_WORD), value_c);
+    assert_eq!(smt, smt2);
+
+    assert_eq!(smt.insert(key_b, EMPTY_WORD), value_b);
+    assert_eq!(smt, smt1);
+
+    assert_eq!(smt.insert(key_a, EMPTY_WORD), value_a);
+    assert_eq!(smt, smt0);
+}
+
+#[test]
+fn tsmt_delete_64_leaf_promotion() {
+    let mut smt = TieredSmt::default();
+
+    // --- delete from bottom tier (no promotion to upper tiers) --------------
+
+    // insert a value into the tree
+    let raw_a = 0b_01010101_01010101_11111111_11111111_10101010_10101010_11111111_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let value_a = [ONE, ONE, ONE, ONE];
+    smt.insert(key_a, value_a);
+
+    // insert another value with a key having the same 64-bit prefix
+    let key_b = RpoDigest::from([ONE, ONE, ZERO, Felt::new(raw_a)]);
+    let value_b = [ONE, ONE, ONE, ZERO];
+    smt.insert(key_b, value_b);
+
+    // insert a value with a key which shared the same 48-bit prefix
+    let raw_c = 0b_01010101_01010101_11111111_11111111_10101010_10101010_00111111_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    let value_c = [ONE, ONE, ZERO, ZERO];
+    smt.insert(key_c, value_c);
+
+    // delete entry A and compare to the tree which was built from B and C
+    smt.insert(key_a, EMPTY_WORD);
+
+    let mut expected_smt = TieredSmt::default();
+    expected_smt.insert(key_b, value_b);
+    expected_smt.insert(key_c, value_c);
+    assert_eq!(smt, expected_smt);
+
+    // entries B and C should stay at depth 64
+    assert_eq!(smt.nodes.get_leaf_index(&key_b).0.depth(), 64);
+    assert_eq!(smt.nodes.get_leaf_index(&key_c).0.depth(), 64);
+
+    // --- delete from bottom tier (promotion to depth 48) --------------------
+
+    let mut smt = TieredSmt::default();
+    smt.insert(key_a, value_a);
+    smt.insert(key_b, value_b);
+
+    // insert a value with a key which shared the same 32-bit prefix
+    let raw_c = 0b_01010101_01010101_11111111_11111111_11101010_10101010_11111111_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    smt.insert(key_c, value_c);
+
+    // delete entry A and compare to the tree which was built from B and C
+    smt.insert(key_a, EMPTY_WORD);
+
+    let mut expected_smt = TieredSmt::default();
+    expected_smt.insert(key_b, value_b);
+    expected_smt.insert(key_c, value_c);
+    assert_eq!(smt, expected_smt);
+
+    // entry B moves to depth 48, entry C stays at depth 48
+    assert_eq!(smt.nodes.get_leaf_index(&key_b).0.depth(), 48);
+    assert_eq!(smt.nodes.get_leaf_index(&key_c).0.depth(), 48);
+
+    // --- delete from bottom tier (promotion to depth 32) --------------------
+
+    let mut smt = TieredSmt::default();
+    smt.insert(key_a, value_a);
+    smt.insert(key_b, value_b);
+
+    // insert a value with a key which shared the same 16-bit prefix
+    let raw_c = 0b_01010101_01010101_01111111_11111111_10101010_10101010_11111111_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    smt.insert(key_c, value_c);
+
+    // delete entry A and compare to the tree which was built from B and C
+    smt.insert(key_a, EMPTY_WORD);
+
+    let mut expected_smt = TieredSmt::default();
+    expected_smt.insert(key_b, value_b);
+    expected_smt.insert(key_c, value_c);
+    assert_eq!(smt, expected_smt);
+
+    // entry B moves to depth 32, entry C stays at depth 32
+    assert_eq!(smt.nodes.get_leaf_index(&key_b).0.depth(), 32);
+    assert_eq!(smt.nodes.get_leaf_index(&key_c).0.depth(), 32);
+
+    // --- delete from bottom tier (promotion to depth 16) --------------------
+
+    let mut smt = TieredSmt::default();
+    smt.insert(key_a, value_a);
+    smt.insert(key_b, value_b);
+
+    // insert a value with a key which shared prefix < 16 bits
+    let raw_c = 0b_01010101_01010100_11111111_11111111_10101010_10101010_11111111_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    smt.insert(key_c, value_c);
+
+    // delete entry A and compare to the tree which was built from B and C
+    smt.insert(key_a, EMPTY_WORD);
+
+    let mut expected_smt = TieredSmt::default();
+    expected_smt.insert(key_b, value_b);
+    expected_smt.insert(key_c, value_c);
+    assert_eq!(smt, expected_smt);
+
+    // entry B moves to depth 16, entry C stays at depth 16
+    assert_eq!(smt.nodes.get_leaf_index(&key_b).0.depth(), 16);
+    assert_eq!(smt.nodes.get_leaf_index(&key_c).0.depth(), 16);
+}
+
+#[test]
+fn test_order_sensitivity() {
+    let raw = 0b_10101010_10101010_00011111_11111111_10010110_10010011_11100000_00000001_u64;
+    let value = [ONE; WORD_SIZE];
+
+    let key_1 = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let key_2 = RpoDigest::from([ONE, ONE, ZERO, Felt::new(raw)]);
+
+    let mut smt_1 = TieredSmt::default();
+
+    smt_1.insert(key_1, value);
+    smt_1.insert(key_2, value);
+    smt_1.insert(key_2, EMPTY_WORD);
+
+    let mut smt_2 = TieredSmt::default();
+    smt_2.insert(key_1, value);
+
+    assert_eq!(smt_1.root(), smt_2.root());
 }
 
 // BOTTOM TIER TESTS
@@ -301,8 +634,25 @@ fn tsmt_bottom_tier() {
     actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
 
     // make sure leaves are returned correctly
-    let mut leaves = smt.bottom_leaves();
+    let smt_clone = smt.clone();
+    let mut leaves = smt_clone.bottom_leaves();
     assert_eq!(leaves.next(), Some((leaf_node, vec![(key_b, val_b), (key_a, val_a)])));
+    assert_eq!(leaves.next(), None);
+
+    // --- update a leaf at the bottom tier -------------------------------------------------------
+
+    let val_a2 = [Felt::new(3); WORD_SIZE];
+    assert_eq!(smt.insert(key_a, val_a2), val_a);
+
+    let leaf_node = build_bottom_leaf_node(&[key_b, key_a], &[val_b, val_a2]);
+    store.set_node(tree_root, index, leaf_node).unwrap();
+
+    let expected_nodes = get_non_empty_nodes(&store);
+    let actual_nodes = smt.inner_nodes().collect::<Vec<_>>();
+    actual_nodes.iter().for_each(|node| assert!(expected_nodes.contains(node)));
+
+    let mut leaves = smt.bottom_leaves();
+    assert_eq!(leaves.next(), Some((leaf_node, vec![(key_b, val_b), (key_a, val_a2)])));
     assert_eq!(leaves.next(), None);
 }
 
@@ -362,6 +712,154 @@ fn tsmt_bottom_tier_two() {
     assert_eq!(leaves.next(), None);
 }
 
+// GET PROOF TESTS
+// ================================================================================================
+
+#[test]
+fn tsmt_get_proof() {
+    let mut smt = TieredSmt::default();
+
+    // --- insert a value into the tree ---------------------------------------
+    let raw_a = 0b_01010101_01010101_11111111_11111111_10110101_10101010_11111100_00000000_u64;
+    let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+    let value_a = [ONE, ONE, ONE, ONE];
+    smt.insert(key_a, value_a);
+
+    // --- insert a value with the same 48-bit prefix into the tree -----------
+    let raw_b = 0b_01010101_01010101_11111111_11111111_10110101_10101010_10111100_00000000_u64;
+    let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+    let value_b = [ONE, ONE, ONE, ZERO];
+    smt.insert(key_b, value_b);
+
+    let smt_alt = smt.clone();
+
+    // --- insert a value with the same 32-bit prefix into the tree -----------
+    let raw_c = 0b_01010101_01010101_11111111_11111111_11111101_10101010_10111100_00000000_u64;
+    let key_c = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_c)]);
+    let value_c = [ONE, ONE, ZERO, ZERO];
+    smt.insert(key_c, value_c);
+
+    // --- insert a value with the same 64-bit prefix as A into the tree ------
+    let raw_d = 0b_01010101_01010101_11111111_11111111_10110101_10101010_11111100_00000000_u64;
+    let key_d = RpoDigest::from([ZERO, ZERO, ONE, Felt::new(raw_d)]);
+    let value_d = [ONE, ZERO, ZERO, ZERO];
+    smt.insert(key_d, value_d);
+
+    // at this point the tree looks as follows:
+    // - A and D are located in the same node at depth 64.
+    // - B is located at depth 64 and shares the same 48-bit prefix with A and D.
+    // - C is located at depth 48 and shares the same 32-bit prefix with A, B, and D.
+
+    // --- generate proof for key A and test that it verifies correctly -------
+    let proof = smt.prove(key_a);
+    assert!(proof.verify_membership(&key_a, &value_a, &smt.root()));
+
+    assert!(!proof.verify_membership(&key_a, &value_b, &smt.root()));
+    assert!(!proof.verify_membership(&key_a, &EMPTY_WORD, &smt.root()));
+    assert!(!proof.verify_membership(&key_b, &value_a, &smt.root()));
+    assert!(!proof.verify_membership(&key_a, &value_a, &smt_alt.root()));
+
+    assert_eq!(proof.get(&key_a), Some(value_a));
+    assert_eq!(proof.get(&key_b), None);
+
+    // since A and D are stored in the same node, we should be able to use the proof to verify
+    // membership of D
+    assert!(proof.verify_membership(&key_d, &value_d, &smt.root()));
+    assert_eq!(proof.get(&key_d), Some(value_d));
+
+    // --- generate proof for key B and test that it verifies correctly -------
+    let proof = smt.prove(key_b);
+    assert!(proof.verify_membership(&key_b, &value_b, &smt.root()));
+
+    assert!(!proof.verify_membership(&key_b, &value_a, &smt.root()));
+    assert!(!proof.verify_membership(&key_b, &EMPTY_WORD, &smt.root()));
+    assert!(!proof.verify_membership(&key_a, &value_b, &smt.root()));
+    assert!(!proof.verify_membership(&key_b, &value_b, &smt_alt.root()));
+
+    assert_eq!(proof.get(&key_b), Some(value_b));
+    assert_eq!(proof.get(&key_a), None);
+
+    // --- generate proof for key C and test that it verifies correctly -------
+    let proof = smt.prove(key_c);
+    assert!(proof.verify_membership(&key_c, &value_c, &smt.root()));
+
+    assert!(!proof.verify_membership(&key_c, &value_a, &smt.root()));
+    assert!(!proof.verify_membership(&key_c, &EMPTY_WORD, &smt.root()));
+    assert!(!proof.verify_membership(&key_a, &value_c, &smt.root()));
+    assert!(!proof.verify_membership(&key_c, &value_c, &smt_alt.root()));
+
+    assert_eq!(proof.get(&key_c), Some(value_c));
+    assert_eq!(proof.get(&key_b), None);
+
+    // --- generate proof for key D and test that it verifies correctly -------
+    let proof = smt.prove(key_d);
+    assert!(proof.verify_membership(&key_d, &value_d, &smt.root()));
+
+    assert!(!proof.verify_membership(&key_d, &value_b, &smt.root()));
+    assert!(!proof.verify_membership(&key_d, &EMPTY_WORD, &smt.root()));
+    assert!(!proof.verify_membership(&key_b, &value_d, &smt.root()));
+    assert!(!proof.verify_membership(&key_d, &value_d, &smt_alt.root()));
+
+    assert_eq!(proof.get(&key_d), Some(value_d));
+    assert_eq!(proof.get(&key_b), None);
+
+    // since A and D are stored in the same node, we should be able to use the proof to verify
+    // membership of A
+    assert!(proof.verify_membership(&key_a, &value_a, &smt.root()));
+    assert_eq!(proof.get(&key_a), Some(value_a));
+
+    // --- generate proof for an empty key at depth 64 ------------------------
+    // this key has the same 48-bit prefix as A but is different from B
+    let raw = 0b_01010101_01010101_11111111_11111111_10110101_10101010_11111100_00000011_u64;
+    let key = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+
+    let proof = smt.prove(key);
+    assert!(proof.verify_membership(&key, &EMPTY_WORD, &smt.root()));
+
+    assert!(!proof.verify_membership(&key, &value_a, &smt.root()));
+    assert!(!proof.verify_membership(&key, &EMPTY_WORD, &smt_alt.root()));
+
+    assert_eq!(proof.get(&key), Some(EMPTY_WORD));
+    assert_eq!(proof.get(&key_b), None);
+
+    // the same proof should verify against any key with the same 64-bit prefix
+    let key2 = RpoDigest::from([ONE, ONE, ZERO, Felt::new(raw)]);
+    assert!(proof.verify_membership(&key2, &EMPTY_WORD, &smt.root()));
+    assert_eq!(proof.get(&key2), Some(EMPTY_WORD));
+
+    // but verifying if against a key with the same 63-bit prefix (or smaller) should fail
+    let raw3 = 0b_01010101_01010101_11111111_11111111_10110101_10101010_11111100_00000010_u64;
+    let key3 = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw3)]);
+    assert!(!proof.verify_membership(&key3, &EMPTY_WORD, &smt.root()));
+    assert_eq!(proof.get(&key3), None);
+
+    // --- generate proof for an empty key at depth 48 ------------------------
+    // this key has the same 32-prefix as A, B, C, and D, but is different from C
+    let raw = 0b_01010101_01010101_11111111_11111111_00110101_10101010_11111100_00000000_u64;
+    let key = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+
+    let proof = smt.prove(key);
+    assert!(proof.verify_membership(&key, &EMPTY_WORD, &smt.root()));
+
+    assert!(!proof.verify_membership(&key, &value_a, &smt.root()));
+    assert!(!proof.verify_membership(&key, &EMPTY_WORD, &smt_alt.root()));
+
+    assert_eq!(proof.get(&key), Some(EMPTY_WORD));
+    assert_eq!(proof.get(&key_b), None);
+
+    // the same proof should verify against any key with the same 48-bit prefix
+    let raw2 = 0b_01010101_01010101_11111111_11111111_00110101_10101010_01111100_00000000_u64;
+    let key2 = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw2)]);
+    assert!(proof.verify_membership(&key2, &EMPTY_WORD, &smt.root()));
+    assert_eq!(proof.get(&key2), Some(EMPTY_WORD));
+
+    // but verifying against a key with the same 47-bit prefix (or smaller) should fail
+    let raw3 = 0b_01010101_01010101_11111111_11111111_00110101_10101011_11111100_00000000_u64;
+    let key3 = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw3)]);
+    assert!(!proof.verify_membership(&key3, &EMPTY_WORD, &smt.root()));
+    assert_eq!(proof.get(&key3), None);
+}
+
 // ERROR TESTS
 // ================================================================================================
 
@@ -411,8 +909,7 @@ fn get_init_root() -> RpoDigest {
 }
 
 fn build_leaf_node(key: RpoDigest, value: Word, depth: u8) -> RpoDigest {
-    let remaining_path = get_remaining_path(key, depth as u32);
-    Rpo256::merge_in_domain(&[remaining_path, value.into()], depth.into())
+    Rpo256::merge_in_domain(&[key, value.into()], depth.into())
 }
 
 fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
@@ -420,9 +917,7 @@ fn build_bottom_leaf_node(keys: &[RpoDigest], values: &[Word]) -> RpoDigest {
 
     let mut elements = Vec::with_capacity(keys.len());
     for (key, val) in keys.iter().zip(values.iter()) {
-        let mut key = Word::from(key);
-        key[3] = ZERO;
-        elements.extend_from_slice(&key);
+        elements.extend_from_slice(key.as_elements());
         elements.extend_from_slice(val.as_slice());
     }
 

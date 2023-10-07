@@ -156,14 +156,14 @@ const fn block3(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{Felt, FieldElement, Rpo256, MDS};
+    use super::super::{Felt, Rpo256, MDS, ZERO};
     use proptest::prelude::*;
 
     const STATE_WIDTH: usize = 12;
 
     #[inline(always)]
     fn apply_mds_naive(state: &mut [Felt; STATE_WIDTH]) {
-        let mut result = [Felt::ZERO; STATE_WIDTH];
+        let mut result = [ZERO; STATE_WIDTH];
         result.iter_mut().zip(MDS).for_each(|(r, mds_row)| {
             state.iter().zip(mds_row).for_each(|(&s, m)| {
                 *r += m * s;
@@ -174,9 +174,9 @@ mod tests {
 
     proptest! {
         #[test]
-        fn mds_freq_proptest(a in any::<[u64;STATE_WIDTH]>()) {
+        fn mds_freq_proptest(a in any::<[u64; STATE_WIDTH]>()) {
 
-            let mut v1 = [Felt::ZERO;STATE_WIDTH];
+            let mut v1 = [ZERO; STATE_WIDTH];
             let mut v2;
 
             for i in 0..STATE_WIDTH {

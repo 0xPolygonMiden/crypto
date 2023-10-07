@@ -6,6 +6,7 @@ use core::ops::{Deref, DerefMut};
 
 /// A merkle path container, composed of a sequence of nodes of a Merkle tree.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MerklePath {
     nodes: Vec<RpoDigest>,
 }
@@ -136,11 +137,7 @@ impl<'a> Iterator for InnerNodeIterator<'a> {
             self.value = Rpo256::merge(&[left, right]);
             self.index.move_up();
 
-            Some(InnerNodeInfo {
-                value: self.value,
-                left,
-                right,
-            })
+            Some(InnerNodeInfo { value: self.value, left, right })
         } else {
             None
         }
@@ -157,6 +154,13 @@ pub struct ValuePath {
     pub value: RpoDigest,
     /// The path from `value` to `root` (exclusive).
     pub path: MerklePath,
+}
+
+impl ValuePath {
+    /// Returns a new [ValuePath] instantiated from the specified value and path.
+    pub fn new(value: RpoDigest, path: Vec<RpoDigest>) -> Self {
+        Self { value, path: MerklePath::new(path) }
+    }
 }
 
 /// A container for a [MerklePath] and its [Word] root.

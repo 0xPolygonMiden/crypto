@@ -19,6 +19,8 @@ jobs:
         args: [--no-default-features --target wasm32-unknown-unknown]
     steps:
       - uses: actions/checkout@main
+        with:
+          submodules: recursive
       - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
@@ -39,9 +41,11 @@ jobs:
       matrix:
         toolchain: [stable, nightly]
         os: [ubuntu]
-        features: [--all-features, --no-default-features]
+        features: ["--features default,std,serde", --no-default-features]
     steps:
       - uses: actions/checkout@main
+        with:
+          submodules: recursive
       - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
@@ -59,9 +63,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        features: [--all-features, --no-default-features]
+        features: ["--features default,std,serde", --no-default-features]
     steps:
       - uses: actions/checkout@main
+        with:
+          submodules: recursive
       - name: Install minimal nightly with clippy
         uses: actions-rs/toolchain@v1
         with:

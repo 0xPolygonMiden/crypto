@@ -10,6 +10,19 @@ use mds_freq::mds_multiply_freq;
 #[cfg(test)]
 mod tests;
 
+#[cfg(all(target_feature = "sve", feature = "sve"))]
+#[link(name = "rpo_sve", kind = "static")]
+extern "C" {
+    fn add_constants_and_apply_sbox(
+        state: *mut std::ffi::c_ulong,
+        constants: *const std::ffi::c_ulong,
+    ) -> bool;
+    fn add_constants_and_apply_inv_sbox(
+        state: *mut std::ffi::c_ulong,
+        constants: *const std::ffi::c_ulong,
+    ) -> bool;
+}
+
 // CONSTANTS
 // ================================================================================================
 
@@ -345,17 +358,64 @@ impl Rpo256 {
     pub fn apply_round(state: &mut [Felt; STATE_WIDTH], round: usize) {
         // apply first half of RPO round
         Self::apply_mds(state);
-        Self::add_constants(state, &ARK1[round]);
-        Self::apply_sbox(state);
+        if !Self::optimized_add_constants_and_apply_sbox(state, &ARK1[round]) {
+            Self::add_constants(state, &ARK1[round]);
+            Self::apply_sbox(state);
+        }
 
         // apply second half of RPO round
         Self::apply_mds(state);
-        Self::add_constants(state, &ARK2[round]);
-        Self::apply_inv_sbox(state);
+        if !Self::optimized_add_constants_and_apply_inv_sbox(state, &ARK2[round]) {
+            Self::add_constants(state, &ARK2[round]);
+            Self::apply_inv_sbox(state);
+        }
     }
 
     // HELPER FUNCTIONS
     // --------------------------------------------------------------------------------------------
+
+    #[inline(always)]
+    #[cfg(all(target_feature = "sve", feature = "sve"))]
+    fn optimized_add_constants_and_apply_sbox(
+        state: &mut [Felt; STATE_WIDTH],
+        ark: &[Felt; STATE_WIDTH],
+    ) -> bool {
+        unsafe {
+            add_constants_and_apply_sbox(state.as_mut_ptr() as *mut u64, ark.as_ptr() as *const u64)
+        }
+    }
+
+    #[inline(always)]
+    #[cfg(not(all(target_feature = "sve", feature = "sve")))]
+    fn optimized_add_constants_and_apply_sbox(
+        _state: &mut [Felt; STATE_WIDTH],
+        _ark: &[Felt; STATE_WIDTH],
+    ) -> bool {
+        false
+    }
+
+    #[inline(always)]
+    #[cfg(all(target_feature = "sve", feature = "sve"))]
+    fn optimized_add_constants_and_apply_inv_sbox(
+        state: &mut [Felt; STATE_WIDTH],
+        ark: &[Felt; STATE_WIDTH],
+    ) -> bool {
+        unsafe {
+            add_constants_and_apply_inv_sbox(
+                state.as_mut_ptr() as *mut u64,
+                ark.as_ptr() as *const u64,
+            )
+        }
+    }
+
+    #[inline(always)]
+    #[cfg(not(all(target_feature = "sve", feature = "sve")))]
+    fn optimized_add_constants_and_apply_inv_sbox(
+        _state: &mut [Felt; STATE_WIDTH],
+        _ark: &[Felt; STATE_WIDTH],
+    ) -> bool {
+        false
+    }
 
     #[inline(always)]
     fn apply_mds(state: &mut [Felt; STATE_WIDTH]) {

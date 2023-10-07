@@ -16,5 +16,6 @@ newline_style = "Unix"
 #normalize_doc_attributes = true
 #reorder_impl_items = true
 single_line_if_else_max_width = 60
+struct_lit_width = 40
 use_field_init_shorthand = true
 use_try_shorthand = true
