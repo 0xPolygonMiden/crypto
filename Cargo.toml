@@ -55,4 +55,4 @@ rand_utils = { version = "0.6", package = "winter-rand-utils" }
 
 [build-dependencies]
 cc = { version = "1.0", features = ["parallel"], optional = true }
-glob = "*"
+glob = "0.3"
