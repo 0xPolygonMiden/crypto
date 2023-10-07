@@ -1,4 +1,4 @@
-## 0.7.0 (TBD)
+## 0.7.0 (2023-10-05)
 
 * Replaced `MerklePathSet` with `PartialMerkleTree` (#165).
 * Implemented clearing of nodes in `TieredSmt` (#173).
