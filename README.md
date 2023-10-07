@@ -12,9 +12,9 @@ For performance benchmarks of these hash functions and their comparison to other
 ## Merkle
 [Merkle module](./src/merkle/) provides a set of data structures related to Merkle trees. All these data structures are implemented using the RPO hash function described above. The data structures are:
 
-* `Mmr`: a Merkle mountain range structure designed to function as an append-only log.
-* `MerkleTree`: a regular fully-balanced binary Merkle tree. The depth of this tree can be at most 64.
 * `MerkleStore`: a collection of Merkle trees of different heights designed to efficiently store trees with common subtrees. When instantiated with `RecordingMap`, a Merkle store records all accesses to the original data.
+* `MerkleTree`: a regular fully-balanced binary Merkle tree. The depth of this tree can be at most 64.
+* `Mmr`: a Merkle mountain range structure designed to function as an append-only log.
 * `PartialMerkleTree`: a partial view of a Merkle tree where some sub-trees may not be known. This is similar to a collection of Merkle paths all resolving to the same root. The length of the paths can be at most 64.
 * `SimpleSmt`: a Sparse Merkle Tree (with no compaction), mapping 64-bit keys to 4-element values.
 * `TieredSmt`: a Sparse Merkle tree (with compaction), mapping 4-element keys to 4-element values.
@@ -22,7 +22,7 @@ For performance benchmarks of these hash functions and their comparison to other
 The module also contains additional supporting components such as `NodeIndex`, `MerklePath`,  and `MerkleError`  to assist with tree indexation, opening proofs, and reporting inconsistent arguments/state.
 
 ## Signatures
-[DAS module](./src/dsa) provides a set of digital signature schemes supported by default in Miden VM. Currently, these schemes are:
+[DAS module](./src/dsa) provides a set of digital signature schemes supported by default in the Miden VM. Currently, these schemes are:
 
 * `RPO Falcon512`: a variant of the [Falcon](https://falcon-sign.info/) signature scheme. This variant differs from the standard in that instead of using SHAKE256 hash function in the *hash-to-point* algorithm we use RPO256. This makes the signature more efficient to verify in Miden VM.
 

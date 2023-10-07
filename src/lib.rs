@@ -7,12 +7,12 @@ extern crate alloc;
 pub mod dsa;
 pub mod hash;
 pub mod merkle;
+pub mod rand;
 pub mod utils;
 
 // RE-EXPORTS
 // ================================================================================================
 
-pub use winter_crypto::{RandomCoin, RandomCoinError};
 pub use winter_math::{fields::f64::BaseElement as Felt, FieldElement, StarkField};
 
 // TYPE ALIASES

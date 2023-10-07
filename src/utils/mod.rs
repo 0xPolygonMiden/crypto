@@ -1,3 +1,5 @@
+//! Utilities used in this crate which can also be generally useful downstream.
+
 use super::{utils::string::String, Word};
 use core::fmt::{self, Display, Write};
 
@@ -49,9 +51,10 @@ pub fn bytes_to_hex_string<const N: usize>(data: [u8; N]) -> String {
     s
 }
 
+/// Defines errors which can occur during parsing of hexadecimal strings.
 #[derive(Debug)]
 pub enum HexParseError {
-    InvalidLength { expected: usize, got: usize },
+    InvalidLength { expected: usize, actual: usize },
     MissingPrefix,
     InvalidChar,
     OutOfRange,
@@ -60,8 +63,8 @@ pub enum HexParseError {
 impl Display for HexParseError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            HexParseError::InvalidLength { expected, got } => {
-                write!(f, "Hex encoded RpoDigest must have length 66, including the 0x prefix. expected {expected} got {got}")
+            HexParseError::InvalidLength { expected, actual } => {
+                write!(f, "Hex encoded RpoDigest must have length 66, including the 0x prefix. expected {expected} got {actual}")
             }
             HexParseError::MissingPrefix => {
                 write!(f, "Hex encoded RpoDigest must start with 0x prefix")
@@ -83,7 +86,7 @@ impl std::error::Error for HexParseError {}
 pub fn hex_to_bytes<const N: usize>(value: &str) -> Result<[u8; N], HexParseError> {
     let expected: usize = (N * 2) + 2;
     if value.len() != expected {
-        return Err(HexParseError::InvalidLength { expected, got: value.len() });
+        return Err(HexParseError::InvalidLength { expected, actual: value.len() });
     }
 
     if !value.starts_with("0x") {

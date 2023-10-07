@@ -1,3 +1,5 @@
+//! Data structures related to Merkle trees based on RPO256 hash function.
+
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, TryApplyDiff, Vec},
