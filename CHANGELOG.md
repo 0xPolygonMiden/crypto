@@ -1,3 +1,7 @@
+## 0.7.1 (2023-10-10)
+
+* Fixed RPO Falcon signature build on Windows.
+
 ## 0.7.0 (2023-10-05)
 
 * Replaced `MerklePathSet` with `PartialMerkleTree` (#165).

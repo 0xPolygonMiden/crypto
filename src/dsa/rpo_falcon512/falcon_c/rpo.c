@@ -79,8 +79,8 @@ static uint64_t mult_mod_p(uint64_t x, uint64_t y)
  * RPO128 Permutation
  */
 
-static const uint64_t STATE_WIDTH = 12;
-static const uint64_t NUM_ROUNDS = 7;
+#define STATE_WIDTH  12
+#define NUM_ROUNDS  7
 
 /*
  * MDS matrix
