@@ -8,6 +8,7 @@
 * Implemented benchmarking for `TieredSmt` (#182).
 * Added more leaf traversal methods for `MerkleStore` (#185).
 * Added SVE acceleration for RPO hash function (#189).
+* Implemented the `PartialMmr` datastructure (#195).
 
 ## 0.6.0 (2023-06-25)
 

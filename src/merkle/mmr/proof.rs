@@ -1,6 +1,6 @@
 /// The representation of a single Merkle path.
 use super::super::MerklePath;
-use super::full::{high_bitmask, leaf_to_corresponding_tree};
+use super::{full::high_bitmask, leaf_to_corresponding_tree};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

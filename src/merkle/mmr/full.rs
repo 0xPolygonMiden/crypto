@@ -13,12 +13,8 @@
 use super::{
     super::{InnerNodeInfo, MerklePath, RpoDigest, Vec},
     bit::TrueBitPositionIterator,
-    MmrPeaks, MmrProof, Rpo256,
+    leaf_to_corresponding_tree, nodes_in_forest, MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256,
 };
-use core::fmt::{Display, Formatter};
-
-#[cfg(feature = "std")]
-use std::error::Error;
 
 // MMR
 // ===============================================================================================
@@ -42,22 +38,6 @@ pub struct Mmr {
     /// no need to copy elements.
     pub(super) nodes: Vec<RpoDigest>,
 }
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum MmrError {
-    InvalidPosition(usize),
-}
-
-impl Display for MmrError {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
-        match self {
-            MmrError::InvalidPosition(pos) => write!(fmt, "Mmr does not contain position {pos}"),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl Error for MmrError {}
 
 impl Default for Mmr {
     fn default() -> Self {
@@ -100,21 +80,16 @@ impl Mmr {
         // find the target tree responsible for the MMR position
         let tree_bit =
             leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::InvalidPosition(pos))?;
-        let forest_target = 1usize << tree_bit;
 
         // isolate the trees before the target
         let forest_before = self.forest & high_bitmask(tree_bit + 1);
         let index_offset = nodes_in_forest(forest_before);
 
-        // find the root
-        let index = nodes_in_forest(forest_target) - 1;
-
         // update the value position from global to the target tree
         let relative_pos = pos - forest_before;
 
         // collect the path and the final index of the target value
-        let (_, path) =
-            self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset, index);
+        let (_, path) = self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset);
 
         Ok(MmrProof {
             forest: self.forest,
@@ -132,21 +107,16 @@ impl Mmr {
         // find the target tree responsible for the MMR position
         let tree_bit =
             leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::InvalidPosition(pos))?;
-        let forest_target = 1usize << tree_bit;
 
         // isolate the trees before the target
         let forest_before = self.forest & high_bitmask(tree_bit + 1);
         let index_offset = nodes_in_forest(forest_before);
 
-        // find the root
-        let index = nodes_in_forest(forest_target) - 1;
-
         // update the value position from global to the target tree
         let relative_pos = pos - forest_before;
 
         // collect the path and the final index of the target value
-        let (value, _) =
-            self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset, index);
+        let (value, _) = self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset);
 
         Ok(value)
     }
@@ -185,7 +155,82 @@ impl Mmr {
             .map(|offset| self.nodes[offset - 1])
             .collect();
 
-        MmrPeaks { num_leaves: self.forest, peaks }
+        // Safety: the invariant is maintained by the [Mmr]
+        MmrPeaks::new(self.forest, peaks).unwrap()
+    }
+
+    /// Compute the required update to `original_forest`.
+    ///
+    /// The result is a packed sequence of the authentication elements required to update the trees
+    /// that have been merged together, followed by the new peaks of the [Mmr].
+    pub fn get_delta(&self, original_forest: usize) -> Result<MmrDelta, MmrError> {
+        if original_forest > self.forest {
+            return Err(MmrError::InvalidPeaks);
+        }
+
+        if original_forest == self.forest {
+            return Ok(MmrDelta { forest: self.forest, data: Vec::new() });
+        }
+
+        let mut result = Vec::new();
+
+        // Find the largest tree in this [Mmr] which is new to `original_forest`.
+        let candidate_trees = self.forest ^ original_forest;
+        let mut new_high = 1 << candidate_trees.ilog2();
+
+        // Collect authentication nodes used for tree merges
+        // ----------------------------------------------------------------------------------------
+
+        // Find the trees from `original_forest` that have been merged into `new_high`.
+        let mut merges = original_forest & (new_high - 1);
+
+        // Find the peaks that are common to `original_forest` and this [Mmr]
+        let common_trees = original_forest ^ merges;
+
+        if merges != 0 {
+            // Skip the smallest trees unknown to `original_forest`.
+            let mut target = 1 << merges.trailing_zeros();
+
+            // Collect siblings required to computed the merged tree's peak
+            while target < new_high {
+                // Computes the offset to the smallest know peak
+                // - common_trees: peaks unchanged in the current update, target comes after these.
+                // - merges: peaks that have not been merged so far, target comes after these.
+                // - target: tree from which to load the sibling. On the first iteration this is a
+                //   value known by the partial mmr, on subsequent iterations this value is to be
+                //   computed from the known peaks and provided authentication nodes.
+                let known = nodes_in_forest(common_trees | merges | target);
+                let sibling = nodes_in_forest(target);
+                result.push(self.nodes[known + sibling - 1]);
+
+                // Update the target and account for tree merges
+                target <<= 1;
+                while merges & target != 0 {
+                    target <<= 1;
+                }
+                // Remove the merges done so far
+                merges ^= merges & (target - 1);
+            }
+        } else {
+            // The new high tree may not be the result of any merges, if it is smaller than all the
+            // trees of `original_forest`.
+            new_high = 0;
+        }
+
+        // Collect the new [Mmr] peaks
+        // ----------------------------------------------------------------------------------------
+
+        let mut new_peaks = self.forest ^ common_trees ^ new_high;
+        let old_peaks = self.forest ^ new_peaks;
+        let mut offset = nodes_in_forest(old_peaks);
+        while new_peaks != 0 {
+            let target = 1 << new_peaks.ilog2();
+            offset += nodes_in_forest(target);
+            result.push(self.nodes[offset - 1]);
+            new_peaks ^= target;
+        }
+
+        Ok(MmrDelta { forest: self.forest, data: result })
     }
 
     /// An iterator over inner nodes in the MMR. The order of iteration is unspecified.
@@ -202,35 +247,51 @@ impl Mmr {
     // ============================================================================================
 
     /// Internal function used to collect the Merkle path of a value.
+    ///
+    /// The arguments are relative to the target tree. To compute the opening of the second leaf
+    /// for a tree with depth 2 in the forest `0b110`:
+    ///
+    /// - `tree_bit`: Depth of the target tree, e.g. 2 for the smallest tree.
+    /// - `relative_pos`: 0-indexed leaf position in the target tree, e.g. 1 for the second leaf.
+    /// - `index_offset`: Node count prior to the target tree, e.g. 7 for the tree of depth 3.
     fn collect_merkle_path_and_value(
         &self,
         tree_bit: u32,
         relative_pos: usize,
         index_offset: usize,
-        mut index: usize,
     ) -> (RpoDigest, Vec<RpoDigest>) {
-        // collect the Merkle path
-        let mut tree_depth = tree_bit as usize;
-        let mut path = Vec::with_capacity(tree_depth + 1);
-        while tree_depth > 0 {
-            let bit = relative_pos & tree_depth;
-            let right_offset = index - 1;
-            let left_offset = right_offset - nodes_in_forest(tree_depth);
+        // see documentation of `leaf_to_corresponding_tree` for details
+        let tree_depth = (tree_bit + 1) as usize;
+        let mut path = Vec::with_capacity(tree_depth);
 
-            // Elements to the right have a higher position because they were
-            // added later. Therefore when the bit is true the node's path is
-            // to the right, and its sibling to the left.
-            let sibling = if bit != 0 {
+        // The tree walk below goes from the root to the leaf, compute the root index to start
+        let mut forest_target = 1usize << tree_bit;
+        let mut index = nodes_in_forest(forest_target) - 1;
+
+        // Loop until the leaf is reached
+        while forest_target > 1 {
+            // Update the depth of the tree to correspond to a subtree
+            forest_target >>= 1;
+
+            // compute the indeces of the right and left subtrees based on the post-order
+            let right_offset = index - 1;
+            let left_offset = right_offset - nodes_in_forest(forest_target);
+
+            let left_or_right = relative_pos & forest_target;
+            let sibling = if left_or_right != 0 {
+                // going down the right subtree, the right child becomes the new root
                 index = right_offset;
+                // and the left child is the authentication
                 self.nodes[index_offset + left_offset]
             } else {
                 index = left_offset;
                 self.nodes[index_offset + right_offset]
             };
 
-            tree_depth >>= 1;
             path.push(sibling);
         }
+
+        debug_assert!(path.len() == tree_depth - 1);
 
         // the rest of the codebase has the elements going from leaf to root, adjust it here for
         // easy of use/consistency sake
@@ -240,6 +301,9 @@ impl Mmr {
         (value, path)
     }
 }
+
+// CONVERSIONS
+// ================================================================================================
 
 impl<T> From<T> for Mmr
 where
@@ -335,32 +399,6 @@ impl<'a> Iterator for MmrNodes<'a> {
 // UTILITIES
 // ===============================================================================================
 
-/// Given a 0-indexed leaf position and the current forest, return the tree number responsible for
-/// the position.
-///
-/// Note:
-/// The result is a tree position `p`, it has the following interpretations. $p+1$ is the depth of
-/// the tree, which corresponds to the size of a Merkle proof for that tree. $2^p$ is equal to the
-/// number of leaves in this particular tree. and $2^(p+1)-1$ corresponds to size of the tree.
-pub(crate) const fn leaf_to_corresponding_tree(pos: usize, forest: usize) -> Option<u32> {
-    if pos >= forest {
-        None
-    } else {
-        // - each bit in the forest is a unique tree and the bit position its power-of-two size
-        // - each tree owns a consecutive range of positions equal to its size from left-to-right
-        // - this means the first tree owns from `0` up to the `2^k_0` first positions, where `k_0`
-        // is the highest true bit position, the second tree from `2^k_0 + 1` up to `2^k_1` where
-        // `k_1` is the second higest bit, so on.
-        // - this means the highest bits work as a category marker, and the position is owned by
-        // the first tree which doesn't share a high bit with the position
-        let before = forest & pos;
-        let after = forest ^ before;
-        let tree = after.ilog2();
-
-        Some(tree)
-    }
-}
-
 /// Return a bitmask for the bits including and above the given position.
 pub(crate) const fn high_bitmask(bit: u32) -> usize {
     if bit > usize::BITS - 1 {
@@ -368,18 +406,4 @@ pub(crate) const fn high_bitmask(bit: u32) -> usize {
     } else {
         usize::MAX << bit
     }
-}
-
-/// Return the total number of nodes of a given forest
-///
-/// Panics:
-///
-/// This will panic if the forest has size greater than `usize::MAX / 2`
-pub(crate) const fn nodes_in_forest(forest: usize) -> usize {
-    // - the size of a perfect binary tree is $2^{k+1}-1$ or $2*2^k-1$
-    // - the forest represents the sum of $2^k$ so a single multiplication is necessary
-    // - the number of `-1` is the same as the number of trees, which is the same as the number
-    // bits set
-    let tree_count = forest.count_ones() as usize;
-    forest * 2 - tree_count
 }

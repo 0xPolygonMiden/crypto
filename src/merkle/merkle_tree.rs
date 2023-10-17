@@ -20,7 +20,11 @@ impl MerkleTree {
     ///
     /// # Errors
     /// Returns an error if the number of leaves is smaller than two or is not a power of two.
-    pub fn new(leaves: Vec<Word>) -> Result<Self, MerkleError> {
+    pub fn new<T>(leaves: T) -> Result<Self, MerkleError>
+    where
+        T: AsRef<[Word]>,
+    {
+        let leaves = leaves.as_ref();
         let n = leaves.len();
         if n <= 1 {
             return Err(MerkleError::DepthTooSmall(n as u8));
@@ -34,7 +38,7 @@ impl MerkleTree {
 
         // copy leaves into the second part of the nodes vector
         nodes[n..].iter_mut().zip(leaves).for_each(|(node, leaf)| {
-            *node = RpoDigest::from(leaf);
+            *node = RpoDigest::from(*leaf);
         });
 
         // re-interpret nodes as an array of two nodes fused together
@@ -172,6 +176,26 @@ impl MerkleTree {
         }
 
         Ok(())
+    }
+}
+
+// CONVERSIONS
+// ================================================================================================
+
+impl TryFrom<&[Word]> for MerkleTree {
+    type Error = MerkleError;
+
+    fn try_from(value: &[Word]) -> Result<Self, Self::Error> {
+        MerkleTree::new(value)
+    }
+}
+
+impl TryFrom<&[RpoDigest]> for MerkleTree {
+    type Error = MerkleError;
+
+    fn try_from(value: &[RpoDigest]) -> Result<Self, Self::Error> {
+        let value: Vec<Word> = value.iter().map(|v| *v.deref()).collect();
+        MerkleTree::new(value)
     }
 }
 
