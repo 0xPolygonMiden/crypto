@@ -16,6 +16,7 @@ For performance benchmarks of these hash functions and their comparison to other
 * `MerkleTree`: a regular fully-balanced binary Merkle tree. The depth of this tree can be at most 64.
 * `Mmr`: a Merkle mountain range structure designed to function as an append-only log.
 * `PartialMerkleTree`: a partial view of a Merkle tree where some sub-trees may not be known. This is similar to a collection of Merkle paths all resolving to the same root. The length of the paths can be at most 64.
+* `PartialMmr`: a partial view of a Merkle mountain range structure.
 * `SimpleSmt`: a Sparse Merkle Tree (with no compaction), mapping 64-bit keys to 4-element values.
 * `TieredSmt`: a Sparse Merkle tree (with compaction), mapping 4-element keys to 4-element values.
 
