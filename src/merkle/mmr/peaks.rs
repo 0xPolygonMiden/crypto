@@ -1,6 +1,6 @@
 use super::{
     super::{RpoDigest, Vec, ZERO},
-    Felt, MmrProof, Rpo256, Word,
+    Felt, MmrError, MmrProof, Rpo256, Word,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -9,9 +9,9 @@ pub struct MmrPeaks {
     /// The number of leaves is used to differentiate accumulators that have the same number of
     /// peaks. This happens because the number of peaks goes up-and-down as the structure is used
     /// causing existing trees to be merged and new ones to be created. As an example, every time
-    /// the MMR has a power-of-two number of leaves there is a single peak.
+    /// the [Mmr] has a power-of-two number of leaves there is a single peak.
     ///
-    /// Every tree in the MMR forest has a distinct power-of-two size, this means only the right
+    /// Every tree in the [Mmr] forest has a distinct power-of-two size, this means only the right
     /// most tree can have an odd number of elements (e.g. `1`). Additionally this means that the bits in
     /// `num_leaves` conveniently encode the size of each individual tree.
     ///
@@ -23,16 +23,37 @@ pub struct MmrPeaks {
     ///      elements and the left most has `2**2`.
     ///    - With 12 leaves, the binary is `0b1100`, this case also has 2 peaks, the
     ///      leftmost tree has `2**3=8` elements, and the right most has `2**2=4` elements.
-    pub num_leaves: usize,
+    num_leaves: usize,
 
-    /// All the peaks of every tree in the MMR forest. The peaks are always ordered by number of
+    /// All the peaks of every tree in the [Mmr] forest. The peaks are always ordered by number of
     /// leaves, starting from the peak with most children, to the one with least.
     ///
     /// Invariant: The length of `peaks` must be equal to the number of true bits in `num_leaves`.
-    pub peaks: Vec<RpoDigest>,
+    peaks: Vec<RpoDigest>,
 }
 
 impl MmrPeaks {
+    pub fn new(num_leaves: usize, peaks: Vec<RpoDigest>) -> Result<Self, MmrError> {
+        if num_leaves.count_ones() as usize != peaks.len() {
+            return Err(MmrError::InvalidPeaks);
+        }
+
+        Ok(Self { num_leaves, peaks })
+    }
+
+    // ACCESSORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns a count of the [Mmr]'s leaves.
+    pub fn num_leaves(&self) -> usize {
+        self.num_leaves
+    }
+
+    /// Returns the current peaks of the [Mmr].
+    pub fn peaks(&self) -> &[RpoDigest] {
+        &self.peaks
+    }
+
     /// Hashes the peaks.
     ///
     /// The procedure will:

@@ -28,6 +28,11 @@ impl MerklePath {
         self.nodes.len() as u8
     }
 
+    /// Returns a reference to the [MerklePath]'s nodes.
+    pub fn nodes(&self) -> &[RpoDigest] {
+        &self.nodes
+    }
+
     /// Computes the merkle root for this opening.
     pub fn compute_root(&self, index: u64, node: RpoDigest) -> Result<RpoDigest, MerkleError> {
         let mut index = NodeIndex::new(self.depth(), index)?;
@@ -69,6 +74,9 @@ impl MerklePath {
     }
 }
 
+// CONVERSIONS
+// ================================================================================================
+
 impl From<MerklePath> for Vec<RpoDigest> {
     fn from(path: MerklePath) -> Self {
         path.nodes
@@ -78,6 +86,12 @@ impl From<MerklePath> for Vec<RpoDigest> {
 impl From<Vec<RpoDigest>> for MerklePath {
     fn from(path: Vec<RpoDigest>) -> Self {
         Self::new(path)
+    }
+}
+
+impl From<&[RpoDigest]> for MerklePath {
+    fn from(path: &[RpoDigest]) -> Self {
+        Self::new(path.to_vec())
     }
 }
 

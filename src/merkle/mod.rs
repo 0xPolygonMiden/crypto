@@ -31,7 +31,7 @@ mod tiered_smt;
 pub use tiered_smt::{TieredSmt, TieredSmtProof, TieredSmtProofError};
 
 mod mmr;
-pub use mmr::{Mmr, MmrPeaks, MmrProof};
+pub use mmr::{InOrderIndex, Mmr, MmrError, MmrPeaks, MmrProof, PartialMmr};
 
 mod store;
 pub use store::{DefaultMerkleStore, MerkleStore, RecordingMerkleStore, StoreNode};
