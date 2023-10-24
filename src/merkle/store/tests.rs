@@ -1,9 +1,8 @@
 use super::{
     DefaultMerkleStore as MerkleStore, EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex,
-    PartialMerkleTree, RecordingMerkleStore, RpoDigest,
+    PartialMerkleTree, RecordingMerkleStore, Rpo256, RpoDigest,
 };
 use crate::{
-    hash::rpo::Rpo256,
     merkle::{digests_to_words, int_to_leaf, int_to_node, MerkleTree, SimpleSmt},
     Felt, Word, ONE, WORD_SIZE, ZERO,
 };

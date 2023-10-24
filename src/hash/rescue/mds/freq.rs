@@ -11,7 +11,8 @@
 /// divisions by 2 and repeated modular reductions. This is because of our explicit choice of
 /// an MDS matrix that has small powers of 2 entries in frequency domain.
 /// The following implementation has benefited greatly from the discussions and insights of
-/// Hamish Ivey-Law and Jacqueline Nabaglo of Polygon Zero.
+/// Hamish Ivey-Law and Jacqueline Nabaglo of Polygon Zero and is base on Nabaglo's Plonky2
+/// implementation.
 
 // Rescue MDS matrix in frequency domain.
 // More precisely, this is the output of the three 4-point (real) FFTs of the first column of
@@ -26,7 +27,7 @@ const MDS_FREQ_BLOCK_THREE: [i64; 3] = [-8, 1, 1];
 
 // We use split 3 x 4 FFT transform in order to transform our vectors into the frequency domain.
 #[inline(always)]
-pub(crate) const fn mds_multiply_freq(state: [u64; 12]) -> [u64; 12] {
+pub const fn mds_multiply_freq(state: [u64; 12]) -> [u64; 12] {
     let [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11] = state;
 
     let (u0, u1, u2) = fft4_real([s0, s3, s6, s9]);
@@ -156,7 +157,7 @@ const fn block3(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{Felt, Rpo256, MDS, ZERO};
+    use super::super::{apply_mds, Felt, MDS, ZERO};
     use proptest::prelude::*;
 
     const STATE_WIDTH: usize = 12;
@@ -185,7 +186,7 @@ mod tests {
             v2 = v1;
 
             apply_mds_naive(&mut v1);
-            Rpo256::apply_mds(&mut v2);
+            apply_mds(&mut v2);
 
             prop_assert_eq!(v1, v2);
         }

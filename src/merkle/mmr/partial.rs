@@ -1,13 +1,11 @@
+use super::{MmrDelta, MmrProof, Rpo256, RpoDigest};
 use crate::{
-    hash::rpo::{Rpo256, RpoDigest},
     merkle::{
         mmr::{leaf_to_corresponding_tree, nodes_in_forest},
         InOrderIndex, MerklePath, MmrError, MmrPeaks,
     },
     utils::collections::{BTreeMap, Vec},
 };
-
-use super::{MmrDelta, MmrProof};
 
 /// Partially materialized [Mmr], used to efficiently store and update the authentication paths for
 /// a subset of the elements in a full [Mmr].

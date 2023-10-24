@@ -13,7 +13,10 @@ pub mod utils;
 // RE-EXPORTS
 // ================================================================================================
 
-pub use winter_math::{fields::f64::BaseElement as Felt, FieldElement, StarkField};
+pub use winter_math::{
+    fields::{f64::BaseElement as Felt, CubeExtension, QuadExtension},
+    FieldElement, StarkField,
+};
 
 // TYPE ALIASES
 // ================================================================================================
