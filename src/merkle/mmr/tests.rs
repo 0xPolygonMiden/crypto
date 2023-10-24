@@ -1,11 +1,10 @@
 use super::{
-    super::{InnerNodeInfo, Vec},
+    super::{InnerNodeInfo, Rpo256, RpoDigest, Vec},
     bit::TrueBitPositionIterator,
     full::high_bitmask,
-    leaf_to_corresponding_tree, nodes_in_forest, Mmr, MmrPeaks, PartialMmr, Rpo256,
+    leaf_to_corresponding_tree, nodes_in_forest, Mmr, MmrPeaks, PartialMmr,
 };
 use crate::{
-    hash::rpo::RpoDigest,
     merkle::{int_to_node, InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex},
     Felt, Word,
 };
