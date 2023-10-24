@@ -9,11 +9,12 @@
 //! least number of leaves. The structure preserves the invariant that each tree has different
 //! depths, i.e. as part of adding adding a new element to the forest the trees with same depth are
 //! merged, creating a new tree with depth d+1, this process is continued until the property is
-//! restabilished.
+//! reestablished.
 use super::{
-    super::{InnerNodeInfo, MerklePath, RpoDigest, Vec},
+    super::{InnerNodeInfo, MerklePath, Vec},
     bit::TrueBitPositionIterator,
     leaf_to_corresponding_tree, nodes_in_forest, MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256,
+    RpoDigest,
 };
 
 // MMR

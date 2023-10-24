@@ -15,9 +15,9 @@ pub const DIGEST_BYTES: usize = 32;
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(into = "String", try_from = "&str"))]
-pub struct RpoDigest([Felt; DIGEST_SIZE]);
+pub struct RpxDigest([Felt; DIGEST_SIZE]);
 
-impl RpoDigest {
+impl RpxDigest {
     pub const fn new(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
     }
@@ -38,7 +38,7 @@ impl RpoDigest {
     }
 }
 
-impl Digest for RpoDigest {
+impl Digest for RpxDigest {
     fn as_bytes(&self) -> [u8; DIGEST_BYTES] {
         let mut result = [0; DIGEST_BYTES];
 
@@ -51,7 +51,7 @@ impl Digest for RpoDigest {
     }
 }
 
-impl Deref for RpoDigest {
+impl Deref for RpxDigest {
     type Target = [Felt; DIGEST_SIZE];
 
     fn deref(&self) -> &Self::Target {
@@ -59,7 +59,7 @@ impl Deref for RpoDigest {
     }
 }
 
-impl Ord for RpoDigest {
+impl Ord for RpxDigest {
     fn cmp(&self, other: &Self) -> Ordering {
         // compare the inner u64 of both elements.
         //
@@ -82,13 +82,13 @@ impl Ord for RpoDigest {
     }
 }
 
-impl PartialOrd for RpoDigest {
+impl PartialOrd for RpxDigest {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Display for RpoDigest {
+impl Display for RpxDigest {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let encoded: String = self.into();
         write!(f, "{}", encoded)?;
@@ -96,7 +96,7 @@ impl Display for RpoDigest {
     }
 }
 
-impl Randomizable for RpoDigest {
+impl Randomizable for RpxDigest {
     const VALUE_SIZE: usize = DIGEST_BYTES;
 
     fn from_random_bytes(bytes: &[u8]) -> Option<Self> {
@@ -109,23 +109,23 @@ impl Randomizable for RpoDigest {
     }
 }
 
-// CONVERSIONS: FROM RPO DIGEST
+// CONVERSIONS: FROM RPX DIGEST
 // ================================================================================================
 
-impl From<&RpoDigest> for [Felt; DIGEST_SIZE] {
-    fn from(value: &RpoDigest) -> Self {
+impl From<&RpxDigest> for [Felt; DIGEST_SIZE] {
+    fn from(value: &RpxDigest) -> Self {
         value.0
     }
 }
 
-impl From<RpoDigest> for [Felt; DIGEST_SIZE] {
-    fn from(value: RpoDigest) -> Self {
+impl From<RpxDigest> for [Felt; DIGEST_SIZE] {
+    fn from(value: RpxDigest) -> Self {
         value.0
     }
 }
 
-impl From<&RpoDigest> for [u64; DIGEST_SIZE] {
-    fn from(value: &RpoDigest) -> Self {
+impl From<&RpxDigest> for [u64; DIGEST_SIZE] {
+    fn from(value: &RpxDigest) -> Self {
         [
             value.0[0].as_int(),
             value.0[1].as_int(),
@@ -135,8 +135,8 @@ impl From<&RpoDigest> for [u64; DIGEST_SIZE] {
     }
 }
 
-impl From<RpoDigest> for [u64; DIGEST_SIZE] {
-    fn from(value: RpoDigest) -> Self {
+impl From<RpxDigest> for [u64; DIGEST_SIZE] {
+    fn from(value: RpxDigest) -> Self {
         [
             value.0[0].as_int(),
             value.0[1].as_int(),
@@ -146,54 +146,42 @@ impl From<RpoDigest> for [u64; DIGEST_SIZE] {
     }
 }
 
-impl From<&RpoDigest> for [u8; DIGEST_BYTES] {
-    fn from(value: &RpoDigest) -> Self {
+impl From<&RpxDigest> for [u8; DIGEST_BYTES] {
+    fn from(value: &RpxDigest) -> Self {
         value.as_bytes()
     }
 }
 
-impl From<RpoDigest> for [u8; DIGEST_BYTES] {
-    fn from(value: RpoDigest) -> Self {
+impl From<RpxDigest> for [u8; DIGEST_BYTES] {
+    fn from(value: RpxDigest) -> Self {
         value.as_bytes()
     }
 }
 
-impl From<RpoDigest> for String {
+impl From<RpxDigest> for String {
     /// The returned string starts with `0x`.
-    fn from(value: RpoDigest) -> Self {
+    fn from(value: RpxDigest) -> Self {
         bytes_to_hex_string(value.as_bytes())
     }
 }
 
-impl From<&RpoDigest> for String {
+impl From<&RpxDigest> for String {
     /// The returned string starts with `0x`.
-    fn from(value: &RpoDigest) -> Self {
+    fn from(value: &RpxDigest) -> Self {
         (*value).into()
     }
 }
 
-// CONVERSIONS: TO DIGEST
+// CONVERSIONS: TO RPX DIGEST
 // ================================================================================================
 
-#[derive(Copy, Clone, Debug)]
-pub enum RpoDigestError {
-    /// The provided u64 integer does not fit in the field's moduli.
-    InvalidInteger,
-}
-
-impl From<&[Felt; DIGEST_SIZE]> for RpoDigest {
-    fn from(value: &[Felt; DIGEST_SIZE]) -> Self {
-        Self(*value)
-    }
-}
-
-impl From<[Felt; DIGEST_SIZE]> for RpoDigest {
+impl From<[Felt; DIGEST_SIZE]> for RpxDigest {
     fn from(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
     }
 }
 
-impl TryFrom<[u8; DIGEST_BYTES]> for RpoDigest {
+impl TryFrom<[u8; DIGEST_BYTES]> for RpxDigest {
     type Error = HexParseError;
 
     fn try_from(value: [u8; DIGEST_BYTES]) -> Result<Self, Self::Error> {
@@ -208,51 +196,11 @@ impl TryFrom<[u8; DIGEST_BYTES]> for RpoDigest {
             return Err(HexParseError::OutOfRange);
         }
 
-        Ok(RpoDigest([Felt::new(a), Felt::new(b), Felt::new(c), Felt::new(d)]))
+        Ok(RpxDigest([Felt::new(a), Felt::new(b), Felt::new(c), Felt::new(d)]))
     }
 }
 
-impl TryFrom<&[u8; DIGEST_BYTES]> for RpoDigest {
-    type Error = HexParseError;
-
-    fn try_from(value: &[u8; DIGEST_BYTES]) -> Result<Self, Self::Error> {
-        (*value).try_into()
-    }
-}
-
-impl TryFrom<&[u8]> for RpoDigest {
-    type Error = HexParseError;
-
-    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        (*value).try_into()
-    }
-}
-
-impl TryFrom<[u64; DIGEST_SIZE]> for RpoDigest {
-    type Error = RpoDigestError;
-
-    fn try_from(value: [u64; DIGEST_SIZE]) -> Result<Self, RpoDigestError> {
-        if value[0] >= Felt::MODULUS
-            || value[1] >= Felt::MODULUS
-            || value[2] >= Felt::MODULUS
-            || value[3] >= Felt::MODULUS
-        {
-            return Err(RpoDigestError::InvalidInteger);
-        }
-
-        Ok(Self([value[0].into(), value[1].into(), value[2].into(), value[3].into()]))
-    }
-}
-
-impl TryFrom<&[u64; DIGEST_SIZE]> for RpoDigest {
-    type Error = RpoDigestError;
-
-    fn try_from(value: &[u64; DIGEST_SIZE]) -> Result<Self, RpoDigestError> {
-        (*value).try_into()
-    }
-}
-
-impl TryFrom<&str> for RpoDigest {
+impl TryFrom<&str> for RpxDigest {
     type Error = HexParseError;
 
     /// Expects the string to start with `0x`.
@@ -261,7 +209,7 @@ impl TryFrom<&str> for RpoDigest {
     }
 }
 
-impl TryFrom<String> for RpoDigest {
+impl TryFrom<String> for RpxDigest {
     type Error = HexParseError;
 
     /// Expects the string to start with `0x`.
@@ -270,7 +218,7 @@ impl TryFrom<String> for RpoDigest {
     }
 }
 
-impl TryFrom<&String> for RpoDigest {
+impl TryFrom<&String> for RpxDigest {
     type Error = HexParseError;
 
     /// Expects the string to start with `0x`.
@@ -282,13 +230,13 @@ impl TryFrom<&String> for RpoDigest {
 // SERIALIZATION / DESERIALIZATION
 // ================================================================================================
 
-impl Serializable for RpoDigest {
+impl Serializable for RpxDigest {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_bytes(&self.as_bytes());
     }
 }
 
-impl Deserializable for RpoDigest {
+impl Deserializable for RpxDigest {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let mut inner: [Felt; DIGEST_SIZE] = [ZERO; DIGEST_SIZE];
         for inner in inner.iter_mut() {
@@ -310,9 +258,8 @@ impl Deserializable for RpoDigest {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializable, Felt, RpoDigest, Serializable, DIGEST_BYTES};
-    use crate::utils::string::String;
-    use crate::{hash::rpo::DIGEST_SIZE, utils::SliceReader};
+    use super::{Deserializable, Felt, RpxDigest, Serializable, DIGEST_BYTES};
+    use crate::utils::SliceReader;
     use rand_utils::rand_value;
 
     #[test]
@@ -322,21 +269,22 @@ mod tests {
         let e3 = Felt::new(rand_value());
         let e4 = Felt::new(rand_value());
 
-        let d1 = RpoDigest([e1, e2, e3, e4]);
+        let d1 = RpxDigest([e1, e2, e3, e4]);
 
         let mut bytes = vec![];
         d1.write_into(&mut bytes);
         assert_eq!(DIGEST_BYTES, bytes.len());
 
         let mut reader = SliceReader::new(&bytes);
-        let d2 = RpoDigest::read_from(&mut reader).unwrap();
+        let d2 = RpxDigest::read_from(&mut reader).unwrap();
 
         assert_eq!(d1, d2);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn digest_encoding() {
-        let digest = RpoDigest([
+        let digest = RpxDigest([
             Felt::new(rand_value()),
             Felt::new(rand_value()),
             Felt::new(rand_value()),
@@ -344,58 +292,8 @@ mod tests {
         ]);
 
         let string: String = digest.into();
-        let round_trip: RpoDigest = string.try_into().expect("decoding failed");
+        let round_trip: RpxDigest = string.try_into().expect("decoding failed");
 
         assert_eq!(digest, round_trip);
-    }
-
-    #[test]
-    fn test_conversions() {
-        let digest = RpoDigest([
-            Felt::new(rand_value()),
-            Felt::new(rand_value()),
-            Felt::new(rand_value()),
-            Felt::new(rand_value()),
-        ]);
-
-        let v: [Felt; DIGEST_SIZE] = digest.into();
-        let v2: RpoDigest = v.into();
-        assert_eq!(digest, v2);
-
-        let v: [Felt; DIGEST_SIZE] = (&digest).into();
-        let v2: RpoDigest = v.into();
-        assert_eq!(digest, v2);
-
-        let v: [u64; DIGEST_SIZE] = digest.into();
-        let v2: RpoDigest = v.try_into().unwrap();
-        assert_eq!(digest, v2);
-
-        let v: [u64; DIGEST_SIZE] = (&digest).into();
-        let v2: RpoDigest = v.try_into().unwrap();
-        assert_eq!(digest, v2);
-
-        let v: [u8; DIGEST_BYTES] = digest.into();
-        let v2: RpoDigest = v.try_into().unwrap();
-        assert_eq!(digest, v2);
-
-        let v: [u8; DIGEST_BYTES] = (&digest).into();
-        let v2: RpoDigest = v.try_into().unwrap();
-        assert_eq!(digest, v2);
-
-        let v: String = digest.into();
-        let v2: RpoDigest = v.try_into().unwrap();
-        assert_eq!(digest, v2);
-
-        let v: String = (&digest).into();
-        let v2: RpoDigest = v.try_into().unwrap();
-        assert_eq!(digest, v2);
-
-        let v: [u8; DIGEST_BYTES] = digest.into();
-        let v2: RpoDigest = (&v).try_into().unwrap();
-        assert_eq!(digest, v2);
-
-        let v: [u8; DIGEST_BYTES] = (&digest).into();
-        let v2: RpoDigest = (&v).try_into().unwrap();
-        assert_eq!(digest, v2);
     }
 }
