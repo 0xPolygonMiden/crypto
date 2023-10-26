@@ -175,6 +175,18 @@ impl From<&RpoDigest> for String {
 // CONVERSIONS: TO DIGEST
 // ================================================================================================
 
+#[derive(Copy, Clone, Debug)]
+pub enum RpoDigestError {
+    /// The provided u64 integer does not fit in the field's moduli.
+    InvalidInteger,
+}
+
+impl From<&[Felt; DIGEST_SIZE]> for RpoDigest {
+    fn from(value: &[Felt; DIGEST_SIZE]) -> Self {
+        Self(*value)
+    }
+}
+
 impl From<[Felt; DIGEST_SIZE]> for RpoDigest {
     fn from(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
@@ -197,6 +209,46 @@ impl TryFrom<[u8; DIGEST_BYTES]> for RpoDigest {
         }
 
         Ok(RpoDigest([Felt::new(a), Felt::new(b), Felt::new(c), Felt::new(d)]))
+    }
+}
+
+impl TryFrom<&[u8; DIGEST_BYTES]> for RpoDigest {
+    type Error = HexParseError;
+
+    fn try_from(value: &[u8; DIGEST_BYTES]) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<&[u8]> for RpoDigest {
+    type Error = HexParseError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<[u64; DIGEST_SIZE]> for RpoDigest {
+    type Error = RpoDigestError;
+
+    fn try_from(value: [u64; DIGEST_SIZE]) -> Result<Self, RpoDigestError> {
+        if value[0] >= Felt::MODULUS
+            || value[1] >= Felt::MODULUS
+            || value[2] >= Felt::MODULUS
+            || value[3] >= Felt::MODULUS
+        {
+            return Err(RpoDigestError::InvalidInteger);
+        }
+
+        Ok(Self([value[0].into(), value[1].into(), value[2].into(), value[3].into()]))
+    }
+}
+
+impl TryFrom<&[u64; DIGEST_SIZE]> for RpoDigest {
+    type Error = RpoDigestError;
+
+    fn try_from(value: &[u64; DIGEST_SIZE]) -> Result<Self, RpoDigestError> {
+        (*value).try_into()
     }
 }
 
@@ -259,7 +311,8 @@ impl Deserializable for RpoDigest {
 #[cfg(test)]
 mod tests {
     use super::{Deserializable, Felt, RpoDigest, Serializable, DIGEST_BYTES};
-    use crate::utils::SliceReader;
+    use crate::utils::string::String;
+    use crate::{hash::rpo::DIGEST_SIZE, utils::SliceReader};
     use rand_utils::rand_value;
 
     #[test]
@@ -281,7 +334,6 @@ mod tests {
         assert_eq!(d1, d2);
     }
 
-    #[cfg(feature = "std")]
     #[test]
     fn digest_encoding() {
         let digest = RpoDigest([
@@ -295,5 +347,55 @@ mod tests {
         let round_trip: RpoDigest = string.try_into().expect("decoding failed");
 
         assert_eq!(digest, round_trip);
+    }
+
+    #[test]
+    fn test_conversions() {
+        let digest = RpoDigest([
+            Felt::new(rand_value()),
+            Felt::new(rand_value()),
+            Felt::new(rand_value()),
+            Felt::new(rand_value()),
+        ]);
+
+        let v: [Felt; DIGEST_SIZE] = digest.into();
+        let v2: RpoDigest = v.into();
+        assert_eq!(digest, v2);
+
+        let v: [Felt; DIGEST_SIZE] = (&digest).into();
+        let v2: RpoDigest = v.into();
+        assert_eq!(digest, v2);
+
+        let v: [u64; DIGEST_SIZE] = digest.into();
+        let v2: RpoDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u64; DIGEST_SIZE] = (&digest).into();
+        let v2: RpoDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u8; DIGEST_BYTES] = digest.into();
+        let v2: RpoDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u8; DIGEST_BYTES] = (&digest).into();
+        let v2: RpoDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: String = digest.into();
+        let v2: RpoDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: String = (&digest).into();
+        let v2: RpoDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u8; DIGEST_BYTES] = digest.into();
+        let v2: RpoDigest = (&v).try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u8; DIGEST_BYTES] = (&digest).into();
+        let v2: RpoDigest = (&v).try_into().unwrap();
+        assert_eq!(digest, v2);
     }
 }
