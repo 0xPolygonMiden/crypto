@@ -1,6 +1,7 @@
 ## 0.8.0 (TBD)
 
 * Implemented the `PartialMmr` data structure (#195).
+* Implemented RPX hash function (#201).
 
 ## 0.7.1 (2023-10-10)
 
