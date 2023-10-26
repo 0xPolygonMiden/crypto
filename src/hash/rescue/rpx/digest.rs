@@ -1,13 +1,10 @@
-use super::{Digest, Felt, StarkField, DIGEST_SIZE, ZERO};
+use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
 use crate::utils::{
     bytes_to_hex_string, hex_to_bytes, string::String, ByteReader, ByteWriter, Deserializable,
     DeserializationError, HexParseError, Serializable,
 };
 use core::{cmp::Ordering, fmt::Display, ops::Deref};
 use winter_utils::Randomizable;
-
-/// The number of bytes needed to encoded a digest
-pub const DIGEST_BYTES: usize = 32;
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
@@ -175,6 +172,18 @@ impl From<&RpxDigest> for String {
 // CONVERSIONS: TO RPX DIGEST
 // ================================================================================================
 
+#[derive(Copy, Clone, Debug)]
+pub enum RpxDigestError {
+    /// The provided u64 integer does not fit in the field's moduli.
+    InvalidInteger,
+}
+
+impl From<&[Felt; DIGEST_SIZE]> for RpxDigest {
+    fn from(value: &[Felt; DIGEST_SIZE]) -> Self {
+        Self(*value)
+    }
+}
+
 impl From<[Felt; DIGEST_SIZE]> for RpxDigest {
     fn from(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
@@ -197,6 +206,46 @@ impl TryFrom<[u8; DIGEST_BYTES]> for RpxDigest {
         }
 
         Ok(RpxDigest([Felt::new(a), Felt::new(b), Felt::new(c), Felt::new(d)]))
+    }
+}
+
+impl TryFrom<&[u8; DIGEST_BYTES]> for RpxDigest {
+    type Error = HexParseError;
+
+    fn try_from(value: &[u8; DIGEST_BYTES]) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<&[u8]> for RpxDigest {
+    type Error = HexParseError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<[u64; DIGEST_SIZE]> for RpxDigest {
+    type Error = RpxDigestError;
+
+    fn try_from(value: [u64; DIGEST_SIZE]) -> Result<Self, RpxDigestError> {
+        if value[0] >= Felt::MODULUS
+            || value[1] >= Felt::MODULUS
+            || value[2] >= Felt::MODULUS
+            || value[3] >= Felt::MODULUS
+        {
+            return Err(RpxDigestError::InvalidInteger);
+        }
+
+        Ok(Self([value[0].into(), value[1].into(), value[2].into(), value[3].into()]))
+    }
+}
+
+impl TryFrom<&[u64; DIGEST_SIZE]> for RpxDigest {
+    type Error = RpxDigestError;
+
+    fn try_from(value: &[u64; DIGEST_SIZE]) -> Result<Self, RpxDigestError> {
+        (*value).try_into()
     }
 }
 
@@ -258,8 +307,8 @@ impl Deserializable for RpxDigest {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializable, Felt, RpxDigest, Serializable, DIGEST_BYTES};
-    use crate::utils::SliceReader;
+    use super::{Deserializable, Felt, RpxDigest, Serializable, DIGEST_BYTES, DIGEST_SIZE};
+    use crate::utils::{string::String, SliceReader};
     use rand_utils::rand_value;
 
     #[test]
@@ -295,5 +344,55 @@ mod tests {
         let round_trip: RpxDigest = string.try_into().expect("decoding failed");
 
         assert_eq!(digest, round_trip);
+    }
+
+    #[test]
+    fn test_conversions() {
+        let digest = RpxDigest([
+            Felt::new(rand_value()),
+            Felt::new(rand_value()),
+            Felt::new(rand_value()),
+            Felt::new(rand_value()),
+        ]);
+
+        let v: [Felt; DIGEST_SIZE] = digest.into();
+        let v2: RpxDigest = v.into();
+        assert_eq!(digest, v2);
+
+        let v: [Felt; DIGEST_SIZE] = (&digest).into();
+        let v2: RpxDigest = v.into();
+        assert_eq!(digest, v2);
+
+        let v: [u64; DIGEST_SIZE] = digest.into();
+        let v2: RpxDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u64; DIGEST_SIZE] = (&digest).into();
+        let v2: RpxDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u8; DIGEST_BYTES] = digest.into();
+        let v2: RpxDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u8; DIGEST_BYTES] = (&digest).into();
+        let v2: RpxDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: String = digest.into();
+        let v2: RpxDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: String = (&digest).into();
+        let v2: RpxDigest = v.try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u8; DIGEST_BYTES] = digest.into();
+        let v2: RpxDigest = (&v).try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: [u8; DIGEST_BYTES] = (&digest).into();
+        let v2: RpxDigest = (&v).try_into().unwrap();
+        assert_eq!(digest, v2);
     }
 }

@@ -43,6 +43,9 @@ const CAPACITY_RANGE: Range<usize> = 0..4;
 const DIGEST_RANGE: Range<usize> = 4..8;
 const DIGEST_SIZE: usize = DIGEST_RANGE.end - DIGEST_RANGE.start;
 
+/// The number of bytes needed to encoded a digest
+const DIGEST_BYTES: usize = 32;
+
 /// The number of byte chunks defining a field element when hashing a sequence of bytes
 const BINARY_CHUNK_SIZE: usize = 7;
 
