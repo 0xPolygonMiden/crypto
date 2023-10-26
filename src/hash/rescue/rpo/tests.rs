@@ -1,6 +1,6 @@
 use super::{
-    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ALPHA, INV_ALPHA, ONE, STATE_WIDTH,
-    ZERO,
+    super::{apply_inv_sbox, apply_sbox, ALPHA, INV_ALPHA},
+    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ONE, STATE_WIDTH, ZERO,
 };
 use crate::{
     utils::collections::{BTreeSet, Vec},
@@ -11,13 +11,6 @@ use proptest::prelude::*;
 use rand_utils::rand_value;
 
 #[test]
-fn test_alphas() {
-    let e: Felt = Felt::new(rand_value());
-    let e_exp = e.exp(ALPHA);
-    assert_eq!(e, e_exp.exp(INV_ALPHA));
-}
-
-#[test]
 fn test_sbox() {
     let state = [Felt::new(rand_value()); STATE_WIDTH];
 
@@ -25,7 +18,7 @@ fn test_sbox() {
     expected.iter_mut().for_each(|v| *v = v.exp(ALPHA));
 
     let mut actual = state;
-    Rpo256::apply_sbox(&mut actual);
+    apply_sbox(&mut actual);
 
     assert_eq!(expected, actual);
 }
@@ -38,7 +31,7 @@ fn test_inv_sbox() {
     expected.iter_mut().for_each(|v| *v = v.exp(INV_ALPHA));
 
     let mut actual = state;
-    Rpo256::apply_inv_sbox(&mut actual);
+    apply_inv_sbox(&mut actual);
 
     assert_eq!(expected, actual);
 }

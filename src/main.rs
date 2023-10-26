@@ -1,9 +1,8 @@
 use clap::Parser;
 use miden_crypto::{
-    hash::rpo::RpoDigest,
-    merkle::MerkleError,
+    hash::rpo::{Rpo256, RpoDigest},
+    merkle::{MerkleError, TieredSmt},
     Felt, Word, ONE,
-    {hash::rpo::Rpo256, merkle::TieredSmt},
 };
 use rand_utils::rand_value;
 use std::time::Instant;

@@ -6,6 +6,7 @@ In the Miden VM, we make use of different hash functions. Some of these are "tra
 * **Poseidon** as specified [here](https://eprint.iacr.org/2019/458.pdf) and implemented [here](https://github.com/mir-protocol/plonky2/blob/806b88d7d6e69a30dc0b4775f7ba275c45e8b63b/plonky2/src/hash/poseidon_goldilocks.rs) (but in pure Rust, without vectorized instructions).
 * **Rescue Prime (RP)** as specified [here](https://eprint.iacr.org/2020/1143) and implemented [here](https://github.com/novifinancial/winterfell/blob/46dce1adf0/crypto/src/hash/rescue/rp64_256/mod.rs).
 * **Rescue Prime Optimized (RPO)** as specified [here](https://eprint.iacr.org/2022/1577) and implemented in this crate.
+* **Rescue Prime Extended (RPX)** a variant of the [xHash](https://eprint.iacr.org/2023/1045) hash function as implemented in this crate.
 
 ## Comparison and Instructions
 
@@ -15,25 +16,25 @@ The second scenario is that of sequential hashing where we take a sequence of le
 
 #### Scenario 1: 2-to-1 hashing `h(a,b)`
 
-| Function            | BLAKE3 | SHA3    | Poseidon  | Rp64_256  | RPO_256 |
-| ------------------- | ------ | --------| --------- | --------- | ------- |
-| Apple M1 Pro        | 80 ns  | 245 ns  |  1.5 us   |  9.1 us   | 5.4 us  |
-| Apple M2            | 76 ns  | 233 ns  |  1.3 us   |  7.9 us   | 5.0 us  |
-| Amazon Graviton 3   | 108 ns |         |           |           | 5.3 us  |
-| AMD Ryzen 9 5950X   | 64 ns  | 273 ns  |  1.2 us   |  9.1 us   | 5.5 us  |
-| Intel Core i5-8279U | 80 ns  |         |           |           | 8.7 us  |
-| Intel Xeon 8375C    | 67 ns  |         |           |           | 8.2 us  |
+| Function            | BLAKE3 | SHA3    | Poseidon  | Rp64_256  | RPO_256 | RPX_256 |
+| ------------------- | ------ | ------- | --------- | --------- | ------- | ------- |
+| Apple M1 Pro        | 76 ns  | 245 ns  |  1.5 µs   |  9.1 µs   | 5.2 µs  | 2.7 µs  |
+| Apple M2 Max        | 71 ns  | 233 ns  |  1.3 µs   |  7.9 µs   | 4.6 µs  | 2.4 µs  |
+| Amazon Graviton 3   | 108 ns |         |           |           | 5.3 µs  | 3.1 µs  |
+| AMD Ryzen 9 5950X   | 64 ns  | 273 ns  |  1.2 µs   |  9.1 µs   | 5.5 µs  |         |
+| Intel Core i5-8279U | 68 ns  | 536 ns  |  2.0 µs   |  13.6 µs  | 8.5 µs  | 4.4 µs  |
+| Intel Xeon 8375C    | 67 ns  |         |           |           | 8.2 µs  |         |
 
 #### Scenario 2: Sequential hashing of 100 elements `h([a_0,...,a_99])`
 
-| Function            | BLAKE3 | SHA3    | Poseidon  | Rp64_256  | RPO_256 |
-| ------------------- | -------| ------- | --------- | --------- | ------- |
-| Apple M1 Pro        | 1.0 us | 1.5 us  |  19.4 us  |   118 us  | 70 us   |
-| Apple M2            | 1.0 us | 1.5 us  |  17.4 us  |   103 us  | 65 us   |
-| Amazon Graviton 3   | 1.4 us |         |           |           | 69 us   |
-| AMD Ryzen 9 5950X   | 0.8 us | 1.7 us  |  15.7 us  |   120 us  | 72 us   |
-| Intel Core i5-8279U | 1.0 us |         |           |           | 116 us  |
-| Intel Xeon 8375C    | 0.8 ns |         |           |           | 110 us  |
+| Function            | BLAKE3 | SHA3    | Poseidon  | Rp64_256  | RPO_256 | RPX_256 |
+| ------------------- | -------| ------- | --------- | --------- | ------- | ------- |
+| Apple M1 Pro        | 1.0 µs | 1.5 µs  |  19.4 µs  |   118 µs  | 69 µs   | 35 µs   |
+| Apple M2 Max        | 0.9 µs | 1.5 µs  |  17.4 µs  |   103 µs  | 60 µs   | 31 µs   |
+| Amazon Graviton 3   | 1.4 µs |         |           |           | 69 µs   | 41 µs   |
+| AMD Ryzen 9 5950X   | 0.8 µs | 1.7 µs  |  15.7 µs  |   120 µs  | 72 µs   |         |
+| Intel Core i5-8279U | 0.9 µs |         |           |           | 107 µs  | 56 µs   |
+| Intel Xeon 8375C    | 0.8 µs |         |           |           | 110 µs  |         |
 
 Notes:
 - On Graviton 3, RPO256 is run with SVE acceleration enabled.

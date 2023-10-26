@@ -1,13 +1,10 @@
-use super::{Digest, Felt, StarkField, DIGEST_SIZE, ZERO};
+use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
 use crate::utils::{
     bytes_to_hex_string, hex_to_bytes, string::String, ByteReader, ByteWriter, Deserializable,
     DeserializationError, HexParseError, Serializable,
 };
 use core::{cmp::Ordering, fmt::Display, ops::Deref};
 use winter_utils::Randomizable;
-
-/// The number of bytes needed to encoded a digest
-pub const DIGEST_BYTES: usize = 32;
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
@@ -172,7 +169,7 @@ impl From<&RpoDigest> for String {
     }
 }
 
-// CONVERSIONS: TO DIGEST
+// CONVERSIONS: TO RPO DIGEST
 // ================================================================================================
 
 #[derive(Copy, Clone, Debug)]
@@ -310,9 +307,8 @@ impl Deserializable for RpoDigest {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializable, Felt, RpoDigest, Serializable, DIGEST_BYTES};
-    use crate::utils::string::String;
-    use crate::{hash::rpo::DIGEST_SIZE, utils::SliceReader};
+    use super::{Deserializable, Felt, RpoDigest, Serializable, DIGEST_BYTES, DIGEST_SIZE};
+    use crate::utils::{string::String, SliceReader};
     use rand_utils::rand_value;
 
     #[test]

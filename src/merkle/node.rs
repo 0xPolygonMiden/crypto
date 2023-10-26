@@ -1,4 +1,4 @@
-use crate::hash::rpo::RpoDigest;
+use super::RpoDigest;
 
 /// Representation of a node with two children used for iterating over containers.
 #[derive(Debug, Clone, PartialEq, Eq)]
