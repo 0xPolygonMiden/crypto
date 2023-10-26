@@ -1,13 +1,10 @@
-use super::{Digest, Felt, StarkField, DIGEST_SIZE, ZERO};
+use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
 use crate::utils::{
     bytes_to_hex_string, hex_to_bytes, string::String, ByteReader, ByteWriter, Deserializable,
     DeserializationError, HexParseError, Serializable,
 };
 use core::{cmp::Ordering, fmt::Display, ops::Deref};
 use winter_utils::Randomizable;
-
-/// The number of bytes needed to encoded a digest
-pub const DIGEST_BYTES: usize = 32;
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
@@ -172,8 +169,20 @@ impl From<&RpoDigest> for String {
     }
 }
 
-// CONVERSIONS: TO DIGEST
+// CONVERSIONS: TO RPO DIGEST
 // ================================================================================================
+
+#[derive(Copy, Clone, Debug)]
+pub enum RpoDigestError {
+    /// The provided u64 integer does not fit in the field's moduli.
+    InvalidInteger,
+}
+
+impl From<&[Felt; DIGEST_SIZE]> for RpoDigest {
+    fn from(value: &[Felt; DIGEST_SIZE]) -> Self {
+        Self(*value)
+    }
+}
 
 impl From<[Felt; DIGEST_SIZE]> for RpoDigest {
     fn from(value: [Felt; DIGEST_SIZE]) -> Self {
@@ -197,6 +206,46 @@ impl TryFrom<[u8; DIGEST_BYTES]> for RpoDigest {
         }
 
         Ok(RpoDigest([Felt::new(a), Felt::new(b), Felt::new(c), Felt::new(d)]))
+    }
+}
+
+impl TryFrom<&[u8; DIGEST_BYTES]> for RpoDigest {
+    type Error = HexParseError;
+
+    fn try_from(value: &[u8; DIGEST_BYTES]) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<&[u8]> for RpoDigest {
+    type Error = HexParseError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<[u64; DIGEST_SIZE]> for RpoDigest {
+    type Error = RpoDigestError;
+
+    fn try_from(value: [u64; DIGEST_SIZE]) -> Result<Self, RpoDigestError> {
+        if value[0] >= Felt::MODULUS
+            || value[1] >= Felt::MODULUS
+            || value[2] >= Felt::MODULUS
+            || value[3] >= Felt::MODULUS
+        {
+            return Err(RpoDigestError::InvalidInteger);
+        }
+
+        Ok(Self([value[0].into(), value[1].into(), value[2].into(), value[3].into()]))
+    }
+}
+
+impl TryFrom<&[u64; DIGEST_SIZE]> for RpoDigest {
+    type Error = RpoDigestError;
+
+    fn try_from(value: &[u64; DIGEST_SIZE]) -> Result<Self, RpoDigestError> {
+        (*value).try_into()
     }
 }
 
@@ -258,8 +307,8 @@ impl Deserializable for RpoDigest {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializable, Felt, RpoDigest, Serializable, DIGEST_BYTES};
-    use crate::utils::SliceReader;
+    use super::{Deserializable, Felt, RpoDigest, Serializable, DIGEST_BYTES, DIGEST_SIZE};
+    use crate::utils::{string::String, SliceReader};
     use rand_utils::rand_value;
 
     #[test]
