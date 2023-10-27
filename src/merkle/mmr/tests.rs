@@ -573,42 +573,42 @@ fn test_mmr_peaks_hash_odd() {
 }
 
 #[test]
-fn test_mmr_updates() {
+fn test_mmr_delta() {
     let mmr: Mmr = LEAVES.into();
     let acc = mmr.accumulator();
 
     // original_forest can't have more elements
     assert!(
-        mmr.get_delta(LEAVES.len() + 1).is_err(),
+        mmr.get_delta(LEAVES.len() + 1, mmr.forest()).is_err(),
         "Can not provide updates for a newer Mmr"
     );
 
     // if the number of elements is the same there is no change
     assert!(
-        mmr.get_delta(LEAVES.len()).unwrap().data.is_empty(),
+        mmr.get_delta(LEAVES.len(), mmr.forest()).unwrap().data.is_empty(),
         "There are no updates for the same Mmr version"
     );
 
     // missing the last element added, which is itself a tree peak
-    assert_eq!(mmr.get_delta(6).unwrap().data, vec![acc.peaks()[2]], "one peak");
+    assert_eq!(mmr.get_delta(6, mmr.forest()).unwrap().data, vec![acc.peaks()[2]], "one peak");
 
     // missing the sibling to complete the tree of depth 2, and the last element
     assert_eq!(
-        mmr.get_delta(5).unwrap().data,
+        mmr.get_delta(5, mmr.forest()).unwrap().data,
         vec![LEAVES[5], acc.peaks()[2]],
         "one sibling, one peak"
     );
 
     // missing the whole last two trees, only send the peaks
     assert_eq!(
-        mmr.get_delta(4).unwrap().data,
+        mmr.get_delta(4, mmr.forest()).unwrap().data,
         vec![acc.peaks()[1], acc.peaks()[2]],
         "two peaks"
     );
 
     // missing the sibling to complete the first tree, and the two last trees
     assert_eq!(
-        mmr.get_delta(3).unwrap().data,
+        mmr.get_delta(3, mmr.forest()).unwrap().data,
         vec![LEAVES[3], acc.peaks()[1], acc.peaks()[2]],
         "one sibling, two peaks"
     );
@@ -616,18 +616,60 @@ fn test_mmr_updates() {
     // missing half of the first tree, only send the computed element (not the leaves), and the new
     // peaks
     assert_eq!(
-        mmr.get_delta(2).unwrap().data,
+        mmr.get_delta(2, mmr.forest()).unwrap().data,
         vec![mmr.nodes[5], acc.peaks()[1], acc.peaks()[2]],
         "one sibling, two peaks"
     );
 
     assert_eq!(
-        mmr.get_delta(1).unwrap().data,
+        mmr.get_delta(1, mmr.forest()).unwrap().data,
         vec![LEAVES[1], mmr.nodes[5], acc.peaks()[1], acc.peaks()[2]],
         "one sibling, two peaks"
     );
 
-    assert_eq!(&mmr.get_delta(0).unwrap().data, acc.peaks(), "all peaks");
+    assert_eq!(&mmr.get_delta(0, mmr.forest()).unwrap().data, acc.peaks(), "all peaks");
+}
+
+#[test]
+fn test_mmr_delta_old_forest() {
+    let mmr: Mmr = LEAVES.into();
+
+    // from_forest must be smaller-or-equal to to_forest
+    for version in 1..=mmr.forest() {
+        assert!(mmr.get_delta(version + 1, version).is_err());
+    }
+
+    // when from_forest and to_forest are equal, there are no updates
+    for version in 1..=mmr.forest() {
+        let delta = mmr.get_delta(version, version).unwrap();
+        assert!(delta.data.is_empty());
+        assert_eq!(delta.forest, version);
+    }
+
+    // test update which merges the odd peak to the right
+    for count in 0..(mmr.forest() / 2) {
+        // *2 because every iteration tests a pair
+        // +1 because the Mmr is 1-indexed
+        let from_forest = (count * 2) + 1;
+        let to_forest = (count * 2) + 2;
+        let delta = mmr.get_delta(from_forest, to_forest).unwrap();
+
+        // *2 because every iteration tests a pair
+        // +1 because sibling is the odd element
+        let sibling = (count * 2) + 1;
+        assert_eq!(delta.data, [LEAVES[sibling]]);
+        assert_eq!(delta.forest, to_forest);
+    }
+
+    let version = 4;
+    let delta = mmr.get_delta(1, version).unwrap();
+    assert_eq!(delta.data, [mmr.nodes[1], mmr.nodes[5]]);
+    assert_eq!(delta.forest, version);
+
+    let version = 5;
+    let delta = mmr.get_delta(1, version).unwrap();
+    assert_eq!(delta.data, [mmr.nodes[1], mmr.nodes[5], mmr.nodes[7]]);
+    assert_eq!(delta.forest, version);
 }
 
 #[test]
@@ -682,7 +724,7 @@ fn test_partial_mmr_update_single() {
     for i in 1..100 {
         let node = int_to_node(i);
         full.add(node);
-        let delta = full.get_delta(partial.forest()).unwrap();
+        let delta = full.get_delta(partial.forest(), full.forest()).unwrap();
         partial.apply(delta).unwrap();
 
         assert_eq!(partial.forest(), full.forest());
