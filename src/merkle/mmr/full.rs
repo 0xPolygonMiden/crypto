@@ -77,13 +77,13 @@ impl Mmr {
     /// Note: The leaf position is the 0-indexed number corresponding to the order the leaves were
     /// added, this corresponds to the MMR size _prior_ to adding the element. So the 1st element
     /// has position 0, the second position 1, and so on.
-    pub fn open(&self, pos: usize) -> Result<MmrProof, MmrError> {
+    pub fn open(&self, pos: usize, target_forest: usize) -> Result<MmrProof, MmrError> {
         // find the target tree responsible for the MMR position
         let tree_bit =
-            leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::InvalidPosition(pos))?;
+            leaf_to_corresponding_tree(pos, target_forest).ok_or(MmrError::InvalidPosition(pos))?;
 
         // isolate the trees before the target
-        let forest_before = self.forest & high_bitmask(tree_bit + 1);
+        let forest_before = target_forest & high_bitmask(tree_bit + 1);
         let index_offset = nodes_in_forest(forest_before);
 
         // update the value position from global to the target tree
@@ -93,7 +93,7 @@ impl Mmr {
         let (_, path) = self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset);
 
         Ok(MmrProof {
-            forest: self.forest,
+            forest: target_forest,
             position: pos,
             merkle_path: MerklePath::new(path),
         })
