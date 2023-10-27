@@ -164,32 +164,32 @@ impl Mmr {
     ///
     /// The result is a packed sequence of the authentication elements required to update the trees
     /// that have been merged together, followed by the new peaks of the [Mmr].
-    pub fn get_delta(&self, original_forest: usize) -> Result<MmrDelta, MmrError> {
-        if original_forest > self.forest {
+    pub fn get_delta(&self, from_forest: usize, to_forest: usize) -> Result<MmrDelta, MmrError> {
+        if to_forest > self.forest || from_forest > to_forest {
             return Err(MmrError::InvalidPeaks);
         }
 
-        if original_forest == self.forest {
-            return Ok(MmrDelta { forest: self.forest, data: Vec::new() });
+        if from_forest == to_forest {
+            return Ok(MmrDelta { forest: to_forest, data: Vec::new() });
         }
 
         let mut result = Vec::new();
 
-        // Find the largest tree in this [Mmr] which is new to `original_forest`.
-        let candidate_trees = self.forest ^ original_forest;
+        // Find the largest tree in this [Mmr] which is new to `from_forest`.
+        let candidate_trees = to_forest ^ from_forest;
         let mut new_high = 1 << candidate_trees.ilog2();
 
         // Collect authentication nodes used for tree merges
         // ----------------------------------------------------------------------------------------
 
-        // Find the trees from `original_forest` that have been merged into `new_high`.
-        let mut merges = original_forest & (new_high - 1);
+        // Find the trees from `from_forest` that have been merged into `new_high`.
+        let mut merges = from_forest & (new_high - 1);
 
-        // Find the peaks that are common to `original_forest` and this [Mmr]
-        let common_trees = original_forest ^ merges;
+        // Find the peaks that are common to `from_forest` and this [Mmr]
+        let common_trees = from_forest ^ merges;
 
         if merges != 0 {
-            // Skip the smallest trees unknown to `original_forest`.
+            // Skip the smallest trees unknown to `from_forest`.
             let mut target = 1 << merges.trailing_zeros();
 
             // Collect siblings required to computed the merged tree's peak
@@ -214,15 +214,15 @@ impl Mmr {
             }
         } else {
             // The new high tree may not be the result of any merges, if it is smaller than all the
-            // trees of `original_forest`.
+            // trees of `from_forest`.
             new_high = 0;
         }
 
         // Collect the new [Mmr] peaks
         // ----------------------------------------------------------------------------------------
 
-        let mut new_peaks = self.forest ^ common_trees ^ new_high;
-        let old_peaks = self.forest ^ new_peaks;
+        let mut new_peaks = to_forest ^ common_trees ^ new_high;
+        let old_peaks = to_forest ^ new_peaks;
         let mut offset = nodes_in_forest(old_peaks);
         while new_peaks != 0 {
             let target = 1 << new_peaks.ilog2();
@@ -231,7 +231,7 @@ impl Mmr {
             new_peaks ^= target;
         }
 
-        Ok(MmrDelta { forest: self.forest, data: result })
+        Ok(MmrDelta { forest: to_forest, data: result })
     }
 
     /// An iterator over inner nodes in the MMR. The order of iteration is unspecified.
