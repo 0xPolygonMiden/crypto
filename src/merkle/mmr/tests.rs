@@ -202,12 +202,15 @@ fn test_mmr_open() {
     let h23 = merge(LEAVES[2], LEAVES[3]);
 
     // node at pos 7 is the root
-    assert!(mmr.open(7).is_err(), "Element 7 is not in the tree, result should be None");
+    assert!(
+        mmr.open(7, mmr.forest()).is_err(),
+        "Element 7 is not in the tree, result should be None"
+    );
 
     // node at pos 6 is the root
     let empty: MerklePath = MerklePath::new(vec![]);
     let opening = mmr
-        .open(6)
+        .open(6, mmr.forest())
         .expect("Element 6 is contained in the tree, expected an opening result.");
     assert_eq!(opening.merkle_path, empty);
     assert_eq!(opening.forest, mmr.forest);
@@ -220,7 +223,7 @@ fn test_mmr_open() {
     // nodes 4,5 are depth 1
     let root_to_path = MerklePath::new(vec![LEAVES[4]]);
     let opening = mmr
-        .open(5)
+        .open(5, mmr.forest())
         .expect("Element 5 is contained in the tree, expected an opening result.");
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
@@ -232,7 +235,7 @@ fn test_mmr_open() {
 
     let root_to_path = MerklePath::new(vec![LEAVES[5]]);
     let opening = mmr
-        .open(4)
+        .open(4, mmr.forest())
         .expect("Element 4 is contained in the tree, expected an opening result.");
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
@@ -245,7 +248,7 @@ fn test_mmr_open() {
     // nodes 0,1,2,3 are detph 2
     let root_to_path = MerklePath::new(vec![LEAVES[2], h01]);
     let opening = mmr
-        .open(3)
+        .open(3, mmr.forest())
         .expect("Element 3 is contained in the tree, expected an opening result.");
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
@@ -257,7 +260,7 @@ fn test_mmr_open() {
 
     let root_to_path = MerklePath::new(vec![LEAVES[3], h01]);
     let opening = mmr
-        .open(2)
+        .open(2, mmr.forest())
         .expect("Element 2 is contained in the tree, expected an opening result.");
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
@@ -269,7 +272,7 @@ fn test_mmr_open() {
 
     let root_to_path = MerklePath::new(vec![LEAVES[0], h23]);
     let opening = mmr
-        .open(1)
+        .open(1, mmr.forest())
         .expect("Element 1 is contained in the tree, expected an opening result.");
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
@@ -281,7 +284,7 @@ fn test_mmr_open() {
 
     let root_to_path = MerklePath::new(vec![LEAVES[1], h23]);
     let opening = mmr
-        .open(0)
+        .open(0, mmr.forest())
         .expect("Element 0 is contained in the tree, expected an opening result.");
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
@@ -290,6 +293,46 @@ fn test_mmr_open() {
         mmr.accumulator().verify(LEAVES[0], opening),
         "MmrProof should be valid for the current accumulator."
     );
+}
+
+#[test]
+fn test_mmr_open_older_version() {
+    let mmr: Mmr = LEAVES.into();
+
+    fn is_even(v: &usize) -> bool {
+        v & 1 == 0
+    }
+
+    // merkle path of a node is empty if there are no elements to pair with it
+    for pos in (0..mmr.forest()).filter(is_even) {
+        let forest = pos + 1;
+        let proof = mmr.open(pos, forest).unwrap();
+        assert_eq!(proof.forest, forest);
+        assert_eq!(proof.merkle_path.nodes(), []);
+        assert_eq!(proof.position, pos);
+    }
+
+    // openings match that of a merkle tree
+    let mtree: MerkleTree = LEAVES[..4].try_into().unwrap();
+    for forest in 4..=LEAVES.len() {
+        for pos in 0..4 {
+            let idx = NodeIndex::new(2, pos).unwrap();
+            let path = mtree.get_path(idx).unwrap();
+            let proof = mmr.open(pos as usize, forest).unwrap();
+            assert_eq!(path, proof.merkle_path);
+        }
+    }
+    let mtree: MerkleTree = LEAVES[4..6].try_into().unwrap();
+    for forest in 6..=LEAVES.len() {
+        for pos in 0..2 {
+            let idx = NodeIndex::new(1, pos).unwrap();
+            let path = mtree.get_path(idx).unwrap();
+            // account for the bigger tree with 4 elements
+            let mmr_pos = (pos + 4) as usize;
+            let proof = mmr.open(mmr_pos, forest).unwrap();
+            assert_eq!(path, proof.merkle_path);
+        }
+    }
 }
 
 /// Tests the openings of a simple Mmr with a single tree of depth 8.
@@ -312,49 +355,49 @@ fn test_mmr_open_eight() {
     let root = mtree.root();
 
     let position = 0;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path = mtree.get_path(NodeIndex::new(3, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(position as u64, leaves[position]).unwrap(), root);
 
     let position = 1;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path = mtree.get_path(NodeIndex::new(3, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(position as u64, leaves[position]).unwrap(), root);
 
     let position = 2;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path = mtree.get_path(NodeIndex::new(3, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(position as u64, leaves[position]).unwrap(), root);
 
     let position = 3;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path = mtree.get_path(NodeIndex::new(3, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(position as u64, leaves[position]).unwrap(), root);
 
     let position = 4;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path = mtree.get_path(NodeIndex::new(3, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(position as u64, leaves[position]).unwrap(), root);
 
     let position = 5;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path = mtree.get_path(NodeIndex::new(3, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(position as u64, leaves[position]).unwrap(), root);
 
     let position = 6;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path = mtree.get_path(NodeIndex::new(3, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(position as u64, leaves[position]).unwrap(), root);
 
     let position = 7;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path = mtree.get_path(NodeIndex::new(3, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(position as u64, leaves[position]).unwrap(), root);
@@ -370,47 +413,47 @@ fn test_mmr_open_seven() {
     let mmr: Mmr = LEAVES.into();
 
     let position = 0;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path: MerklePath =
         mtree1.get_path(NodeIndex::new(2, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(0, LEAVES[0]).unwrap(), mtree1.root());
 
     let position = 1;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path: MerklePath =
         mtree1.get_path(NodeIndex::new(2, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(1, LEAVES[1]).unwrap(), mtree1.root());
 
     let position = 2;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path: MerklePath =
         mtree1.get_path(NodeIndex::new(2, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(2, LEAVES[2]).unwrap(), mtree1.root());
 
     let position = 3;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path: MerklePath =
         mtree1.get_path(NodeIndex::new(2, position as u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(3, LEAVES[3]).unwrap(), mtree1.root());
 
     let position = 4;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path: MerklePath = mtree2.get_path(NodeIndex::new(1, 0u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(0, LEAVES[4]).unwrap(), mtree2.root());
 
     let position = 5;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path: MerklePath = mtree2.get_path(NodeIndex::new(1, 1u64).unwrap()).unwrap();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(1, LEAVES[5]).unwrap(), mtree2.root());
 
     let position = 6;
-    let proof = mmr.open(position).unwrap();
+    let proof = mmr.open(position, mmr.forest()).unwrap();
     let merkle_path: MerklePath = [].as_ref().into();
     assert_eq!(proof, MmrProof { forest, position, merkle_path });
     assert_eq!(proof.merkle_path.compute_root(0, LEAVES[6]).unwrap(), LEAVES[6]);
@@ -686,7 +729,7 @@ fn test_partial_mmr_simple() {
     assert_eq!(partial.nodes.len(), 0);
 
     // check state after adding tracking one element
-    let proof1 = mmr.open(0).unwrap();
+    let proof1 = mmr.open(0, mmr.forest()).unwrap();
     let el1 = mmr.get(proof1.position).unwrap();
     partial.add(proof1.position, el1, &proof1.merkle_path).unwrap();
 
@@ -698,7 +741,7 @@ fn test_partial_mmr_simple() {
     let idx = idx.parent();
     assert_eq!(partial.nodes[&idx.sibling()], proof1.merkle_path[1]);
 
-    let proof2 = mmr.open(1).unwrap();
+    let proof2 = mmr.open(1, mmr.forest()).unwrap();
     let el2 = mmr.get(proof2.position).unwrap();
     partial.add(proof2.position, el2, &proof2.merkle_path).unwrap();
 
@@ -718,7 +761,7 @@ fn test_partial_mmr_update_single() {
     full.add(zero);
     let mut partial: PartialMmr = full.accumulator().into();
 
-    let proof = full.open(0).unwrap();
+    let proof = full.open(0, full.forest()).unwrap();
     partial.add(proof.position, zero, &proof.merkle_path).unwrap();
 
     for i in 1..100 {
@@ -730,7 +773,7 @@ fn test_partial_mmr_update_single() {
         assert_eq!(partial.forest(), full.forest());
         assert_eq!(partial.peaks(), full.accumulator().peaks());
 
-        let proof1 = full.open(i as usize).unwrap();
+        let proof1 = full.open(i as usize, full.forest()).unwrap();
         partial.add(proof1.position, node, &proof1.merkle_path).unwrap();
         let proof2 = partial.open(proof1.position).unwrap().unwrap();
         assert_eq!(proof1.merkle_path, proof2.merkle_path);
