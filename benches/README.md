@@ -37,7 +37,7 @@ The second scenario is that of sequential hashing where we take a sequence of le
 | Intel Xeon 8375C    | 0.8 µs |         |           |           | 110 µs  |         |
 
 Notes:
-- On Graviton 3, RPO256 is run with SVE acceleration enabled.
+- On Graviton 3, RPO256 and RPX256 are run with SVE acceleration enabled.
 
 ### Instructions
 Before you can run the benchmarks, you'll need to make sure you have Rust [installed](https://www.rust-lang.org/tools/install). After that, to run the benchmarks for RPO and BLAKE3, clone the current repository, and from the root directory of the repo run the following:
