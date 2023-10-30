@@ -1,9 +1,11 @@
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
-    Rpo256, RpoDigest, StarkField, Vec, Word,
+    PartialMerkleTree, Rpo256, RpoDigest, StarkField, Vec, Word,
 };
 use crate::utils::vec;
 use core::{cmp, ops::Deref};
+
+use itertools::Itertools;
 
 mod nodes;
 use nodes::NodeStore;
@@ -76,7 +78,7 @@ impl TieredSmt {
     pub fn with_entries<R, I>(entries: R) -> Result<Self, MerkleError>
     where
         R: IntoIterator<IntoIter = I>,
-        I: Iterator<Item = (RpoDigest, Word)> + ExactSizeIterator,
+        I: Iterator<Item = (RpoDigest, Word)>,
     {
         // create an empty tree
         let mut tree = Self::default();
@@ -386,6 +388,35 @@ impl Default for TieredSmt {
             nodes: NodeStore::new(root),
             values: ValueStore::default(),
         }
+    }
+}
+
+pub enum TieredSmtFromPmtError {
+    /// The `value_to_key` map is missing the given key
+    MapKeyMissing(Word),
+
+    /// Error when constructing the Tiered SMT
+    TieredSmtConstruction(MerkleError),
+}
+
+impl TryFrom<(PartialMerkleTree, BTreeMap<RpoDigest, RpoDigest>)> for TieredSmt {
+    type Error = TieredSmtFromPmtError;
+
+    fn try_from(
+        (pmt, value_to_key): (PartialMerkleTree, BTreeMap<RpoDigest, RpoDigest>),
+    ) -> Result<Self, Self::Error> {
+        pmt.leaves()
+            .map(|(_node_index, leaf_value)| {
+                let key = value_to_key
+                    .get(&leaf_value)
+                    .ok_or(TieredSmtFromPmtError::MapKeyMissing(leaf_value.into()))?;
+
+                Ok((*key, Word::from(leaf_value)))
+            })
+            .process_results(|iter| {
+                TieredSmt::with_entries(iter)
+                    .map_err(|err| TieredSmtFromPmtError::TieredSmtConstruction(err))
+            })?
     }
 }
 
