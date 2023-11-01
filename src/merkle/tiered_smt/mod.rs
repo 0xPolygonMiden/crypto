@@ -1,6 +1,6 @@
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex,
-    Rpo256, RpoDigest, StarkField, Vec, Word,
+    PartialMerkleTree, Rpo256, RpoDigest, StarkField, Vec, Word,
 };
 use crate::utils::vec;
 use core::{cmp, ops::Deref};
@@ -164,6 +164,27 @@ impl TieredSmt {
         };
 
         TieredSmtProof::new(path, entries).expect("Bug detected, TSMT produced invalid proof")
+    }
+
+    /// Returns a partial Merkle tree pre-populated with paths leading up to nodes to be inserted,
+    /// one per key in `keys_to_insert`
+    pub fn get_preinsert_partial_merkle_tree<'a>(
+        &'a self,
+        keys_to_insert: impl IntoIterator<Item = &'a RpoDigest>,
+    ) -> Result<PartialMerkleTree, MerkleError> {
+        let mut pmt = PartialMerkleTree::default();
+
+        for key in keys_to_insert {
+            // Q: What if we insert 2 keys with the same 16-bit prefix? Then the path for the first
+            // will be at tier 16, but then the second insertion will invalidate the first
+            let (leaf_index, _) = self.nodes.get_leaf_index(key);
+            let path = self.get_path(leaf_index.into())?;
+            let leaf_node = self.get_node(leaf_index.into())?;
+
+            pmt.add_path(leaf_index.value(), leaf_node, path)?;
+        }
+
+        Ok(pmt)
     }
 
     // STATE MUTATORS
