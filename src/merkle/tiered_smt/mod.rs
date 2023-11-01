@@ -178,14 +178,15 @@ impl TieredSmt {
         let mut advice_map = BTreeMap::new();
 
         for key in keys_to_insert {
-            let (leaf_index, _) = self.nodes.get_leaf_index(key);
+            let (leaf_index, leaf_exists) = self.nodes.get_leaf_index(key);
             let path = self.get_path(leaf_index.into())?;
             let leaf_node = self.get_node(leaf_index.into())?;
 
             partial_mt.add_path(leaf_index.value(), leaf_node, path)?;
 
-            if let Some(v) = self.values.get(key) {
-                advice_map.insert(leaf_node, (*key, *v));
+            if leaf_exists {
+                let value = self.values.get(key).expect("leaf exists, but node not in ValueStore");
+                advice_map.insert(leaf_node, (*key, *value));
             }
         }
 
