@@ -144,9 +144,13 @@ impl Mmr {
         self.forest += 1;
     }
 
-    /// Returns an accumulator representing the current state of the MMR.
-    pub fn accumulator(&self) -> MmrPeaks {
-        let peaks: Vec<RpoDigest> = TrueBitPositionIterator::new(self.forest)
+    /// Returns an peaks of the MMR for the version specified by `forest`.
+    pub fn peaks(&self, forest: usize) -> Result<MmrPeaks, MmrError> {
+        if forest > self.forest {
+            return Err(MmrError::InvalidPeaks);
+        }
+
+        let peaks: Vec<RpoDigest> = TrueBitPositionIterator::new(forest)
             .rev()
             .map(|bit| nodes_in_forest(1 << bit))
             .scan(0, |offset, el| {
@@ -157,7 +161,9 @@ impl Mmr {
             .collect();
 
         // Safety: the invariant is maintained by the [Mmr]
-        MmrPeaks::new(self.forest, peaks).unwrap()
+        let peaks = MmrPeaks::new(forest, peaks).unwrap();
+
+        Ok(peaks)
     }
 
     /// Compute the required update to `original_forest`.
