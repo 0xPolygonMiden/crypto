@@ -166,25 +166,30 @@ impl TieredSmt {
         TieredSmtProof::new(path, entries).expect("Bug detected, TSMT produced invalid proof")
     }
 
-    /// Returns a partial Merkle tree pre-populated with paths leading up to nodes to be inserted,
-    /// one per key in `keys_to_insert`
+    /// Returns 
+    /// 1. a partial Merkle tree pre-populated with paths leading up to nodes to be inserted,
+    /// one per key in `keys_to_insert`.
+    /// 2. a map `leaf_hash -> (key, value)` which stores the key/value for keys that already contain a value
     pub fn get_preinsert_partial_merkle_tree<'a>(
         &'a self,
         keys_to_insert: impl IntoIterator<Item = &'a RpoDigest>,
-    ) -> Result<PartialMerkleTree, MerkleError> {
+    ) -> Result<(PartialMerkleTree, BTreeMap<RpoDigest, (RpoDigest, Word)>), MerkleError> {
         let mut pmt = PartialMerkleTree::default();
+        let mut preimage_map = BTreeMap::new();
 
         for key in keys_to_insert {
-            // Q: What if we insert 2 keys with the same 16-bit prefix? Then the path for the first
-            // will be at tier 16, but then the second insertion will invalidate the first
             let (leaf_index, _) = self.nodes.get_leaf_index(key);
             let path = self.get_path(leaf_index.into())?;
             let leaf_node = self.get_node(leaf_index.into())?;
 
             pmt.add_path(leaf_index.value(), leaf_node, path)?;
+
+            if let Some(v) = self.values.get(key) {
+                preimage_map.insert(leaf_node, (*key, *v));
+            }
         }
 
-        Ok(pmt)
+        Ok((pmt, preimage_map))
     }
 
     // STATE MUTATORS
