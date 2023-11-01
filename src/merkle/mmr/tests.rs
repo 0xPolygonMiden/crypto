@@ -136,7 +136,7 @@ fn test_mmr_simple() {
     assert_eq!(mmr.nodes.len(), 1);
     assert_eq!(mmr.nodes.as_slice(), &postorder[0..mmr.nodes.len()]);
 
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
     assert_eq!(acc.num_leaves(), 1);
     assert_eq!(acc.peaks(), &[postorder[0]]);
 
@@ -145,7 +145,7 @@ fn test_mmr_simple() {
     assert_eq!(mmr.nodes.len(), 3);
     assert_eq!(mmr.nodes.as_slice(), &postorder[0..mmr.nodes.len()]);
 
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
     assert_eq!(acc.num_leaves(), 2);
     assert_eq!(acc.peaks(), &[postorder[2]]);
 
@@ -154,7 +154,7 @@ fn test_mmr_simple() {
     assert_eq!(mmr.nodes.len(), 4);
     assert_eq!(mmr.nodes.as_slice(), &postorder[0..mmr.nodes.len()]);
 
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
     assert_eq!(acc.num_leaves(), 3);
     assert_eq!(acc.peaks(), &[postorder[2], postorder[3]]);
 
@@ -163,7 +163,7 @@ fn test_mmr_simple() {
     assert_eq!(mmr.nodes.len(), 7);
     assert_eq!(mmr.nodes.as_slice(), &postorder[0..mmr.nodes.len()]);
 
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
     assert_eq!(acc.num_leaves(), 4);
     assert_eq!(acc.peaks(), &[postorder[6]]);
 
@@ -172,7 +172,7 @@ fn test_mmr_simple() {
     assert_eq!(mmr.nodes.len(), 8);
     assert_eq!(mmr.nodes.as_slice(), &postorder[0..mmr.nodes.len()]);
 
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
     assert_eq!(acc.num_leaves(), 5);
     assert_eq!(acc.peaks(), &[postorder[6], postorder[7]]);
 
@@ -181,7 +181,7 @@ fn test_mmr_simple() {
     assert_eq!(mmr.nodes.len(), 10);
     assert_eq!(mmr.nodes.as_slice(), &postorder[0..mmr.nodes.len()]);
 
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
     assert_eq!(acc.num_leaves(), 6);
     assert_eq!(acc.peaks(), &[postorder[6], postorder[9]]);
 
@@ -190,7 +190,7 @@ fn test_mmr_simple() {
     assert_eq!(mmr.nodes.len(), 11);
     assert_eq!(mmr.nodes.as_slice(), &postorder[0..mmr.nodes.len()]);
 
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
     assert_eq!(acc.num_leaves(), 7);
     assert_eq!(acc.peaks(), &[postorder[6], postorder[9], postorder[10]]);
 }
@@ -216,7 +216,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 6);
     assert!(
-        mmr.accumulator().verify(LEAVES[6], opening),
+        mmr.peaks(mmr.forest()).unwrap().verify(LEAVES[6], opening),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -229,7 +229,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 5);
     assert!(
-        mmr.accumulator().verify(LEAVES[5], opening),
+        mmr.peaks(mmr.forest()).unwrap().verify(LEAVES[5], opening),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -241,7 +241,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 4);
     assert!(
-        mmr.accumulator().verify(LEAVES[4], opening),
+        mmr.peaks(mmr.forest()).unwrap().verify(LEAVES[4], opening),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -254,7 +254,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 3);
     assert!(
-        mmr.accumulator().verify(LEAVES[3], opening),
+        mmr.peaks(mmr.forest()).unwrap().verify(LEAVES[3], opening),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -266,7 +266,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 2);
     assert!(
-        mmr.accumulator().verify(LEAVES[2], opening),
+        mmr.peaks(mmr.forest()).unwrap().verify(LEAVES[2], opening),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -278,7 +278,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 1);
     assert!(
-        mmr.accumulator().verify(LEAVES[1], opening),
+        mmr.peaks(mmr.forest()).unwrap().verify(LEAVES[1], opening),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -290,7 +290,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 0);
     assert!(
-        mmr.accumulator().verify(LEAVES[0], opening),
+        mmr.peaks(mmr.forest()).unwrap().verify(LEAVES[0], opening),
         "MmrProof should be valid for the current accumulator."
     );
 }
@@ -477,7 +477,7 @@ fn test_mmr_invariants() {
     let mut mmr = Mmr::new();
     for v in 1..=1028 {
         mmr.add(int_to_node(v));
-        let accumulator = mmr.accumulator();
+        let accumulator = mmr.peaks(mmr.forest()).unwrap();
         assert_eq!(v as usize, mmr.forest(), "MMR leaf count must increase by one on every add");
         assert_eq!(
             v as usize,
@@ -559,9 +559,49 @@ fn test_mmr_inner_nodes() {
 }
 
 #[test]
+fn test_mmr_peaks() {
+    let mmr: Mmr = LEAVES.into();
+
+    let forest = 0b0001;
+    let acc = mmr.peaks(forest).unwrap();
+    assert_eq!(acc.num_leaves(), forest);
+    assert_eq!(acc.peaks(), &[mmr.nodes[0]]);
+
+    let forest = 0b0010;
+    let acc = mmr.peaks(forest).unwrap();
+    assert_eq!(acc.num_leaves(), forest);
+    assert_eq!(acc.peaks(), &[mmr.nodes[2]]);
+
+    let forest = 0b0011;
+    let acc = mmr.peaks(forest).unwrap();
+    assert_eq!(acc.num_leaves(), forest);
+    assert_eq!(acc.peaks(), &[mmr.nodes[2], mmr.nodes[3]]);
+
+    let forest = 0b0100;
+    let acc = mmr.peaks(forest).unwrap();
+    assert_eq!(acc.num_leaves(), forest);
+    assert_eq!(acc.peaks(), &[mmr.nodes[6]]);
+
+    let forest = 0b0101;
+    let acc = mmr.peaks(forest).unwrap();
+    assert_eq!(acc.num_leaves(), forest);
+    assert_eq!(acc.peaks(), &[mmr.nodes[6], mmr.nodes[7]]);
+
+    let forest = 0b0110;
+    let acc = mmr.peaks(forest).unwrap();
+    assert_eq!(acc.num_leaves(), forest);
+    assert_eq!(acc.peaks(), &[mmr.nodes[6], mmr.nodes[9]]);
+
+    let forest = 0b0111;
+    let acc = mmr.peaks(forest).unwrap();
+    assert_eq!(acc.num_leaves(), forest);
+    assert_eq!(acc.peaks(), &[mmr.nodes[6], mmr.nodes[9], mmr.nodes[10]]);
+}
+
+#[test]
 fn test_mmr_hash_peaks() {
     let mmr: Mmr = LEAVES.into();
-    let peaks = mmr.accumulator();
+    let peaks = mmr.peaks(mmr.forest()).unwrap();
 
     let first_peak = Rpo256::merge(&[
         Rpo256::merge(&[LEAVES[0], LEAVES[1]]),
@@ -618,7 +658,7 @@ fn test_mmr_peaks_hash_odd() {
 #[test]
 fn test_mmr_delta() {
     let mmr: Mmr = LEAVES.into();
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
 
     // original_forest can't have more elements
     assert!(
@@ -718,7 +758,7 @@ fn test_mmr_delta_old_forest() {
 #[test]
 fn test_partial_mmr_simple() {
     let mmr: Mmr = LEAVES.into();
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
     let mut partial: PartialMmr = acc.clone().into();
 
     // check initial state of the partial mmr
@@ -759,7 +799,7 @@ fn test_partial_mmr_update_single() {
     let mut full = Mmr::new();
     let zero = int_to_node(0);
     full.add(zero);
-    let mut partial: PartialMmr = full.accumulator().into();
+    let mut partial: PartialMmr = full.peaks(full.forest()).unwrap().into();
 
     let proof = full.open(0, full.forest()).unwrap();
     partial.add(proof.position, zero, &proof.merkle_path).unwrap();
@@ -771,7 +811,7 @@ fn test_partial_mmr_update_single() {
         partial.apply(delta).unwrap();
 
         assert_eq!(partial.forest(), full.forest());
-        assert_eq!(partial.peaks(), full.accumulator().peaks());
+        assert_eq!(partial.peaks(), full.peaks(full.forest()).unwrap().peaks());
 
         let proof1 = full.open(i as usize, full.forest()).unwrap();
         partial.add(proof1.position, node, &proof1.merkle_path).unwrap();
@@ -783,7 +823,7 @@ fn test_partial_mmr_update_single() {
 #[test]
 fn test_mmr_add_invalid_odd_leaf() {
     let mmr: Mmr = LEAVES.into();
-    let acc = mmr.accumulator();
+    let acc = mmr.peaks(mmr.forest()).unwrap();
     let mut partial: PartialMmr = acc.clone().into();
 
     let empty = MerklePath::new(Vec::new());
