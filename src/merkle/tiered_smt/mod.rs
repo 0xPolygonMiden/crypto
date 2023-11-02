@@ -166,7 +166,9 @@ impl TieredSmt {
         TieredSmtProof::new(path, entries).expect("Bug detected, TSMT produced invalid proof")
     }
 
-    /// TODO: docstring
+    /// Provides the data structures necessary to perform a sequence of key inserts in the Miden VM.
+    /// Specifically, the partial Merkle tree is used to populate the advice provider's Merkle
+    /// store, while `advice_map` is used to populate the advice map.
     pub fn get_insert_witness<'a>(
         &'a self,
         keys_to_insert: impl IntoIterator<Item = &'a RpoDigest>,
@@ -413,9 +415,11 @@ impl Default for TieredSmt {
     }
 }
 
+/// Data structures given to the VM's advice provider in order to perform a series of key inserts in
+/// the Miden VM
 pub struct TieredSmtInsertWitness {
-    partial_mt: PartialMerkleTree,
-    advice_map: BTreeMap<RpoDigest, Vec<(RpoDigest, Word)>>,
+    pub partial_mt: PartialMerkleTree,
+    pub advice_map: BTreeMap<RpoDigest, Vec<(RpoDigest, Word)>>,
 }
 
 // LEAF NODE INDEX
