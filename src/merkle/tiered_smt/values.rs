@@ -1,5 +1,6 @@
 use super::{
-    get_key_prefix, index_to_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, Vec, Word,
+    get_key_prefix, index_to_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, TieredSmt,
+    Vec, Word,
 };
 use crate::utils::vec;
 use core::{
@@ -121,16 +122,12 @@ impl ValueStore {
     }
 
     /// Returns an iterator over all key-value pairs stored at a given leaf index
-    pub fn iter_leaf(
-        &self,
-        leaf_index: LeafNodeIndex,
-    ) -> impl Iterator<Item = &(RpoDigest, Word)> {
-        let range_start = index_to_prefix(&leaf_index);
-        let range_end = if range_start == u64::MAX {
-            range_start
-        } else {
-            range_start + 1
-        };
+    pub fn iter_leaf(&self, leaf_index: LeafNodeIndex) -> impl Iterator<Item = &(RpoDigest, Word)> {
+        let shift = TieredSmt::MAX_DEPTH - leaf_index.depth();
+
+        let range_start = leaf_index.value() << shift;
+        // FIXME: this probably doesn't work for a leaf value of u64::MAX
+        let range_end = { ((range_start >> shift) + 1) << shift };
 
         self.range(range_start..range_end)
     }
