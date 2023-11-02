@@ -44,37 +44,6 @@ impl ValueStore {
         self.values.get(&prefix).and_then(|entry| entry.get(key))
     }
 
-    /// Returns the key/value of node `node` at index `index`
-    /// TODO: REMOVE WHEN `TSMT::get_node_kv`
-    pub fn get_key_value_at_index(
-        &self,
-        leaf_index: LeafNodeIndex,
-        leaf_node: &RpoDigest,
-    ) -> Option<(&RpoDigest, &Word)> {
-        let leaf_prefix = index_to_prefix(&leaf_index);
-
-        self.values
-            .range(leaf_prefix..)
-            .filter_map(|(_prefix, store_entry)| match store_entry {
-                StoreEntry::Single((key, value)) => {
-                    if hash_upper_leaf(*key, *value, leaf_index.depth()) == *leaf_node {
-                        Some((key, value))
-                    } else {
-                        None
-                    }
-                }
-                StoreEntry::List(key_vals) => {
-                    for (key, value) in key_vals {
-                        if hash_upper_leaf(*key, *value, leaf_index.depth()) == *leaf_node {
-                            return Some((key, value));
-                        }
-                    }
-                    None
-                }
-            })
-            .next()
-    }
-
     /// Returns the first key-value pair such that the key prefix is greater than or equal to the
     /// specified prefix.
     pub fn get_first(&self, prefix: u64) -> Option<&(RpoDigest, Word)> {
@@ -154,9 +123,9 @@ impl ValueStore {
     /// Returns an iterator over all key-value pairs stored at a given leaf index
     pub fn iter_leaf(
         &self,
-        leaf_index: &LeafNodeIndex,
+        leaf_index: LeafNodeIndex,
     ) -> impl Iterator<Item = &(RpoDigest, Word)> {
-        let range_start = index_to_prefix(leaf_index);
+        let range_start = index_to_prefix(&leaf_index);
         let range_end = if range_start == u64::MAX {
             range_start
         } else {
