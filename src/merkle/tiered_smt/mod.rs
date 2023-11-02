@@ -177,16 +177,24 @@ impl TieredSmt {
         let mut advice_map = BTreeMap::new();
 
         for key in keys_to_insert {
-            let (leaf_index, _) = self.nodes.get_leaf_index(key);
+            let (leaf_index, leaf_node_exists) = self.nodes.get_leaf_index(key);
             let path = self.get_path(leaf_index.into())?;
             let leaf_node = self.get_node(leaf_index.into())?;
 
             partial_mt.add_path(leaf_index.value(), leaf_node, path)?;
 
             // Update advice_map with all key/values who share the same node as current `key`
-            self.values
-                .get_all(leaf_index.value())
-                .and_then(|key_vals| advice_map.insert(leaf_node, key_vals));
+            if leaf_node_exists {
+                if leaf_index.depth() < Self::MAX_DEPTH {
+                    self.values.get_key_value_at_index(leaf_index, &leaf_node).and_then(
+                        |(key, value)| advice_map.insert(leaf_node, vec![(*key, *value)]),
+                    );
+                } else {
+                    self.values
+                        .get_all(leaf_index.value())
+                        .and_then(|key_vals| advice_map.insert(leaf_node, key_vals));
+                }
+            }
         }
 
         Ok(TieredSmtInsertWitness { partial_mt, advice_map })

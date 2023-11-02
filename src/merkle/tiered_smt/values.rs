@@ -1,5 +1,7 @@
-use super::{get_key_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, Vec, Word};
-use crate::utils::vec;
+use super::{
+    get_key_prefix, index_to_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, Vec, Word,
+};
+use crate::{merkle::tiered_smt::hash_upper_leaf, utils::vec};
 use core::{
     cmp::{Ord, Ordering},
     ops::RangeBounds,
@@ -40,6 +42,36 @@ impl ValueStore {
     pub fn get(&self, key: &RpoDigest) -> Option<&Word> {
         let prefix = get_key_prefix(key);
         self.values.get(&prefix).and_then(|entry| entry.get(key))
+    }
+
+    /// Returns the key/value of node `node` at index `index`
+    pub fn get_key_value_at_index(
+        &self,
+        leaf_index: LeafNodeIndex,
+        leaf_node: &RpoDigest,
+    ) -> Option<(&RpoDigest, &Word)> {
+        let leaf_prefix = index_to_prefix(&leaf_index);
+
+        self.values
+            .range(leaf_prefix..)
+            .filter_map(|(_prefix, store_entry)| match store_entry {
+                StoreEntry::Single((key, value)) => {
+                    if hash_upper_leaf(*key, *value, leaf_index.depth()) == *leaf_node {
+                        Some((key, value))
+                    } else {
+                        None
+                    }
+                }
+                StoreEntry::List(key_vals) => {
+                    for (key, value) in key_vals {
+                        if hash_upper_leaf(*key, *value, leaf_index.depth()) == *leaf_node {
+                            return Some((key, value));
+                        }
+                    }
+                    None
+                }
+            })
+            .next()
     }
 
     /// Returns the first key-value pair such that the key prefix is greater than or equal to the
