@@ -715,6 +715,38 @@ fn tsmt_bottom_tier_two() {
 // GET PROOF TESTS
 // ================================================================================================
 
+/// Tests the membership and non-membership proof for a single at depth 64
+#[test]
+fn tsmt_get_proof_single_element_64() {
+    let mut smt = TieredSmt::default();
+
+    let raw_a = 0b_00000000_00000001_00000000_00000001_00000000_00000001_00000000_00000001_u64;
+    let key_a = [ONE, ONE, ONE, raw_a.into()].into();
+    let value_a = [ONE, ONE, ONE, ONE];
+    smt.insert(key_a, value_a);
+
+    // push element `a` to depth 64, by inserting another value that shares the 48-bit prefix
+    let raw_b = 0b_00000000_00000001_00000000_00000001_00000000_00000001_00000000_00000000_u64;
+    let key_b = [ONE, ONE, ONE, raw_b.into()].into();
+    smt.insert(key_b, [ONE, ONE, ONE, ONE]);
+
+    // verify the proof for element `a`
+    let proof = smt.prove(key_a);
+    assert!(proof.verify_membership(&key_a, &value_a, &smt.root()));
+
+    // check that a value that is not inserted in the tree produces a valid membership proof for the
+    // empty word
+    let key = [ZERO, ZERO, ZERO, ZERO].into();
+    let proof = smt.prove(key);
+    assert!(proof.verify_membership(&key, &EMPTY_WORD, &smt.root()));
+
+    // check that a key that shared the 64-bit prefix with `a`, but is not inserted, also has a
+    // valid membership proof for the empty word
+    let key = [ONE, ONE, ZERO, raw_a.into()].into();
+    let proof = smt.prove(key);
+    assert!(proof.verify_membership(&key, &EMPTY_WORD, &smt.root()));
+}
+
 #[test]
 fn tsmt_get_proof() {
     let mut smt = TieredSmt::default();
