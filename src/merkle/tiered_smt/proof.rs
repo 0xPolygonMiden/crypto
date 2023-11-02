@@ -85,18 +85,26 @@ impl TieredSmtProof {
     /// Note: this method cannot be used to assert non-membership. That is, if false is returned,
     /// it does not mean that the provided key-value pair is not in the tree.
     pub fn verify_membership(&self, key: &RpoDigest, value: &Word, root: &RpoDigest) -> bool {
-        if self.is_value_empty() {
-            if value != &EMPTY_VALUE {
-                return false;
-            }
-            // if the proof is for an empty value, we can verify it against any key which has a
-            // common prefix with the key storied in entries, but the prefix must be greater than
-            // the path length
-            let common_prefix_tier = get_common_prefix_tier_depth(key, &self.entries[0].0);
-            if common_prefix_tier < self.path.depth() {
-                return false;
-            }
-        } else if !self.entries.contains(&(*key, *value)) {
+        // Handles the following scenarios:
+        // - the value is set
+        // - empty leaf, there is an explicit entry for the key with the empty value
+        // - shared 64-bit prefix, the target key is not included in the entries list, the value is implicitly the empty word
+        let v = match self.entries.iter().find(|(k, _)| k == key) {
+            Some((_, v)) => v,
+            None => &EMPTY_VALUE,
+        };
+
+        // The value must match for the proof to be valid
+        if v != value {
+            return false;
+        }
+
+        // If the proof is for an empty value, we can verify it against any key which has a common
+        // prefix with the key storied in entries, but the prefix must be greater than the path
+        // length
+        if self.is_value_empty()
+            && get_common_prefix_tier_depth(key, &self.entries[0].0) < self.path.depth()
+        {
             return false;
         }
 
