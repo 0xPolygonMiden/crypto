@@ -901,6 +901,44 @@ fn tsmt_node_not_available() {
     assert!(smt.get_path(index).is_err());
 }
 
+// GET_INSERT_WITNESS TESTS
+// ================================================================================================
+
+// Tests:
+// 1. when TSMT is empty, insert 2 keys who share 16 bits, and 1 that doesn't, the PMT has 2 16-depth paths, and nothing else
+//   + Node hashes are all "empty hash"
+// 2. If TSMT contains 1 key at depth 16, and insert 2 keys at that 16-bit prefix, get a PMT with just that one path
+// 3. If TSMT contains 1 key at depth 16, but we insert next to it, then PMT contains just the path of empty roots to next index
+// 4. advice_map at depth 64
+
+/// Tests that when the TSMT contains a value `V`` at depth 16, and we insert 2 keys with the same 16-bit
+/// key prefix, the output is
+/// 1. a partial Merkle tree that contains solely the path to `V`
+/// 2. an advice_map which contains `V` at its node index
+#[test]
+fn test_insert_witness_tsmt_1_value() {
+    
+    // Setup TSMT
+    let mut smt = TieredSmt::default();
+
+    let raw_in_tsmt = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_in_tsmt = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_in_tsmt)]);
+    let value = [ONE; WORD_SIZE];
+
+    smt.insert(key_in_tsmt, value);
+
+    // Setup 2 keys to insert that share the same 16-bit prefix as `raw_in_tsmt`
+    let raw_insert_1 = 0b_01101001_01101100_00000000_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_insert_1 = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_insert_1)]);
+
+    let raw_insert_2 = 0b_01101001_01101100_11111111_11111111_10010110_10010011_11100000_00000000_u64;
+    let key_insert_2 = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_insert_2)]);
+
+    let witness = smt.get_insert_witness(vec![&key_insert_1, &key_insert_2]).unwrap();
+
+    assert_eq!(*witness.advice_map.get(&key_in_tsmt).unwrap(), vec![(key_in_tsmt, value)]);
+}
+
 // HELPER FUNCTIONS
 // ================================================================================================
 
