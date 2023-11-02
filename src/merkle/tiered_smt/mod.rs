@@ -166,10 +166,7 @@ impl TieredSmt {
         TieredSmtProof::new(path, entries).expect("Bug detected, TSMT produced invalid proof")
     }
 
-    /// Returns
-    /// 1. a partial Merkle tree pre-populated with paths leading up to nodes to be inserted,
-    /// one per key in `keys_to_insert`.
-    /// 2. a map `leaf_hash -> (key, value)` which stores the key/value for keys that already contain a value
+    /// TODO: docstring
     pub fn get_insert_witness<'a>(
         &'a self,
         keys_to_insert: impl IntoIterator<Item = &'a RpoDigest>,
