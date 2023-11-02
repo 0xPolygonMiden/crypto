@@ -924,6 +924,7 @@ fn test_insert_witness_tsmt_1_value() {
     let raw_in_tsmt = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
     let key_in_tsmt = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_in_tsmt)]);
     let value = [ONE; WORD_SIZE];
+    let leaf_node = build_leaf_node(key_in_tsmt, value, 16);
 
     smt.insert(key_in_tsmt, value);
 
@@ -936,7 +937,7 @@ fn test_insert_witness_tsmt_1_value() {
 
     let witness = smt.get_insert_witness(vec![&key_insert_1, &key_insert_2]).unwrap();
 
-    assert_eq!(*witness.advice_map.get(&key_in_tsmt).unwrap(), vec![(key_in_tsmt, value)]);
+    assert_eq!(*witness.advice_map.get(&leaf_node).unwrap(), vec![(key_in_tsmt, value)]);
 }
 
 // HELPER FUNCTIONS
