@@ -175,16 +175,16 @@ impl TieredSmt {
         let mut advice_map = BTreeMap::new();
 
         for key in keys_to_insert {
-            let (leaf_index, leaf_exists) = self.nodes.get_leaf_index(key);
+            let (leaf_index, _) = self.nodes.get_leaf_index(key);
             let path = self.get_path(leaf_index.into())?;
             let leaf_node = self.get_node(leaf_index.into())?;
 
             partial_mt.add_path(leaf_index.value(), leaf_node, path)?;
 
-            if leaf_exists {
-                let value = self.values.get(key).expect("leaf exists, but node not in ValueStore");
-                advice_map.insert(leaf_node, (*key, *value));
-            }
+            // Update advice_map with all key/values who share the same node as current `key`
+            self.values
+                .get_all(leaf_index.value())
+                .and_then(|key_vals| advice_map.insert(leaf_node, key_vals));
         }
 
         Ok(TieredSmtInsertWitness { partial_mt, advice_map })
@@ -415,7 +415,7 @@ impl Default for TieredSmt {
 
 pub struct TieredSmtInsertWitness {
     partial_mt: PartialMerkleTree,
-    advice_map: BTreeMap<RpoDigest, (RpoDigest, Word)>,
+    advice_map: BTreeMap<RpoDigest, Vec<(RpoDigest, Word)>>,
 }
 
 // LEAF NODE INDEX
