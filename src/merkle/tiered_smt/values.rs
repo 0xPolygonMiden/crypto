@@ -1,7 +1,7 @@
 use super::{
     get_key_prefix, index_to_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, Vec, Word,
 };
-use crate::{merkle::tiered_smt::hash_upper_leaf, utils::vec};
+use crate::utils::vec;
 use core::{
     cmp::{Ord, Ordering},
     ops::RangeBounds,
