@@ -10,12 +10,19 @@ pub struct EmptySubtreeRoots;
 impl EmptySubtreeRoots {
     /// Returns a static slice with roots of empty subtrees of a Merkle tree starting at the
     /// specified depth.
-    pub const fn empty_hashes(depth: u8) -> &'static [RpoDigest] {
-        let ptr = &EMPTY_SUBTREES[255 - depth as usize] as *const RpoDigest;
+    pub const fn empty_hashes(tree_depth: u8) -> &'static [RpoDigest] {
+        let ptr = &EMPTY_SUBTREES[255 - tree_depth as usize] as *const RpoDigest;
         // Safety: this is a static/constant array, so it will never be outlived. If we attempt to
         // use regular slices, this wouldn't be a `const` function, meaning we won't be able to use
         // the returned value for static/constant definitions.
-        unsafe { slice::from_raw_parts(ptr, depth as usize + 1) }
+        unsafe { slice::from_raw_parts(ptr, tree_depth as usize + 1) }
+    }
+
+    /// Returns the node's digest for a sub-tree with all its leaves set to the empty word.
+    pub const fn entry(tree_depth: u8, node_depth: u8) -> &'static RpoDigest {
+        assert!(node_depth <= tree_depth);
+        let pos = 255 - tree_depth + node_depth;
+        &EMPTY_SUBTREES[pos as usize]
     }
 }
 
@@ -1581,5 +1588,18 @@ fn all_depths_opens_to_zero() {
                 Some((x, *state))
             })
             .for_each(|(x, computed)| assert_eq!(x, computed));
+    }
+}
+
+#[test]
+fn test_entry() {
+    // check the leaf is always the empty work
+    for depth in 0..255 {
+        assert_eq!(EmptySubtreeRoots::entry(depth, depth), &RpoDigest::new(EMPTY_WORD));
+    }
+
+    // check the root matches the first element of empty_hashes
+    for depth in 0..255 {
+        assert_eq!(EmptySubtreeRoots::entry(depth, 0), &EmptySubtreeRoots::empty_hashes(depth)[0]);
     }
 }

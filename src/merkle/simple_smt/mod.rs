@@ -19,7 +19,6 @@ pub struct SimpleSmt {
     root: RpoDigest,
     leaves: BTreeMap<u64, Word>,
     branches: BTreeMap<NodeIndex, BranchNode>,
-    empty_hashes: Vec<RpoDigest>,
 }
 
 impl SimpleSmt {
@@ -52,13 +51,11 @@ impl SimpleSmt {
             return Err(MerkleError::DepthTooBig(depth as u64));
         }
 
-        let empty_hashes = EmptySubtreeRoots::empty_hashes(depth).to_vec();
-        let root = empty_hashes[0];
+        let root = *EmptySubtreeRoots::entry(depth, 0);
 
         Ok(Self {
             root,
             depth,
-            empty_hashes,
             leaves: BTreeMap::new(),
             branches: BTreeMap::new(),
         })
@@ -133,10 +130,12 @@ impl SimpleSmt {
         } else if index.depth() == self.depth() {
             // the lookup in empty_hashes could fail only if empty_hashes were not built correctly
             // by the constructor as we check the depth of the lookup above.
-            Ok(RpoDigest::from(
-                self.get_leaf_node(index.value())
-                    .unwrap_or_else(|| *self.empty_hashes[index.depth() as usize]),
-            ))
+            let leaf_pos = index.value();
+            let leaf = match self.get_leaf_node(leaf_pos) {
+                Some(word) => word.into(),
+                None => *EmptySubtreeRoots::entry(self.depth, index.depth()),
+            };
+            Ok(leaf)
         } else {
             Ok(self.get_branch_node(&index).parent())
         }
@@ -248,8 +247,8 @@ impl SimpleSmt {
 
     fn get_branch_node(&self, index: &NodeIndex) -> BranchNode {
         self.branches.get(index).cloned().unwrap_or_else(|| {
-            let node = self.empty_hashes[index.depth() as usize + 1];
-            BranchNode { left: node, right: node }
+            let node = EmptySubtreeRoots::entry(self.depth, index.depth() + 1);
+            BranchNode { left: *node, right: *node }
         })
     }
 
