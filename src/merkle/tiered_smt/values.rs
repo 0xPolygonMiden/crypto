@@ -45,6 +45,7 @@ impl ValueStore {
     }
 
     /// Returns the key/value of node `node` at index `index`
+    /// TODO: REMOVE WHEN `TSMT::get_node_kv`
     pub fn get_key_value_at_index(
         &self,
         leaf_index: LeafNodeIndex,
@@ -148,6 +149,21 @@ impl ValueStore {
     /// Returns an iterator over all key-value pairs in this store.
     pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
         self.values.iter().flat_map(|(_, entry)| entry.iter())
+    }
+
+    /// Returns an iterator over all key-value pairs stored at a given leaf index
+    pub fn iter_leaf(
+        &self,
+        leaf_index: &LeafNodeIndex,
+    ) -> impl Iterator<Item = &(RpoDigest, Word)> {
+        let range_start = index_to_prefix(leaf_index);
+        let range_end = if range_start == u64::MAX {
+            range_start
+        } else {
+            range_start + 1
+        };
+
+        self.range(range_start..range_end)
     }
 
     // STATE MUTATORS
