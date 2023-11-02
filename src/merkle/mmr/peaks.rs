@@ -54,6 +54,11 @@ impl MmrPeaks {
         &self.peaks
     }
 
+    /// Returns the current num_leaves and peaks of the [Mmr].
+    pub fn into_parts(self) -> (usize, Vec<RpoDigest>) {
+        (self.num_leaves, self.peaks)
+    }
+
     /// Hashes the peaks.
     ///
     /// The procedure will:
