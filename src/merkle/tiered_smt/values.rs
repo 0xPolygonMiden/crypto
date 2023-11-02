@@ -1,7 +1,4 @@
-use super::{
-    get_key_prefix, index_to_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, TieredSmt,
-    Vec, Word,
-};
+use super::{get_key_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, TieredSmt, Vec, Word};
 use crate::utils::vec;
 use core::{
     cmp::{Ord, Ordering},

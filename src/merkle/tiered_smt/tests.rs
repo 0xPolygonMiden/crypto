@@ -917,11 +917,11 @@ fn tsmt_node_not_available() {
 /// 2. an advice_map which contains `V` at its node index
 #[test]
 fn test_insert_witness_tsmt_1_value() {
-    
     // Setup TSMT
     let mut smt = TieredSmt::default();
 
-    let raw_in_tsmt = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    let raw_in_tsmt =
+        0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
     let key_in_tsmt = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_in_tsmt)]);
     let value = [ONE; WORD_SIZE];
     let leaf_node = build_leaf_node(key_in_tsmt, value, 16);
@@ -929,10 +929,12 @@ fn test_insert_witness_tsmt_1_value() {
     smt.insert(key_in_tsmt, value);
 
     // Setup 2 keys to insert that share the same 16-bit prefix as `raw_in_tsmt`
-    let raw_insert_1 = 0b_01101001_01101100_00000000_11111111_10010110_10010011_11100000_00000000_u64;
+    let raw_insert_1 =
+        0b_01101001_01101100_00000000_11111111_10010110_10010011_11100000_00000000_u64;
     let key_insert_1 = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_insert_1)]);
 
-    let raw_insert_2 = 0b_01101001_01101100_11111111_11111111_10010110_10010011_11100000_00000000_u64;
+    let raw_insert_2 =
+        0b_01101001_01101100_11111111_11111111_10010110_10010011_11100000_00000000_u64;
     let key_insert_2 = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_insert_2)]);
 
     let witness = smt.get_insert_witness(vec![&key_insert_1, &key_insert_2]).unwrap();
