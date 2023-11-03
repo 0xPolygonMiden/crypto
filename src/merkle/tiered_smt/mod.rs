@@ -185,8 +185,12 @@ impl TieredSmt {
 
             // Update advice_map with all key/values who share the same node as current `key`
             if leaf_node_exists {
-                let kvs_at_leaf: Vec<_> = self.values.iter_leaf(leaf_index).cloned().collect();
-                debug_assert!(!kvs_at_leaf.is_empty());
+                let kvs_at_leaf = if leaf_index.value() == Self::MAX_DEPTH.into() {
+                    self.values.get_all(get_key_prefix(key)).expect("no leaf")
+                } else {
+                    vec![*self.values.get_first(index_to_prefix(&leaf_index)).expect("no leaf")]
+                };
+
                 advice_map.insert(leaf_node, kvs_at_leaf);
             }
         }

@@ -1,4 +1,4 @@
-use super::{get_key_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, TieredSmt, Vec, Word};
+use super::{get_key_prefix, BTreeMap, LeafNodeIndex, RpoDigest, StarkField, Vec, Word};
 use crate::utils::vec;
 use core::{
     cmp::{Ord, Ordering},
@@ -116,17 +116,6 @@ impl ValueStore {
     /// Returns an iterator over all key-value pairs in this store.
     pub fn iter(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
         self.values.iter().flat_map(|(_, entry)| entry.iter())
-    }
-
-    /// Returns an iterator over all key-value pairs stored at a given leaf index
-    pub fn iter_leaf(&self, leaf_index: LeafNodeIndex) -> impl Iterator<Item = &(RpoDigest, Word)> {
-        let shift = TieredSmt::MAX_DEPTH - leaf_index.depth();
-
-        let range_start = leaf_index.value() << shift;
-        // FIXME: this probably doesn't work for a leaf value of u64::MAX
-        let range_end = { ((range_start >> shift) + 1) << shift };
-
-        self.range(range_start..range_end)
     }
 
     // STATE MUTATORS
