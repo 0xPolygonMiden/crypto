@@ -302,6 +302,17 @@ impl Deserializable for RpoDigest {
     }
 }
 
+// ITERATORS
+// ================================================================================================
+impl IntoIterator for RpoDigest {
+    type Item = Felt;
+    type IntoIter = <[Felt; 4] as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 // TESTS
 // ================================================================================================
 
