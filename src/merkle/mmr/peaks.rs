@@ -3,7 +3,8 @@ use super::{
     Felt, MmrError, MmrProof, Rpo256, Word,
 };
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(test, derive(Default))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MmrPeaks {
     /// The number of leaves is used to differentiate accumulators that have the same number of
