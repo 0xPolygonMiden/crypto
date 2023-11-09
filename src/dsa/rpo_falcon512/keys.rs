@@ -147,7 +147,12 @@ impl KeyPair {
         };
 
         if res == 0 {
-            Ok(Signature { sig, pk: self.public_key })
+            Ok(Signature {
+                sig,
+                pk: self.public_key,
+                pk_polynomial: Default::default(),
+                sig_polynomial: Default::default(),
+            })
         } else {
             Err(FalconError::SigGenerationFailed)
         }
