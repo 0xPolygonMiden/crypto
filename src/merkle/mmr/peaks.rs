@@ -4,7 +4,6 @@ use super::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(test, derive(Default))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MmrPeaks {
     /// The number of leaves is used to differentiate accumulators that have the same number of
@@ -114,5 +113,13 @@ impl MmrPeaks {
         );
         elements.resize(len, ZERO);
         elements
+    }
+
+    // TEST HELPERS
+    // --------------------------------------------------------------------------------------------
+
+    #[cfg(test)]
+    pub fn empty() -> Self {
+        Self { num_leaves: 0, peaks: Vec::new() }
     }
 }
