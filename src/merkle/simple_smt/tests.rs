@@ -239,6 +239,92 @@ fn with_no_duplicates_empty_node() {
     assert!(smt.is_ok());
 }
 
+#[test]
+fn test_simplesmt_update_nonexisting_leaf_with_zero() {
+    // TESTING WITH EMPTY WORD
+    // --------------------------------------------------------------------------------------------
+
+    // Depth 1 has 2 leaf. Position is 0-indexed, position 2 doesn't exist.
+    let mut smt = SimpleSmt::new(1).unwrap();
+    let result = smt.update_leaf(2, EMPTY_WORD);
+    assert!(!smt.leaves.contains_key(&2));
+    assert!(result.is_err());
+
+    // Depth 2 has 4 leaves. Position is 0-indexed, position 4 doesn't exist.
+    let mut smt = SimpleSmt::new(2).unwrap();
+    let result = smt.update_leaf(4, EMPTY_WORD);
+    assert!(!smt.leaves.contains_key(&4));
+    assert!(result.is_err());
+
+    // Depth 3 has 8 leaves. Position is 0-indexed, position 8 doesn't exist.
+    let mut smt = SimpleSmt::new(3).unwrap();
+    let result = smt.update_leaf(8, EMPTY_WORD);
+    assert!(!smt.leaves.contains_key(&8));
+    assert!(result.is_err());
+
+    // TESTING WITH A VALUE
+    // --------------------------------------------------------------------------------------------
+    let value = int_to_node(1);
+
+    // Depth 1 has 2 leaves. Position is 0-indexed, position 1 doesn't exist.
+    let mut smt = SimpleSmt::new(1).unwrap();
+    let result = smt.update_leaf(2, *value);
+    assert!(!smt.leaves.contains_key(&2));
+    assert!(result.is_err());
+
+    // Depth 2 has 4 leaves. Position is 0-indexed, position 2 doesn't exist.
+    let mut smt = SimpleSmt::new(2).unwrap();
+    let result = smt.update_leaf(4, *value);
+    assert!(!smt.leaves.contains_key(&4));
+    assert!(result.is_err());
+
+    // Depth 3 has 8 leaves. Position is 0-indexed, position 4 doesn't exist.
+    let mut smt = SimpleSmt::new(3).unwrap();
+    let result = smt.update_leaf(8, *value);
+    assert!(!smt.leaves.contains_key(&8));
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_simplesmt_with_leaves_nonexisting_leaf() {
+    // TESTING WITH EMPTY WORD
+    // --------------------------------------------------------------------------------------------
+
+    // Depth 1 has 2 leaf. Position is 0-indexed, position 2 doesn't exist.
+    let leaves = [(2, EMPTY_WORD)];
+    let result = SimpleSmt::with_leaves(1, leaves);
+    assert!(result.is_err());
+
+    // Depth 2 has 4 leaves. Position is 0-indexed, position 4 doesn't exist.
+    let leaves = [(4, EMPTY_WORD)];
+    let result = SimpleSmt::with_leaves(2, leaves);
+    assert!(result.is_err());
+
+    // Depth 3 has 8 leaves. Position is 0-indexed, position 8 doesn't exist.
+    let leaves = [(8, EMPTY_WORD)];
+    let result = SimpleSmt::with_leaves(3, leaves);
+    assert!(result.is_err());
+
+    // TESTING WITH A VALUE
+    // --------------------------------------------------------------------------------------------
+    let value = int_to_node(1);
+
+    // Depth 1 has 2 leaves. Position is 0-indexed, position 2 doesn't exist.
+    let leaves = [(2, *value)];
+    let result = SimpleSmt::with_leaves(1, leaves);
+    assert!(result.is_err());
+
+    // Depth 2 has 4 leaves. Position is 0-indexed, position 4 doesn't exist.
+    let leaves = [(4, *value)];
+    let result = SimpleSmt::with_leaves(2, leaves);
+    assert!(result.is_err());
+
+    // Depth 3 has 8 leaves. Position is 0-indexed, position 8 doesn't exist.
+    let leaves = [(8, *value)];
+    let result = SimpleSmt::with_leaves(3, leaves);
+    assert!(result.is_err());
+}
+
 // HELPER FUNCTIONS
 // --------------------------------------------------------------------------------------------
 
