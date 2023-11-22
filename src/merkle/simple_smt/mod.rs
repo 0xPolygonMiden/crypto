@@ -87,19 +87,20 @@ impl SimpleSmt {
             return Err(MerkleError::InvalidNumEntries(max, entries.len()));
         }
 
-        // append leaves to the tree returning an error if a duplicate entry for the same key
-        // is found
-        let mut empty_entries = BTreeSet::new();
+        // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
+        // entries with the empty value need additional tracking.
+        let mut key_set_to_zero = BTreeSet::new();
+
         for (key, value) in entries {
             let old_value = tree.update_leaf(key, value)?;
-            if old_value != Self::EMPTY_VALUE || empty_entries.contains(&key) {
+
+            if old_value != Self::EMPTY_VALUE || key_set_to_zero.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(key));
             }
-            // if we've processed an empty entry, add the key to the set of empty entry keys, and
-            // if this key was already in the set, return an error
-            if value == Self::EMPTY_VALUE && !empty_entries.insert(key) {
-                return Err(MerkleError::DuplicateValuesForIndex(key));
-            }
+
+            if value == Self::EMPTY_VALUE {
+                key_set_to_zero.insert(key);
+            };
         }
         Ok(tree)
     }

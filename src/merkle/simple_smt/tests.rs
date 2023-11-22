@@ -214,22 +214,31 @@ fn small_tree_opening_is_consistent() {
 }
 
 #[test]
-fn fail_on_duplicates() {
-    let entries = [(1_u64, int_to_leaf(1)), (5, int_to_leaf(2)), (1_u64, int_to_leaf(3))];
-    let smt = SimpleSmt::with_leaves(64, entries);
-    assert!(smt.is_err());
+fn test_simplesmt_fail_on_duplicates() {
+    let values = [
+        // same key, same value
+        (int_to_leaf(1), int_to_leaf(1)),
+        // same key, different values
+        (int_to_leaf(1), int_to_leaf(2)),
+        // same key, set to zero
+        (EMPTY_WORD, int_to_leaf(1)),
+        // same key, re-set to zero
+        (int_to_leaf(1), EMPTY_WORD),
+        // same key, set to zero twice
+        (EMPTY_WORD, EMPTY_WORD),
+    ];
 
-    let entries = [(1_u64, int_to_leaf(0)), (5, int_to_leaf(2)), (1_u64, int_to_leaf(0))];
-    let smt = SimpleSmt::with_leaves(64, entries);
-    assert!(smt.is_err());
+    for (first, second) in values.iter() {
+        // consecutive
+        let entries = [(1, *first), (1, *second)];
+        let smt = SimpleSmt::with_leaves(64, entries);
+        assert_eq!(smt.unwrap_err(), MerkleError::DuplicateValuesForIndex(1));
 
-    let entries = [(1_u64, int_to_leaf(0)), (5, int_to_leaf(2)), (1_u64, int_to_leaf(1))];
-    let smt = SimpleSmt::with_leaves(64, entries);
-    assert!(smt.is_err());
-
-    let entries = [(1_u64, int_to_leaf(1)), (5, int_to_leaf(2)), (1_u64, int_to_leaf(0))];
-    let smt = SimpleSmt::with_leaves(64, entries);
-    assert!(smt.is_err());
+        // not consecutive
+        let entries = [(1, *first), (5, int_to_leaf(5)), (1, *second)];
+        let smt = SimpleSmt::with_leaves(64, entries);
+        assert_eq!(smt.unwrap_err(), MerkleError::DuplicateValuesForIndex(1));
+    }
 }
 
 #[test]
