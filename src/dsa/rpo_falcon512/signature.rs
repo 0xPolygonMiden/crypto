@@ -4,6 +4,7 @@ use super::{
     SIG_L2_BOUND, ZERO,
 };
 use crate::utils::string::ToString;
+use core::cell::OnceCell;
 
 // FALCON SIGNATURE
 // ================================================================================================
@@ -43,6 +44,10 @@ use crate::utils::string::ToString;
 pub struct Signature {
     pub(super) pk: PublicKeyBytes,
     pub(super) sig: SignatureBytes,
+
+    // Cached polynomial decoding for public key and signatures
+    pub(super) pk_polynomial: OnceCell<Polynomial>,
+    pub(super) sig_polynomial: OnceCell<Polynomial>,
 }
 
 impl Signature {
@@ -51,10 +56,11 @@ impl Signature {
 
     /// Returns the public key polynomial h.
     pub fn pub_key_poly(&self) -> Polynomial {
-        // TODO: memoize
-        // we assume that the signature was constructed with a valid public key, and thus
-        // expect() is OK here.
-        Polynomial::from_pub_key(&self.pk).expect("invalid public key")
+        *self.pk_polynomial.get_or_init(|| {
+            // we assume that the signature was constructed with a valid public key, and thus
+            // expect() is OK here.
+            Polynomial::from_pub_key(&self.pk).expect("invalid public key")
+        })
     }
 
     /// Returns the nonce component of the signature represented as field elements.
@@ -70,10 +76,11 @@ impl Signature {
 
     // Returns the polynomial representation of the signature in Z_p[x]/(phi).
     pub fn sig_poly(&self) -> Polynomial {
-        // TODO: memoize
-        // we assume that the signature was constructed with a valid signature, and thus
-        // expect() is OK here.
-        Polynomial::from_signature(&self.sig).expect("invalid signature")
+        *self.sig_polynomial.get_or_init(|| {
+            // we assume that the signature was constructed with a valid signature, and thus
+            // expect() is OK here.
+            Polynomial::from_signature(&self.sig).expect("invalid signature")
+        })
     }
 
     // HASH-TO-POINT
@@ -123,12 +130,14 @@ impl Deserializable for Signature {
         let sig: SignatureBytes = source.read_array()?;
 
         // make sure public key and signature can be decoded correctly
-        Polynomial::from_pub_key(&pk)
-            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?;
-        Polynomial::from_signature(&sig[41..])
-            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?;
+        let pk_polynomial = Polynomial::from_pub_key(&pk)
+            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?
+            .into();
+        let sig_polynomial = Polynomial::from_signature(&sig[41..])
+            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?
+            .into();
 
-        Ok(Self { pk, sig })
+        Ok(Self { pk, sig, pk_polynomial, sig_polynomial })
     }
 }
 
