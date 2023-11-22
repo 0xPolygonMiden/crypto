@@ -213,6 +213,9 @@ impl SimpleSmt {
     /// # Errors
     /// Returns an error if the index is greater than the maximum tree capacity, that is 2^{depth}.
     pub fn update_leaf(&mut self, index: u64, value: Word) -> Result<Word, MerkleError> {
+        // validate the index before modifying the structure
+        let mut idx = NodeIndex::new(self.depth(), index)?;
+
         let old_value = self.insert_leaf_node(index, value).unwrap_or(Self::EMPTY_VALUE);
 
         // if the old value and new value are the same, there is nothing to update
@@ -220,14 +223,13 @@ impl SimpleSmt {
             return Ok(value);
         }
 
-        let mut index = NodeIndex::new(self.depth(), index)?;
         let mut value = RpoDigest::from(value);
-        for _ in 0..index.depth() {
-            let is_right = index.is_value_odd();
-            index.move_up();
-            let BranchNode { left, right } = self.get_branch_node(&index);
+        for _ in 0..idx.depth() {
+            let is_right = idx.is_value_odd();
+            idx.move_up();
+            let BranchNode { left, right } = self.get_branch_node(&idx);
             let (left, right) = if is_right { (left, value) } else { (value, right) };
-            self.insert_branch_node(index, left, right);
+            self.insert_branch_node(idx, left, right);
             value = Rpo256::merge(&[left, right]);
         }
         self.root = value;
