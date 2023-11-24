@@ -79,10 +79,9 @@ impl SimpleSmt {
         // create an empty tree
         let mut tree = Self::new(depth)?;
 
-        // check if the number of leaves can be accommodated by the tree's depth; we use a min
-        // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
+        // check if the number of leaves can be accommodated by the tree's depth
         let entries = entries.into_iter();
-        let max = 1 << tree.depth.min(63);
+        let max = 1 << tree.depth;
         if entries.len() > max {
             return Err(MerkleError::InvalidNumEntries(max, entries.len()));
         }
