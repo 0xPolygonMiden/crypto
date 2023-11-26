@@ -41,7 +41,7 @@ const fn leaf_to_corresponding_tree(pos: usize, forest: usize) -> Option<u32> {
         // - each tree owns a consecutive range of positions equal to its size from left-to-right
         // - this means the first tree owns from `0` up to the `2^k_0` first positions, where `k_0`
         // is the highest true bit position, the second tree from `2^k_0 + 1` up to `2^k_1` where
-        // `k_1` is the second higest bit, so on.
+        // `k_1` is the second highest bit, so on.
         // - this means the highest bits work as a category marker, and the position is owned by
         // the first tree which doesn't share a high bit with the position
         let before = forest & pos;
