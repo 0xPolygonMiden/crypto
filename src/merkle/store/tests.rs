@@ -841,7 +841,7 @@ fn mstore_subset() {
     check_mstore_subtree(&substore, &subtree3);
 
     // --- extract subtrees 1 and 3 -------------------------------------------
-    // this should give the same result as above as subtree2 is nested withing subtree1
+    // this should give the same result as above as subtree2 is nested within subtree1
 
     let substore = store.subset([subtree1.root(), subtree3.root()].iter());
 

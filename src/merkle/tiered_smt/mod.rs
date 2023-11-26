@@ -208,7 +208,7 @@ impl TieredSmt {
             let node = self.build_leaf_node(index, key, value);
             self.nodes.update_leaf_node(index, node)
         } else if leaf_exists {
-            // returned index pointes to a leaf for a different key with the same prefix
+            // returned index points to a leaf for a different key with the same prefix
 
             // get the key-value pair for the key with the same prefix; since the key-value
             // pair has already been inserted into the value store, we need to filter it out
