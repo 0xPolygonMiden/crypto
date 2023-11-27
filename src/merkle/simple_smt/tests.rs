@@ -71,6 +71,21 @@ fn build_sparse_tree() {
     assert_eq!(old_value, EMPTY_WORD);
 }
 
+/// Tests that [`SimpleSmt::with_contiguous_leaves`] works as expected
+#[test]
+fn build_contiguous_tree() {
+    let tree_with_leaves = SimpleSmt::with_leaves(
+        2,
+        [0, 1, 2, 3].into_iter().zip(digests_to_words(&VALUES4).into_iter()),
+    )
+    .unwrap();
+
+    let tree_with_contiguous_leaves =
+        SimpleSmt::with_contiguous_leaves(2, digests_to_words(&VALUES4).into_iter()).unwrap();
+
+    assert_eq!(tree_with_leaves, tree_with_contiguous_leaves);
+}
+
 #[test]
 fn test_depth2_tree() {
     let tree =

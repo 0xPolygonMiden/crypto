@@ -104,6 +104,22 @@ impl SimpleSmt {
         Ok(tree)
     }
 
+    /// Wrapper around [`SimpleSmt::with_leaves`] which inserts leaves at contiguous indices
+    /// starting at index 0.
+    pub fn with_contiguous_leaves<R, I>(depth: u8, entries: R) -> Result<Self, MerkleError>
+    where
+        R: IntoIterator<IntoIter = I>,
+        I: Iterator<Item = Word> + ExactSizeIterator,
+    {
+        Self::with_leaves(
+            depth,
+            entries
+                .into_iter()
+                .enumerate()
+                .map(|(idx, word)| (idx.try_into().expect("tree max depth is 2^8"), word)),
+        )
+    }
+
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
