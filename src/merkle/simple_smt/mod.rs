@@ -82,7 +82,7 @@ impl SimpleSmt {
         // check if the number of leaves can be accommodated by the tree's depth; we use a min
         // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
         let entries = entries.into_iter();
-        let max = 1 << tree.depth.min(63);
+        let max = 2usize.pow(tree.depth.min(63).into());
         if entries.len() > max {
             return Err(MerkleError::InvalidNumEntries(max));
         }
