@@ -111,7 +111,7 @@ impl PartialMerkleTree {
         // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
         let max = (1_u64 << 63) as usize;
         if layers.len() > max {
-            return Err(MerkleError::InvalidNumEntries(max, layers.len()));
+            return Err(MerkleError::InvalidNumEntries(max));
         }
 
         // Get maximum depth

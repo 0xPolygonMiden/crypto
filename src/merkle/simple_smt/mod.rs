@@ -84,7 +84,7 @@ impl SimpleSmt {
         let entries = entries.into_iter();
         let max = 1 << tree.depth.min(63);
         if entries.len() > max {
-            return Err(MerkleError::InvalidNumEntries(max, entries.len()));
+            return Err(MerkleError::InvalidNumEntries(max));
         }
 
         // append leaves to the tree returning an error if a duplicate entry for the same key
