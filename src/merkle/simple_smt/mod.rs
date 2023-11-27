@@ -79,19 +79,18 @@ impl SimpleSmt {
         // create an empty tree
         let mut tree = Self::new(depth)?;
 
-        // check if the number of leaves can be accommodated by the tree's depth; we use a min
-        // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
-        let entries = entries.into_iter();
-        let max = 2usize.pow(tree.depth.min(63).into());
-        if entries.len() > max {
-            return Err(MerkleError::InvalidNumEntries(max));
-        }
+        // compute the max number of entries. We use an upper bound of depth 63 because we consider
+        // passing in a vector of size 2^64 infeasible.
+        let max_num_entries = 2usize.pow(tree.depth.min(63).into());
 
         // append leaves to the tree returning an error if a duplicate entry for the same key
         // is found
         let mut empty_entries = BTreeSet::new();
         for (key, value) in entries {
-            let old_value = tree.update_leaf(key, value)?;
+            let old_value = tree
+                .update_leaf(key, value)
+                .map_err(|_| MerkleError::InvalidNumEntries(max_num_entries))?;
+
             if old_value != Self::EMPTY_VALUE || empty_entries.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(key));
             }
