@@ -71,11 +71,10 @@ impl SimpleSmt {
     /// - If the depth is 0 or is greater than 64.
     /// - The number of entries exceeds the maximum tree capacity, that is 2^{depth}.
     /// - The provided entries contain multiple values for the same key.
-    pub fn with_leaves<R, I>(depth: u8, entries: R) -> Result<Self, MerkleError>
-    where
-        R: IntoIterator<IntoIter = I>,
-        I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
-    {
+    pub fn with_leaves(
+        depth: u8,
+        entries: impl IntoIterator<Item = (u64, Word)>,
+    ) -> Result<Self, MerkleError> {
         // create an empty tree
         let mut tree = Self::new(depth)?;
 
@@ -105,11 +104,10 @@ impl SimpleSmt {
 
     /// Wrapper around [`SimpleSmt::with_leaves`] which inserts leaves at contiguous indices
     /// starting at index 0.
-    pub fn with_contiguous_leaves<R, I>(depth: u8, entries: R) -> Result<Self, MerkleError>
-    where
-        R: IntoIterator<IntoIter = I>,
-        I: Iterator<Item = Word> + ExactSizeIterator,
-    {
+    pub fn with_contiguous_leaves(
+        depth: u8,
+        entries: impl IntoIterator<Item = Word>,
+    ) -> Result<Self, MerkleError> {
         Self::with_leaves(
             depth,
             entries
