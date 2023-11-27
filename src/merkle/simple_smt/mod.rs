@@ -85,10 +85,12 @@ impl SimpleSmt {
         // append leaves to the tree returning an error if a duplicate entry for the same key
         // is found
         let mut empty_entries = BTreeSet::new();
-        for (key, value) in entries {
-            let old_value = tree
-                .update_leaf(key, value)
-                .map_err(|_| MerkleError::InvalidNumEntries(max_num_entries))?;
+        for (idx, (key, value)) in entries.into_iter().enumerate() {
+            if idx >= max_num_entries {
+                return Err(MerkleError::InvalidNumEntries(max_num_entries));
+            }
+
+            let old_value = tree.update_leaf(key, value)?;
 
             if old_value != Self::EMPTY_VALUE || empty_entries.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(key));
