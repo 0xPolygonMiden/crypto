@@ -64,8 +64,8 @@ impl MmrPeaks {
     /// The procedure will:
     /// - Flatten and pad the peaks to a vector of Felts.
     /// - Hash the vector of Felts.
-    pub fn hash_peaks(&self) -> Word {
-        Rpo256::hash_elements(&self.flatten_and_pad_peaks()).into()
+    pub fn hash_peaks(&self) -> RpoDigest {
+        Rpo256::hash_elements(&self.flatten_and_pad_peaks())
     }
 
     pub fn verify(&self, value: RpoDigest, opening: MmrProof) -> bool {
