@@ -71,27 +71,26 @@ impl SimpleSmt {
     /// - If the depth is 0 or is greater than 64.
     /// - The number of entries exceeds the maximum tree capacity, that is 2^{depth}.
     /// - The provided entries contain multiple values for the same key.
-    pub fn with_leaves<R, I>(depth: u8, entries: R) -> Result<Self, MerkleError>
-    where
-        R: IntoIterator<IntoIter = I>,
-        I: Iterator<Item = (u64, Word)> + ExactSizeIterator,
-    {
+    pub fn with_leaves(
+        depth: u8,
+        entries: impl IntoIterator<Item = (u64, Word)>,
+    ) -> Result<Self, MerkleError> {
         // create an empty tree
         let mut tree = Self::new(depth)?;
 
-        // check if the number of leaves can be accommodated by the tree's depth; we use a min
-        // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
-        let entries = entries.into_iter();
-        let max = 1 << tree.depth.min(63);
-        if entries.len() > max {
-            return Err(MerkleError::InvalidNumEntries(max, entries.len()));
-        }
+        // compute the max number of entries. We use an upper bound of depth 63 because we consider
+        // passing in a vector of size 2^64 infeasible.
+        let max_num_entries = 2_usize.pow(tree.depth.min(63).into());
 
         // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
         // entries with the empty value need additional tracking.
         let mut key_set_to_zero = BTreeSet::new();
 
-        for (key, value) in entries {
+        for (idx, (key, value)) in entries.into_iter().enumerate() {
+            if idx >= max_num_entries {
+                return Err(MerkleError::InvalidNumEntries(max_num_entries));
+            }
+
             let old_value = tree.update_leaf(key, value)?;
 
             if old_value != Self::EMPTY_VALUE || key_set_to_zero.contains(&key) {
@@ -107,11 +106,10 @@ impl SimpleSmt {
 
     /// Wrapper around [`SimpleSmt::with_leaves`] which inserts leaves at contiguous indices
     /// starting at index 0.
-    pub fn with_contiguous_leaves<R, I>(depth: u8, entries: R) -> Result<Self, MerkleError>
-    where
-        R: IntoIterator<IntoIter = I>,
-        I: Iterator<Item = Word> + ExactSizeIterator,
-    {
+    pub fn with_contiguous_leaves(
+        depth: u8,
+        entries: impl IntoIterator<Item = Word>,
+    ) -> Result<Self, MerkleError> {
         Self::with_leaves(
             depth,
             entries

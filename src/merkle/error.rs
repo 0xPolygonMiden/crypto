@@ -14,7 +14,7 @@ pub enum MerkleError {
     InvalidIndex { depth: u8, value: u64 },
     InvalidDepth { expected: u8, provided: u8 },
     InvalidPath(MerklePath),
-    InvalidNumEntries(usize, usize),
+    InvalidNumEntries(usize),
     NodeNotInSet(NodeIndex),
     NodeNotInStore(RpoDigest, NodeIndex),
     NumLeavesNotPowerOfTwo(usize),
@@ -30,18 +30,18 @@ impl fmt::Display for MerkleError {
             DepthTooBig(depth) => write!(f, "the provided depth {depth} is too big"),
             DuplicateValuesForIndex(key) => write!(f, "multiple values provided for key {key}"),
             DuplicateValuesForKey(key) => write!(f, "multiple values provided for key {key}"),
-            InvalidIndex{ depth, value} => write!(
-                f,
-                "the index value {value} is not valid for the depth {depth}"
-            ),
-            InvalidDepth { expected, provided } => write!(
-                f,
-                "the provided depth {provided} is not valid for {expected}"
-            ),
+            InvalidIndex { depth, value } => {
+                write!(f, "the index value {value} is not valid for the depth {depth}")
+            }
+            InvalidDepth { expected, provided } => {
+                write!(f, "the provided depth {provided} is not valid for {expected}")
+            }
             InvalidPath(_path) => write!(f, "the provided path is not valid"),
-            InvalidNumEntries(max, provided) => write!(f, "the provided number of entries is {provided}, but the maximum for the given depth is {max}"),
+            InvalidNumEntries(max) => write!(f, "number of entries exceeded the maximum: {max}"),
             NodeNotInSet(index) => write!(f, "the node with index ({index}) is not in the set"),
-            NodeNotInStore(hash, index) => write!(f, "the node {hash:?} with index ({index}) is not in the store"),
+            NodeNotInStore(hash, index) => {
+                write!(f, "the node {hash:?} with index ({index}) is not in the store")
+            }
             NumLeavesNotPowerOfTwo(leaves) => {
                 write!(f, "the leaves count {leaves} is not a power of 2")
             }
