@@ -613,10 +613,7 @@ fn test_mmr_hash_peaks() {
     // minimum length is 16
     let mut expected_peaks = [first_peak, second_peak, third_peak].to_vec();
     expected_peaks.resize(16, RpoDigest::default());
-    assert_eq!(
-        peaks.hash_peaks(),
-        *Rpo256::hash_elements(&digests_to_elements(&expected_peaks))
-    );
+    assert_eq!(peaks.hash_peaks(), Rpo256::hash_elements(&digests_to_elements(&expected_peaks)));
 }
 
 #[test]
@@ -634,7 +631,7 @@ fn test_mmr_peaks_hash_less_than_16() {
         expected_peaks.resize(16, RpoDigest::default());
         assert_eq!(
             accumulator.hash_peaks(),
-            *Rpo256::hash_elements(&digests_to_elements(&expected_peaks))
+            Rpo256::hash_elements(&digests_to_elements(&expected_peaks))
         );
     }
 }
@@ -651,7 +648,7 @@ fn test_mmr_peaks_hash_odd() {
     expected_peaks.resize(18, RpoDigest::default());
     assert_eq!(
         accumulator.hash_peaks(),
-        *Rpo256::hash_elements(&digests_to_elements(&expected_peaks))
+        Rpo256::hash_elements(&digests_to_elements(&expected_peaks))
     );
 }
 
