@@ -80,7 +80,7 @@ impl SimpleSmt {
 
         // compute the max number of entries. We use an upper bound of depth 63 because we consider
         // passing in a vector of size 2^64 infeasible.
-        let max_num_entries = 2usize.pow(tree.depth.min(63).into());
+        let max_num_entries = 2_usize.pow(tree.depth.min(63).into());
 
         // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
         // entries with the empty value need additional tracking.
