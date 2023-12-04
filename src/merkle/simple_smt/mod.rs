@@ -229,7 +229,7 @@ impl SimpleSmt {
     /// Returns an error if the index is greater than the maximum tree capacity, that is 2^{depth}.
     pub fn update_leaf(&mut self, index: u64, value: Word) -> Result<Word, MerkleError> {
         // validate the index before modifying the structure
-        let mut idx = NodeIndex::new(self.depth(), index)?;
+        let idx = NodeIndex::new(self.depth(), index)?;
 
         let old_value = self.insert_leaf_node(index, value).unwrap_or(Self::EMPTY_VALUE);
 
@@ -238,21 +238,32 @@ impl SimpleSmt {
             return Ok(value);
         }
 
-        let mut value = RpoDigest::from(value);
-        for _ in 0..idx.depth() {
-            let is_right = idx.is_value_odd();
-            idx.move_up();
-            let BranchNode { left, right } = self.get_branch_node(&idx);
-            let (left, right) = if is_right { (left, value) } else { (value, right) };
-            self.insert_branch_node(idx, left, right);
-            value = Rpo256::merge(&[left, right]);
-        }
-        self.root = value;
+        self.recompute_nodes_from_index_to_root(idx, RpoDigest::from(value));
+
         Ok(old_value)
     }
 
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
+
+    /// Recomputes the branch nodes (including the root) from `index` all the way to the root.
+    /// `node_hash_at_index` is the hash of the node stored at index.
+    fn recompute_nodes_from_index_to_root(
+        &mut self,
+        mut index: NodeIndex,
+        node_hash_at_index: RpoDigest,
+    ) {
+        let mut value = node_hash_at_index;
+        for _ in 0..index.depth() {
+            let is_right = index.is_value_odd();
+            index.move_up();
+            let BranchNode { left, right } = self.get_branch_node(&index);
+            let (left, right) = if is_right { (left, value) } else { (value, right) };
+            self.insert_branch_node(index, left, right);
+            value = Rpo256::merge(&[left, right]);
+        }
+        self.root = value;
+    }
 
     fn get_leaf_node(&self, key: u64) -> Option<Word> {
         self.leaves.get(&key).copied()
