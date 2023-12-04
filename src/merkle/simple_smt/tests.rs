@@ -404,6 +404,49 @@ fn test_simplesmt_set_subtree() {
     assert_eq!(tree.get_branch_node(&NodeIndex::new_unchecked(2, 2)).parent(), g);
 }
 
+/// Ensures that an invalid input node index into `set_subtree()` incurs no mutation of the tree
+#[test]
+fn test_simplesmt_set_subtree_unchanged_for_wrong_index() {
+    // Final Tree:
+    //
+    //        ____k____
+    //       /         \
+    //     _i_         _j_
+    //    /   \       /   \
+    //   e     f     g     h
+    //  / \   / \   / \   / \
+    // a   b 0   0 c   0 0   d
+
+    let z = EMPTY_WORD;
+
+    let a = Word::from(Rpo256::merge(&[z.into(); 2]));
+    let b = Word::from(Rpo256::merge(&[a.into(); 2]));
+    let c = Word::from(Rpo256::merge(&[b.into(); 2]));
+    let d = Word::from(Rpo256::merge(&[c.into(); 2]));
+
+    // subtree:
+    //   g
+    //  / \
+    // c   0
+    let subtree = {
+        let depth = 1;
+        let entries = vec![(0, c)];
+        SimpleSmt::with_leaves(depth, entries).unwrap()
+    };
+
+    let mut tree = {
+        let depth = 3;
+        let entries = vec![(0, a), (1, b), (7, d)];
+        SimpleSmt::with_leaves(depth, entries).unwrap()
+    };
+    let tree_root_before_insertion = tree.root();
+
+    // insert subtree
+    assert!(tree.set_subtree(500, subtree).is_err());
+
+    assert_eq!(tree.root(), tree_root_before_insertion);
+}
+
 /// We insert an empty subtree that has the same depth as the original tree
 #[test]
 fn test_simplesmt_set_subtree_entire_tree() {
