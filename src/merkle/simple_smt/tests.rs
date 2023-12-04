@@ -349,6 +349,61 @@ fn test_simplesmt_with_leaves_nonexisting_leaf() {
     assert!(result.is_err());
 }
 
+#[test]
+fn test_simplesmt_set_subtree() {
+    // Final Tree:
+    //
+    //        ____k____
+    //       /         \
+    //     _i_         _j_
+    //    /   \       /   \
+    //   e     f     g     h
+    //  / \   / \   / \   / \
+    // a   b 0   0 c   0 0   d
+
+    let z = EMPTY_WORD;
+
+    let a = Word::from(Rpo256::merge(&[z.into(); 2]));
+    let b = Word::from(Rpo256::merge(&[a.into(); 2]));
+    let c = Word::from(Rpo256::merge(&[b.into(); 2]));
+    let d = Word::from(Rpo256::merge(&[c.into(); 2]));
+
+    let e = Rpo256::merge(&[a.into(), b.into()]);
+    let f = Rpo256::merge(&[z.into(), z.into()]);
+    let g = Rpo256::merge(&[c.into(), z.into()]);
+    let h = Rpo256::merge(&[z.into(), d.into()]);
+
+    let i = Rpo256::merge(&[e, f]);
+    let j = Rpo256::merge(&[g, h]);
+
+    let k = Rpo256::merge(&[i, j]);
+
+    // subtree:
+    //   g
+    //  / \
+    // c   0
+    let subtree = {
+        let depth = 1;
+        let entries = vec![(0, c)];
+        SimpleSmt::with_leaves(depth, entries).unwrap()
+    };
+
+    // insert subtree
+    let tree = {
+        let depth = 3;
+        let entries = vec![(0, a), (1, b), (7, d)];
+        let mut tree = SimpleSmt::with_leaves(depth, entries).unwrap();
+
+        tree.set_subtree(2, subtree).unwrap();
+
+        tree
+    };
+
+    assert_eq!(tree.root(), k);
+    assert_eq!(tree.get_leaf(4).unwrap(), c);
+    assert_eq!(tree.get_branch_node(&NodeIndex::new_unchecked(2, 2)).parent(), g);
+}
+
 // HELPER FUNCTIONS
 // --------------------------------------------------------------------------------------------
 
