@@ -13,6 +13,7 @@ pub enum MerkleError {
     DuplicateValuesForKey(RpoDigest),
     InvalidIndex { depth: u8, value: u64 },
     InvalidDepth { expected: u8, provided: u8 },
+    InvalidSubtreeDepth { subtree_depth: u8, tree_depth: u8 },
     InvalidPath(MerklePath),
     InvalidNumEntries(usize),
     NodeNotInSet(NodeIndex),
@@ -35,6 +36,9 @@ impl fmt::Display for MerkleError {
             }
             InvalidDepth { expected, provided } => {
                 write!(f, "the provided depth {provided} is not valid for {expected}")
+            }
+            InvalidSubtreeDepth { subtree_depth, tree_depth } => {
+                write!(f, "tried inserting a subtree of depth {subtree_depth} into a tree of depth {tree_depth}")
             }
             InvalidPath(_path) => write!(f, "the provided path is not valid"),
             InvalidNumEntries(max) => write!(f, "number of entries exceeded the maximum: {max}"),

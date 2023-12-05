@@ -229,7 +229,7 @@ impl SimpleSmt {
     /// Returns an error if the index is greater than the maximum tree capacity, that is 2^{depth}.
     pub fn update_leaf(&mut self, index: u64, value: Word) -> Result<Word, MerkleError> {
         // validate the index before modifying the structure
-        let mut idx = NodeIndex::new(self.depth(), index)?;
+        let idx = NodeIndex::new(self.depth(), index)?;
 
         let old_value = self.insert_leaf_node(index, value).unwrap_or(Self::EMPTY_VALUE);
 
@@ -238,21 +238,92 @@ impl SimpleSmt {
             return Ok(value);
         }
 
-        let mut value = RpoDigest::from(value);
-        for _ in 0..idx.depth() {
-            let is_right = idx.is_value_odd();
-            idx.move_up();
-            let BranchNode { left, right } = self.get_branch_node(&idx);
-            let (left, right) = if is_right { (left, value) } else { (value, right) };
-            self.insert_branch_node(idx, left, right);
-            value = Rpo256::merge(&[left, right]);
-        }
-        self.root = value;
+        self.recompute_nodes_from_index_to_root(idx, RpoDigest::from(value));
+
         Ok(old_value)
+    }
+
+    /// Inserts a subtree at the specified index. The depth at which the subtree is inserted is
+    /// computed as `self.depth() - subtree.depth()`.
+    ///
+    /// Returns the new root.
+    pub fn set_subtree(
+        &mut self,
+        subtree_insertion_index: u64,
+        subtree: SimpleSmt,
+    ) -> Result<RpoDigest, MerkleError> {
+        if subtree.depth() > self.depth() {
+            return Err(MerkleError::InvalidSubtreeDepth {
+                subtree_depth: subtree.depth(),
+                tree_depth: self.depth(),
+            });
+        }
+
+        // Verify that `subtree_insertion_index` is valid.
+        let subtree_root_insertion_depth = self.depth() - subtree.depth();
+        let subtree_root_index =
+            NodeIndex::new(subtree_root_insertion_depth, subtree_insertion_index)?;
+
+        // add leaves
+        // --------------
+
+        // The subtree's leaf indices live in their own context - i.e. a subtree of depth `d`. If we
+        // insert the subtree at `subtree_insertion_index = 0`, then the subtree leaf indices are
+        // valid as they are. However, consider what happens when we insert at
+        // `subtree_insertion_index = 1`. The first leaf of our subtree now will have index `2^d`;
+        // you can see it as there's a full subtree sitting on its left. In general, for
+        // `subtree_insertion_index = i`, there are `i` subtrees sitting before the subtree we want
+        // to insert, so we need to adjust all its leaves by `i * 2^d`.
+        let leaf_index_shift: u64 = subtree_insertion_index * 2_u64.pow(subtree.depth().into());
+        for (subtree_leaf_idx, leaf_value) in subtree.leaves() {
+            let new_leaf_idx = leaf_index_shift + subtree_leaf_idx;
+            debug_assert!(new_leaf_idx < 2_u64.pow(self.depth().into()));
+
+            self.insert_leaf_node(new_leaf_idx, *leaf_value);
+        }
+
+        // add subtree's branch nodes (which includes the root)
+        // --------------
+        for (branch_idx, branch_node) in subtree.branches {
+            let new_branch_idx = {
+                let new_depth = subtree_root_insertion_depth + branch_idx.depth();
+                let new_value = subtree_insertion_index * 2_u64.pow(branch_idx.depth().into())
+                    + branch_idx.value();
+
+                NodeIndex::new(new_depth, new_value).expect("index guaranteed to be valid")
+            };
+
+            self.branches.insert(new_branch_idx, branch_node);
+        }
+
+        // recompute nodes starting from subtree root
+        // --------------
+        self.recompute_nodes_from_index_to_root(subtree_root_index, subtree.root);
+
+        Ok(self.root)
     }
 
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
+
+    /// Recomputes the branch nodes (including the root) from `index` all the way to the root.
+    /// `node_hash_at_index` is the hash of the node stored at index.
+    fn recompute_nodes_from_index_to_root(
+        &mut self,
+        mut index: NodeIndex,
+        node_hash_at_index: RpoDigest,
+    ) {
+        let mut value = node_hash_at_index;
+        for _ in 0..index.depth() {
+            let is_right = index.is_value_odd();
+            index.move_up();
+            let BranchNode { left, right } = self.get_branch_node(&index);
+            let (left, right) = if is_right { (left, value) } else { (value, right) };
+            self.insert_branch_node(index, left, right);
+            value = Rpo256::merge(&[left, right]);
+        }
+        self.root = value;
+    }
 
     fn get_leaf_node(&self, key: u64) -> Option<Word> {
         self.leaves.get(&key).copied()
