@@ -245,11 +245,13 @@ impl SimpleSmt {
 
     /// Inserts a subtree at the specified index. The depth at which the subtree is inserted is
     /// computed as `self.depth() - subtree.depth()`.
+    ///
+    /// Returns the new root.
     pub fn set_subtree(
         &mut self,
         subtree_insertion_index: u64,
         subtree: SimpleSmt,
-    ) -> Result<(), MerkleError> {
+    ) -> Result<RpoDigest, MerkleError> {
         if subtree.depth() > self.depth() {
             return Err(MerkleError::InvalidSubtreeDepth {
                 subtree_depth: subtree.depth(),
@@ -298,7 +300,7 @@ impl SimpleSmt {
         // --------------
         self.recompute_nodes_from_index_to_root(subtree_root_index, subtree.root);
 
-        Ok(())
+        Ok(self.root)
     }
 
     // HELPER METHODS
