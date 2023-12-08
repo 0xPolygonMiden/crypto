@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(not(feature = "std"))]
-#[cfg_attr(test, macro_use)]
+//#[cfg(not(feature = "std"))]
+//#[cfg_attr(test, macro_use)]
 extern crate alloc;
 
 pub mod dsa;
@@ -9,6 +9,7 @@ pub mod hash;
 pub mod merkle;
 pub mod rand;
 pub mod utils;
+pub mod gkr;
 
 // RE-EXPORTS
 // ================================================================================================
