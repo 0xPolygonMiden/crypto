@@ -935,6 +935,8 @@ fn tsmt_node_not_available() {
 
 // SERIALIZATION / DESERIALIZATION TESTS
 // ================================================================================================
+
+#[cfg(feature = "serde")]
 #[test]
 fn tsmt_serialization_deserialization() {
     let smt = {
