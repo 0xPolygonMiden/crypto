@@ -43,7 +43,6 @@ fn tsmt_insert_one() {
     let mut leaves = smt.upper_leaves();
     assert_eq!(leaves.next(), Some((leaf_node, key, value)));
     assert_eq!(leaves.next(), None);
-
 }
 
 #[test]
@@ -937,10 +936,30 @@ fn tsmt_node_not_available() {
 // SERIALIZATION / DESERIALIZATION TESTS
 // ================================================================================================
 #[test]
-fn tsmt_serialization() {
-    let smt = TieredSmt::default();
+fn tsmt_serialization_deserialization() {
+    let smt = {
+        let mut smt = TieredSmt::default();
 
-    serde_json::to_string(&smt).unwrap();
+        // --- insert the first value ---------------------------------------------
+        let raw_a = 0b_10101010_10101010_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+        let key_a = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_a)]);
+        let val_a = [ONE; WORD_SIZE];
+        smt.insert(key_a, val_a);
+
+        // --- insert the second value --------------------------------------------
+        // the key for this value has the same 16-bit prefix as the key for the first value,
+        // thus, on insertions, both values should be pushed to depth 32 tier
+        let raw_b = 0b_10101010_10101010_10011111_11111111_10010110_10010011_11100000_00000000_u64;
+        let key_b = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw_b)]);
+        let val_b = [Felt::new(2); WORD_SIZE];
+        smt.insert(key_b, val_b);
+        smt
+    };
+
+    let smt_json = serde_json::to_string(&smt).unwrap();
+    let smt_deserialized: TieredSmt = serde_json::from_str(&smt_json).unwrap();
+
+    assert_eq!(smt, smt_deserialized);
 }
 
 // HELPER FUNCTIONS
