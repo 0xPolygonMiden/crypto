@@ -2,6 +2,9 @@ use super::{Felt, MerkleError, RpoDigest, StarkField};
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::fmt::Display;
 
+#[cfg(feature = "serde")]
+use serde::de::Error;
+
 // NODE INDEX
 // ================================================================================================
 
@@ -21,7 +24,6 @@ use core::fmt::Display;
 /// The root is represented by the pair $(0, 0)$, its left child is $(1, 0)$ and its right child
 /// $(1, 1)$.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct NodeIndex {
     depth: u8,
     value: u64,
@@ -176,6 +178,39 @@ impl Deserializable for NodeIndex {
         let value = source.read_u64()?;
         NodeIndex::new(depth, value)
             .map_err(|_| DeserializationError::InvalidValue("Invalid index".into()))
+    }
+}
+
+/// We serialize a `NodeIndex` in this way so that it can be used as a key to a `HashMap` and be
+/// successfully serialized to JSON
+#[cfg(feature = "serde")]
+impl serde::Serialize for NodeIndex {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&format!("{}-{}", self.depth, self.value))
+    }
+}
+
+/// We serialize a `NodeIndex` in this way so that it can be used as a key to a `HashMap` and be
+/// successfully serialized to JSON
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for NodeIndex {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let data = <&str>::deserialize(deserializer)?;
+        let mut parts = data.splitn(2, '-');
+        let depth: u8 = parts.next().unwrap().parse().map_err(D::Error::custom)?;
+        let value: u64 = parts
+            .next()
+            .ok_or_else(|| D::Error::custom("request must contain dash"))?
+            .parse()
+            .map_err(D::Error::custom)?;
+
+        Ok(Self { depth, value })
     }
 }
 
