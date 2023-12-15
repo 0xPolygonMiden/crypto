@@ -52,6 +52,7 @@ winter_utils = { version = "0.7", package = "winter-utils", default-features = f
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.3"
 rand_utils = { version = "0.7", package = "winter-rand-utils" }
+serde_json = "1"
 
 [build-dependencies]
 cc = { version = "1.0", features = ["parallel"], optional = true }

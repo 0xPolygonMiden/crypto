@@ -43,6 +43,7 @@ fn tsmt_insert_one() {
     let mut leaves = smt.upper_leaves();
     assert_eq!(leaves.next(), Some((leaf_node, key, value)));
     assert_eq!(leaves.next(), None);
+
 }
 
 #[test]
@@ -931,6 +932,15 @@ fn tsmt_node_not_available() {
     let index = NodeIndex::make(64, raw);
     assert!(smt.get_node(index).is_err());
     assert!(smt.get_path(index).is_err());
+}
+
+// SERIALIZATION / DESERIALIZATION TESTS
+// ================================================================================================
+#[test]
+fn tsmt_serialization() {
+    let smt = TieredSmt::default();
+
+    serde_json::to_string(&smt).unwrap();
 }
 
 // HELPER FUNCTIONS
