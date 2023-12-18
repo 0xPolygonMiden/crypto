@@ -3,6 +3,7 @@
 * Implemented the `PartialMmr` data structure (#195).
 * Updated Winterfell dependency to v0.7 (#200)
 * Implemented RPX hash function (#201).
+* Added `FeltRng` and `RpoRandomCoin` (#237).
 
 ## 0.7.1 (2023-10-10)
 
