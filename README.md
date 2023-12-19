@@ -24,12 +24,18 @@ For performance benchmarks of these hash functions and their comparison to other
 The module also contains additional supporting components such as `NodeIndex`, `MerklePath`,  and `MerkleError`  to assist with tree indexation, opening proofs, and reporting inconsistent arguments/state.
 
 ## Signatures
-[DAS module](./src/dsa) provides a set of digital signature schemes supported by default in the Miden VM. Currently, these schemes are:
+[DSA module](./src/dsa) provides a set of digital signature schemes supported by default in the Miden VM. Currently, these schemes are:
 
 * `RPO Falcon512`: a variant of the [Falcon](https://falcon-sign.info/) signature scheme. This variant differs from the standard in that instead of using SHAKE256 hash function in the *hash-to-point* algorithm we use RPO256. This makes the signature more efficient to verify in Miden VM.
 
 For the above signatures, key generation and signing is available only in the `std` context (see [crate features](#crate-features) below), while signature verification is available in `no_std` context as well.
 
+## Pseudo-Random Element Generator
+[Pseudo random element generator module](./src/rand/) provides a set of traits and data structures that facilitate generating pseudo-random elements in the context of Miden VM and Miden rollup. The module currently includes:
+
+* `FeltRng`: a trait for generating random field elements and random 4 field elements.
+* `RpoRandomCoin`: a struct implementing `FeltRng` as well as the [`RandomCoin`](https://github.com/facebook/winterfell/blob/main/crypto/src/random/mod.rs) trait.
+    
 ## Crate features
 This crate can be compiled with the following features:
 
