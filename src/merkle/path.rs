@@ -191,11 +191,12 @@ pub struct RootPath {
     pub path: MerklePath,
 }
 
-// SERILIZATION
+// SERIALIZATION
 // ================================================================================================
+
 impl Serializable for MerklePath {
     fn write_into<W: winter_utils::ByteWriter>(&self, target: &mut W) {
-        assert!(self.nodes.len() <= u8::MAX.into(), "Length enforced in the construtor");
+        assert!(self.nodes.len() <= u8::MAX.into(), "Length enforced in the constructor");
         target.write_u8(self.nodes.len() as u8);
         self.nodes.write_into(target);
     }

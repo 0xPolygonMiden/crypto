@@ -2,54 +2,59 @@ use super::{MmrDelta, MmrProof, Rpo256, RpoDigest};
 use crate::{
     merkle::{
         mmr::{leaf_to_corresponding_tree, nodes_in_forest},
-        InOrderIndex, MerklePath, MmrError, MmrPeaks,
+        InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks,
     },
-    utils::collections::{BTreeMap, Vec},
+    utils::{
+        collections::{BTreeMap, BTreeSet, Vec},
+        vec,
+    },
 };
 
-/// Partially materialized [Mmr], used to efficiently store and update the authentication paths for
-/// a subset of the elements in a full [Mmr].
+// PARTIAL MERKLE MOUNTAIN RANGE
+// ================================================================================================
+/// Partially materialized Merkle Mountain Range (MMR), used to efficiently store and update the
+/// authentication paths for a subset of the elements in a full MMR.
 ///
 /// This structure store only the authentication path for a value, the value itself is stored
 /// separately.
 #[derive(Debug)]
 pub struct PartialMmr {
-    /// The version of the [Mmr].
+    /// The version of the MMR.
     ///
     /// This value serves the following purposes:
     ///
-    /// - The forest is a counter for the total number of elements in the [Mmr].
-    /// - Since the [Mmr] is an append-only structure, every change to it causes a change to the
+    /// - The forest is a counter for the total number of elements in the MMR.
+    /// - Since the MMR is an append-only structure, every change to it causes a change to the
     ///   `forest`, so this value has a dual purpose as a version tag.
     /// - The bits in the forest also corresponds to the count and size of every perfect binary
-    ///   tree that composes the [Mmr] structure, which server to compute indexes and perform
+    ///   tree that composes the MMR structure, which server to compute indexes and perform
     ///   validation.
     pub(crate) forest: usize,
 
-    /// The [Mmr] peaks.
+    /// The MMR peaks.
     ///
     /// The peaks are used for two reasons:
     ///
     /// 1. It authenticates the addition of an element to the [PartialMmr], ensuring only valid
     ///    elements are tracked.
-    /// 2. During a [Mmr] update peaks can be merged by hashing the left and right hand sides. The
+    /// 2. During a MMR update peaks can be merged by hashing the left and right hand sides. The
     ///    peaks are used as the left hand.
     ///
-    /// All the peaks of every tree in the [Mmr] forest. The peaks are always ordered by number of
+    /// All the peaks of every tree in the MMR forest. The peaks are always ordered by number of
     /// leaves, starting from the peak with most children, to the one with least.
     pub(crate) peaks: Vec<RpoDigest>,
 
-    /// Authentication nodes used to construct merkle paths for a subset of the [Mmr]'s leaves.
+    /// Authentication nodes used to construct merkle paths for a subset of the MMR's leaves.
     ///
-    /// This does not include the [Mmr]'s peaks nor the tracked nodes, only the elements required
+    /// This does not include the MMR's peaks nor the tracked nodes, only the elements required
     /// to construct their authentication paths. This property is used to detect when elements can
     /// be safely removed from, because they are no longer required to authenticate any element in
     /// the [PartialMmr].
     ///
-    /// The elements in the [Mmr] are referenced using a in-order tree index. This indexing scheme
+    /// The elements in the MMR are referenced using a in-order tree index. This indexing scheme
     /// permits for easy computation of the relative nodes (left/right children, sibling, parent),
     /// which is useful for traversal. The indexing is also stable, meaning that merges to the
-    /// trees in the [Mmr] can be represented without rewrites of the indexes.
+    /// trees in the MMR can be represented without rewrites of the indexes.
     pub(crate) nodes: BTreeMap<InOrderIndex, RpoDigest>,
 
     /// Flag indicating if the odd element should be tracked.
@@ -64,16 +69,16 @@ impl PartialMmr {
     // --------------------------------------------------------------------------------------------
 
     /// Constructs a [PartialMmr] from the given [MmrPeaks].
-    pub fn from_peaks(accumulator: MmrPeaks) -> Self {
-        let forest = accumulator.num_leaves();
-        let peaks = accumulator.peaks().to_vec();
+    pub fn from_peaks(peaks: MmrPeaks) -> Self {
+        let forest = peaks.num_leaves();
+        let peaks = peaks.peaks().to_vec();
         let nodes = BTreeMap::new();
         let track_latest = false;
 
         Self { forest, peaks, nodes, track_latest }
     }
 
-    // ACCESSORS
+    // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
     // Gets the current `forest`.
@@ -123,14 +128,40 @@ impl PartialMmr {
         }
     }
 
-    // MODIFIERS
+    // ITERATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns an iterator over inner nodes of this [PartialMmr] for the specified leaves.
+    ///
+    /// The order of iteration is not defined. If a leaf is not presented in this partial MMR it
+    /// is silently ignored.
+    pub fn inner_nodes<'a, I: Iterator<Item = &'a (usize, RpoDigest)> + 'a>(
+        &'a self,
+        mut leaves: I,
+    ) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+        let stack = if let Some((pos, leaf)) = leaves.next() {
+            let idx = InOrderIndex::from_leaf_pos(*pos);
+            vec![(idx, *leaf)]
+        } else {
+            Vec::new()
+        };
+
+        InnerNodeIterator {
+            nodes: &self.nodes,
+            leaves,
+            stack,
+            seen_nodes: BTreeSet::new(),
+        }
+    }
+
+    // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
     /// Add the authentication path represented by [MerklePath] if it is valid.
     ///
-    /// The `index` refers to the global position of the leaf in the [Mmr], these are 0-indexed
-    /// values assigned in a strictly monotonic fashion as elements are inserted into the [Mmr],
-    /// this value corresponds to the values used in the [Mmr] structure.
+    /// The `index` refers to the global position of the leaf in the MMR, these are 0-indexed
+    /// values assigned in a strictly monotonic fashion as elements are inserted into the MMR,
+    /// this value corresponds to the values used in the MMR structure.
     ///
     /// The `node` corresponds to the value at `index`, and `path` is the authentication path for
     /// that element up to its corresponding Mmr peak. The `node` is only used to compute the root
@@ -183,7 +214,7 @@ impl PartialMmr {
 
     /// Remove a leaf of the [PartialMmr] and the unused nodes from the authentication path.
     ///
-    /// Note: `leaf_pos` corresponds to the position the [Mmr] and not on an individual tree.
+    /// Note: `leaf_pos` corresponds to the position in the MMR and not on an individual tree.
     pub fn remove(&mut self, leaf_pos: usize) {
         let mut idx = InOrderIndex::from_leaf_pos(leaf_pos);
 
@@ -346,6 +377,53 @@ impl From<&PartialMmr> for MmrPeaks {
     }
 }
 
+// ITERATORS
+// ================================================================================================
+
+/// An iterator over every inner node of the [PartialMmr].
+pub struct InnerNodeIterator<'a, I: Iterator<Item = &'a (usize, RpoDigest)>> {
+    nodes: &'a BTreeMap<InOrderIndex, RpoDigest>,
+    leaves: I,
+    stack: Vec<(InOrderIndex, RpoDigest)>,
+    seen_nodes: BTreeSet<InOrderIndex>,
+}
+
+impl<'a, I: Iterator<Item = &'a (usize, RpoDigest)>> Iterator for InnerNodeIterator<'a, I> {
+    type Item = InnerNodeInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((idx, node)) = self.stack.pop() {
+            let parent_idx = idx.parent();
+            let new_node = self.seen_nodes.insert(parent_idx);
+
+            // if we haven't seen this node's parent before, and the node has a sibling, return
+            // the inner node defined by the parent of this node, and move up the branch
+            if new_node {
+                if let Some(sibling) = self.nodes.get(&idx.sibling()) {
+                    let (left, right) = if parent_idx.left_child() == idx {
+                        (node, *sibling)
+                    } else {
+                        (*sibling, node)
+                    };
+                    let parent = Rpo256::merge(&[left, right]);
+                    let inner_node = InnerNodeInfo { value: parent, left, right };
+
+                    self.stack.push((parent_idx, parent));
+                    return Some(inner_node);
+                }
+            }
+
+            // the previous leaf has been processed, try to process the next leaf
+            if let Some((pos, leaf)) = self.leaves.next() {
+                let idx = InOrderIndex::from_leaf_pos(*pos);
+                self.stack.push((idx, *leaf));
+            }
+        }
+
+        None
+    }
+}
+
 // UTILS
 // ================================================================================================
 
@@ -368,10 +446,23 @@ pub fn forest_to_root_index(forest: usize) -> InOrderIndex {
     InOrderIndex::new(idx.try_into().unwrap())
 }
 
+// TESTS
+// ================================================================================================
+
 #[cfg(test)]
 mod test {
-    use super::forest_to_root_index;
-    use crate::merkle::InOrderIndex;
+    use super::{forest_to_root_index, BTreeSet, InOrderIndex, PartialMmr, RpoDigest};
+    use crate::merkle::{int_to_node, MerkleStore, Mmr, NodeIndex};
+
+    const LEAVES: [RpoDigest; 7] = [
+        int_to_node(0),
+        int_to_node(1),
+        int_to_node(2),
+        int_to_node(3),
+        int_to_node(4),
+        int_to_node(5),
+        int_to_node(6),
+    ];
 
     #[test]
     fn test_forest_to_root_index() {
@@ -397,5 +488,97 @@ mod test {
         assert_eq!(forest_to_root_index(0b1010), idx(18));
         assert_eq!(forest_to_root_index(0b1100), idx(20));
         assert_eq!(forest_to_root_index(0b1110), idx(26));
+    }
+
+    #[test]
+    fn test_partial_mmr_inner_nodes_iterator() {
+        // build the MMR
+        let mmr: Mmr = LEAVES.into();
+        let first_peak = mmr.peaks(mmr.forest).unwrap().peaks()[0];
+
+        // -- test single tree ----------------------------
+
+        // get path and node for position 1
+        let node1 = mmr.get(1).unwrap();
+        let proof1 = mmr.open(1, mmr.forest()).unwrap();
+
+        // create partial MMR and add authentication path to node at position 1
+        let mut partial_mmr: PartialMmr = mmr.peaks(mmr.forest()).unwrap().into();
+        partial_mmr.add(1, node1, &proof1.merkle_path).unwrap();
+
+        // empty iterator should have no nodes
+        assert_eq!(partial_mmr.inner_nodes([].iter()).next(), None);
+
+        // build Merkle store from authentication paths in partial MMR
+        let mut store: MerkleStore = MerkleStore::new();
+        store.extend(partial_mmr.inner_nodes([(1, node1)].iter()));
+
+        let index1 = NodeIndex::new(2, 1).unwrap();
+        let path1 = store.get_path(first_peak, index1).unwrap().path;
+
+        assert_eq!(path1, proof1.merkle_path);
+
+        // -- test no duplicates --------------------------
+
+        // build the partial MMR
+        let mut partial_mmr: PartialMmr = mmr.peaks(mmr.forest()).unwrap().into();
+
+        let node0 = mmr.get(0).unwrap();
+        let proof0 = mmr.open(0, mmr.forest()).unwrap();
+
+        let node2 = mmr.get(2).unwrap();
+        let proof2 = mmr.open(2, mmr.forest()).unwrap();
+
+        partial_mmr.add(0, node0, &proof0.merkle_path).unwrap();
+        partial_mmr.add(1, node1, &proof1.merkle_path).unwrap();
+        partial_mmr.add(2, node2, &proof2.merkle_path).unwrap();
+
+        // make sure there are no duplicates
+        let leaves = [(0, node0), (1, node1), (2, node2)];
+        let mut nodes = BTreeSet::new();
+        for node in partial_mmr.inner_nodes(leaves.iter()) {
+            assert!(nodes.insert(node.value));
+        }
+
+        // and also that the store is still be built correctly
+        store.extend(partial_mmr.inner_nodes(leaves.iter()));
+
+        let index0 = NodeIndex::new(2, 0).unwrap();
+        let index1 = NodeIndex::new(2, 1).unwrap();
+        let index2 = NodeIndex::new(2, 2).unwrap();
+
+        let path0 = store.get_path(first_peak, index0).unwrap().path;
+        let path1 = store.get_path(first_peak, index1).unwrap().path;
+        let path2 = store.get_path(first_peak, index2).unwrap().path;
+
+        assert_eq!(path0, proof0.merkle_path);
+        assert_eq!(path1, proof1.merkle_path);
+        assert_eq!(path2, proof2.merkle_path);
+
+        // -- test multiple trees -------------------------
+
+        // build the partial MMR
+        let mut partial_mmr: PartialMmr = mmr.peaks(mmr.forest()).unwrap().into();
+
+        let node5 = mmr.get(5).unwrap();
+        let proof5 = mmr.open(5, mmr.forest()).unwrap();
+
+        partial_mmr.add(1, node1, &proof1.merkle_path).unwrap();
+        partial_mmr.add(5, node5, &proof5.merkle_path).unwrap();
+
+        // build Merkle store from authentication paths in partial MMR
+        let mut store: MerkleStore = MerkleStore::new();
+        store.extend(partial_mmr.inner_nodes([(1, node1), (5, node5)].iter()));
+
+        let index1 = NodeIndex::new(2, 1).unwrap();
+        let index5 = NodeIndex::new(1, 1).unwrap();
+
+        let second_peak = mmr.peaks(mmr.forest).unwrap().peaks()[1];
+
+        let path1 = store.get_path(first_peak, index1).unwrap().path;
+        let path5 = store.get_path(second_peak, index5).unwrap().path;
+
+        assert_eq!(path1, proof1.merkle_path);
+        assert_eq!(path5, proof5.merkle_path);
     }
 }

@@ -6,6 +6,9 @@
 //! leaves count.
 use core::num::NonZeroUsize;
 
+// IN-ORDER INDEX
+// ================================================================================================
+
 /// Index of nodes in a perfectly balanced binary tree based on an in-order tree walk.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InOrderIndex {
@@ -95,6 +98,18 @@ impl InOrderIndex {
         }
     }
 }
+
+// CONVERSIONS FROM IN-ORDER INDEX
+// ------------------------------------------------------------------------------------------------
+
+impl From<InOrderIndex> for u64 {
+    fn from(index: InOrderIndex) -> Self {
+        index.idx as u64
+    }
+}
+
+// TESTS
+// ================================================================================================
 
 #[cfg(test)]
 mod test {
