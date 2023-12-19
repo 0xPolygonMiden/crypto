@@ -1,10 +1,12 @@
+use super::{Felt, FeltRng, FieldElement, StarkField, Word, ZERO};
+use crate::{
+    hash::rpo::{Rpo256, RpoDigest},
+    utils::{
+        collections::Vec, string::ToString, vec, ByteReader, ByteWriter, Deserializable,
+        DeserializationError, Serializable,
+    },
+};
 pub use winter_crypto::{RandomCoin, RandomCoinError};
-use winter_math::{FieldElement, StarkField};
-
-use super::{Felt, FeltRng, Word, ZERO};
-use crate::hash::rpo::{Rpo256, RpoDigest};
-use crate::utils::collections::Vec;
-use crate::utils::vec;
 
 // CONSTANTS
 // ================================================================================================
@@ -17,18 +19,51 @@ const HALF_RATE_WIDTH: usize = (Rpo256::RATE_RANGE.end - Rpo256::RATE_RANGE.star
 // RPO RANDOM COIN
 // ================================================================================================
 /// A simplified version of the `SPONGE_PRG` reseedable pseudo-random number generator algorithm
-/// described in https://eprint.iacr.org/2011/499.pdf. The simplification is related to
-/// the following facts:
+/// described in https://eprint.iacr.org/2011/499.pdf.
+///
+/// The simplification is related to the following facts:
 /// 1. A call to the reseed method implies one and only one call to the permutation function.
 ///  This is possible because in our case we never reseed with more than 4 field elements.
-/// 2. As a result of the previous point, we dont make use of an input buffer to accumulate seed
+/// 2. As a result of the previous point, we don't make use of an input buffer to accumulate seed
 ///  material.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RpoRandomCoin {
     state: [Felt; STATE_WIDTH],
     current: usize,
 }
 
 impl RpoRandomCoin {
+    /// Returns a new [RpoRandomCoin] initialize with the specified seed.
+    pub fn new(seed: Word) -> Self {
+        let mut state = [ZERO; STATE_WIDTH];
+
+        for i in 0..HALF_RATE_WIDTH {
+            state[RATE_START + i] += seed[i];
+        }
+
+        // Absorb
+        Rpo256::apply_permutation(&mut state);
+
+        RpoRandomCoin { state, current: RATE_START }
+    }
+
+    /// Returns an [RpoRandomCoin] instantiated from the provided components.
+    ///
+    /// # Panics
+    /// Panics if `current` is smaller than 4 or greater than or equal to 12.
+    pub fn from_parts(state: [Felt; STATE_WIDTH], current: usize) -> Self {
+        assert!(
+            (RATE_START..RATE_END).contains(&current),
+            "current value outside of valid range"
+        );
+        Self { state, current }
+    }
+
+    /// Returns components of this random coin.
+    pub fn into_parts(self) -> ([Felt; STATE_WIDTH], usize) {
+        (self.state, self.current)
+    }
+
     fn draw_basefield(&mut self) -> Felt {
         if self.current == RATE_END {
             Rpo256::apply_permutation(&mut self.state);
@@ -40,22 +75,16 @@ impl RpoRandomCoin {
     }
 }
 
+// RANDOM COIN IMPLEMENTATION
+// ------------------------------------------------------------------------------------------------
+
 impl RandomCoin for RpoRandomCoin {
     type BaseField = Felt;
     type Hasher = Rpo256;
 
     fn new(seed: &[Self::BaseField]) -> Self {
-        let mut state = [ZERO; STATE_WIDTH];
         let digest: Word = Rpo256::hash_elements(seed).into();
-
-        for i in 0..HALF_RATE_WIDTH {
-            state[RATE_START + i] += digest[i];
-        }
-
-        // Absorb
-        Rpo256::apply_permutation(&mut state);
-
-        RpoRandomCoin { state, current: RATE_START }
+        Self::new(digest)
     }
 
     fn reseed(&mut self, data: RpoDigest) {
@@ -140,6 +169,9 @@ impl RandomCoin for RpoRandomCoin {
     }
 }
 
+// FELT RNG IMPLEMENTATION
+// ------------------------------------------------------------------------------------------------
+
 impl FeltRng for RpoRandomCoin {
     fn draw_element(&mut self) -> Felt {
         self.draw_basefield()
@@ -154,35 +186,82 @@ impl FeltRng for RpoRandomCoin {
     }
 }
 
+// SERIALIZATION
+// ------------------------------------------------------------------------------------------------
+
+impl Serializable for RpoRandomCoin {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        self.state.iter().for_each(|v| v.write_into(target));
+        // casting to u8 is OK because `current` is always between 4 and 12.
+        target.write_u8(self.current as u8);
+    }
+}
+
+impl Deserializable for RpoRandomCoin {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let state = [
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+            Felt::read_from(source)?,
+        ];
+        let current = source.read_u8()? as usize;
+        if !(RATE_START..RATE_END).contains(&current) {
+            return Err(DeserializationError::InvalidValue(
+                "current value outside of valid range".to_string(),
+            ));
+        }
+        Ok(Self { state, current })
+    }
+}
+
 // TESTS
 // ================================================================================================
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(test)]
 mod tests {
-    use super::{FeltRng, RandomCoin, RpoRandomCoin, ZERO};
+    use super::{Deserializable, FeltRng, RpoRandomCoin, Serializable, ZERO};
+    use crate::ONE;
 
     #[test]
-    fn test_randfeltsgen_felt() {
-        let mut rpocoin = RpoRandomCoin::new(&[ZERO; 4]);
+    fn test_feltrng_felt() {
+        let mut rpocoin = RpoRandomCoin::new([ZERO; 4]);
         let output = rpocoin.draw_element();
 
-        let mut rpocoin = RpoRandomCoin::new(&[ZERO; 4]);
+        let mut rpocoin = RpoRandomCoin::new([ZERO; 4]);
         let expected = rpocoin.draw_basefield();
 
         assert_eq!(output, expected);
     }
 
     #[test]
-    fn test_randfeltsgen_word() {
-        let mut rpocoin = RpoRandomCoin::new(&[ZERO; 4]);
+    fn test_feltrng_word() {
+        let mut rpocoin = RpoRandomCoin::new([ZERO; 4]);
         let output = rpocoin.draw_word();
 
-        let mut rpocoin = RpoRandomCoin::new(&[ZERO; 4]);
+        let mut rpocoin = RpoRandomCoin::new([ZERO; 4]);
         let mut expected = [ZERO; 4];
         for o in expected.iter_mut() {
             *o = rpocoin.draw_basefield();
         }
 
         assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_feltrng_serialization() {
+        let coin1 = RpoRandomCoin::from_parts([ONE; 12], 5);
+
+        let bytes = coin1.to_bytes();
+        let coin2 = RpoRandomCoin::read_from_bytes(&bytes).unwrap();
+        assert_eq!(coin1, coin2);
     }
 }
