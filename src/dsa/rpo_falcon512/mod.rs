@@ -16,7 +16,7 @@ mod polynomial;
 mod signature;
 
 pub use error::FalconError;
-pub use keys::{sk_to_pk_bytes, KeyPair, PublicKey};
+pub use keys::{KeyPair, PublicKey};
 pub use polynomial::Polynomial;
 pub use signature::Signature;
 
