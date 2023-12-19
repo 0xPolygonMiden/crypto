@@ -3,17 +3,20 @@ use super::{
     Felt, MmrError, MmrProof, Rpo256, Word,
 };
 
+// MMR PEAKS
+// ================================================================================================
+
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MmrPeaks {
-    /// The number of leaves is used to differentiate accumulators that have the same number of
-    /// peaks. This happens because the number of peaks goes up-and-down as the structure is used
-    /// causing existing trees to be merged and new ones to be created. As an example, every time
-    /// the [Mmr] has a power-of-two number of leaves there is a single peak.
+    /// The number of leaves is used to differentiate MMRs that have the same number of peaks. This
+    /// happens because the number of peaks goes up-and-down as the structure is used causing
+    /// existing trees to be merged and new ones to be created. As an example, every time the MMR
+    /// has a power-of-two number of leaves there is a single peak.
     ///
-    /// Every tree in the [Mmr] forest has a distinct power-of-two size, this means only the right
-    /// most tree can have an odd number of elements (e.g. `1`). Additionally this means that the bits in
-    /// `num_leaves` conveniently encode the size of each individual tree.
+    /// Every tree in the MMR forest has a distinct power-of-two size, this means only the right-
+    /// most tree can have an odd number of elements (e.g. `1`). Additionally this means that the
+    /// bits in `num_leaves` conveniently encode the size of each individual tree.
     ///
     /// Examples:
     ///
@@ -25,7 +28,7 @@ pub struct MmrPeaks {
     ///      leftmost tree has `2**3=8` elements, and the right most has `2**2=4` elements.
     num_leaves: usize,
 
-    /// All the peaks of every tree in the [Mmr] forest. The peaks are always ordered by number of
+    /// All the peaks of every tree in the MMR forest. The peaks are always ordered by number of
     /// leaves, starting from the peak with most children, to the one with least.
     ///
     /// Invariant: The length of `peaks` must be equal to the number of true bits in `num_leaves`.
@@ -44,17 +47,17 @@ impl MmrPeaks {
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns a count of the [Mmr]'s leaves.
+    /// Returns a count of the MMR's leaves.
     pub fn num_leaves(&self) -> usize {
         self.num_leaves
     }
 
-    /// Returns the current peaks of the [Mmr].
+    /// Returns the current peaks of the MMR.
     pub fn peaks(&self) -> &[RpoDigest] {
         &self.peaks
     }
 
-    /// Returns the current num_leaves and peaks of the [Mmr].
+    /// Returns the current num_leaves and peaks of the MMR.
     pub fn into_parts(self) -> (usize, Vec<RpoDigest>) {
         (self.num_leaves, self.peaks)
     }
