@@ -42,6 +42,27 @@ impl From<PublicKey> for Word {
     }
 }
 
+// SECRET KEY
+// ================================================================================================
+
+/// Derives the (expanded) public key associated to a given secret key.
+///
+/// # Errors
+/// Returns an error if decoding sk fails or if sk is not a valid secret key.
+#[cfg(feature = "std")]
+pub fn sk_to_pk_bytes(sk: SecretKeyBytes) -> Result<PublicKeyBytes, FalconError> {
+    let mut pk = [0u8; PK_LEN];
+
+    let res =
+        unsafe { ffi::PQCLEAN_FALCON512_CLEAN_crypto_pk_from_sk_rpo(sk.as_ptr(), pk.as_mut_ptr()) };
+
+    if res == 0 {
+        Ok(pk)
+    } else {
+        Err(FalconError::KeyGenerationFailed)
+    }
+}
+
 // KEY PAIR
 // ================================================================================================
 
@@ -182,8 +203,20 @@ impl Deserializable for KeyPair {
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
-    use super::{super::Felt, KeyPair, NonceBytes, Word};
+    use super::{super::Felt, sk_to_pk_bytes, KeyPair, NonceBytes, Word};
     use rand_utils::{rand_array, rand_vector};
+
+    #[test]
+    fn test_pk_from_sk() {
+        // generate random keys
+        let keys = KeyPair::new().unwrap();
+        let pk_expected = keys.expanded_public_key();
+        let sk = keys.secret_key;
+
+        let pk = sk_to_pk_bytes(sk).unwrap();
+
+        assert_eq!(pk, pk_expected);
+    }
 
     #[test]
     fn test_falcon_verification() {

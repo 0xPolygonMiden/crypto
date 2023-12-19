@@ -32,6 +32,13 @@ int PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair_from_seed_rpo(
     uint8_t *pk, uint8_t *sk, unsigned char *seed);
 
 /*
+ * Generate the public key from the secret key (sk). Public key goes into pk[].
+ *
+ * Return value: 0 on success, -1 on error.
+ */
+int PQCLEAN_FALCON512_CLEAN_crypto_pk_from_sk_rpo(const uint8_t *sk, uint8_t *pk);
+
+/*
  * Compute a signature on a provided message (m, mlen), with a given
  * private key (sk). Signature is written in sig[], with length written
  * into *siglen. Signature length is variable; maximum signature length

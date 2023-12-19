@@ -25,6 +25,11 @@ extern "C" {
         seed: *const u8,
     ) -> c_int;
 
+    /// Generates the public key from the private key. Public key goes into pk[].
+    ///
+    /// Return value: 0 on success, -1 on error.
+    pub fn PQCLEAN_FALCON512_CLEAN_crypto_pk_from_sk_rpo(sk: *const u8, pk: *mut u8) -> c_int;
+
     /// Compute a signature on a provided message (m, mlen), with a given private key (sk).
     /// Signature is written in sig[], with length written into *siglen. Signature length is
     /// variable; maximum signature length (in bytes) is 666.
@@ -103,11 +108,10 @@ mod tests {
     #[test]
     fn falcon_ffi() {
         unsafe {
-            //let mut rng = rand::thread_rng();
-
             // --- generate a key pair from a seed ----------------------------
 
             let mut pk = [0u8; PK_LEN];
+            let mut pk_gen = [0u8; PK_LEN];
             let mut sk = [0u8; SK_LEN];
             let seed: [u8; NONCE_LEN] = rand_array();
 
@@ -119,6 +123,11 @@ mod tests {
                     seed.as_ptr()
                 )
             );
+
+            // --- Generate public key from private key and check correctness -
+
+            PQCLEAN_FALCON512_CLEAN_crypto_pk_from_sk_rpo(sk.as_ptr(), pk_gen.as_mut_ptr());
+            assert_eq!(pk, pk_gen);
 
             // --- sign a message and make sure it verifies -------------------
 

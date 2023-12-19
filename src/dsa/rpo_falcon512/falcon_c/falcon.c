@@ -112,6 +112,7 @@ int PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair_from_seed_rpo(
     return 0;
 }
 
+/* see falcon.h */
 int PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair_rpo(
     uint8_t *pk,
     uint8_t *sk
@@ -124,6 +125,63 @@ int PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair_rpo(
     randombytes(seed, sizeof seed);
 
     return PQCLEAN_FALCON512_CLEAN_crypto_sign_keypair_from_seed_rpo(pk, sk, seed);
+}
+
+/* see falcon.h */
+int PQCLEAN_FALCON512_CLEAN_crypto_pk_from_sk_rpo(
+    const uint8_t *sk,
+    uint8_t *pk)
+{
+    uint8_t b[FALCON_KEYGEN_TEMP_9];
+    int8_t f[512], g[512];
+    uint16_t h[512];
+    size_t u, v;
+
+    /*
+     * Decode the private key.
+     */
+    if (sk[0] != 0x50 + 9)
+    {
+        return -1;
+    }
+    u = 1;
+    v = PQCLEAN_FALCON512_CLEAN_trim_i8_decode(
+        f, 9, PQCLEAN_FALCON512_CLEAN_max_fg_bits[9],
+        sk + u, PQCLEAN_FALCON512_CLEAN_CRYPTO_SECRETKEYBYTES - u);
+    if (v == 0)
+    {
+        return -1;
+    }
+    u += v;
+    v = PQCLEAN_FALCON512_CLEAN_trim_i8_decode(
+        g, 9, PQCLEAN_FALCON512_CLEAN_max_fg_bits[9],
+        sk + u, PQCLEAN_FALCON512_CLEAN_CRYPTO_SECRETKEYBYTES - u);
+    if (v == 0)
+    {
+        return -1;
+    }
+
+    /*
+     * Compute public key h = g.f^(-1) mod X^N+1 mod q.
+     */
+    if (!PQCLEAN_FALCON512_CLEAN_compute_public(h, f, g, 9, (uint8_t *)b))
+    {
+        return -1;
+    }
+
+    /*
+     * Encode public key.
+     */
+    pk[0] = 0x00 + 9;
+    v = PQCLEAN_FALCON512_CLEAN_modq_encode(
+        pk + 1, PQCLEAN_FALCON512_CLEAN_CRYPTO_PUBLICKEYBYTES - 1,
+        h, 9);
+    if (v != PQCLEAN_FALCON512_CLEAN_CRYPTO_PUBLICKEYBYTES - 1)
+    {
+        return -1;
+    }
+
+    return 0;
 }
 
 /*
