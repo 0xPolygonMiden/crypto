@@ -6,7 +6,7 @@ use super::{
 // MMR PEAKS
 // ================================================================================================
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MmrPeaks {
     /// The number of leaves is used to differentiate MMRs that have the same number of peaks. This
