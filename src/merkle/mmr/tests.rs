@@ -755,14 +755,14 @@ fn test_mmr_delta_old_forest() {
 #[test]
 fn test_partial_mmr_simple() {
     let mmr: Mmr = LEAVES.into();
-    let acc = mmr.peaks(mmr.forest()).unwrap();
-    let mut partial: PartialMmr = acc.clone().into();
+    let peaks = mmr.peaks(mmr.forest()).unwrap();
+    let mut partial: PartialMmr = peaks.clone().into();
 
     // check initial state of the partial mmr
-    assert_eq!(partial.peaks(), acc.peaks());
-    assert_eq!(partial.forest(), acc.num_leaves());
+    assert_eq!(partial.peaks(), peaks);
+    assert_eq!(partial.forest(), peaks.num_leaves());
     assert_eq!(partial.forest(), LEAVES.len());
-    assert_eq!(partial.peaks().len(), 3);
+    assert_eq!(partial.peaks().num_peaks(), 3);
     assert_eq!(partial.nodes.len(), 0);
 
     // check state after adding tracking one element
@@ -808,7 +808,7 @@ fn test_partial_mmr_update_single() {
         partial.apply(delta).unwrap();
 
         assert_eq!(partial.forest(), full.forest());
-        assert_eq!(partial.peaks(), full.peaks(full.forest()).unwrap().peaks());
+        assert_eq!(partial.peaks(), full.peaks(full.forest()).unwrap());
 
         let proof1 = full.open(i as usize, full.forest()).unwrap();
         partial.add(proof1.position, node, &proof1.merkle_path).unwrap();

@@ -36,6 +36,14 @@ pub struct MmrPeaks {
 }
 
 impl MmrPeaks {
+    // CONSTRUCTOR
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns new [MmrPeaks] instantiated from the provided vector of peaks and the number of
+    /// leaves in the underlying MMR.
+    ///
+    /// # Errors
+    /// Returns an error if the number of leaves and the number of peaks are inconsistent.
     pub fn new(num_leaves: usize, peaks: Vec<RpoDigest>) -> Result<Self, MmrError> {
         if num_leaves.count_ones() as usize != peaks.len() {
             return Err(MmrError::InvalidPeaks);
@@ -47,17 +55,23 @@ impl MmrPeaks {
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns a count of the MMR's leaves.
+    /// Returns a count of leaves in the underlying MMR.
     pub fn num_leaves(&self) -> usize {
         self.num_leaves
     }
 
-    /// Returns the current peaks of the MMR.
+    /// Returns the number of peaks of the underlying MMR.
+    pub fn num_peaks(&self) -> usize {
+        self.peaks.len()
+    }
+
+    /// Returns the list of peaks of the underlying MMR.
     pub fn peaks(&self) -> &[RpoDigest] {
         &self.peaks
     }
 
-    /// Returns the current num_leaves and peaks of the MMR.
+    /// Converts this [MmrPeaks] into its components: number of leaves and a vector of peaks of
+    /// the underlying MMR.
     pub fn into_parts(self) -> (usize, Vec<RpoDigest>) {
         (self.num_leaves, self.peaks)
     }
