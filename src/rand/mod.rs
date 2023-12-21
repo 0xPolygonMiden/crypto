@@ -1,6 +1,6 @@
 //! Pseudo-random element generation.
 
-pub use winter_crypto::{RandomCoin, RandomCoinError};
+pub use winter_crypto::{DefaultRandomCoin as WinterRandomCoin, RandomCoin, RandomCoinError};
 
 use crate::{Felt, FieldElement, StarkField, Word, ZERO};
 
