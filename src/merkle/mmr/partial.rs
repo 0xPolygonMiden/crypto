@@ -17,7 +17,7 @@ use crate::{
 ///
 /// This structure store only the authentication path for a value, the value itself is stored
 /// separately.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartialMmr {
     /// The version of the MMR.
     ///
