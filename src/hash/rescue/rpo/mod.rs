@@ -117,7 +117,7 @@ impl Hasher for Rpo256 {
 
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
         // the number of elements is not a multiple of RATE_WIDTH), apply the RPO permutation. we
-        // don't need to apply any extra padding because the first capacity element containts a
+        // don't need to apply any extra padding because the first capacity element contains a
         // flag indicating whether the input is evenly divisible by the rate.
         if i != 0 {
             state[RATE_RANGE.start + i..RATE_RANGE.end].fill(ZERO);
