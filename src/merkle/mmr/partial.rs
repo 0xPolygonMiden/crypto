@@ -88,9 +88,11 @@ impl PartialMmr {
         self.forest
     }
 
-    // Returns a reference to the current peaks in the [PartialMmr]
-    pub fn peaks(&self) -> &[RpoDigest] {
-        &self.peaks
+    // Returns a reference to the current peaks in the [PartialMmr].
+    pub fn peaks(&self) -> MmrPeaks {
+        // expect() is OK here because the constructor ensures that MMR peaks can be constructed
+        // correctly
+        MmrPeaks::new(self.forest, self.peaks.clone()).expect("invalid MMR peaks")
     }
 
     /// Given a leaf position, returns the Merkle path to its corresponding peak. If the position
