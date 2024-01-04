@@ -1,9 +1,8 @@
 use super::{
-    add_constants, apply_inv_sbox, apply_mds, apply_sbox,
-    optimized_add_constants_and_apply_inv_sbox, optimized_add_constants_and_apply_sbox, Digest,
-    ElementHasher, Felt, FieldElement, Hasher, StarkField, ARK1, ARK2, BINARY_CHUNK_SIZE,
-    CAPACITY_RANGE, DIGEST_BYTES, DIGEST_RANGE, DIGEST_SIZE, INPUT1_RANGE, INPUT2_RANGE, MDS,
-    NUM_ROUNDS, ONE, RATE_RANGE, RATE_WIDTH, STATE_WIDTH, ZERO,
+    add_constants, add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox, apply_inv_sbox,
+    apply_mds, apply_sbox, Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField, ARK1,
+    ARK2, BINARY_CHUNK_SIZE, CAPACITY_RANGE, DIGEST_BYTES, DIGEST_RANGE, DIGEST_SIZE, INPUT1_RANGE,
+    INPUT2_RANGE, MDS, NUM_ROUNDS, ONE, RATE_RANGE, RATE_WIDTH, STATE_WIDTH, ZERO,
 };
 use core::{convert::TryInto, ops::Range};
 
@@ -309,14 +308,14 @@ impl Rpo256 {
     pub fn apply_round(state: &mut [Felt; STATE_WIDTH], round: usize) {
         // apply first half of RPO round
         apply_mds(state);
-        if !optimized_add_constants_and_apply_sbox(state, &ARK1[round]) {
+        if !add_constants_and_apply_sbox(state, &ARK1[round]) {
             add_constants(state, &ARK1[round]);
             apply_sbox(state);
         }
 
         // apply second half of RPO round
         apply_mds(state);
-        if !optimized_add_constants_and_apply_inv_sbox(state, &ARK2[round]) {
+        if !add_constants_and_apply_inv_sbox(state, &ARK2[round]) {
             add_constants(state, &ARK2[round]);
             apply_inv_sbox(state);
         }

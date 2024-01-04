@@ -3,6 +3,9 @@ use super::{
 };
 use core::ops::Range;
 
+mod arch;
+pub use arch::optimized::{add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox};
+
 mod mds;
 use mds::{apply_mds, MDS};
 
@@ -127,62 +130,6 @@ fn apply_inv_sbox(state: &mut [Felt; STATE_WIDTH]) {
         result.iter_mut().zip(tail).for_each(|(r, t)| *r *= t);
         result
     }
-}
-
-// OPTIMIZATIONS
-// ================================================================================================
-
-#[cfg(all(target_feature = "sve", feature = "sve"))]
-#[link(name = "rpo_sve", kind = "static")]
-extern "C" {
-    fn add_constants_and_apply_sbox(
-        state: *mut std::ffi::c_ulong,
-        constants: *const std::ffi::c_ulong,
-    ) -> bool;
-    fn add_constants_and_apply_inv_sbox(
-        state: *mut std::ffi::c_ulong,
-        constants: *const std::ffi::c_ulong,
-    ) -> bool;
-}
-
-#[inline(always)]
-#[cfg(all(target_feature = "sve", feature = "sve"))]
-fn optimized_add_constants_and_apply_sbox(
-    state: &mut [Felt; STATE_WIDTH],
-    ark: &[Felt; STATE_WIDTH],
-) -> bool {
-    unsafe {
-        add_constants_and_apply_sbox(state.as_mut_ptr() as *mut u64, ark.as_ptr() as *const u64)
-    }
-}
-
-#[inline(always)]
-#[cfg(not(all(target_feature = "sve", feature = "sve")))]
-fn optimized_add_constants_and_apply_sbox(
-    _state: &mut [Felt; STATE_WIDTH],
-    _ark: &[Felt; STATE_WIDTH],
-) -> bool {
-    false
-}
-
-#[inline(always)]
-#[cfg(all(target_feature = "sve", feature = "sve"))]
-fn optimized_add_constants_and_apply_inv_sbox(
-    state: &mut [Felt; STATE_WIDTH],
-    ark: &[Felt; STATE_WIDTH],
-) -> bool {
-    unsafe {
-        add_constants_and_apply_inv_sbox(state.as_mut_ptr() as *mut u64, ark.as_ptr() as *const u64)
-    }
-}
-
-#[inline(always)]
-#[cfg(not(all(target_feature = "sve", feature = "sve")))]
-fn optimized_add_constants_and_apply_inv_sbox(
-    _state: &mut [Felt; STATE_WIDTH],
-    _ark: &[Felt; STATE_WIDTH],
-) -> bool {
-    false
 }
 
 #[inline(always)]
