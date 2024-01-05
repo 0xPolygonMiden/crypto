@@ -55,11 +55,11 @@ mod tests;
 pub struct Rpo256();
 
 impl Hasher for Rpo256 {
-    /// Rpo256 collision resistance is the same as the security level, that is 128-bits.
+    /// Rpo256 collision resistance is 127-bits.
     ///
     /// #### Collision resistance
     ///
-    /// However, our setup of the capacity registers might drop it to 126.
+    /// However, our setup of the capacity registers might drop it to 125.
     ///
     /// Related issue: [#69](https://github.com/0xPolygonMiden/crypto/issues/69)
     const COLLISION_RESISTANCE: u32 = 128;

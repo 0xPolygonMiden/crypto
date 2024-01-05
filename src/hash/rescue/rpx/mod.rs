@@ -30,8 +30,8 @@ pub type CubicExtElement = CubeExtension<Felt>;
 /// - (M): `apply_mds` → `add_constants`.
 /// * Permutation: (FB) (E) (FB) (E) (FB) (E) (M).
 ///
-/// The above parameters target 128-bit security level. The digest consists of four field elements
-/// and it can be serialized into 32 bytes (256 bits).
+/// The above parameters target 128-bit security level for the permutation. The digest consists
+/// of four field elements and it can be serialized into 32 bytes (256 bits).
 ///
 /// ## Hash output consistency
 /// Functions [hash_elements()](Rpx256::hash_elements), [merge()](Rpx256::merge), and
@@ -58,11 +58,11 @@ pub type CubicExtElement = CubeExtension<Felt>;
 pub struct Rpx256();
 
 impl Hasher for Rpx256 {
-    /// Rpx256 collision resistance is the same as the security level, that is 128-bits.
+    /// Rpx256 collision resistance is 125-bits.
     ///
     /// #### Collision resistance
     ///
-    /// However, our setup of the capacity registers might drop it to 126.
+    /// However, our setup of the capacity registers might drop it to 123.
     ///
     /// Related issue: [#69](https://github.com/0xPolygonMiden/crypto/issues/69)
     const COLLISION_RESISTANCE: u32 = 128;
@@ -148,20 +148,18 @@ impl Hasher for Rpx256 {
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
         // initialize the state as follows:
         // - seed is copied into the first 4 elements of the rate portion of the state.
-        // - if the value fits into a single field element, copy it into the fifth rate element
-        //   and set the sixth rate element to 1.
+        // - if the value fits into a single field element, copy it into the fifth rate element and
+        //   set the first capacity element to 5.
         // - if the value doesn't fit into a single field element, split it into two field
-        //   elements, copy them into rate elements 5 and 6, and set the seventh rate element
-        //   to 1.
-        // - set the first capacity element to 1
+        //   elements, copy them into rate elements 5 and 6 and set the first capacity element to 6.
         let mut state = [ZERO; STATE_WIDTH];
         state[INPUT1_RANGE].copy_from_slice(seed.as_elements());
         state[INPUT2_RANGE.start] = Felt::new(value);
         if value < Felt::MODULUS {
-            state[INPUT2_RANGE.start + 1] = ONE;
+            state[CAPACITY_RANGE.start] = Felt::from(5_u8);
         } else {
             state[INPUT2_RANGE.start + 1] = Felt::new(value / Felt::MODULUS);
-            state[INPUT2_RANGE.start + 2] = ONE;
+            state[CAPACITY_RANGE.start] = Felt::from(6_u8);
         }
 
         // common padding for both cases
@@ -181,11 +179,9 @@ impl ElementHasher for Rpx256 {
         let elements = E::slice_as_base_elements(elements);
 
         // initialize state to all zeros, except for the first element of the capacity part, which
-        // is set to 1 if the number of elements is not a multiple of RATE_WIDTH.
+        // is set to `elements.len() % RATE_WIDTH`.
         let mut state = [ZERO; STATE_WIDTH];
-        if elements.len() % RATE_WIDTH != 0 {
-            state[CAPACITY_RANGE.start] = ONE;
-        }
+        state[CAPACITY_RANGE.start] = Self::BaseField::from((elements.len() % RATE_WIDTH) as u8);
 
         // absorb elements into the state one by one until the rate portion of the state is filled
         // up; then apply the Rescue permutation and start absorbing again; repeat until all
@@ -202,11 +198,8 @@ impl ElementHasher for Rpx256 {
 
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
         // the number of elements is not a multiple of RATE_WIDTH), apply the RPX permutation after
-        // padding by appending a 1 followed by as many 0 as necessary to make the input length a
-        // multiple of the RATE_WIDTH.
+        // padding by as many 0 as necessary to make the input length a multiple of the RATE_WIDTH.
         if i > 0 {
-            state[RATE_RANGE.start + i] = ONE;
-            i += 1;
             while i != RATE_WIDTH {
                 state[RATE_RANGE.start + i] = ZERO;
                 i += 1;
@@ -354,7 +347,7 @@ impl Rpx256 {
         add_constants(state, &ARK1[round]);
     }
 
-    /// Computes an exponentiation to the power 7 in cubic extension field
+    /// Computes an exponentiation to the power 7 in cubic extension field.
     #[inline(always)]
     pub fn exp7(x: CubeExtension<Felt>) -> CubeExtension<Felt> {
         let x2 = x.square();
