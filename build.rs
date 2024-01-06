@@ -2,7 +2,7 @@ fn main() {
     #[cfg(feature = "std")]
     compile_rpo_falcon();
 
-    #[cfg(all(target_feature = "sve", feature = "sve"))]
+    #[cfg(target_feature = "sve")]
     compile_arch_arm64_sve();
 }
 
@@ -34,7 +34,7 @@ fn compile_rpo_falcon() {
         .compile("rpo_falcon512");
 }
 
-#[cfg(all(target_feature = "sve", feature = "sve"))]
+#[cfg(target_feature = "sve")]
 fn compile_arch_arm64_sve() {
     const RPO_SVE_PATH: &str = "arch/arm64-sve/rpo";
 

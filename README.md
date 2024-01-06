@@ -53,9 +53,9 @@ RUSTFLAGS="-C target-feature=+avx2" cargo build --release
 ```
 
 ### SVE acceleration
-On platforms with [SVE](https://en.wikipedia.org/wiki/AArch64#Scalable_Vector_Extension_(SVE)) support, RPO and RPX hash function can be accelerated by using the vector processing unit. To enable SVE acceleration, the code needs to be compiled with the `sve` feature enabled. This feature has an effect only if the platform exposes `target-feature=sve` flag. On some platforms (e.g., Graviton 3), for this flag to be set, the compilation must be done in "native" mode. For example, to enable SVE acceleration on Graviton 3, we can execute the following:
+On platforms with [SVE](https://en.wikipedia.org/wiki/AArch64#Scalable_Vector_Extension_(SVE)) support, RPO and RPX hash function can be accelerated by using the vector processing unit. To enable SVE acceleration, the code needs to be compiled with the `sve` target feature enabled. For example:
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo build --release --features sve
+ RUSTFLAGS="-C target-feature=+sve" cargo build --release
 ```
 
 ## Testing

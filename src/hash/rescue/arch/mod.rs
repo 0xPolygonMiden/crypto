@@ -1,4 +1,4 @@
-#[cfg(all(target_feature = "sve", feature = "sve"))]
+#[cfg(target_feature = "sve")]
 pub mod optimized {
     use crate::hash::rescue::STATE_WIDTH;
     use crate::Felt;
@@ -78,7 +78,7 @@ pub mod optimized {
     }
 }
 
-#[cfg(not(any(target_feature = "avx2", all(target_feature = "sve", feature = "sve"))))]
+#[cfg(not(any(target_feature = "avx2", target_feature = "sve")))]
 pub mod optimized {
     use crate::hash::rescue::STATE_WIDTH;
     use crate::Felt;
