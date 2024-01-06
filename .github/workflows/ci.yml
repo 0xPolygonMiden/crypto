@@ -61,7 +61,7 @@ jobs:
           args: --all-targets --all-features -- -D clippy::all -D warnings
 
   test:
-    name: test ${{matrix.toolchain}} on ${{matrix.os}} with ${{matrix.args}}
+    name: test ${{matrix.toolchain}} on ${{matrix.os}} with ${{matrix.features}}
     runs-on: ${{matrix.os}}-latest
     strategy:
       fail-fast: false
