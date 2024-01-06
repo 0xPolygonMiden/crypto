@@ -32,7 +32,6 @@ fn rpo256_2to1(c: &mut Criterion) {
 
 fn rpo256_sequential(c: &mut Criterion) {
     let v: [Felt; 100] = (0..100)
-        .into_iter()
         .map(Felt::new)
         .collect::<Vec<Felt>>()
         .try_into()
@@ -45,7 +44,6 @@ fn rpo256_sequential(c: &mut Criterion) {
         bench.iter_batched(
             || {
                 let v: [Felt; 100] = (0..100)
-                    .into_iter()
                     .map(|_| Felt::new(rand_value()))
                     .collect::<Vec<Felt>>()
                     .try_into()
@@ -80,7 +78,6 @@ fn rpx256_2to1(c: &mut Criterion) {
 
 fn rpx256_sequential(c: &mut Criterion) {
     let v: [Felt; 100] = (0..100)
-        .into_iter()
         .map(Felt::new)
         .collect::<Vec<Felt>>()
         .try_into()
@@ -93,7 +90,6 @@ fn rpx256_sequential(c: &mut Criterion) {
         bench.iter_batched(
             || {
                 let v: [Felt; 100] = (0..100)
-                    .into_iter()
                     .map(|_| Felt::new(rand_value()))
                     .collect::<Vec<Felt>>()
                     .try_into()
@@ -129,7 +125,6 @@ fn blake3_2to1(c: &mut Criterion) {
 
 fn blake3_sequential(c: &mut Criterion) {
     let v: [Felt; 100] = (0..100)
-        .into_iter()
         .map(Felt::new)
         .collect::<Vec<Felt>>()
         .try_into()
@@ -142,7 +137,6 @@ fn blake3_sequential(c: &mut Criterion) {
         bench.iter_batched(
             || {
                 let v: [Felt; 100] = (0..100)
-                    .into_iter()
                     .map(|_| Felt::new(rand_value()))
                     .collect::<Vec<Felt>>()
                     .try_into()

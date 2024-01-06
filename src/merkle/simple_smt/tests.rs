@@ -35,7 +35,7 @@ const ZERO_VALUES8: [Word; 8] = [int_to_leaf(0); 8];
 fn build_empty_tree() {
     // tree of depth 3
     let smt = SimpleSmt::new(3).unwrap();
-    let mt = MerkleTree::new(ZERO_VALUES8.to_vec()).unwrap();
+    let mt = MerkleTree::new(ZERO_VALUES8).unwrap();
     assert_eq!(mt.root(), smt.root());
 }
 
@@ -74,14 +74,12 @@ fn build_sparse_tree() {
 /// Tests that [`SimpleSmt::with_contiguous_leaves`] works as expected
 #[test]
 fn build_contiguous_tree() {
-    let tree_with_leaves = SimpleSmt::with_leaves(
-        2,
-        [0, 1, 2, 3].into_iter().zip(digests_to_words(&VALUES4).into_iter()),
-    )
-    .unwrap();
+    let tree_with_leaves =
+        SimpleSmt::with_leaves(2, [0, 1, 2, 3].into_iter().zip(digests_to_words(&VALUES4)))
+            .unwrap();
 
     let tree_with_contiguous_leaves =
-        SimpleSmt::with_contiguous_leaves(2, digests_to_words(&VALUES4).into_iter()).unwrap();
+        SimpleSmt::with_contiguous_leaves(2, digests_to_words(&VALUES4)).unwrap();
 
     assert_eq!(tree_with_leaves, tree_with_contiguous_leaves);
 }
@@ -89,8 +87,7 @@ fn build_contiguous_tree() {
 #[test]
 fn test_depth2_tree() {
     let tree =
-        SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(digests_to_words(&VALUES4).into_iter()))
-            .unwrap();
+        SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(digests_to_words(&VALUES4))).unwrap();
 
     // check internal structure
     let (root, node2, node3) = compute_internal_nodes();
@@ -118,8 +115,7 @@ fn test_depth2_tree() {
 #[test]
 fn test_inner_node_iterator() -> Result<(), MerkleError> {
     let tree =
-        SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(digests_to_words(&VALUES4).into_iter()))
-            .unwrap();
+        SimpleSmt::with_leaves(2, KEYS4.into_iter().zip(digests_to_words(&VALUES4))).unwrap();
 
     // check depth 2
     assert_eq!(VALUES4[0], tree.get_node(NodeIndex::make(2, 0)).unwrap());
@@ -150,8 +146,7 @@ fn test_inner_node_iterator() -> Result<(), MerkleError> {
 #[test]
 fn update_leaf() {
     let mut tree =
-        SimpleSmt::with_leaves(3, KEYS8.into_iter().zip(digests_to_words(&VALUES8).into_iter()))
-            .unwrap();
+        SimpleSmt::with_leaves(3, KEYS8.into_iter().zip(digests_to_words(&VALUES8))).unwrap();
 
     // update one value
     let key = 3;

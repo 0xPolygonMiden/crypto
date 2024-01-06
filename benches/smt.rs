@@ -27,7 +27,7 @@ fn smt_rpo(c: &mut Criterion) {
 
     // benchmarks
 
-    let mut insert = c.benchmark_group(format!("smt update_leaf"));
+    let mut insert = c.benchmark_group("smt update_leaf".to_string());
 
     for (tree, count) in trees.iter_mut() {
         let depth = tree.depth();
@@ -45,7 +45,7 @@ fn smt_rpo(c: &mut Criterion) {
 
     insert.finish();
 
-    let mut path = c.benchmark_group(format!("smt get_leaf_path"));
+    let mut path = c.benchmark_group("smt get_leaf_path".to_string());
 
     for (tree, count) in trees.iter_mut() {
         let depth = tree.depth();

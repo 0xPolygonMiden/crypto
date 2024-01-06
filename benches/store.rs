@@ -15,7 +15,7 @@ fn random_rpo_digest() -> RpoDigest {
 
 /// Generates a random `Word`.
 fn random_word() -> Word {
-    rand_array::<Felt, 4>().into()
+    rand_array::<Felt, 4>()
 }
 
 /// Generates an index at the specified depth in `0..range`.

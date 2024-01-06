@@ -209,7 +209,7 @@ fn get_paths() {
     // Which have leaf nodes 20, 22, 23, 32 and 33. Hence overall we will have 5 paths -- one path
     // for each leaf.
 
-    let leaves = vec![NODE20, NODE22, NODE23, NODE32, NODE33];
+    let leaves = [NODE20, NODE22, NODE23, NODE32, NODE33];
     let expected_paths: Vec<(NodeIndex, ValuePath)> = leaves
         .iter()
         .map(|&leaf| {
@@ -257,7 +257,7 @@ fn leaves() {
     let value32 = mt.get_node(NODE32).unwrap();
     let value33 = mt.get_node(NODE33).unwrap();
 
-    let leaves = vec![(NODE11, value11), (NODE20, value20), (NODE32, value32), (NODE33, value33)];
+    let leaves = [(NODE11, value11), (NODE20, value20), (NODE32, value32), (NODE33, value33)];
 
     let expected_leaves = leaves.iter().copied();
     assert!(expected_leaves.eq(pmt.leaves()));
