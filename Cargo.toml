@@ -36,7 +36,6 @@ default = ["std"]
 executable = ["dep:clap", "dep:rand_utils", "std"]
 serde = ["dep:serde", "serde?/alloc", "winter_math/serde"]
 std = ["blake3/std", "dep:cc", "dep:libc", "winter_crypto/std", "winter_math/std", "winter_utils/std"]
-sve = ["std"]
 
 [dependencies]
 blake3 = { version = "1.5", default-features = false }
