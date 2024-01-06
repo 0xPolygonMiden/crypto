@@ -4,46 +4,74 @@ on:
     branches:
       - main
   pull_request:
-    types: [opened, repoened, synchronize]
+    types: [opened, reopened, synchronize]
 
 jobs:
-  build:
-    name: Build ${{matrix.toolchain}} on ${{matrix.os}} with ${{matrix.args}}
+  rustfmt:
+    name: rustfmt ${{matrix.toolchain}} on ${{matrix.os}}
     runs-on: ${{matrix.os}}-latest
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [stable, nightly]
+        toolchain: [nightly]
         os: [ubuntu]
-        target: [wasm32-unknown-unknown]
-        args: [--no-default-features --target wasm32-unknown-unknown]
     steps:
-      - uses: actions/checkout@main
-        with:
-          submodules: recursive
-      - name: Install rust
+      - uses: actions/checkout@v4
+      - name: Install minimal Rust with rustfmt
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: ${{matrix.toolchain}}
+          components: rustfmt
           override: true
-      - run: rustup target add ${{matrix.target}}
-      - name: Test
+      - name: fmt
         uses: actions-rs/cargo@v1
         with:
-          command: build
-          args: ${{matrix.args}}
+          command: fmt
+          args: --all -- --check
+
+  clippy:
+    name: clippy ${{matrix.toolchain}} on ${{matrix.os}}
+    runs-on: ${{matrix.os}}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [nightly]
+        os: [ubuntu]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install minimal Rust with clippy
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{matrix.toolchain}}
+          components: clippy
+          override: true
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets -- -D clippy::all -D warnings
+      - name: Clippy all features
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets --all-features -- -D clippy::all -D warnings
 
   test:
-    name: Test ${{matrix.toolchain}} on ${{matrix.os}} with ${{matrix.features}}
+    name: test ${{matrix.toolchain}} on ${{matrix.os}} with ${{matrix.args}}
     runs-on: ${{matrix.os}}-latest
     strategy:
       fail-fast: false
       matrix:
         toolchain: [stable, nightly]
         os: [ubuntu]
-        features: ["--features default,std,serde", --no-default-features]
+        features: ["--features default,serde", --no-default-features]
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Install rust
@@ -57,45 +85,25 @@ jobs:
           command: test
           args: ${{matrix.features}}
 
-  clippy:
-    name: Clippy with ${{matrix.features}}
+  no-std:
+    name: build ${{matrix.toolchain}} no-std for wasm32-unknown-unknown 
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        features: ["--features default,std,serde", --no-default-features]
+        toolchain: [stable, nightly]
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Install minimal nightly with clippy
+      - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
-          toolchain: nightly
-          components: clippy
+          toolchain: ${{matrix.toolchain}}
           override: true
-      - name: Clippy
+      - run: rustup target add wasm32-unknown-unknown
+      - name: Build
         uses: actions-rs/cargo@v1
         with:
-          command: clippy
-          args: --all ${{matrix.features}} -- -D clippy::all -D warnings
-
-  rustfmt:
-    name: rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@main
-      - name: Install minimal stable with rustfmt
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt
-          override: true
-
-      - name: rustfmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+          command: build
+          args: --no-default-features --target wasm32-unknown-unknown

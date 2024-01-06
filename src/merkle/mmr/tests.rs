@@ -114,13 +114,14 @@ const LEAVES: [RpoDigest; 7] = [
 
 #[test]
 fn test_mmr_simple() {
-    let mut postorder = Vec::new();
-    postorder.push(LEAVES[0]);
-    postorder.push(LEAVES[1]);
-    postorder.push(merge(LEAVES[0], LEAVES[1]));
-    postorder.push(LEAVES[2]);
-    postorder.push(LEAVES[3]);
-    postorder.push(merge(LEAVES[2], LEAVES[3]));
+    let mut postorder = vec![
+        LEAVES[0],
+        LEAVES[1],
+        merge(LEAVES[0], LEAVES[1]),
+        LEAVES[2],
+        LEAVES[3],
+        merge(LEAVES[2], LEAVES[3]),
+    ];
     postorder.push(merge(postorder[2], postorder[5]));
     postorder.push(LEAVES[4]);
     postorder.push(LEAVES[5]);
