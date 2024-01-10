@@ -126,7 +126,7 @@ fn test_compute_merkle_delta() {
         (20, [Felt::new(8), Felt::new(9), Felt::new(10), Felt::new(11)]),
         (31, [Felt::new(12), Felt::new(13), Felt::new(14), Felt::new(15)]),
     ];
-    let simple_smt = SimpleSmt::with_leaves(30, entries.clone()).unwrap();
+    let simple_smt = SimpleSmt::<30>::with_leaves(entries.clone()).unwrap();
     let mut store: MerkleStore = (&simple_smt).into();
     let root = simple_smt.root();
 

@@ -6,6 +6,18 @@ use super::{
 #[cfg(test)]
 mod tests;
 
+// CONSTANTS
+// ================================================================================================
+
+/// Minimum supported depth.
+pub const SIMPLE_SMT_MIN_DEPTH: u8 = 1;
+
+/// Maximum supported depth.
+pub const SIMPLE_SMT_MAX_DEPTH: u8 = 64;
+
+/// Value of an empty leaf.
+pub const EMPTY_VALUE: Word = super::EMPTY_WORD;
+
 // SPARSE MERKLE TREE
 // ================================================================================================
 
@@ -14,26 +26,13 @@ mod tests;
 /// The root of the tree is recomputed on each new leaf update.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct SimpleSmt {
-    depth: u8,
+pub struct SimpleSmt<const DEPTH: u8> {
     root: RpoDigest,
     leaves: BTreeMap<u64, Word>,
     branches: BTreeMap<NodeIndex, InnerNode>,
 }
 
-impl SimpleSmt {
-    // CONSTANTS
-    // --------------------------------------------------------------------------------------------
-
-    /// Minimum supported depth.
-    pub const MIN_DEPTH: u8 = 1;
-
-    /// Maximum supported depth.
-    pub const MAX_DEPTH: u8 = 64;
-
-    /// Value of an empty leaf.
-    pub const EMPTY_VALUE: Word = super::EMPTY_WORD;
-
+impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
@@ -43,19 +42,18 @@ impl SimpleSmt {
     ///
     /// # Errors
     /// Returns an error if the depth is 0 or is greater than 64.
-    pub fn new(depth: u8) -> Result<Self, MerkleError> {
+    pub fn new() -> Result<Self, MerkleError> {
         // validate the range of the depth.
-        if depth < Self::MIN_DEPTH {
-            return Err(MerkleError::DepthTooSmall(depth));
-        } else if Self::MAX_DEPTH < depth {
-            return Err(MerkleError::DepthTooBig(depth as u64));
+        if DEPTH < SIMPLE_SMT_MIN_DEPTH {
+            return Err(MerkleError::DepthTooSmall(DEPTH));
+        } else if SIMPLE_SMT_MAX_DEPTH < DEPTH {
+            return Err(MerkleError::DepthTooBig(DEPTH as u64));
         }
 
-        let root = *EmptySubtreeRoots::entry(depth, 0);
+        let root = *EmptySubtreeRoots::entry(DEPTH, 0);
 
         Ok(Self {
             root,
-            depth,
             leaves: BTreeMap::new(),
             branches: BTreeMap::new(),
         })
@@ -72,15 +70,14 @@ impl SimpleSmt {
     /// - The number of entries exceeds the maximum tree capacity, that is 2^{depth}.
     /// - The provided entries contain multiple values for the same key.
     pub fn with_leaves(
-        depth: u8,
         entries: impl IntoIterator<Item = (u64, Word)>,
     ) -> Result<Self, MerkleError> {
         // create an empty tree
-        let mut tree = Self::new(depth)?;
+        let mut tree = Self::new()?;
 
         // compute the max number of entries. We use an upper bound of depth 63 because we consider
         // passing in a vector of size 2^64 infeasible.
-        let max_num_entries = 2_usize.pow(tree.depth.min(63).into());
+        let max_num_entries = 2_usize.pow(tree.depth().min(63).into());
 
         // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
         // entries with the empty value need additional tracking.
@@ -93,11 +90,11 @@ impl SimpleSmt {
 
             let old_value = tree.update_leaf(key, value)?;
 
-            if old_value != Self::EMPTY_VALUE || key_set_to_zero.contains(&key) {
+            if old_value != EMPTY_VALUE || key_set_to_zero.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(key));
             }
 
-            if value == Self::EMPTY_VALUE {
+            if value == EMPTY_VALUE {
                 key_set_to_zero.insert(key);
             };
         }
@@ -107,11 +104,9 @@ impl SimpleSmt {
     /// Wrapper around [`SimpleSmt::with_leaves`] which inserts leaves at contiguous indices
     /// starting at index 0.
     pub fn with_contiguous_leaves(
-        depth: u8,
         entries: impl IntoIterator<Item = Word>,
     ) -> Result<Self, MerkleError> {
         Self::with_leaves(
-            depth,
             entries
                 .into_iter()
                 .enumerate()
@@ -129,7 +124,7 @@ impl SimpleSmt {
 
     /// Returns the depth of this Merkle tree.
     pub const fn depth(&self) -> u8 {
-        self.depth
+        DEPTH
     }
 
     /// Returns a node at the specified index.
@@ -148,7 +143,7 @@ impl SimpleSmt {
             let leaf_pos = index.value();
             let leaf = match self.get_leaf_node(leaf_pos) {
                 Some(word) => word.into(),
-                None => *EmptySubtreeRoots::entry(self.depth, index.depth()),
+                None => *EmptySubtreeRoots::entry(self.depth(), index.depth()),
             };
             Ok(leaf)
         } else {
@@ -161,7 +156,7 @@ impl SimpleSmt {
     /// # Errors
     /// Returns an error if the index is greater than the maximum tree capacity, that is 2^{depth}.
     pub fn get_leaf(&self, index: u64) -> Result<Word, MerkleError> {
-        let index = NodeIndex::new(self.depth, index)?;
+        let index = NodeIndex::new(self.depth(), index)?;
         Ok(self.get_node(index)?.into())
     }
 
@@ -231,7 +226,7 @@ impl SimpleSmt {
         // validate the index before modifying the structure
         let idx = NodeIndex::new(self.depth(), index)?;
 
-        let old_value = self.insert_leaf_node(index, value).unwrap_or(Self::EMPTY_VALUE);
+        let old_value = self.insert_leaf_node(index, value).unwrap_or(EMPTY_VALUE);
 
         // if the old value and new value are the same, there is nothing to update
         if value == old_value {
@@ -247,10 +242,10 @@ impl SimpleSmt {
     /// computed as `self.depth() - subtree.depth()`.
     ///
     /// Returns the new root.
-    pub fn set_subtree(
+    pub fn set_subtree<const SUBTREE_DEPTH: u8>(
         &mut self,
         subtree_insertion_index: u64,
-        subtree: SimpleSmt,
+        subtree: SimpleSmt<SUBTREE_DEPTH>,
     ) -> Result<RpoDigest, MerkleError> {
         if subtree.depth() > self.depth() {
             return Err(MerkleError::InvalidSubtreeDepth {
@@ -335,7 +330,7 @@ impl SimpleSmt {
 
     fn get_branch_node(&self, index: &NodeIndex) -> InnerNode {
         self.branches.get(index).cloned().unwrap_or_else(|| {
-            let node = EmptySubtreeRoots::entry(self.depth, index.depth() + 1);
+            let node = EmptySubtreeRoots::entry(self.depth(), index.depth() + 1);
             InnerNode { left: *node, right: *node }
         })
     }
@@ -348,7 +343,7 @@ impl SimpleSmt {
 
 // TRY APPLY DIFF
 // ================================================================================================
-impl TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt {
+impl<const DEPTH: u8> TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt<DEPTH> {
     type Error = MerkleError;
     type DiffType = MerkleTreeDelta;
 
@@ -361,7 +356,7 @@ impl TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt {
         }
 
         for slot in diff.cleared_slots() {
-            self.update_leaf(*slot, Self::EMPTY_VALUE)?;
+            self.update_leaf(*slot, EMPTY_VALUE)?;
         }
 
         for (slot, value) in diff.updated_slots() {

@@ -3,7 +3,9 @@ use super::{
     PartialMerkleTree, RecordingMerkleStore, Rpo256, RpoDigest,
 };
 use crate::{
-    merkle::{digests_to_words, int_to_leaf, int_to_node, MerkleTree, SimpleSmt},
+    merkle::{
+        digests_to_words, int_to_leaf, int_to_node, MerkleTree, SimpleSmt, SIMPLE_SMT_MAX_DEPTH,
+    },
     Felt, Word, ONE, WORD_SIZE, ZERO,
 };
 
@@ -12,6 +14,8 @@ use super::{Deserializable, Serializable};
 
 #[cfg(feature = "std")]
 use std::error::Error;
+
+use seq_macro::seq;
 
 // TEST DATA
 // ================================================================================================
@@ -173,10 +177,10 @@ fn test_leaf_paths_for_empty_trees() -> Result<(), MerkleError> {
     // Starts at 1 because leafs are not included in the store.
     // Ends at 64 because it is not possible to represent an index of a depth greater than 64,
     // because a u64 is used to index the leaf.
-    for depth in 1..64 {
-        let smt = SimpleSmt::new(depth)?;
+    seq!(DEPTH in 1_u8..64_u8 {
+        let smt = SimpleSmt::<DEPTH>::new()?;
 
-        let index = NodeIndex::make(depth, 0);
+        let index = NodeIndex::make(DEPTH, 0);
         let store_path = store.get_path(smt.root(), index)?;
         let smt_path = smt.get_path(index)?;
         assert_eq!(
@@ -189,11 +193,12 @@ fn test_leaf_paths_for_empty_trees() -> Result<(), MerkleError> {
             "the returned merkle path does not match the computed values"
         );
         assert_eq!(
-            store_path.path.compute_root(depth.into(), RpoDigest::default()).unwrap(),
+            store_path.path.compute_root(DEPTH.into(), RpoDigest::default()).unwrap(),
             smt.root(),
             "computed root from the path must match the empty tree root"
         );
-    }
+
+    });
 
     Ok(())
 }
@@ -210,7 +215,7 @@ fn test_get_invalid_node() {
 fn test_add_sparse_merkle_tree_one_level() -> Result<(), MerkleError> {
     let keys2: [u64; 2] = [0, 1];
     let leaves2: [Word; 2] = [int_to_leaf(1), int_to_leaf(2)];
-    let smt = SimpleSmt::with_leaves(1, keys2.into_iter().zip(leaves2)).unwrap();
+    let smt = SimpleSmt::<1>::with_leaves(keys2.into_iter().zip(leaves2)).unwrap();
     let store = MerkleStore::from(&smt);
 
     let idx = NodeIndex::make(1, 0);
@@ -226,8 +231,7 @@ fn test_add_sparse_merkle_tree_one_level() -> Result<(), MerkleError> {
 
 #[test]
 fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
-    let smt = SimpleSmt::with_leaves(
-        SimpleSmt::MAX_DEPTH,
+    let smt = SimpleSmt::<SIMPLE_SMT_MAX_DEPTH>::with_leaves(
         KEYS4.into_iter().zip(digests_to_words(&VALUES4)),
     )
     .unwrap();
@@ -552,9 +556,8 @@ fn test_constructors() -> Result<(), MerkleError> {
         assert_eq!(mtree.get_path(index)?, value_path.path);
     }
 
-    let depth = 32;
     let smt =
-        SimpleSmt::with_leaves(depth, KEYS4.into_iter().zip(digests_to_words(&VALUES4))).unwrap();
+        SimpleSmt::<32>::with_leaves(KEYS4.into_iter().zip(digests_to_words(&VALUES4))).unwrap();
     let store = MerkleStore::from(&smt);
     let depth = smt.depth();
 
@@ -880,8 +883,7 @@ fn test_serialization() -> Result<(), Box<dyn Error>> {
 fn test_recorder() {
     // instantiate recorder from MerkleTree and SimpleSmt
     let mtree = MerkleTree::new(digests_to_words(&VALUES4)).unwrap();
-    let smtree = SimpleSmt::with_leaves(
-        64,
+    let smtree = SimpleSmt::<64>::with_leaves(
         KEYS8.into_iter().zip(VALUES8.into_iter().map(|x| x.into()).rev()),
     )
     .unwrap();
