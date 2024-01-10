@@ -40,7 +40,7 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    fn get_merkle_path(&self, key: Self::Key) -> MerklePath {
+    fn get_leaf_path(&self, key: Self::Key) -> MerklePath {
         let mut index: NodeIndex = {
             let leaf_index: LeafIndex<DEPTH> = key.into();
             leaf_index.into()
