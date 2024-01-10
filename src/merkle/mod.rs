@@ -27,6 +27,9 @@ pub use path::{MerklePath, RootPath, ValuePath};
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
 
+mod smt;
+pub use smt::{InnerNode, LeafIndex, SparseMerkleTree};
+
 mod tiered_smt;
 pub use tiered_smt::{TieredSmt, TieredSmtProof, TieredSmtProofError};
 
