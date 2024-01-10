@@ -3,7 +3,7 @@ use crate::{
     Word,
 };
 
-use super::{MerkleError, MerklePath, NodeIndex};
+use super::{MerkleError, MerklePath, NodeIndex, Vec};
 
 // SPARSE MERKLE TREE
 // ================================================================================================
