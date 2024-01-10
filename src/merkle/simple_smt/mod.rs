@@ -1,6 +1,7 @@
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, MerkleError, MerklePath,
-    MerkleTreeDelta, NodeIndex, Rpo256, RpoDigest, StoreNode, TryApplyDiff, Vec, Word,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
+    MerklePath, MerkleTreeDelta, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, StoreNode,
+    TryApplyDiff, Vec, Word,
 };
 
 #[cfg(test)]
@@ -338,6 +339,43 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     fn insert_branch_node(&mut self, index: NodeIndex, left: RpoDigest, right: RpoDigest) {
         let branch = InnerNode { left, right };
         self.branches.insert(index, branch);
+    }
+}
+
+impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
+    type Key = LeafIndex<DEPTH>;
+    type Value = Word;
+    type Leaf = Word;
+
+    fn root(&self) -> RpoDigest {
+        self.root()
+    }
+
+    fn set_root(&mut self, root: RpoDigest) {
+        self.root = root;
+    }
+
+    fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
+        self.get_branch_node(&index)
+    }
+
+    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
+        let InnerNode { left, right } = inner_node;
+
+        self.insert_branch_node(index, left, right)
+    }
+
+    fn insert_leaf_node(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Option<Word> {
+        self.leaves.insert(key.value(), value)
+    }
+
+    fn get_leaf_at(&self, key: &LeafIndex<DEPTH>) -> Word {
+        self.get_leaf(key.value())
+            .expect("we have compile-time guarantees on the depth of the tree")
+    }
+
+    fn hash_leaf(leaf: &Word) -> RpoDigest {
+        leaf.into()
     }
 }
 
