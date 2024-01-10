@@ -36,8 +36,27 @@ pub trait SparseMerkleTree {
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    fn get_merkle_path(&self, key: Self::Key) -> MerklePath {
-        todo!()
+    ///
+    /// # Errors
+    /// Returns an error if the specified index is too large given the depth of this Merkle tree.
+    fn get_merkle_path(&self, key: Self::Key) -> Result<MerklePath, MerkleError> {
+        let mut index = NodeIndex::new(self.depth(), key.into())?;
+
+        if index.is_root() {
+            return Err(MerkleError::DepthTooSmall(index.depth()));
+        } else if index.depth() > self.depth() {
+            return Err(MerkleError::DepthTooBig(index.depth() as u64));
+        }
+
+        let mut path = Vec::with_capacity(index.depth() as usize);
+        for _ in 0..index.depth() {
+            let is_right = index.is_value_odd();
+            index.move_up();
+            let InnerNode { left, right } = self.get_inner_node(index);
+            let value = if is_right { left } else { right };
+            path.push(value);
+        }
+        Ok(MerklePath::new(path))
     }
 
     /// Updates value of the leaf at the specified index returning the old leaf value.
