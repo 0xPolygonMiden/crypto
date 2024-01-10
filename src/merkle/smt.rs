@@ -1,6 +1,6 @@
 use crate::hash::rpo::{Rpo256, RpoDigest};
 
-use super::{MerklePath, NodeIndex};
+use super::{MerkleError, MerklePath, NodeIndex};
 
 pub type LeafIndex = u64;
 
@@ -22,9 +22,9 @@ pub type LeafIndex = u64;
 /// must accomodate all keys that map to the same leaf.
 pub trait SparseMerkleTree {
     /// The type for a key, which must be convertible into a `u64` infaillibly
-    type Key: Into<LeafIndex>;
+    type Key: Into<LeafIndex> + Clone;
     /// The type for a value
-    type Value: Default;
+    type Value: Clone + Default + PartialEq;
     /// The type for a leaf
     type Leaf;
 
@@ -34,15 +34,29 @@ pub trait SparseMerkleTree {
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    fn get_merkle_path(&self, key: &Self::Key) -> MerklePath {
+    fn get_merkle_path(&self, key: Self::Key) -> MerklePath {
         todo!()
     }
 
     /// Updates value of the leaf at the specified index returning the old leaf value.
     ///
     /// This also recomputes all hashes between the leaf and the root, updating the root itself.
-    fn update_leaf_at(&mut self, key: &Self::Key, value: Self::Value) -> Self::Value {
-        todo!()
+    fn update_leaf_at(
+        &mut self,
+        key: Self::Key,
+        value: Self::Value,
+    ) -> Result<Self::Value, MerkleError> {
+        let old_value = self.insert_leaf_node(key.clone(), value.clone()).unwrap_or_default();
+
+        // if the old value and new value are the same, there is nothing to update
+        if value == old_value {
+            return Ok(value);
+        }
+
+        let idx = NodeIndex::new(self.depth(), key.into())?;
+        recompute_nodes_from_index_to_root(self, idx, Self::hash_value(value));
+
+        Ok(old_value)
     }
 
     // ABSTRACT METHODS
@@ -51,17 +65,46 @@ pub trait SparseMerkleTree {
     /// The root of the tree
     fn root(&self) -> RpoDigest;
 
+    /// Sets the root of the tree
+    fn set_root(&mut self, root: RpoDigest);
+
     /// The depth of the tree
     fn depth(&self) -> u8;
 
     /// Retrieves an inner node at the given index
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode;
 
+    /// Inserts an inner node at the given index
+    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode);
+
     /// Inserts a leaf node, and returns the value at the key if already exists
     fn insert_leaf_node(&self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
 
     /// Returns the hash of a leaf
-    fn hash_leaf(v: Self::Leaf) -> RpoDigest;
+    fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest;
+
+    /// Returns the hash of a value
+    /// FIXME: I found no good interface to mean "is hashable into a RpoDigest" that I could apply to `Self::Value`
+    fn hash_value(value: Self::Value) -> RpoDigest;
+}
+
+fn recompute_nodes_from_index_to_root<T>(
+    smt: &mut T,
+    mut index: NodeIndex,
+    node_hash_at_index: RpoDigest,
+) where
+    T: SparseMerkleTree + ?Sized,
+{
+    let mut value = node_hash_at_index;
+    for _ in 0..index.depth() {
+        let is_right = index.is_value_odd();
+        index.move_up();
+        let InnerNode { left, right } = smt.get_inner_node(index);
+        let (left, right) = if is_right { (left, value) } else { (value, right) };
+        smt.insert_inner_node(index, InnerNode { left, right });
+        value = Rpo256::merge(&[left, right]);
+    }
+    smt.set_root(value);
 }
 
 // TODO: Reconcile somehow with `simple_smt::BranchNode`
