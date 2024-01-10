@@ -2,8 +2,6 @@ use crate::hash::rpo::{Rpo256, RpoDigest};
 
 use super::{MerkleError, MerklePath, NodeIndex};
 
-pub type LeafIndex = u64;
-
 /// An abstract description of a sparse Merkle tree.
 ///
 /// A sparse Merkle tree is a key-value map which also supports proving that a given value is indeed
@@ -22,9 +20,9 @@ pub type LeafIndex = u64;
 /// must accomodate all keys that map to the same leaf.
 ///
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
-pub trait SparseMerkleTree {
+pub trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a key, which must be convertible into a `u64` infaillibly
-    type Key: Into<LeafIndex> + Clone;
+    type Key: Into<LeafIndex<DEPTH>> + Clone;
     /// The type for a value
     type Value: Clone + Default + PartialEq;
     /// The type for a leaf
@@ -39,14 +37,11 @@ pub trait SparseMerkleTree {
     ///
     /// # Errors
     /// Returns an error if the specified index is too large given the depth of this Merkle tree.
-    fn get_merkle_path(&self, key: Self::Key) -> Result<MerklePath, MerkleError> {
-        let mut index = NodeIndex::new(self.depth(), key.into())?;
-
-        if index.is_root() {
-            return Err(MerkleError::DepthTooSmall(index.depth()));
-        } else if index.depth() > self.depth() {
-            return Err(MerkleError::DepthTooBig(index.depth() as u64));
-        }
+    fn get_merkle_path(&self, key: Self::Key) -> MerklePath {
+        let mut index: NodeIndex = {
+            let leaf_index: LeafIndex<DEPTH> = key.into();
+            leaf_index.into()
+        };
 
         let mut path = Vec::with_capacity(index.depth() as usize);
         for _ in 0..index.depth() {
@@ -56,28 +51,29 @@ pub trait SparseMerkleTree {
             let value = if is_right { left } else { right };
             path.push(value);
         }
-        Ok(MerklePath::new(path))
+
+        MerklePath::new(path)
     }
 
     /// Updates value of the leaf at the specified index returning the old leaf value.
     ///
     /// This also recomputes all hashes between the leaf and the root, updating the root itself.
-    fn update_leaf_at(
-        &mut self,
-        key: Self::Key,
-        value: Self::Value,
-    ) -> Result<Self::Value, MerkleError> {
+    fn update_leaf_at(&mut self, key: Self::Key, value: Self::Value) -> Self::Value {
         let old_value = self.insert_leaf_node(key.clone(), value.clone()).unwrap_or_default();
 
         // if the old value and new value are the same, there is nothing to update
         if value == old_value {
-            return Ok(value);
+            return value;
         }
 
-        let idx = NodeIndex::new(self.depth(), key.into())?;
-        self.recompute_nodes_from_index_to_root(idx, Self::hash_value(value));
+        let node_index = {
+            let leaf_index: LeafIndex<DEPTH> = key.into();
+            leaf_index.into()
+        };
 
-        Ok(old_value)
+        self.recompute_nodes_from_index_to_root(node_index, Self::hash_value(value));
+
+        old_value
     }
 
     /// Recomputes the branch nodes (including the root) from `index` all the way to the root.
@@ -108,9 +104,6 @@ pub trait SparseMerkleTree {
     /// Sets the root of the tree
     fn set_root(&mut self, root: RpoDigest);
 
-    /// The depth of the tree
-    fn depth(&self) -> u8;
-
     /// Retrieves an inner node at the given index
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode;
 
@@ -126,6 +119,27 @@ pub trait SparseMerkleTree {
     /// Returns the hash of a value
     /// FIXME: I found no good interface to mean "is hashable into a RpoDigest" that I could apply to `Self::Value`
     fn hash_value(value: Self::Value) -> RpoDigest;
+}
+
+/// The index of a leaf, at a depth known at compile-time.
+pub struct LeafIndex<const DEPTH: u8> {
+    index: NodeIndex,
+}
+
+impl<const DEPTH: u8> LeafIndex<DEPTH> {
+    pub fn new(value: u64) -> Result<Self, MerkleError> {
+        Ok(LeafIndex { index: NodeIndex::new(DEPTH, value)? })
+    }
+
+    pub fn value(&self) -> u64 {
+        self.index.value()
+    }
+}
+
+impl<const DEPTH: u8> From<LeafIndex<DEPTH>> for NodeIndex {
+    fn from(value: LeafIndex<DEPTH>) -> Self {
+        value.index
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
