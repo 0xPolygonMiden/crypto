@@ -123,7 +123,7 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode);
 
     /// Inserts a leaf node, and returns the value at the key if already exists
-    fn insert_leaf_node(&self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
+    fn insert_leaf_node(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
 
     /// Returns the leaf at the specified index.
     fn get_leaf_at(&self, key: &Self::Key) -> Self::Leaf;
