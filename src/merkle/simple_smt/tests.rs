@@ -396,7 +396,7 @@ fn test_simplesmt_set_subtree() {
 
     assert_eq!(tree.root(), k);
     assert_eq!(tree.get_leaf(4).unwrap(), c);
-    assert_eq!(tree.get_branch_node(&NodeIndex::new_unchecked(2, 2)).parent(), g);
+    assert_eq!(tree.get_branch_node(&NodeIndex::new_unchecked(2, 2)).hash(), g);
 }
 
 /// Ensures that an invalid input node index into `set_subtree()` incurs no mutation of the tree

@@ -1,6 +1,6 @@
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerkleTreeDelta,
-    NodeIndex, Rpo256, RpoDigest, StoreNode, TryApplyDiff, Vec, Word,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, MerkleError, MerklePath,
+    MerkleTreeDelta, NodeIndex, Rpo256, RpoDigest, StoreNode, TryApplyDiff, Vec, Word,
 };
 
 #[cfg(test)]
@@ -18,7 +18,7 @@ pub struct SimpleSmt {
     depth: u8,
     root: RpoDigest,
     leaves: BTreeMap<u64, Word>,
-    branches: BTreeMap<NodeIndex, BranchNode>,
+    branches: BTreeMap<NodeIndex, InnerNode>,
 }
 
 impl SimpleSmt {
@@ -152,7 +152,7 @@ impl SimpleSmt {
             };
             Ok(leaf)
         } else {
-            Ok(self.get_branch_node(&index).parent())
+            Ok(self.get_branch_node(&index).hash())
         }
     }
 
@@ -183,7 +183,7 @@ impl SimpleSmt {
         for _ in 0..index.depth() {
             let is_right = index.is_value_odd();
             index.move_up();
-            let BranchNode { left, right } = self.get_branch_node(&index);
+            let InnerNode { left, right } = self.get_branch_node(&index);
             let value = if is_right { left } else { right };
             path.push(value);
         }
@@ -212,7 +212,7 @@ impl SimpleSmt {
     /// Returns an iterator over the inner nodes of this Merkle tree.
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         self.branches.values().map(|e| InnerNodeInfo {
-            value: e.parent(),
+            value: e.hash(),
             left: e.left,
             right: e.right,
         })
@@ -317,7 +317,7 @@ impl SimpleSmt {
         for _ in 0..index.depth() {
             let is_right = index.is_value_odd();
             index.move_up();
-            let BranchNode { left, right } = self.get_branch_node(&index);
+            let InnerNode { left, right } = self.get_branch_node(&index);
             let (left, right) = if is_right { (left, value) } else { (value, right) };
             self.insert_branch_node(index, left, right);
             value = Rpo256::merge(&[left, right]);
@@ -333,32 +333,16 @@ impl SimpleSmt {
         self.leaves.insert(key, node)
     }
 
-    fn get_branch_node(&self, index: &NodeIndex) -> BranchNode {
+    fn get_branch_node(&self, index: &NodeIndex) -> InnerNode {
         self.branches.get(index).cloned().unwrap_or_else(|| {
             let node = EmptySubtreeRoots::entry(self.depth, index.depth() + 1);
-            BranchNode { left: *node, right: *node }
+            InnerNode { left: *node, right: *node }
         })
     }
 
     fn insert_branch_node(&mut self, index: NodeIndex, left: RpoDigest, right: RpoDigest) {
-        let branch = BranchNode { left, right };
+        let branch = InnerNode { left, right };
         self.branches.insert(index, branch);
-    }
-}
-
-// BRANCH NODE
-// ================================================================================================
-
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct BranchNode {
-    left: RpoDigest,
-    right: RpoDigest,
-}
-
-impl BranchNode {
-    fn parent(&self) -> RpoDigest {
-        Rpo256::merge(&[self.left, self.right])
     }
 }
 
