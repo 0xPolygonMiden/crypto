@@ -5,6 +5,9 @@ use crate::{
 
 use super::{MerkleError, MerklePath, NodeIndex};
 
+// SPARSE MERKLE TREE
+// ================================================================================================
+
 /// An abstract description of a sparse Merkle tree.
 ///
 /// A sparse Merkle tree is a key-value map which also supports proving that a given value is indeed
@@ -129,6 +132,25 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
     fn hash_value(value: Self::Value) -> RpoDigest;
 }
 
+// INNER NODE
+// ================================================================================================
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct InnerNode {
+    left: RpoDigest,
+    right: RpoDigest,
+}
+
+impl InnerNode {
+    pub fn hash(&self) -> RpoDigest {
+        Rpo256::merge(&[self.left, self.right])
+    }
+}
+
+// LEAF INDEX
+// ================================================================================================
+
 /// The index of a leaf, at a depth known at compile-time.
 pub struct LeafIndex<const DEPTH: u8> {
     index: NodeIndex,
@@ -161,18 +183,5 @@ impl<const DEPTH: u8> From<LeafIndex<DEPTH>> for NodeIndex {
 impl From<Word> for LeafIndex<64> {
     fn from(value: Word) -> Self {
         Self::new_max_depth(value[0].inner())
-    }
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct InnerNode {
-    left: RpoDigest,
-    right: RpoDigest,
-}
-
-impl InnerNode {
-    pub fn hash(&self) -> RpoDigest {
-        Rpo256::merge(&[self.left, self.right])
     }
 }
