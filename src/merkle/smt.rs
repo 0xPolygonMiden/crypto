@@ -98,6 +98,11 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
         self.set_root(value);
     }
 
+    /// Returns the depth of the sparse Merkle tree
+    fn depth(&self) -> u8 {
+        DEPTH
+    }
+
     // ABSTRACT METHODS
     // ---------------------------------------------------------------------------------------------
 
