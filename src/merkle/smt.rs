@@ -138,8 +138,8 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InnerNode {
-    left: RpoDigest,
-    right: RpoDigest,
+    pub left: RpoDigest,
+    pub right: RpoDigest,
 }
 
 impl InnerNode {
