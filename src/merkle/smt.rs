@@ -20,6 +20,8 @@ pub type LeafIndex = u64;
 /// [Self::Leaf] should be the same type as [Self::Value], as is the case with
 /// [crate::merkle::SimpleSmt]. However, if there are more keys than leaves, then [`Self::Leaf`]
 /// must accomodate all keys that map to the same leaf.
+/// 
+/// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
 pub trait SparseMerkleTree {
     /// The type for a key, which must be convertible into a `u64` infaillibly
     type Key: Into<LeafIndex> + Clone;
