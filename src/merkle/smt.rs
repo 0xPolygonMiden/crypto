@@ -72,12 +72,13 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
             return value;
         }
 
+        let leaf = self.get_leaf_at(&key);
         let node_index = {
             let leaf_index: LeafIndex<DEPTH> = key.into();
             leaf_index.into()
         };
 
-        self.recompute_nodes_from_index_to_root(node_index, Self::hash_value(value));
+        self.recompute_nodes_from_index_to_root(node_index, Self::hash_leaf(&leaf));
 
         old_value
     }
@@ -124,12 +125,11 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
     /// Inserts a leaf node, and returns the value at the key if already exists
     fn insert_leaf_node(&self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
 
+    /// Returns the leaf at the specified index.
+    fn get_leaf_at(&self, key: &Self::Key) -> Self::Leaf;
+
     /// Returns the hash of a leaf
     fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest;
-
-    /// Returns the hash of a value
-    /// FIXME: I found no good interface to mean "is hashable into a RpoDigest" that I could apply to `Self::Value`
-    fn hash_value(value: Self::Value) -> RpoDigest;
 }
 
 // INNER NODE
