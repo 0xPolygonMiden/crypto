@@ -20,7 +20,7 @@ pub type LeafIndex = u64;
 /// [Self::Leaf] should be the same type as [Self::Value], as is the case with
 /// [crate::merkle::SimpleSmt]. However, if there are more keys than leaves, then [`Self::Leaf`]
 /// must accomodate all keys that map to the same leaf.
-/// 
+///
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
 pub trait SparseMerkleTree {
     /// The type for a key, which must be convertible into a `u64` infaillibly
@@ -56,9 +56,28 @@ pub trait SparseMerkleTree {
         }
 
         let idx = NodeIndex::new(self.depth(), key.into())?;
-        recompute_nodes_from_index_to_root(self, idx, Self::hash_value(value));
+        self.recompute_nodes_from_index_to_root(idx, Self::hash_value(value));
 
         Ok(old_value)
+    }
+
+    /// Recomputes the branch nodes (including the root) from `index` all the way to the root.
+    /// `node_hash_at_index` is the hash of the node stored at index.
+    fn recompute_nodes_from_index_to_root(
+        &mut self,
+        mut index: NodeIndex,
+        node_hash_at_index: RpoDigest,
+    ) {
+        let mut value = node_hash_at_index;
+        for _ in 0..index.depth() {
+            let is_right = index.is_value_odd();
+            index.move_up();
+            let InnerNode { left, right } = self.get_inner_node(index);
+            let (left, right) = if is_right { (left, value) } else { (value, right) };
+            self.insert_inner_node(index, InnerNode { left, right });
+            value = Rpo256::merge(&[left, right]);
+        }
+        self.set_root(value);
     }
 
     // ABSTRACT METHODS
@@ -90,26 +109,6 @@ pub trait SparseMerkleTree {
     fn hash_value(value: Self::Value) -> RpoDigest;
 }
 
-fn recompute_nodes_from_index_to_root<T>(
-    smt: &mut T,
-    mut index: NodeIndex,
-    node_hash_at_index: RpoDigest,
-) where
-    T: SparseMerkleTree + ?Sized,
-{
-    let mut value = node_hash_at_index;
-    for _ in 0..index.depth() {
-        let is_right = index.is_value_odd();
-        index.move_up();
-        let InnerNode { left, right } = smt.get_inner_node(index);
-        let (left, right) = if is_right { (left, value) } else { (value, right) };
-        smt.insert_inner_node(index, InnerNode { left, right });
-        value = Rpo256::merge(&[left, right]);
-    }
-    smt.set_root(value);
-}
-
-// TODO: Reconcile somehow with `simple_smt::BranchNode`
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InnerNode {
