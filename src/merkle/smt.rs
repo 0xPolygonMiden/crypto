@@ -1,4 +1,7 @@
-use crate::hash::rpo::{Rpo256, RpoDigest};
+use crate::{
+    hash::rpo::{Rpo256, RpoDigest},
+    Word,
+};
 
 use super::{MerkleError, MerklePath, NodeIndex};
 
@@ -136,9 +139,23 @@ impl<const DEPTH: u8> LeafIndex<DEPTH> {
     }
 }
 
+impl LeafIndex<64> {
+    pub fn new_max_depth(value: u64) -> Self {
+        LeafIndex {
+            index: NodeIndex::new_unchecked(64, value),
+        }
+    }
+}
+
 impl<const DEPTH: u8> From<LeafIndex<DEPTH>> for NodeIndex {
     fn from(value: LeafIndex<DEPTH>) -> Self {
         value.index
+    }
+}
+
+impl From<Word> for LeafIndex<64> {
+    fn from(value: Word) -> Self {
+        Self::new_max_depth(value[0].inner())
     }
 }
 
