@@ -52,7 +52,7 @@ fn build_sparse_tree() {
     let key = 6;
     let new_node = int_to_leaf(7);
     values[key as usize] = new_node;
-    let old_value = smt.update_leaf_at(LeafIndex::<DEPTH>::new(key).unwrap(), new_node);
+    let old_value = smt.update_leaf(LeafIndex::<DEPTH>::new(key).unwrap(), new_node);
     let mt2 = MerkleTree::new(values.clone()).unwrap();
     assert_eq!(mt2.root(), smt.root());
     assert_eq!(
@@ -65,7 +65,7 @@ fn build_sparse_tree() {
     let key = 2;
     let new_node = int_to_leaf(3);
     values[key as usize] = new_node;
-    let old_value = smt.update_leaf_at(LeafIndex::<DEPTH>::new(key).unwrap(), new_node);
+    let old_value = smt.update_leaf(LeafIndex::<DEPTH>::new(key).unwrap(), new_node);
     let mt3 = MerkleTree::new(values).unwrap();
     assert_eq!(mt3.root(), smt.root());
     assert_eq!(
@@ -156,7 +156,7 @@ fn update_leaf() {
     expected_values[key] = new_node;
     let expected_tree = MerkleTree::new(expected_values.clone()).unwrap();
 
-    let old_leaf = tree.update_leaf_at(LeafIndex::<DEPTH>::new(key as u64).unwrap(), new_node);
+    let old_leaf = tree.update_leaf(LeafIndex::<DEPTH>::new(key as u64).unwrap(), new_node);
     assert_eq!(expected_tree.root(), tree.root);
     assert_eq!(old_leaf, *VALUES8[key]);
 
@@ -166,7 +166,7 @@ fn update_leaf() {
     expected_values[key] = new_node;
     let expected_tree = MerkleTree::new(expected_values.clone()).unwrap();
 
-    let old_leaf = tree.update_leaf_at(LeafIndex::<DEPTH>::new(key as u64).unwrap(), new_node);
+    let old_leaf = tree.update_leaf(LeafIndex::<DEPTH>::new(key as u64).unwrap(), new_node);
     assert_eq!(expected_tree.root(), tree.root);
     assert_eq!(old_leaf, *VALUES8[key]);
 }
