@@ -176,7 +176,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         // validate the index before modifying the structure
         let idx = NodeIndex::new(self.depth(), index)?;
 
-        let old_value = self.insert_leaf_node(index, value).unwrap_or(EMPTY_VALUE);
+        let old_value = self.leaves.insert(index, value).unwrap_or(EMPTY_VALUE);
 
         // if the old value and new value are the same, there is nothing to update
         if value == old_value {
@@ -224,7 +224,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
             let new_leaf_idx = leaf_index_shift + subtree_leaf_idx;
             debug_assert!(new_leaf_idx < 2_u64.pow(self.depth().into()));
 
-            self.insert_leaf_node(new_leaf_idx, *leaf_value);
+            self.leaves.insert(new_leaf_idx, *leaf_value);
         }
 
         // add subtree's branch nodes (which includes the root)
@@ -246,13 +246,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         self.recompute_nodes_from_index_to_root(subtree_root_index, subtree.root);
 
         Ok(self.root)
-    }
-
-    // HELPER METHODS
-    // --------------------------------------------------------------------------------------------
-
-    fn insert_leaf_node(&mut self, key: u64, node: Word) -> Option<Word> {
-        self.leaves.insert(key, node)
     }
 }
 
