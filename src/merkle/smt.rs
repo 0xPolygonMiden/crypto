@@ -1,3 +1,5 @@
+use winter_math::StarkField;
+
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
     Word,
@@ -210,6 +212,6 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
 
 impl From<Word> for LeafIndex<SMT_MAX_DEPTH> {
     fn from(value: Word) -> Self {
-        Self::new_max_depth(value[0].inner())
+        Self::new_max_depth(value[0].as_int())
     }
 }
