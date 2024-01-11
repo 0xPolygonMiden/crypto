@@ -3,7 +3,7 @@ use core::cmp::Ordering;
 use winter_math::StarkField;
 
 use crate::hash::rpo::Rpo256;
-use crate::utils::collections::Vec;
+use crate::utils::{collections::Vec, vec};
 use crate::Felt;
 
 use super::{
