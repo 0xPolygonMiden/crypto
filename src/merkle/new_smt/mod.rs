@@ -44,7 +44,18 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
     }
 
     fn insert_leaf_node(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
-        todo!()
+        let leaf_index: LeafIndex<NEW_SMT_DEPTH> = key.into();
+        match self.leaves.get(&leaf_index.value()) {
+            Some(leaf) => match leaf {
+                NewSmtLeaf::Single(kv_pair) => todo!(),
+                NewSmtLeaf::Multiple(_) => todo!(),
+            },
+            None => {
+                self.leaves.insert(leaf_index.value(), NewSmtLeaf::Single((key.clone(), value)));
+
+                Some(Self::Value::default())
+            }
+        }
     }
 
     fn get_leaf(&self, key: &Self::Key) -> Self::Leaf {
@@ -53,7 +64,7 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
         match self.leaves.get(&leaf_pos) {
             Some(leaf) => leaf.clone(),
             None => NewSmtLeaf::Single((
-                leaf_pos,
+                key.clone(),
                 Word::from(*EmptySubtreeRoots::entry(self.depth(), self.depth())),
             )),
         }
@@ -67,31 +78,30 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum NewSmtLeaf {
-    Single((u64, Word)),
-    Multiple(Vec<(u64, Word)>),
+    Single((NewSmtKey, Word)),
+    Multiple(Vec<(NewSmtKey, Word)>),
 }
 
 impl NewSmtLeaf {
     pub fn hash(&self) -> RpoDigest {
-        fn tuple_to_elements((key, value): &(u64, Word)) -> impl Iterator<Item = Felt> + '_ {
-            let key_ele = Felt::from(*key);
-            let value_eles = value.iter().copied();
+        fn kv_to_elements((key, value): &(NewSmtKey, Word)) -> impl Iterator<Item = Felt> + '_ {
+            let key_elements = key.word.iter().copied();
+            let value_elements = value.iter().copied();
 
-            std::iter::once(key_ele).chain(value_eles)
+            key_elements.chain(value_elements)
         }
 
         let elements: Vec<Felt> = match self {
-            NewSmtLeaf::Single(tuple) => tuple_to_elements(tuple).collect(),
-            NewSmtLeaf::Multiple(tuples) => {
-                tuples.into_iter().flat_map(tuple_to_elements).collect()
-            }
+            NewSmtLeaf::Single(kv) => kv_to_elements(kv).collect(),
+            NewSmtLeaf::Multiple(kvs) => kvs.into_iter().flat_map(kv_to_elements).collect(),
         };
 
         Rpo256::hash_elements(&elements)
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct NewSmtKey {
     word: Word,
 }
