@@ -138,7 +138,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         } else if index.depth() > self.depth() {
             Err(MerkleError::DepthTooBig(index.depth() as u64))
         } else if index.depth() == self.depth() {
-            let leaf = self.get_leaf_at(&LeafIndex::<DEPTH>::try_from(index)?);
+            let leaf = self.get_leaf(&LeafIndex::<DEPTH>::try_from(index)?);
 
             Ok(leaf.into())
         } else {
@@ -318,7 +318,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
         self.leaves.insert(key.value(), value)
     }
 
-    fn get_leaf_at(&self, key: &LeafIndex<DEPTH>) -> Word {
+    fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Word {
         // the lookup in empty_hashes could fail only if empty_hashes were not built correctly
         // by the constructor as we check the depth of the lookup above.
         let leaf_pos = key.value();
