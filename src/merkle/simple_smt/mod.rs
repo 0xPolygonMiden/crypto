@@ -263,6 +263,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     }
 
     fn hash_leaf(leaf: &Word) -> RpoDigest {
+        // `SimpleSmt` takes the leaf value itself as the hash
         leaf.into()
     }
 }
