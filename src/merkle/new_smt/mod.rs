@@ -1,4 +1,5 @@
 use crate::hash::rpo::Rpo256;
+use crate::utils::collections::Vec;
 use crate::Felt;
 
 use super::{
