@@ -1,6 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use miden_crypto::merkle::{
-    DefaultMerkleStore as MerkleStore, MerkleTree, NodeIndex, SimpleSmt, SIMPLE_SMT_MAX_DEPTH,
+    DefaultMerkleStore as MerkleStore, LeafIndex, MerkleTree, NodeIndex, SimpleSmt,
+    SparseMerkleTree, SIMPLE_SMT_MAX_DEPTH,
 };
 use miden_crypto::Word;
 use miden_crypto::{hash::rpo::RpoDigest, Felt};
@@ -297,7 +298,11 @@ fn get_leaf_path_simplesmt(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("SimpleSmt", size), |b| {
             b.iter_batched(
                 || random_index(size_u64, depth),
-                |index| black_box(smt.get_path(index)),
+                |index| {
+                    black_box(smt.get_leaf_path(
+                        LeafIndex::<SIMPLE_SMT_MAX_DEPTH>::new(index.value()).unwrap(),
+                    ))
+                },
                 BatchSize::SmallInput,
             )
         });

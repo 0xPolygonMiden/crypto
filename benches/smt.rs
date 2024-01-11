@@ -1,6 +1,9 @@
 use core::mem::swap;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use miden_crypto::{merkle::SimpleSmt, Felt, Word};
+use miden_crypto::{
+    merkle::{LeafIndex, SimpleSmt, SparseMerkleTree},
+    Felt, Word,
+};
 use rand_utils::prng_array;
 use seq_macro::seq;
 
@@ -49,7 +52,7 @@ fn smt_rpo(c: &mut Criterion) {
                     &key,
                     |b, key| {
                         b.iter(|| {
-                            tree.get_leaf_path(black_box(*key)).unwrap();
+                            tree.get_leaf_path(black_box(LeafIndex::<DEPTH>::new(*key).unwrap()));
                         });
                     },
                 );

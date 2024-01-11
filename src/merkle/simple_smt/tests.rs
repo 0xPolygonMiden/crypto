@@ -1,9 +1,11 @@
 use super::{
     super::{InnerNodeInfo, MerkleError, MerkleTree, RpoDigest, SimpleSmt, EMPTY_WORD},
-    NodeIndex, Rpo256, Vec,
+    NodeIndex, Rpo256,
 };
 use crate::{
-    merkle::{digests_to_words, int_to_leaf, int_to_node, EmptySubtreeRoots},
+    merkle::{
+        digests_to_words, int_to_leaf, int_to_node, EmptySubtreeRoots, LeafIndex, SparseMerkleTree,
+    },
     Word,
 };
 
@@ -53,7 +55,7 @@ fn build_sparse_tree() {
     assert_eq!(mt2.root(), smt.root());
     assert_eq!(
         mt2.get_path(NodeIndex::make(3, 6)).unwrap(),
-        smt.get_path(NodeIndex::make(3, 6)).unwrap()
+        smt.get_leaf_path(LeafIndex::<3>::new(6).unwrap())
     );
     assert_eq!(old_value, EMPTY_WORD);
 
@@ -66,7 +68,7 @@ fn build_sparse_tree() {
     assert_eq!(mt3.root(), smt.root());
     assert_eq!(
         mt3.get_path(NodeIndex::make(3, 2)).unwrap(),
-        smt.get_path(NodeIndex::make(3, 2)).unwrap()
+        smt.get_leaf_path(LeafIndex::<3>::new(2).unwrap())
     );
     assert_eq!(old_value, EMPTY_WORD);
 }
@@ -102,14 +104,10 @@ fn test_depth2_tree() {
     assert_eq!(VALUES4[3], tree.get_node(NodeIndex::make(2, 3)).unwrap());
 
     // check get_path(): depth 2
-    assert_eq!(vec![VALUES4[1], node3], *tree.get_path(NodeIndex::make(2, 0)).unwrap());
-    assert_eq!(vec![VALUES4[0], node3], *tree.get_path(NodeIndex::make(2, 1)).unwrap());
-    assert_eq!(vec![VALUES4[3], node2], *tree.get_path(NodeIndex::make(2, 2)).unwrap());
-    assert_eq!(vec![VALUES4[2], node2], *tree.get_path(NodeIndex::make(2, 3)).unwrap());
-
-    // check get_path(): depth 1
-    assert_eq!(vec![node3], *tree.get_path(NodeIndex::make(1, 0)).unwrap());
-    assert_eq!(vec![node2], *tree.get_path(NodeIndex::make(1, 1)).unwrap());
+    assert_eq!(vec![VALUES4[1], node3], *tree.get_leaf_path(LeafIndex::<2>::new(0).unwrap()));
+    assert_eq!(vec![VALUES4[0], node3], *tree.get_leaf_path(LeafIndex::<2>::new(1).unwrap()));
+    assert_eq!(vec![VALUES4[3], node2], *tree.get_leaf_path(LeafIndex::<2>::new(2).unwrap()));
+    assert_eq!(vec![VALUES4[2], node2], *tree.get_leaf_path(LeafIndex::<2>::new(3).unwrap()));
 }
 
 #[test]
@@ -202,21 +200,15 @@ fn small_tree_opening_is_consistent() {
 
     assert_eq!(tree.root(), k);
 
-    let cases: Vec<(u8, u64, Vec<RpoDigest>)> = vec![
-        (3, 0, vec![b.into(), f, j]),
-        (3, 1, vec![a.into(), f, j]),
-        (3, 4, vec![z.into(), h, i]),
-        (3, 7, vec![z.into(), g, i]),
-        (2, 0, vec![f, j]),
-        (2, 1, vec![e, j]),
-        (2, 2, vec![h, i]),
-        (2, 3, vec![g, i]),
-        (1, 0, vec![j]),
-        (1, 1, vec![i]),
+    let cases: Vec<(u64, Vec<RpoDigest>)> = vec![
+        (0, vec![b.into(), f, j]),
+        (1, vec![a.into(), f, j]),
+        (4, vec![z.into(), h, i]),
+        (7, vec![z.into(), g, i]),
     ];
 
-    for (depth, key, path) in cases {
-        let opening = tree.get_path(NodeIndex::make(depth, key)).unwrap();
+    for (key, path) in cases {
+        let opening = tree.get_leaf_path(LeafIndex::<3>::new(key).unwrap());
 
         assert_eq!(path, *opening);
     }

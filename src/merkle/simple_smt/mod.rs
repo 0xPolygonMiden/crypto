@@ -1,7 +1,6 @@
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
-    MerklePath, MerkleTreeDelta, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, StoreNode,
-    TryApplyDiff, Vec, Word,
+    MerkleTreeDelta, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, StoreNode, TryApplyDiff, Word,
 };
 
 #[cfg(test)]
@@ -159,42 +158,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     pub fn get_leaf(&self, index: u64) -> Result<Word, MerkleError> {
         let index = NodeIndex::new(self.depth(), index)?;
         Ok(self.get_node(index)?.into())
-    }
-
-    /// Returns a Merkle path from the node at the specified index to the root.
-    ///
-    /// The node itself is not included in the path.
-    ///
-    /// # Errors
-    /// Returns an error if the specified index has depth set to 0 or the depth is greater than
-    /// the depth of this Merkle tree.
-    pub fn get_path(&self, mut index: NodeIndex) -> Result<MerklePath, MerkleError> {
-        if index.is_root() {
-            return Err(MerkleError::DepthTooSmall(index.depth()));
-        } else if index.depth() > self.depth() {
-            return Err(MerkleError::DepthTooBig(index.depth() as u64));
-        }
-
-        let mut path = Vec::with_capacity(index.depth() as usize);
-        for _ in 0..index.depth() {
-            let is_right = index.is_value_odd();
-            index.move_up();
-            let InnerNode { left, right } = self.get_branch_node(&index);
-            let value = if is_right { left } else { right };
-            path.push(value);
-        }
-        Ok(MerklePath::new(path))
-    }
-
-    /// Return a Merkle path from the leaf at the specified index to the root.
-    ///
-    /// The leaf itself is not included in the path.
-    ///
-    /// # Errors
-    /// Returns an error if the index is greater than the maximum tree capacity, that is 2^{depth}.
-    pub fn get_leaf_path(&self, index: u64) -> Result<MerklePath, MerkleError> {
-        let index = NodeIndex::new(self.depth(), index)?;
-        self.get_path(index)
     }
 
     // ITERATORS
