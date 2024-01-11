@@ -47,7 +47,7 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
         self.inner_nodes.insert(index, inner_node);
     }
 
-    fn insert_leaf_node(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
+    fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
         let leaf_index: LeafIndex<NEW_SMT_DEPTH> = key.into();
         match self.leaves.get_mut(&leaf_index.value()) {
             Some(leaf) => match leaf {
