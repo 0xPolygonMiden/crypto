@@ -62,7 +62,7 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
                     // transform the entry into a list entry, and make sure the key-value pairs
                     // are sorted by key
                     let mut pairs = vec![*kv_pair, (key, value)];
-                    pairs.sort_by(|pair_1, pair_2| cmp_pairs(*pair_1, *pair_2));
+                    pairs.sort_by(|(key_1, _), (key_2, _)| cmp_keys(*key_1, *key_2));
 
                     self.leaves.insert(leaf_index.value(), NewSmtLeaf::Multiple(pairs));
 
@@ -136,22 +136,10 @@ impl From<NewSmtKey> for LeafIndex<NEW_SMT_DEPTH> {
 // HELPER FUNCTIONS
 // ================================================================================================
 
-/// Compares two (key-value) pairs, ordered first by keys, then values.
-///
-/// Both keys and values are compared element-by-element using their integer representations
-/// starting with the most significant element.
-fn cmp_pairs((key_1, value_1): (NewSmtKey, Word), (key_2, value_2): (NewSmtKey, Word)) -> Ordering {
-    let key_order = cmp_words(key_1.word, key_2.word);
-
-    if key_order != Ordering::Equal {
-        key_order
-    } else {
-        cmp_words(value_1, value_2)
-    }
-}
-
-fn cmp_words(w1: Word, w2: Word) -> Ordering {
-    for (v1, v2) in w1.iter().zip(w2.iter()).rev() {
+/// Compares two keys, compared element-by-element using their integer representations starting with
+/// the most significant element.
+fn cmp_keys(key_1: NewSmtKey, key_2: NewSmtKey) -> Ordering {
+    for (v1, v2) in key_1.word.iter().zip(key_2.word.iter()).rev() {
         let v1 = v1.as_int();
         let v2 = v2.as_int();
         if v1 != v2 {
