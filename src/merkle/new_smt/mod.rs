@@ -68,10 +68,24 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
 
                     None
                 }
-                NewSmtLeaf::Multiple(_) => todo!(),
+                NewSmtLeaf::Multiple(kv_pairs) => {
+                    match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
+                        Ok(pos) => {
+                            let old_value = kv_pairs[pos].1;
+                            kv_pairs[pos].1 = value;
+
+                            Some(old_value)
+                        }
+                        Err(pos) => {
+                            kv_pairs.insert(pos, (key, value));
+
+                            None
+                        }
+                    }
+                }
             },
             None => {
-                self.leaves.insert(leaf_index.value(), NewSmtLeaf::Single((key.clone(), value)));
+                self.leaves.insert(leaf_index.value(), NewSmtLeaf::Single((key, value)));
 
                 Some(Self::Value::default())
             }
@@ -84,7 +98,7 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
         match self.leaves.get(&leaf_pos) {
             Some(leaf) => leaf.clone(),
             None => NewSmtLeaf::Single((
-                key.clone(),
+                *key,
                 Word::from(*EmptySubtreeRoots::entry(self.depth(), self.depth())),
             )),
         }
@@ -113,7 +127,7 @@ impl NewSmtLeaf {
 
         let elements: Vec<Felt> = match self {
             NewSmtLeaf::Single(kv) => kv_to_elements(kv).collect(),
-            NewSmtLeaf::Multiple(kvs) => kvs.into_iter().flat_map(kv_to_elements).collect(),
+            NewSmtLeaf::Multiple(kvs) => kvs.iter().flat_map(kv_to_elements).collect(),
         };
 
         Rpo256::hash_elements(&elements)
