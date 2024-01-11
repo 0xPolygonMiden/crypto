@@ -212,6 +212,7 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
 
 impl From<Word> for LeafIndex<SMT_MAX_DEPTH> {
     fn from(value: Word) -> Self {
-        Self::new_max_depth(value[0].as_int())
+        // We use the most significant `Felt` of a `Word` as the leaf index.
+        Self::new_max_depth(value[3].as_int())
     }
 }
