@@ -44,14 +44,15 @@ fn build_empty_tree() {
 
 #[test]
 fn build_sparse_tree() {
-    let mut smt = SimpleSmt::<3>::new().unwrap();
+    const DEPTH: u8 = 3;
+    let mut smt = SimpleSmt::<DEPTH>::new().unwrap();
     let mut values = ZERO_VALUES8.to_vec();
 
     // insert single value
     let key = 6;
     let new_node = int_to_leaf(7);
     values[key as usize] = new_node;
-    let old_value = smt.update_leaf(key, new_node).expect("Failed to update leaf");
+    let old_value = smt.update_leaf_at(LeafIndex::<DEPTH>::new(key).unwrap(), new_node);
     let mt2 = MerkleTree::new(values.clone()).unwrap();
     assert_eq!(mt2.root(), smt.root());
     assert_eq!(
@@ -64,7 +65,7 @@ fn build_sparse_tree() {
     let key = 2;
     let new_node = int_to_leaf(3);
     values[key as usize] = new_node;
-    let old_value = smt.update_leaf(key, new_node).expect("Failed to update leaf");
+    let old_value = smt.update_leaf_at(LeafIndex::<DEPTH>::new(key).unwrap(), new_node);
     let mt3 = MerkleTree::new(values).unwrap();
     assert_eq!(mt3.root(), smt.root());
     assert_eq!(
@@ -144,8 +145,9 @@ fn test_inner_node_iterator() -> Result<(), MerkleError> {
 
 #[test]
 fn update_leaf() {
+    const DEPTH: u8 = 3;
     let mut tree =
-        SimpleSmt::<3>::with_leaves(KEYS8.into_iter().zip(digests_to_words(&VALUES8))).unwrap();
+        SimpleSmt::<DEPTH>::with_leaves(KEYS8.into_iter().zip(digests_to_words(&VALUES8))).unwrap();
 
     // update one value
     let key = 3;
@@ -154,7 +156,7 @@ fn update_leaf() {
     expected_values[key] = new_node;
     let expected_tree = MerkleTree::new(expected_values.clone()).unwrap();
 
-    let old_leaf = tree.update_leaf(key as u64, new_node).unwrap();
+    let old_leaf = tree.update_leaf_at(LeafIndex::<DEPTH>::new(key as u64).unwrap(), new_node);
     assert_eq!(expected_tree.root(), tree.root);
     assert_eq!(old_leaf, *VALUES8[key]);
 
@@ -164,7 +166,7 @@ fn update_leaf() {
     expected_values[key] = new_node;
     let expected_tree = MerkleTree::new(expected_values.clone()).unwrap();
 
-    let old_leaf = tree.update_leaf(key as u64, new_node).unwrap();
+    let old_leaf = tree.update_leaf_at(LeafIndex::<DEPTH>::new(key as u64).unwrap(), new_node);
     assert_eq!(expected_tree.root(), tree.root);
     assert_eq!(old_leaf, *VALUES8[key]);
 }
@@ -248,52 +250,6 @@ fn with_no_duplicates_empty_node() {
     let entries = [(1_u64, int_to_leaf(0)), (5, int_to_leaf(2))];
     let smt = SimpleSmt::<64>::with_leaves(entries);
     assert!(smt.is_ok());
-}
-
-#[test]
-fn test_simplesmt_update_nonexisting_leaf_with_zero() {
-    // TESTING WITH EMPTY WORD
-    // --------------------------------------------------------------------------------------------
-
-    // Depth 1 has 2 leaf. Position is 0-indexed, position 2 doesn't exist.
-    let mut smt = SimpleSmt::<1>::new().unwrap();
-    let result = smt.update_leaf(2, EMPTY_WORD);
-    assert!(!smt.leaves.contains_key(&2));
-    assert!(result.is_err());
-
-    // Depth 2 has 4 leaves. Position is 0-indexed, position 4 doesn't exist.
-    let mut smt = SimpleSmt::<2>::new().unwrap();
-    let result = smt.update_leaf(4, EMPTY_WORD);
-    assert!(!smt.leaves.contains_key(&4));
-    assert!(result.is_err());
-
-    // Depth 3 has 8 leaves. Position is 0-indexed, position 8 doesn't exist.
-    let mut smt = SimpleSmt::<3>::new().unwrap();
-    let result = smt.update_leaf(8, EMPTY_WORD);
-    assert!(!smt.leaves.contains_key(&8));
-    assert!(result.is_err());
-
-    // TESTING WITH A VALUE
-    // --------------------------------------------------------------------------------------------
-    let value = int_to_node(1);
-
-    // Depth 1 has 2 leaves. Position is 0-indexed, position 1 doesn't exist.
-    let mut smt = SimpleSmt::<1>::new().unwrap();
-    let result = smt.update_leaf(2, *value);
-    assert!(!smt.leaves.contains_key(&2));
-    assert!(result.is_err());
-
-    // Depth 2 has 4 leaves. Position is 0-indexed, position 2 doesn't exist.
-    let mut smt = SimpleSmt::<2>::new().unwrap();
-    let result = smt.update_leaf(4, *value);
-    assert!(!smt.leaves.contains_key(&4));
-    assert!(result.is_err());
-
-    // Depth 3 has 8 leaves. Position is 0-indexed, position 4 doesn't exist.
-    let mut smt = SimpleSmt::<3>::new().unwrap();
-    let result = smt.update_leaf(8, *value);
-    assert!(!smt.leaves.contains_key(&8));
-    assert!(result.is_err());
 }
 
 #[test]

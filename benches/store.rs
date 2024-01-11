@@ -449,7 +449,12 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("SimpleSMT", size), |b| {
             b.iter_batched(
                 || (rand_value::<u64>() % size_u64, random_word()),
-                |(index, value)| black_box(smt.update_leaf(index, value)),
+                |(index, value)| {
+                    black_box(smt.update_leaf_at(
+                        LeafIndex::<SIMPLE_SMT_MAX_DEPTH>::new(index).unwrap(),
+                        value,
+                    ))
+                },
                 BatchSize::SmallInput,
             )
         });
