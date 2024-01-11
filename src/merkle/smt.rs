@@ -69,7 +69,7 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
             return value;
         }
 
-        let leaf = self.get_leaf_at(&key);
+        let leaf = self.get_leaf(&key);
         let node_index = {
             let leaf_index: LeafIndex<DEPTH> = key.into();
             leaf_index.into()
@@ -123,7 +123,7 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
     fn insert_leaf_node(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
 
     /// Returns the leaf at the specified index.
-    fn get_leaf_at(&self, key: &Self::Key) -> Self::Leaf;
+    fn get_leaf(&self, key: &Self::Key) -> Self::Leaf;
 
     /// Returns the hash of a leaf
     fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest;
