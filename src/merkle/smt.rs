@@ -179,6 +179,21 @@ impl<const DEPTH: u8> From<LeafIndex<DEPTH>> for NodeIndex {
     }
 }
 
+impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
+    type Error = MerkleError;
+
+    fn try_from(node_index: NodeIndex) -> Result<Self, Self::Error> {
+        if node_index.depth() != DEPTH {
+            return Err(MerkleError::InvalidDepth {
+                expected: DEPTH,
+                provided: node_index.depth(),
+            });
+        }
+
+        Self::new(node_index.value())
+    }
+}
+
 impl From<Word> for LeafIndex<64> {
     fn from(value: Word) -> Self {
         Self::new_max_depth(value[0].inner())
