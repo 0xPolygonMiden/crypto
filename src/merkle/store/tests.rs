@@ -232,10 +232,9 @@ fn test_add_sparse_merkle_tree_one_level() -> Result<(), MerkleError> {
 
 #[test]
 fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
-    let smt = SimpleSmt::<SMT_MAX_DEPTH>::with_leaves(
-        KEYS4.into_iter().zip(digests_to_words(&VALUES4)),
-    )
-    .unwrap();
+    let smt =
+        SimpleSmt::<SMT_MAX_DEPTH>::with_leaves(KEYS4.into_iter().zip(digests_to_words(&VALUES4)))
+            .unwrap();
 
     let store = MerkleStore::from(&smt);
 

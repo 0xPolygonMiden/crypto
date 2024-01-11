@@ -1,6 +1,6 @@
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
-    MerkleTreeDelta, NodeIndex, RpoDigest, SparseMerkleTree, StoreNode, TryApplyDiff, Word,
+    MerkleTreeDelta, NodeIndex, RpoDigest, SparseMerkleTree, StoreNode, TryApplyDiff, Word, smt::SMT_MAX_DEPTH,
 };
 
 #[cfg(test)]
@@ -11,9 +11,6 @@ mod tests;
 
 /// Minimum supported depth.
 pub const SIMPLE_SMT_MIN_DEPTH: u8 = 1;
-
-/// Maximum supported depth.
-pub const SMT_MAX_DEPTH: u8 = 64;
 
 /// Value of an empty leaf.
 pub const EMPTY_VALUE: Word = super::EMPTY_WORD;

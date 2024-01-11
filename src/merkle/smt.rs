@@ -5,6 +5,12 @@ use crate::{
 
 use super::{MerkleError, MerklePath, NodeIndex, Vec};
 
+// CONSTANTS
+// ================================================================================================
+
+/// Maximum supported depth.
+pub const SMT_MAX_DEPTH: u8 = 64;
+
 // SPARSE MERKLE TREE
 // ================================================================================================
 
@@ -165,10 +171,10 @@ impl<const DEPTH: u8> LeafIndex<DEPTH> {
     }
 }
 
-impl LeafIndex<64> {
+impl LeafIndex<SMT_MAX_DEPTH> {
     pub fn new_max_depth(value: u64) -> Self {
         LeafIndex {
-            index: NodeIndex::new_unchecked(64, value),
+            index: NodeIndex::new_unchecked(SMT_MAX_DEPTH, value),
         }
     }
 }
@@ -194,7 +200,7 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
     }
 }
 
-impl From<Word> for LeafIndex<64> {
+impl From<Word> for LeafIndex<SMT_MAX_DEPTH> {
     fn from(value: Word) -> Self {
         Self::new_max_depth(value[0].inner())
     }
