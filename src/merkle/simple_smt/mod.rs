@@ -29,7 +29,7 @@ pub const EMPTY_VALUE: Word = super::EMPTY_WORD;
 pub struct SimpleSmt<const DEPTH: u8> {
     root: RpoDigest,
     leaves: BTreeMap<u64, Word>,
-    branches: BTreeMap<NodeIndex, InnerNode>,
+    inner_nodes: BTreeMap<NodeIndex, InnerNode>,
 }
 
 impl<const DEPTH: u8> SimpleSmt<DEPTH> {
@@ -55,7 +55,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         Ok(Self {
             root,
             leaves: BTreeMap::new(),
-            branches: BTreeMap::new(),
+            inner_nodes: BTreeMap::new(),
         })
     }
 
@@ -156,7 +156,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
     /// Returns an iterator over the inner nodes of this Merkle tree.
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
-        self.branches.values().map(|e| InnerNodeInfo {
+        self.inner_nodes.values().map(|e| InnerNodeInfo {
             value: e.hash(),
             left: e.left,
             right: e.right,
@@ -229,7 +229,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
         // add subtree's branch nodes (which includes the root)
         // --------------
-        for (branch_idx, branch_node) in subtree.branches {
+        for (branch_idx, branch_node) in subtree.inner_nodes {
             let new_branch_idx = {
                 let new_depth = subtree_root_insertion_depth + branch_idx.depth();
                 let new_value = subtree_insertion_index * 2_u64.pow(branch_idx.depth().into())
@@ -238,7 +238,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
                 NodeIndex::new(new_depth, new_value).expect("index guaranteed to be valid")
             };
 
-            self.branches.insert(new_branch_idx, branch_node);
+            self.inner_nodes.insert(new_branch_idx, branch_node);
         }
 
         // recompute nodes starting from subtree root
@@ -264,7 +264,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
             index.move_up();
             let InnerNode { left, right } = self.get_inner_node(index);
             let (left, right) = if is_right { (left, value) } else { (value, right) };
-            self.insert_branch_node(index, left, right);
+            self.insert_inner_node(index, InnerNode { left, right });
             value = Rpo256::merge(&[left, right]);
         }
         self.root = value;
@@ -276,11 +276,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
     fn insert_leaf_node(&mut self, key: u64, node: Word) -> Option<Word> {
         self.leaves.insert(key, node)
-    }
-
-    fn insert_branch_node(&mut self, index: NodeIndex, left: RpoDigest, right: RpoDigest) {
-        let branch = InnerNode { left, right };
-        self.branches.insert(index, branch);
     }
 }
 
@@ -298,7 +293,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     }
 
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
-        self.branches.get(&index).cloned().unwrap_or_else(|| {
+        self.inner_nodes.get(&index).cloned().unwrap_or_else(|| {
             let node = EmptySubtreeRoots::entry(self.depth(), index.depth() + 1);
 
             InnerNode { left: *node, right: *node }
@@ -306,9 +301,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     }
 
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
-        let InnerNode { left, right } = inner_node;
-
-        self.insert_branch_node(index, left, right)
+        self.inner_nodes.insert(index, inner_node);
     }
 
     fn insert_leaf_node(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Option<Word> {
