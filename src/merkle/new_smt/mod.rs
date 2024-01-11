@@ -4,10 +4,11 @@ use winter_math::StarkField;
 
 use crate::hash::rpo::Rpo256;
 use crate::utils::{collections::Vec, vec};
-use crate::Felt;
+use crate::{Felt, EMPTY_WORD};
 
 use super::{
-    BTreeMap, EmptySubtreeRoots, InnerNode, LeafIndex, NodeIndex, RpoDigest, SparseMerkleTree, Word,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, LeafIndex, MerkleError, NodeIndex, RpoDigest,
+    SparseMerkleTree, Word,
 };
 
 #[cfg(test)]
@@ -41,6 +42,48 @@ impl NewSmt {
             leaves: BTreeMap::new(),
             inner_nodes: BTreeMap::new(),
         }
+    }
+
+    /// Returns a new [SimpleSmt] instantiated with leaves set as specified by the provided entries.
+    ///
+    /// All leaves omitted from the entries list are set to [ZERO; 4].
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - The number of entries exceeds 2^63 entries.
+    /// - The provided entries contain multiple values for the same key.
+    pub fn with_entries(
+        entries: impl IntoIterator<Item = (NewSmtKey, Word)>,
+    ) -> Result<Self, MerkleError> {
+        // create an empty tree
+        let mut tree = Self::new();
+
+        // compute the max number of entries. We use an upper bound of depth 63 because we consider
+        // passing in a vector of size 2^64 infeasible.
+        let max_num_entries = 2_usize.pow(tree.depth().min(63).into());
+
+        // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
+        // entries with the empty value need additional tracking.
+        let mut key_set_to_zero = BTreeSet::new();
+
+        for (idx, (key, value)) in entries.into_iter().enumerate() {
+            if idx >= max_num_entries {
+                return Err(MerkleError::InvalidNumEntries(max_num_entries));
+            }
+
+            let old_value = tree.update_leaf(key, value);
+
+            if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
+                return Err(MerkleError::DuplicateValuesForIndex(
+                    LeafIndex::<NEW_SMT_DEPTH>::from(key).value(),
+                ));
+            }
+
+            if value == EMPTY_WORD {
+                key_set_to_zero.insert(key);
+            };
+        }
+        Ok(tree)
     }
 }
 
@@ -133,6 +176,12 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
     }
 }
 
+impl Default for NewSmt {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // KEY
 // ================================================================================================
 
@@ -146,6 +195,34 @@ impl From<NewSmtKey> for LeafIndex<NEW_SMT_DEPTH> {
     fn from(key: NewSmtKey) -> Self {
         let most_significant_felt = key.word[0];
         Self::new_max_depth(most_significant_felt.as_int())
+    }
+}
+
+impl Ord for NewSmtKey {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Note that the indices are reversed. This is because a `Word` is treated as little-endian
+        // (i.e. most significant Felt is at index 3). In comparing integer arrays, we want to
+        // compare the most significant felts first, and so on until the least signifcant felt.
+        let self_word: [u64; 4] = [
+            self.word[3].as_int(),
+            self.word[2].as_int(),
+            self.word[1].as_int(),
+            self.word[0].as_int(),
+        ];
+        let other_word: [u64; 4] = [
+            other.word[3].as_int(),
+            other.word[2].as_int(),
+            other.word[1].as_int(),
+            other.word[0].as_int(),
+        ];
+
+        self_word.cmp(&other_word)
+    }
+}
+
+impl PartialOrd for NewSmtKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
