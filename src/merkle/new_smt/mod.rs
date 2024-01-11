@@ -109,6 +109,25 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
     }
 }
 
+// KEY
+// ================================================================================================
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct NewSmtKey {
+    word: Word,
+}
+
+impl From<NewSmtKey> for LeafIndex<NEW_SMT_DEPTH> {
+    fn from(key: NewSmtKey) -> Self {
+        let most_significant_felt = key.word[0];
+        Self::new_max_depth(most_significant_felt.inner())
+    }
+}
+
+// LEAF
+// ================================================================================================
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum NewSmtLeaf {
@@ -131,19 +150,6 @@ impl NewSmtLeaf {
         };
 
         Rpo256::hash_elements(&elements)
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct NewSmtKey {
-    word: Word,
-}
-
-impl From<NewSmtKey> for LeafIndex<NEW_SMT_DEPTH> {
-    fn from(key: NewSmtKey) -> Self {
-        let most_significant_felt = key.word[0];
-        Self::new_max_depth(most_significant_felt.inner())
     }
 }
 
