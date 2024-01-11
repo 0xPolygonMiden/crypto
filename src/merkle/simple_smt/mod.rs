@@ -10,7 +10,7 @@ mod tests;
 // ================================================================================================
 
 /// Minimum supported depth.
-pub const SIMPLE_SMT_MIN_DEPTH: u8 = 1;
+pub const SMT_MIN_DEPTH: u8 = 1;
 
 /// Value of an empty leaf.
 pub const EMPTY_VALUE: Word = super::EMPTY_WORD;
@@ -41,7 +41,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// Returns an error if the depth is 0 or is greater than 64.
     pub fn new() -> Result<Self, MerkleError> {
         // validate the range of the depth.
-        if DEPTH < SIMPLE_SMT_MIN_DEPTH {
+        if DEPTH < SMT_MIN_DEPTH {
             return Err(MerkleError::DepthTooSmall(DEPTH));
         } else if SMT_MAX_DEPTH < DEPTH {
             return Err(MerkleError::DepthTooBig(DEPTH as u64));
