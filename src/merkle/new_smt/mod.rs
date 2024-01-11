@@ -11,7 +11,7 @@ pub const NEW_SMT_DEPTH: u8 = 64;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct NewSmt {
     root: RpoDigest,
-    leaves: BTreeMap<u64, Word>,
+    leaves: BTreeMap<u64, NewSmtLeaf>,
     inner_nodes: BTreeMap<NodeIndex, InnerNode>,
 }
 
@@ -47,7 +47,15 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
     }
 
     fn get_leaf(&self, key: &Self::Key) -> Self::Leaf {
-        todo!()
+        let leaf_pos = LeafIndex::<NEW_SMT_DEPTH>::from(*key).value();
+
+        match self.leaves.get(&leaf_pos) {
+            Some(leaf) => leaf.clone(),
+            None => NewSmtLeaf::Single((
+                leaf_pos,
+                Word::from(*EmptySubtreeRoots::entry(self.depth(), self.depth())),
+            )),
+        }
     }
 
     fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest {
@@ -55,7 +63,8 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum NewSmtLeaf {
     Single((u64, Word)),
     Multiple(Vec<(u64, Word)>),
