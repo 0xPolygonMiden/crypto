@@ -1,3 +1,7 @@
+use core::cmp::Ordering;
+
+use winter_math::StarkField;
+
 use crate::hash::rpo::Rpo256;
 use crate::utils::collections::Vec;
 use crate::Felt;
@@ -45,9 +49,25 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
 
     fn insert_leaf_node(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
         let leaf_index: LeafIndex<NEW_SMT_DEPTH> = key.into();
-        match self.leaves.get(&leaf_index.value()) {
+        match self.leaves.get_mut(&leaf_index.value()) {
             Some(leaf) => match leaf {
-                NewSmtLeaf::Single(kv_pair) => todo!(),
+                NewSmtLeaf::Single(kv_pair) => {
+                    // if the key is already in this entry, update the value and return
+                    if kv_pair.0 == key {
+                        let old_value = kv_pair.1;
+                        kv_pair.1 = value;
+                        return Some(old_value);
+                    }
+
+                    // transform the entry into a list entry, and make sure the key-value pairs
+                    // are sorted by key
+                    let mut pairs = vec![*kv_pair, (key, value)];
+                    pairs.sort_by(|pair_1, pair_2| cmp_pairs(*pair_1, *pair_2));
+
+                    self.leaves.insert(leaf_index.value(), NewSmtLeaf::Multiple(pairs));
+
+                    None
+                }
                 NewSmtLeaf::Multiple(_) => todo!(),
             },
             None => {
@@ -111,4 +131,33 @@ impl From<NewSmtKey> for LeafIndex<NEW_SMT_DEPTH> {
         let most_significant_felt = key.word[0];
         Self::new_max_depth(most_significant_felt.inner())
     }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+
+/// Compares two (key-value) pairs, ordered first by keys, then values.
+///
+/// Both keys and values are compared element-by-element using their integer representations
+/// starting with the most significant element.
+fn cmp_pairs((key_1, value_1): (NewSmtKey, Word), (key_2, value_2): (NewSmtKey, Word)) -> Ordering {
+    let key_order = cmp_words(key_1.word, key_2.word);
+
+    if key_order != Ordering::Equal {
+        key_order
+    } else {
+        cmp_words(value_1, value_2)
+    }
+}
+
+fn cmp_words(w1: Word, w2: Word) -> Ordering {
+    for (v1, v2) in w1.iter().zip(w2.iter()).rev() {
+        let v1 = v1.as_int();
+        let v2 = v2.as_int();
+        if v1 != v2 {
+            return v1.cmp(&v2);
+        }
+    }
+
+    Ordering::Equal
 }
