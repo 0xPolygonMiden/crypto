@@ -12,7 +12,7 @@ use super::{MerkleError, MerklePath, NodeIndex, Vec};
 ///
 /// A sparse Merkle tree is a key-value map which also supports proving that a given value is indeed
 /// stored at a given key in the tree. It is viewed as always being fully populated. If a leaf's
-/// value was not explicitly updated, then its value is the default value. Typically, the vast
+/// value was not explicitly set, then its value is the default value. Typically, the vast
 /// majority of leaves will store the default value (hence it is "sparse"), and therefore the
 /// internal representation of the tree will only keep track of the leaves that have a different
 /// value from the default.
