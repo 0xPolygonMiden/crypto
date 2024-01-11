@@ -5,7 +5,7 @@ use super::{
 use crate::{
     merkle::{
         digests_to_words, int_to_leaf, int_to_node, LeafIndex, MerkleTree, SimpleSmt,
-        SparseMerkleTree, SIMPLE_SMT_MAX_DEPTH,
+        SparseMerkleTree, SMT_MAX_DEPTH,
     },
     Felt, Word, ONE, WORD_SIZE, ZERO,
 };
@@ -232,7 +232,7 @@ fn test_add_sparse_merkle_tree_one_level() -> Result<(), MerkleError> {
 
 #[test]
 fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
-    let smt = SimpleSmt::<SIMPLE_SMT_MAX_DEPTH>::with_leaves(
+    let smt = SimpleSmt::<SMT_MAX_DEPTH>::with_leaves(
         KEYS4.into_iter().zip(digests_to_words(&VALUES4)),
     )
     .unwrap();
@@ -303,7 +303,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "Value for merkle path at index 0 must match leaf value"
     );
     assert_eq!(
-        smt.get_leaf_path(LeafIndex::<SIMPLE_SMT_MAX_DEPTH>::new(0).unwrap()),
+        smt.get_leaf_path(LeafIndex::<SMT_MAX_DEPTH>::new(0).unwrap()),
         result.path,
         "merkle path for index 0 must be the same for the MerkleTree and MerkleStore"
     );
@@ -314,7 +314,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "Value for merkle path at index 1 must match leaf value"
     );
     assert_eq!(
-        smt.get_leaf_path(LeafIndex::<SIMPLE_SMT_MAX_DEPTH>::new(1).unwrap()),
+        smt.get_leaf_path(LeafIndex::<SMT_MAX_DEPTH>::new(1).unwrap()),
         result.path,
         "merkle path for index 1 must be the same for the MerkleTree and MerkleStore"
     );
@@ -325,7 +325,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "Value for merkle path at index 2 must match leaf value"
     );
     assert_eq!(
-        smt.get_leaf_path(LeafIndex::<SIMPLE_SMT_MAX_DEPTH>::new(2).unwrap()),
+        smt.get_leaf_path(LeafIndex::<SMT_MAX_DEPTH>::new(2).unwrap()),
         result.path,
         "merkle path for index 2 must be the same for the MerkleTree and MerkleStore"
     );
@@ -336,7 +336,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "Value for merkle path at index 3 must match leaf value"
     );
     assert_eq!(
-        smt.get_leaf_path(LeafIndex::<SIMPLE_SMT_MAX_DEPTH>::new(3).unwrap()),
+        smt.get_leaf_path(LeafIndex::<SMT_MAX_DEPTH>::new(3).unwrap()),
         result.path,
         "merkle path for index 3 must be the same for the MerkleTree and MerkleStore"
     );
@@ -348,7 +348,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "Value for merkle path at index 4 must match leaf value"
     );
     assert_eq!(
-        smt.get_leaf_path(LeafIndex::<SIMPLE_SMT_MAX_DEPTH>::new(4).unwrap()),
+        smt.get_leaf_path(LeafIndex::<SMT_MAX_DEPTH>::new(4).unwrap()),
         result.path,
         "merkle path for index 4 must be the same for the MerkleTree and MerkleStore"
     );

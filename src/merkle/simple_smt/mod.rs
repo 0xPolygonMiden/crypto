@@ -13,7 +13,7 @@ mod tests;
 pub const SIMPLE_SMT_MIN_DEPTH: u8 = 1;
 
 /// Maximum supported depth.
-pub const SIMPLE_SMT_MAX_DEPTH: u8 = 64;
+pub const SMT_MAX_DEPTH: u8 = 64;
 
 /// Value of an empty leaf.
 pub const EMPTY_VALUE: Word = super::EMPTY_WORD;
@@ -46,7 +46,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         // validate the range of the depth.
         if DEPTH < SIMPLE_SMT_MIN_DEPTH {
             return Err(MerkleError::DepthTooSmall(DEPTH));
-        } else if SIMPLE_SMT_MAX_DEPTH < DEPTH {
+        } else if SMT_MAX_DEPTH < DEPTH {
             return Err(MerkleError::DepthTooBig(DEPTH as u64));
         }
 
