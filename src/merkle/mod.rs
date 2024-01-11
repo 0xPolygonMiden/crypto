@@ -25,7 +25,7 @@ mod path;
 pub use path::{MerklePath, RootPath, ValuePath};
 
 mod simple_smt;
-pub use simple_smt::{SimpleSmt, SIMPLE_SMT_MAX_DEPTH, SIMPLE_SMT_MIN_DEPTH};
+pub use simple_smt::{SimpleSmt, SMT_MAX_DEPTH, SIMPLE_SMT_MIN_DEPTH};
 
 mod smt;
 pub use smt::{InnerNode, LeafIndex, SparseMerkleTree};
