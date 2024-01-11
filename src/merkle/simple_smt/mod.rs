@@ -1,6 +1,6 @@
 use super::{
     BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
-    MerkleTreeDelta, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, StoreNode, TryApplyDiff, Word,
+    MerkleTreeDelta, NodeIndex, RpoDigest, SparseMerkleTree, StoreNode, TryApplyDiff, Word,
 };
 
 #[cfg(test)]
@@ -250,25 +250,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
-
-    /// Recomputes the branch nodes (including the root) from `index` all the way to the root.
-    /// `node_hash_at_index` is the hash of the node stored at index.
-    fn recompute_nodes_from_index_to_root(
-        &mut self,
-        mut index: NodeIndex,
-        node_hash_at_index: RpoDigest,
-    ) {
-        let mut value = node_hash_at_index;
-        for _ in 0..index.depth() {
-            let is_right = index.is_value_odd();
-            index.move_up();
-            let InnerNode { left, right } = self.get_inner_node(index);
-            let (left, right) = if is_right { (left, value) } else { (value, right) };
-            self.insert_inner_node(index, InnerNode { left, right });
-            value = Rpo256::merge(&[left, right]);
-        }
-        self.root = value;
-    }
 
     fn get_leaf_node(&self, key: u64) -> Option<Word> {
         self.leaves.get(&key).copied()
