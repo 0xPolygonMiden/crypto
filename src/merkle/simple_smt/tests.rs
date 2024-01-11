@@ -374,9 +374,10 @@ fn test_simplesmt_set_subtree() {
     };
 
     // insert subtree
+    const TREE_DEPTH: u8 = 3;
     let tree = {
         let entries = vec![(0, a), (1, b), (7, d)];
-        let mut tree = SimpleSmt::<3>::with_leaves(entries).unwrap();
+        let mut tree = SimpleSmt::<TREE_DEPTH>::with_leaves(entries).unwrap();
 
         tree.set_subtree(2, subtree).unwrap();
 
@@ -384,7 +385,7 @@ fn test_simplesmt_set_subtree() {
     };
 
     assert_eq!(tree.root(), k);
-    assert_eq!(tree.get_leaf(4).unwrap(), c);
+    assert_eq!(tree.get_leaf_at(&LeafIndex::<TREE_DEPTH>::new(4).unwrap()), c);
     assert_eq!(tree.get_branch_node(&NodeIndex::new_unchecked(2, 2)).hash(), g);
 }
 

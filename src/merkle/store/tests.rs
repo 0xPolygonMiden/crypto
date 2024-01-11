@@ -885,7 +885,9 @@ fn test_serialization() -> Result<(), Box<dyn Error>> {
 fn test_recorder() {
     // instantiate recorder from MerkleTree and SimpleSmt
     let mtree = MerkleTree::new(digests_to_words(&VALUES4)).unwrap();
-    let smtree = SimpleSmt::<64>::with_leaves(
+
+    const TREE_DEPTH: u8 = 64;
+    let smtree = SimpleSmt::<TREE_DEPTH>::with_leaves(
         KEYS8.into_iter().zip(VALUES8.into_iter().map(|x| x.into()).rev()),
     )
     .unwrap();
@@ -921,7 +923,10 @@ fn test_recorder() {
     assert_eq!(node, smtree.get_node(index_1).unwrap());
 
     let node = merkle_store.get_node(smtree.root(), index_2).unwrap();
-    assert_eq!(node, smtree.get_leaf(index_2.value()).unwrap().into());
+    assert_eq!(
+        node,
+        smtree.get_leaf_at(&LeafIndex::<TREE_DEPTH>::try_from(index_2).unwrap()).into()
+    );
 
     // assert that is doesnt contain nodes that were not recorded
     let not_recorded_index = NodeIndex::new(smtree.depth(), 4).unwrap();

@@ -146,15 +146,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         }
     }
 
-    /// Returns a value of the leaf at the specified index.
-    ///
-    /// # Errors
-    /// Returns an error if the index is greater than the maximum tree capacity, that is 2^{depth}.
-    pub fn get_leaf(&self, index: u64) -> Result<Word, MerkleError> {
-        let index = NodeIndex::new(self.depth(), index)?;
-        Ok(self.get_node(index)?.into())
-    }
-
     // ITERATORS
     // --------------------------------------------------------------------------------------------
 
