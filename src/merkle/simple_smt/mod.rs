@@ -88,7 +88,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
                 return Err(MerkleError::InvalidNumEntries(max_num_entries));
             }
 
-            let old_value = tree.update_leaf(key, value)?;
+            let old_value = tree.update_leaf_at(LeafIndex::<DEPTH>::new(key)?, value);
 
             if old_value != EMPTY_VALUE || key_set_to_zero.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(key));
@@ -160,28 +160,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
-
-    /// Updates value of the leaf at the specified index returning the old leaf value.
-    ///
-    /// This also recomputes all hashes between the leaf and the root, updating the root itself.
-    ///
-    /// # Errors
-    /// Returns an error if the index is greater than the maximum tree capacity, that is 2^{depth}.
-    pub fn update_leaf(&mut self, index: u64, value: Word) -> Result<Word, MerkleError> {
-        // validate the index before modifying the structure
-        let idx = NodeIndex::new(self.depth(), index)?;
-
-        let old_value = self.leaves.insert(index, value).unwrap_or(EMPTY_VALUE);
-
-        // if the old value and new value are the same, there is nothing to update
-        if value == old_value {
-            return Ok(value);
-        }
-
-        self.recompute_nodes_from_index_to_root(idx, RpoDigest::from(value));
-
-        Ok(old_value)
-    }
 
     /// Inserts a subtree at the specified index. The depth at which the subtree is inserted is
     /// computed as `self.depth() - subtree.depth()`.
@@ -304,11 +282,11 @@ impl<const DEPTH: u8> TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt<DEPTH> {
         }
 
         for slot in diff.cleared_slots() {
-            self.update_leaf(*slot, EMPTY_VALUE)?;
+            self.update_leaf_at(LeafIndex::<DEPTH>::new(*slot)?, EMPTY_VALUE);
         }
 
         for (slot, value) in diff.updated_slots() {
-            self.update_leaf(*slot, *value)?;
+            self.update_leaf_at(LeafIndex::<DEPTH>::new(*slot)?, *value);
         }
 
         Ok(())
