@@ -142,7 +142,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
             Ok(leaf.into())
         } else {
-            Ok(self.get_branch_node(&index).hash())
+            Ok(self.get_inner_node(index).hash())
         }
     }
 
@@ -262,7 +262,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         for _ in 0..index.depth() {
             let is_right = index.is_value_odd();
             index.move_up();
-            let InnerNode { left, right } = self.get_branch_node(&index);
+            let InnerNode { left, right } = self.get_inner_node(index);
             let (left, right) = if is_right { (left, value) } else { (value, right) };
             self.insert_branch_node(index, left, right);
             value = Rpo256::merge(&[left, right]);
@@ -276,13 +276,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
     fn insert_leaf_node(&mut self, key: u64, node: Word) -> Option<Word> {
         self.leaves.insert(key, node)
-    }
-
-    fn get_branch_node(&self, index: &NodeIndex) -> InnerNode {
-        self.branches.get(index).cloned().unwrap_or_else(|| {
-            let node = EmptySubtreeRoots::entry(self.depth(), index.depth() + 1);
-            InnerNode { left: *node, right: *node }
-        })
     }
 
     fn insert_branch_node(&mut self, index: NodeIndex, left: RpoDigest, right: RpoDigest) {
@@ -305,7 +298,11 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     }
 
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
-        self.get_branch_node(&index)
+        self.branches.get(&index).cloned().unwrap_or_else(|| {
+            let node = EmptySubtreeRoots::entry(self.depth(), index.depth() + 1);
+
+            InnerNode { left: *node, right: *node }
+        })
     }
 
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
