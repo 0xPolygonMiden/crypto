@@ -333,8 +333,14 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     }
 
     fn get_leaf_at(&self, key: &LeafIndex<DEPTH>) -> Word {
-        self.get_leaf(key.value())
-            .expect("we have compile-time guarantees on the depth of the tree")
+        // the lookup in empty_hashes could fail only if empty_hashes were not built correctly
+        // by the constructor as we check the depth of the lookup above.
+        let leaf_pos = key.value();
+
+        match self.get_leaf_node(leaf_pos) {
+            Some(word) => word,
+            None => Word::from(*EmptySubtreeRoots::entry(self.depth(), self.depth())),
+        }
     }
 
     fn hash_leaf(leaf: &Word) -> RpoDigest {
