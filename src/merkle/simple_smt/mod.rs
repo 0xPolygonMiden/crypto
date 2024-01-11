@@ -31,12 +31,12 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns a new [SimpleSmt] instantiated with the specified depth.
+    /// Returns a new [SimpleSmt].
     ///
     /// All leaves in the returned tree are set to [ZERO; 4].
     ///
     /// # Errors
-    /// Returns an error if the depth is 0 or is greater than 64.
+    /// Returns an error if [DEPTH] is 0 or is greater than 64.
     pub fn new() -> Result<Self, MerkleError> {
         // validate the range of the depth.
         if DEPTH < SMT_MIN_DEPTH {
@@ -54,8 +54,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         })
     }
 
-    /// Returns a new [SimpleSmt] instantiated with the specified depth and with leaves
-    /// set as specified by the provided entries.
+    /// Returns a new [SimpleSmt] instantiated with leaves set as specified by the provided entries.
     ///
     /// All leaves omitted from the entries list are set to [ZERO; 4].
     ///
