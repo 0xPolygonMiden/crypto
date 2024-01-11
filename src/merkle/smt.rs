@@ -61,7 +61,7 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
     /// Updates value of the leaf at the specified index returning the old leaf value.
     ///
     /// This also recomputes all hashes between the leaf and the root, updating the root itself.
-    fn update_leaf_at(&mut self, key: Self::Key, value: Self::Value) -> Self::Value {
+    fn update_leaf(&mut self, key: Self::Key, value: Self::Value) -> Self::Value {
         let old_value = self.insert_leaf_node(key.clone(), value.clone()).unwrap_or_default();
 
         // if the old value and new value are the same, there is nothing to update
