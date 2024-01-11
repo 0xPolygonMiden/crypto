@@ -121,7 +121,7 @@ pub struct NewSmtKey {
 impl From<NewSmtKey> for LeafIndex<NEW_SMT_DEPTH> {
     fn from(key: NewSmtKey) -> Self {
         let most_significant_felt = key.word[0];
-        Self::new_max_depth(most_significant_felt.inner())
+        Self::new_max_depth(most_significant_felt.as_int())
     }
 }
 
