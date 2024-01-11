@@ -7,6 +7,7 @@ use crate::{
     merkle::{
         digests_to_words, int_to_leaf, int_to_node, EmptySubtreeRoots, LeafIndex, SparseMerkleTree,
     },
+    utils::collections::Vec,
     Word,
 };
 
