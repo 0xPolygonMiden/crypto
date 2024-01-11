@@ -29,6 +29,21 @@ pub struct NewSmt {
     inner_nodes: BTreeMap<NodeIndex, InnerNode>,
 }
 
+impl NewSmt {
+    /// Returns a new [NewSmt].
+    ///
+    /// All leaves in the returned tree are set to [ZERO; 4].
+    pub fn new() -> Self {
+        let root = *EmptySubtreeRoots::entry(NEW_SMT_DEPTH, 0);
+
+        Self {
+            root,
+            leaves: BTreeMap::new(),
+            inner_nodes: BTreeMap::new(),
+        }
+    }
+}
+
 impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
     type Key = NewSmtKey;
 
