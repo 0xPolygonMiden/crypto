@@ -1,6 +1,7 @@
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
-    MerkleTreeDelta, NodeIndex, RpoDigest, SparseMerkleTree, StoreNode, TryApplyDiff, Word, smt::SMT_MAX_DEPTH, SMT_MIN_DEPTH,
+    smt::SMT_MAX_DEPTH, BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex,
+    MerkleError, MerkleTreeDelta, NodeIndex, RpoDigest, SparseMerkleTree, StoreNode, TryApplyDiff,
+    Word, SMT_MIN_DEPTH,
 };
 
 #[cfg(test)]
