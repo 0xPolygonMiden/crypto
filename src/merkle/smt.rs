@@ -8,6 +8,9 @@ use super::{MerkleError, MerklePath, NodeIndex, Vec};
 // CONSTANTS
 // ================================================================================================
 
+/// Minimum supported depth.
+pub const SMT_MIN_DEPTH: u8 = 1;
+
 /// Maximum supported depth.
 pub const SMT_MAX_DEPTH: u8 = 64;
 
@@ -18,13 +21,14 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 ///
 /// A sparse Merkle tree is a key-value map which also supports proving that a given value is indeed
 /// stored at a given key in the tree. It is viewed as always being fully populated. If a leaf's
-/// value was not explicitly set, then its value is the default value. Typically, the vast
-/// majority of leaves will store the default value (hence it is "sparse"), and therefore the
-/// internal representation of the tree will only keep track of the leaves that have a different
-/// value from the default.
+/// value was not explicitly set, then its value is the default value. Typically, the vast majority
+/// of leaves will store the default value (hence it is "sparse"), and therefore the internal
+/// representation of the tree will only keep track of the leaves that have a different value from
+/// the default.
 ///
 /// All leaves sit at the same depth. The deeper the tree, the more leaves it has; but also the
-/// longer its proofs are - of exactly `log(depth)` size.
+/// longer its proofs are - of exactly `log(depth)` size. A tree cannot have depth 0, since such a
+/// tree is just a single value, and is probably a programming mistake.
 ///
 /// Every key value maps to one leaf. If there are as many keys as there are leaves, then
 /// [Self::Leaf] should be the same type as [Self::Value], as is the case with
@@ -163,6 +167,10 @@ pub struct LeafIndex<const DEPTH: u8> {
 
 impl<const DEPTH: u8> LeafIndex<DEPTH> {
     pub fn new(value: u64) -> Result<Self, MerkleError> {
+        if DEPTH < SMT_MIN_DEPTH {
+            return Err(MerkleError::DepthTooSmall(DEPTH));
+        }
+
         Ok(LeafIndex { index: NodeIndex::new(DEPTH, value)? })
     }
 
