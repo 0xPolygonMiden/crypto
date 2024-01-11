@@ -30,6 +30,9 @@ pub use simple_smt::{SimpleSmt, SIMPLE_SMT_MAX_DEPTH, SIMPLE_SMT_MIN_DEPTH};
 mod smt;
 pub use smt::{InnerNode, LeafIndex, SparseMerkleTree};
 
+mod new_smt;
+pub use new_smt::{NewSmt, NewSmtKey, NewSmtLeaf, NEW_SMT_DEPTH};
+
 mod tiered_smt;
 pub use tiered_smt::{TieredSmt, TieredSmtProof, TieredSmtProofError};
 
