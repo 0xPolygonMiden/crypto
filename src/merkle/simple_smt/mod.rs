@@ -117,11 +117,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns the root of this Merkle tree.
-    pub const fn root(&self) -> RpoDigest {
-        self.root
-    }
-
     /// Returns the depth of this Merkle tree.
     pub const fn depth(&self) -> u8 {
         DEPTH
@@ -255,7 +250,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     type Leaf = Word;
 
     fn root(&self) -> RpoDigest {
-        self.root()
+        self.root
     }
 
     fn set_root(&mut self, root: RpoDigest) {
