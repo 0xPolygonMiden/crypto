@@ -251,10 +251,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     // HELPER METHODS
     // --------------------------------------------------------------------------------------------
 
-    fn get_leaf_node(&self, key: u64) -> Option<Word> {
-        self.leaves.get(&key).copied()
-    }
-
     fn insert_leaf_node(&mut self, key: u64, node: Word) -> Option<Word> {
         self.leaves.insert(key, node)
     }
@@ -294,8 +290,8 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
         // by the constructor as we check the depth of the lookup above.
         let leaf_pos = key.value();
 
-        match self.get_leaf_node(leaf_pos) {
-            Some(word) => word,
+        match self.leaves.get(&leaf_pos) {
+            Some(word) => *word,
             None => Word::from(*EmptySubtreeRoots::entry(self.depth(), self.depth())),
         }
     }
