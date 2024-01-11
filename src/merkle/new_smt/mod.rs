@@ -10,7 +10,16 @@ use super::{
     BTreeMap, EmptySubtreeRoots, InnerNode, LeafIndex, NodeIndex, RpoDigest, SparseMerkleTree, Word,
 };
 
+#[cfg(test)]
+mod tests;
+
+// CONSTANTS
+// ================================================================================================
+
 pub const NEW_SMT_DEPTH: u8 = 64;
+
+// SMT
+// ================================================================================================
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
