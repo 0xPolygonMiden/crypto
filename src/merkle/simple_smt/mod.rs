@@ -138,14 +138,9 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         } else if index.depth() > self.depth() {
             Err(MerkleError::DepthTooBig(index.depth() as u64))
         } else if index.depth() == self.depth() {
-            // the lookup in empty_hashes could fail only if empty_hashes were not built correctly
-            // by the constructor as we check the depth of the lookup above.
-            let leaf_pos = index.value();
-            let leaf = match self.get_leaf_node(leaf_pos) {
-                Some(word) => word.into(),
-                None => *EmptySubtreeRoots::entry(self.depth(), index.depth()),
-            };
-            Ok(leaf)
+            let leaf = self.get_leaf_at(&LeafIndex::<DEPTH>::try_from(index)?);
+
+            Ok(leaf.into())
         } else {
             Ok(self.get_branch_node(&index).hash())
         }
