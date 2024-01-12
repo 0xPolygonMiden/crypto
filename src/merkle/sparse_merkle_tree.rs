@@ -38,7 +38,7 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 /// must accomodate all keys that map to the same leaf.
 ///
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
-pub trait SparseMerkleTree<const DEPTH: u8> {
+pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a key, which must be convertible into a `u64` infaillibly
     type Key: Into<LeafIndex<DEPTH>> + Clone;
     /// The type for a value

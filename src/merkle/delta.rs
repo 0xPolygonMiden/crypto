@@ -110,7 +110,6 @@ pub fn merkle_tree_delta<T: KvMap<RpoDigest, StoreNode>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::merkle::SparseMerkleTree;
 
     #[test]
     fn test_compute_merkle_delta() {

@@ -1,7 +1,7 @@
 use core::mem::swap;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use miden_crypto::{
-    merkle::{LeafIndex, SimpleSmt, SparseMerkleTree},
+    merkle::{LeafIndex, SimpleSmt},
     Felt, Word,
 };
 use rand_utils::prng_array;
