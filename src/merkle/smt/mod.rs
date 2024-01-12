@@ -6,10 +6,10 @@ use crate::hash::rpo::Rpo256;
 use crate::utils::{collections::Vec, vec};
 use crate::{Felt, EMPTY_WORD};
 
-use super::sparse_merkle_tree::SparseMerkleTree;
+use super::sparse_merkle_tree::{InnerNode, SparseMerkleTree};
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, LeafIndex, MerkleError, MerklePath,
-    NodeIndex, RpoDigest, Word,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, LeafIndex, MerkleError, MerklePath, NodeIndex,
+    RpoDigest, Word,
 };
 
 #[cfg(test)]
@@ -93,11 +93,6 @@ impl Smt {
     /// Returns the leaf at the specified index.
     pub fn get_leaf(&self, key: &SmtKey) -> SmtLeaf {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
-    }
-
-    /// Retrieves an inner node at the given index
-    pub fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::get_inner_node(self, index)
     }
 
     /// Returns a Merkle path from the leaf node specified by the key to the root.

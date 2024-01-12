@@ -1,10 +1,9 @@
 use crate::EMPTY_WORD;
 
 use super::{
-    sparse_merkle_tree::{SparseMerkleTree, SMT_MAX_DEPTH},
-    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
-    MerklePath, MerkleTreeDelta, NodeIndex, RpoDigest, StoreNode, TryApplyDiff, Word,
-    SMT_MIN_DEPTH,
+    sparse_merkle_tree::{InnerNode, SparseMerkleTree, SMT_MAX_DEPTH},
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
+    MerkleTreeDelta, NodeIndex, RpoDigest, StoreNode, TryApplyDiff, Word, SMT_MIN_DEPTH,
 };
 
 #[cfg(test)]
@@ -116,11 +115,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// Returns the leaf at the specified index.
     pub fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Word {
         <Self as SparseMerkleTree<DEPTH>>::get_leaf(self, key)
-    }
-
-    /// Retrieves an inner node at the given index
-    pub fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
-        <Self as SparseMerkleTree<DEPTH>>::get_inner_node(self, index)
     }
 
     /// Returns a Merkle path from the leaf node specified by the key to the root.
