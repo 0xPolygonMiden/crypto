@@ -95,7 +95,7 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
     }
 
-    /// Inserts an inner node at the given index
+    /// Retrieves an inner node at the given index
     pub fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_inner_node(self, index)
     }
