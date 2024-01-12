@@ -119,7 +119,7 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
         DEPTH
     }
 
-    // ABSTRACT METHODS
+    // REQUIRED METHODS
     // ---------------------------------------------------------------------------------------------
 
     /// The root of the tree
