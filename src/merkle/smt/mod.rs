@@ -32,6 +32,9 @@ pub struct Smt {
 }
 
 impl Smt {
+    // CONSTRUCTORS
+    // --------------------------------------------------------------------------------------------
+
     /// Returns a new [NewSmt].
     ///
     /// All leaves in the returned tree are set to [ZERO; 4].
@@ -79,6 +82,9 @@ impl Smt {
         Ok(tree)
     }
 
+    // PUBLIC ACCESSORS
+    // --------------------------------------------------------------------------------------------
+
     /// Returns the root of the tree
     pub fn root(&self) -> RpoDigest {
         <Self as SparseMerkleTree<SMT_DEPTH>>::root(self)
@@ -100,6 +106,9 @@ impl Smt {
     pub fn get_leaf_path(&self, key: SmtKey) -> MerklePath {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf_path(self, key)
     }
+
+    // STATE MUTATORS
+    // --------------------------------------------------------------------------------------------
 
     /// Updates value of the leaf at the specified index returning the old leaf value.
     ///
