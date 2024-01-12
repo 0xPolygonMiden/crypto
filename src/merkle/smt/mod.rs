@@ -81,10 +81,10 @@ impl Smt {
 
 impl SparseMerkleTree<SMT_DEPTH> for Smt {
     type Key = SmtKey;
-
     type Value = Word;
-
     type Leaf = SmtLeaf;
+
+    const EMPTY_VALUE: Self::Value = EMPTY_WORD;
 
     fn root(&self) -> RpoDigest {
         self.root

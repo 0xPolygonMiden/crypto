@@ -42,9 +42,12 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a key, which must be convertible into a `u64` infaillibly
     type Key: Into<LeafIndex<DEPTH>> + Clone;
     /// The type for a value
-    type Value: Clone + Default + PartialEq;
+    type Value: Clone + PartialEq;
     /// The type for a leaf
     type Leaf;
+
+    /// The default value used to compute the hash of empty leaves
+    const EMPTY_VALUE: Self::Value;
 
     // PROVIDED METHODS
     // ---------------------------------------------------------------------------------------------
@@ -74,7 +77,7 @@ pub trait SparseMerkleTree<const DEPTH: u8> {
     ///
     /// This also recomputes all hashes between the leaf and the root, updating the root itself.
     fn update_leaf(&mut self, key: Self::Key, value: Self::Value) -> Self::Value {
-        let old_value = self.insert_value(key.clone(), value.clone()).unwrap_or_default();
+        let old_value = self.insert_value(key.clone(), value.clone()).unwrap_or(Self::EMPTY_VALUE);
 
         // if the old value and new value are the same, there is nothing to update
         if value == old_value {
