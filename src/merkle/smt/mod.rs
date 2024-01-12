@@ -123,41 +123,7 @@ impl Smt {
         let leaf_index: LeafIndex<SMT_DEPTH> = key.into();
 
         match self.leaves.get_mut(&leaf_index.value()) {
-            Some(leaf) => match leaf {
-                SmtLeaf::Single(kv_pair) => {
-                    if kv_pair.0 == key {
-                        // the key is already in this leaf. Update the value and return the previous
-                        // value
-                        let old_value = kv_pair.1;
-                        kv_pair.1 = value;
-                        Some(old_value)
-                    } else {
-                        // Another entry is present in this leaf. Transform the entry into a list
-                        // entry, and make sure the key-value pairs are sorted by key
-                        let mut pairs = vec![*kv_pair, (key, value)];
-                        pairs.sort_by(|(key_1, _), (key_2, _)| cmp_keys(*key_1, *key_2));
-
-                        self.leaves.insert(leaf_index.value(), SmtLeaf::Multiple(pairs));
-
-                        None
-                    }
-                }
-                SmtLeaf::Multiple(kv_pairs) => {
-                    match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
-                        Ok(pos) => {
-                            let old_value = kv_pairs[pos].1;
-                            kv_pairs[pos].1 = value;
-
-                            Some(old_value)
-                        }
-                        Err(pos) => {
-                            kv_pairs.insert(pos, (key, value));
-
-                            None
-                        }
-                    }
-                }
-            },
+            Some(leaf) => leaf.insert(key, value),
             None => {
                 self.leaves.insert(leaf_index.value(), SmtLeaf::Single((key, value)));
 
@@ -334,6 +300,49 @@ impl SmtLeaf {
             SmtLeaf::Multiple(kvs) => {
                 let elements: Vec<Felt> = kvs.iter().copied().flat_map(kv_to_elements).collect();
                 Rpo256::hash_elements(&elements)
+            }
+        }
+    }
+
+    // HELPERS
+    // ---------------------------------------------------------------------------------------------
+
+    /// Insert key-value pair into the leaf; return the previous value associated with `key`, if
+    /// any.
+    fn insert(&mut self, key: SmtKey, value: Word) -> Option<Word> {
+        match self {
+            SmtLeaf::Single(kv_pair) => {
+                if kv_pair.0 == key {
+                    // the key is already in this leaf. Update the value and return the previous
+                    // value
+                    let old_value = kv_pair.1;
+                    kv_pair.1 = value;
+                    Some(old_value)
+                } else {
+                    // Another entry is present in this leaf. Transform the entry into a list
+                    // entry, and make sure the key-value pairs are sorted by key
+                    let mut pairs = vec![*kv_pair, (key, value)];
+                    pairs.sort_by(|(key_1, _), (key_2, _)| cmp_keys(*key_1, *key_2));
+
+                    *self = SmtLeaf::Multiple(pairs);
+
+                    None
+                }
+            }
+            SmtLeaf::Multiple(kv_pairs) => {
+                match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
+                    Ok(pos) => {
+                        let old_value = kv_pairs[pos].1;
+                        kv_pairs[pos].1 = value;
+
+                        Some(old_value)
+                    }
+                    Err(pos) => {
+                        kv_pairs.insert(pos, (key, value));
+
+                        None
+                    }
+                }
             }
         }
     }
