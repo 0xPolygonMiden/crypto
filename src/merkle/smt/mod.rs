@@ -220,9 +220,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
         match self.leaves.get(&leaf_pos) {
             Some(leaf) => leaf.clone(),
-            None => {
-                SmtLeaf::Single((*key, Word::from(*EmptySubtreeRoots::entry(SMT_DEPTH, SMT_DEPTH))))
-            }
+            None => SmtLeaf::Single((*key, Self::EMPTY_VALUE)),
         }
     }
 
