@@ -76,12 +76,18 @@ fn test_smt_insert_at_same_key_2() {
     };
     let key_1_index: NodeIndex = LeafIndex::<SMT_DEPTH>::from(key_1).into();
 
+    assert_eq!(key_1_index, key_already_present_index);
+
     let value_1 = [ONE; WORD_SIZE];
     let value_2 = [ONE + ONE; WORD_SIZE];
 
     // Insert value 1 and ensure root is as expected
     {
-        let leaf_node = build_single_leaf_node(key_1, value_1);
+        // Note: key_1 comes first because it is smaller
+        let leaf_node = build_multiple_leaf_node(&[
+            (key_1, value_1),
+            (key_already_present, value_already_present),
+        ]);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
         let old_value_1 = smt.update_leaf(key_1, value_1);
@@ -92,7 +98,10 @@ fn test_smt_insert_at_same_key_2() {
 
     // Insert value 2 and ensure root is as expected
     {
-        let leaf_node = build_single_leaf_node(key_1, value_2);
+        let leaf_node = build_multiple_leaf_node(&[
+            (key_1, value_2),
+            (key_already_present, value_already_present),
+        ]);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
         let old_value_2 = smt.update_leaf(key_1, value_2);
@@ -101,9 +110,24 @@ fn test_smt_insert_at_same_key_2() {
         assert_eq!(smt.root(), tree_root);
     }
 }
+
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
 fn build_single_leaf_node(key: SmtKey, value: Word) -> RpoDigest {
     SmtLeaf::Single((key, value)).hash()
+}
+
+fn build_multiple_leaf_node(kv_pairs: &[(SmtKey, Word)]) -> RpoDigest {
+    let elements: Vec<Felt> = kv_pairs
+        .iter()
+        .flat_map(|(key, value)| {
+            let key_elements = key.word.into_iter();
+            let value_elements = value.clone().into_iter();
+
+            key_elements.chain(value_elements)
+        })
+        .collect();
+
+    Rpo256::hash_elements(&elements)
 }
