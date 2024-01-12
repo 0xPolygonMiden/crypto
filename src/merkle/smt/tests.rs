@@ -156,6 +156,84 @@ fn test_smt_insert_multiple_values() {
         assert_eq!(smt.root(), tree_root);
     }
 }
+
+/// This tests that inserting the empty value does indeed remove the key-value contained at the
+/// leaf. We insert & remove 3 values at the same leaf to ensure that all cases are covered (empty,
+/// single, multiple).
+#[test]
+fn test_smt_removal() {
+    let mut smt = Smt::default();
+
+    let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+
+    let key_1: SmtKey = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into();
+    let key_2: SmtKey =
+        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(raw)]).into();
+    let key_3: SmtKey =
+        RpoDigest::from([3_u64.into(), 3_u64.into(), 3_u64.into(), Felt::new(raw)]).into();
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u64.into(); WORD_SIZE];
+    let value_3: [Felt; 4] = [3_u64.into(); WORD_SIZE];
+
+    // insert key-value 1
+    {
+        let old_value_1 = smt.update_leaf(key_1, value_1);
+        assert_eq!(old_value_1, EMPTY_WORD);
+
+        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Single((key_1, value_1)));
+    }
+
+    // insert key-value 2
+    {
+        let old_value_2 = smt.update_leaf(key_2, value_2);
+        assert_eq!(old_value_2, EMPTY_WORD);
+
+        assert_eq!(
+            smt.get_leaf(&key_2),
+            SmtLeaf::Multiple(vec![(key_1, value_1), (key_2, value_2)])
+        );
+    }
+
+    // insert key-value 3
+    {
+        let old_value_3 = smt.update_leaf(key_3, value_3);
+        assert_eq!(old_value_3, EMPTY_WORD);
+
+        assert_eq!(
+            smt.get_leaf(&key_3),
+            SmtLeaf::Multiple(vec![(key_1, value_1), (key_2, value_2), (key_3, value_3)])
+        );
+    }
+
+    // remove key 3
+    {
+        let old_value_3 = smt.update_leaf(key_3, EMPTY_WORD);
+        assert_eq!(old_value_3, value_3);
+
+        assert_eq!(
+            smt.get_leaf(&key_3),
+            SmtLeaf::Multiple(vec![(key_1, value_1), (key_2, value_2)])
+        );
+    }
+
+    // remove key 2
+    {
+        let old_value_2 = smt.update_leaf(key_2, EMPTY_WORD);
+        assert_eq!(old_value_2, value_2);
+
+        assert_eq!(smt.get_leaf(&key_2), SmtLeaf::Single((key_1, value_1)));
+    }
+
+    // remove key 1
+    {
+        let old_value_1 = smt.update_leaf(key_1, EMPTY_WORD);
+        assert_eq!(old_value_1, value_1);
+
+        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Single((key_1, EMPTY_WORD)));
+    }
+}
+
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
