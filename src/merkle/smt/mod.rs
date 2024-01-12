@@ -252,7 +252,7 @@ pub struct SmtKey {
 
 impl From<SmtKey> for LeafIndex<SMT_DEPTH> {
     fn from(key: SmtKey) -> Self {
-        let most_significant_felt = key.word[0];
+        let most_significant_felt = key.word[3];
         Self::new_max_depth(most_significant_felt.as_int())
     }
 }
