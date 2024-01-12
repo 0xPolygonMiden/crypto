@@ -1,5 +1,5 @@
 use super::{
-    smt::SMT_MAX_DEPTH, BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex,
+    sparse_merkle_tree::SMT_MAX_DEPTH, BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex,
     MerkleError, MerkleTreeDelta, NodeIndex, RpoDigest, SparseMerkleTree, StoreNode, TryApplyDiff,
     Word, SMT_MIN_DEPTH,
 };
