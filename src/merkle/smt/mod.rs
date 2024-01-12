@@ -132,7 +132,7 @@ impl Smt {
         }
     }
 
-    /// Removes `key`/`value` pair at leaf index pointed to by `key` if it exists.
+    /// Removes key-value pair at leaf index pointed to by `key` if it exists.
     fn perform_remove(&mut self, key: SmtKey) -> Option<Word> {
         let leaf_index: LeafIndex<SMT_DEPTH> = key.into();
 
