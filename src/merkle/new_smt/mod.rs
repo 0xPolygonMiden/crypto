@@ -17,25 +17,25 @@ mod tests;
 // CONSTANTS
 // ================================================================================================
 
-pub const NEW_SMT_DEPTH: u8 = 64;
+pub const SMT_DEPTH: u8 = 64;
 
 // SMT
 // ================================================================================================
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct NewSmt {
+pub struct Smt {
     root: RpoDigest,
-    leaves: BTreeMap<u64, NewSmtLeaf>,
+    leaves: BTreeMap<u64, SmtLeaf>,
     inner_nodes: BTreeMap<NodeIndex, InnerNode>,
 }
 
-impl NewSmt {
+impl Smt {
     /// Returns a new [NewSmt].
     ///
     /// All leaves in the returned tree are set to [ZERO; 4].
     pub fn new() -> Self {
-        let root = *EmptySubtreeRoots::entry(NEW_SMT_DEPTH, 0);
+        let root = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
 
         Self {
             root,
@@ -53,7 +53,7 @@ impl NewSmt {
     /// - The number of entries exceeds 2^63 entries.
     /// - The provided entries contain multiple values for the same key.
     pub fn with_entries(
-        entries: impl IntoIterator<Item = (NewSmtKey, Word)>,
+        entries: impl IntoIterator<Item = (SmtKey, Word)>,
     ) -> Result<Self, MerkleError> {
         // create an empty tree
         let mut tree = Self::new();
@@ -67,7 +67,7 @@ impl NewSmt {
 
             if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(
-                    LeafIndex::<NEW_SMT_DEPTH>::from(key).value(),
+                    LeafIndex::<SMT_DEPTH>::from(key).value(),
                 ));
             }
 
@@ -79,12 +79,12 @@ impl NewSmt {
     }
 }
 
-impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
-    type Key = NewSmtKey;
+impl SparseMerkleTree<SMT_DEPTH> for Smt {
+    type Key = SmtKey;
 
     type Value = Word;
 
-    type Leaf = NewSmtLeaf;
+    type Leaf = SmtLeaf;
 
     fn root(&self) -> RpoDigest {
         self.root
@@ -107,10 +107,10 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
     }
 
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
-        let leaf_index: LeafIndex<NEW_SMT_DEPTH> = key.into();
+        let leaf_index: LeafIndex<SMT_DEPTH> = key.into();
         match self.leaves.get_mut(&leaf_index.value()) {
             Some(leaf) => match leaf {
-                NewSmtLeaf::Single(kv_pair) => {
+                SmtLeaf::Single(kv_pair) => {
                     // if the key is already in this entry, update the value and return
                     if kv_pair.0 == key {
                         let old_value = kv_pair.1;
@@ -123,11 +123,11 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
                     let mut pairs = vec![*kv_pair, (key, value)];
                     pairs.sort_by(|(key_1, _), (key_2, _)| cmp_keys(*key_1, *key_2));
 
-                    self.leaves.insert(leaf_index.value(), NewSmtLeaf::Multiple(pairs));
+                    self.leaves.insert(leaf_index.value(), SmtLeaf::Multiple(pairs));
 
                     None
                 }
-                NewSmtLeaf::Multiple(kv_pairs) => {
+                SmtLeaf::Multiple(kv_pairs) => {
                     match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
                         Ok(pos) => {
                             let old_value = kv_pairs[pos].1;
@@ -144,7 +144,7 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
                 }
             },
             None => {
-                self.leaves.insert(leaf_index.value(), NewSmtLeaf::Single((key, value)));
+                self.leaves.insert(leaf_index.value(), SmtLeaf::Single((key, value)));
 
                 Some(Self::Value::default())
             }
@@ -152,11 +152,11 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
     }
 
     fn get_leaf(&self, key: &Self::Key) -> Self::Leaf {
-        let leaf_pos = LeafIndex::<NEW_SMT_DEPTH>::from(*key).value();
+        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
 
         match self.leaves.get(&leaf_pos) {
             Some(leaf) => leaf.clone(),
-            None => NewSmtLeaf::Single((
+            None => SmtLeaf::Single((
                 *key,
                 Word::from(*EmptySubtreeRoots::entry(self.depth(), self.depth())),
             )),
@@ -168,7 +168,7 @@ impl SparseMerkleTree<NEW_SMT_DEPTH> for NewSmt {
     }
 }
 
-impl Default for NewSmt {
+impl Default for Smt {
     fn default() -> Self {
         Self::new()
     }
@@ -179,18 +179,18 @@ impl Default for NewSmt {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct NewSmtKey {
+pub struct SmtKey {
     word: Word,
 }
 
-impl From<NewSmtKey> for LeafIndex<NEW_SMT_DEPTH> {
-    fn from(key: NewSmtKey) -> Self {
+impl From<SmtKey> for LeafIndex<SMT_DEPTH> {
+    fn from(key: SmtKey) -> Self {
         let most_significant_felt = key.word[0];
         Self::new_max_depth(most_significant_felt.as_int())
     }
 }
 
-impl Ord for NewSmtKey {
+impl Ord for SmtKey {
     fn cmp(&self, other: &Self) -> Ordering {
         // Note that the indices are reversed. This is because a `Word` is treated as little-endian
         // (i.e. most significant Felt is at index 3). In comparing integer arrays, we want to
@@ -212,7 +212,7 @@ impl Ord for NewSmtKey {
     }
 }
 
-impl PartialOrd for NewSmtKey {
+impl PartialOrd for SmtKey {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -223,14 +223,14 @@ impl PartialOrd for NewSmtKey {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum NewSmtLeaf {
-    Single((NewSmtKey, Word)),
-    Multiple(Vec<(NewSmtKey, Word)>),
+pub enum SmtLeaf {
+    Single((SmtKey, Word)),
+    Multiple(Vec<(SmtKey, Word)>),
 }
 
-impl NewSmtLeaf {
+impl SmtLeaf {
     pub fn hash(&self) -> RpoDigest {
-        fn kv_to_elements((key, value): &(NewSmtKey, Word)) -> impl Iterator<Item = Felt> + '_ {
+        fn kv_to_elements((key, value): &(SmtKey, Word)) -> impl Iterator<Item = Felt> + '_ {
             let key_elements = key.word.iter().copied();
             let value_elements = value.iter().copied();
 
@@ -238,8 +238,8 @@ impl NewSmtLeaf {
         }
 
         let elements: Vec<Felt> = match self {
-            NewSmtLeaf::Single(kv) => kv_to_elements(kv).collect(),
-            NewSmtLeaf::Multiple(kvs) => kvs.iter().flat_map(kv_to_elements).collect(),
+            SmtLeaf::Single(kv) => kv_to_elements(kv).collect(),
+            SmtLeaf::Multiple(kvs) => kvs.iter().flat_map(kv_to_elements).collect(),
         };
 
         Rpo256::hash_elements(&elements)
@@ -251,7 +251,7 @@ impl NewSmtLeaf {
 
 /// Compares two keys, compared element-by-element using their integer representations starting with
 /// the most significant element.
-fn cmp_keys(key_1: NewSmtKey, key_2: NewSmtKey) -> Ordering {
+fn cmp_keys(key_1: SmtKey, key_2: SmtKey) -> Ordering {
     for (v1, v2) in key_1.word.iter().zip(key_2.word.iter()).rev() {
         let v1 = v1.as_int();
         let v2 = v2.as_int();

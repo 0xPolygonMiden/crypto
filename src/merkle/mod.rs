@@ -31,7 +31,7 @@ mod smt;
 pub use smt::{InnerNode, LeafIndex, SparseMerkleTree, SMT_MAX_DEPTH, SMT_MIN_DEPTH};
 
 mod new_smt;
-pub use new_smt::{NewSmt, NewSmtKey, NewSmtLeaf, NEW_SMT_DEPTH};
+pub use new_smt::{Smt, SmtKey, SmtLeaf, SMT_DEPTH};
 
 mod tiered_smt;
 pub use tiered_smt::{TieredSmt, TieredSmtProof, TieredSmtProofError};
