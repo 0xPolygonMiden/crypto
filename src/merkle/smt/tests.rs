@@ -112,7 +112,7 @@ fn test_smt_insert_at_same_key_2() {
 }
 
 /// This test ensures that the root of the tree is as expected when we add 3 items at 3 different
-/// keys
+/// keys. This also tests that the merkle paths produced are as expected.
 #[test]
 fn test_smt_insert_multiple_values() {
     let mut smt = Smt::default();
@@ -154,6 +154,9 @@ fn test_smt_insert_multiple_values() {
         assert_eq!(old_value, EMPTY_WORD);
 
         assert_eq!(smt.root(), tree_root);
+
+        let expected_path = store.get_path(tree_root, key_index).unwrap();
+        assert_eq!(smt.get_leaf_path(key), expected_path.path);
     }
 }
 
@@ -232,6 +235,23 @@ fn test_smt_removal() {
 
         assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Single((key_1, EMPTY_WORD)));
     }
+}
+
+/// Tests that 2 key-value pairs stored in the same leaf have the same path
+#[test]
+fn test_smt_path_to_keys_in_same_leaf_are_equal() {
+    let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+
+    let key_1: SmtKey = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into();
+    let key_2: SmtKey =
+        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(raw)]).into();
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u64.into(); WORD_SIZE];
+
+    let smt = Smt::with_entries([(key_1, value_1), (key_2, value_2)]).unwrap();
+
+    assert_eq!(smt.get_leaf_path(key_1), smt.get_leaf_path(key_2));
 }
 
 // HELPERS
