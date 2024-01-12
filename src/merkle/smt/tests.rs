@@ -58,7 +58,7 @@ fn test_smt_insert_at_same_key_2() {
     let value_already_present = [ONE + ONE + ONE; WORD_SIZE];
 
     let mut smt =
-        Smt::with_entries(std::iter::once((key_already_present, value_already_present))).unwrap();
+        Smt::with_entries(core::iter::once((key_already_present, value_already_present))).unwrap();
     let mut store: MerkleStore = {
         let mut store = MerkleStore::default();
 
