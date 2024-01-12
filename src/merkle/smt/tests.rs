@@ -111,6 +111,51 @@ fn test_smt_insert_at_same_key_2() {
     }
 }
 
+/// This test ensures that the root of the tree is as expected when we add 3 items at 3 different
+/// keys
+#[test]
+fn test_smt_insert_multiple_values() {
+    let mut smt = Smt::default();
+    let mut store: MerkleStore = MerkleStore::default();
+
+    assert_eq!(smt.root(), *EmptySubtreeRoots::entry(SMT_DEPTH, 0));
+
+    let key_1: SmtKey = {
+        let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+
+        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into()
+    };
+
+    let key_2: SmtKey = {
+        let raw = 0b_11111111_11111111_11111111_11111111_11111111_11111111_11111111_11111111_u64;
+
+        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into()
+    };
+
+    let key_3: SmtKey = {
+        let raw = 0b_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_u64;
+
+        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into()
+    };
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [ONE + ONE; WORD_SIZE];
+    let value_3 = [ONE + ONE + ONE; WORD_SIZE];
+
+    let key_values = [(key_1, value_1), (key_2, value_2), (key_3, value_3)];
+
+    for (key, value) in key_values {
+        let key_index: NodeIndex = LeafIndex::<SMT_DEPTH>::from(key).into();
+
+        let leaf_node = build_single_leaf_node(key, value);
+        let tree_root = store.set_node(smt.root(), key_index, leaf_node).unwrap().root;
+
+        let old_value = smt.update_leaf(key, value);
+        assert_eq!(old_value, EMPTY_WORD);
+
+        assert_eq!(smt.root(), tree_root);
+    }
+}
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
