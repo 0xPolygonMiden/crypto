@@ -68,7 +68,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
         // compute the max number of entries. We use an upper bound of depth 63 because we consider
         // passing in a vector of size 2^64 infeasible.
-        let max_num_entries = 2_usize.pow(tree.depth().min(63).into());
+        let max_num_entries = 2_usize.pow(DEPTH.min(63).into());
 
         // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
         // entries with the empty value need additional tracking.
@@ -108,11 +108,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns the depth of this Merkle tree.
-    pub const fn depth(&self) -> u8 {
-        DEPTH
-    }
-
     /// Returns the root of the tree
     pub fn root(&self) -> RpoDigest {
         <Self as SparseMerkleTree<DEPTH>>::root(self)
@@ -143,9 +138,9 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     pub fn get_node(&self, index: NodeIndex) -> Result<RpoDigest, MerkleError> {
         if index.is_root() {
             Err(MerkleError::DepthTooSmall(index.depth()))
-        } else if index.depth() > self.depth() {
+        } else if index.depth() > DEPTH {
             Err(MerkleError::DepthTooBig(index.depth() as u64))
-        } else if index.depth() == self.depth() {
+        } else if index.depth() == DEPTH {
             let leaf = self.get_leaf(&LeafIndex::<DEPTH>::try_from(index)?);
 
             Ok(leaf.into())
@@ -182,7 +177,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     }
 
     /// Inserts a subtree at the specified index. The depth at which the subtree is inserted is
-    /// computed as `self.depth() - subtree.depth()`.
+    /// computed as `DEPTH - SUBTREE_DEPTH`.
     ///
     /// Returns the new root.
     pub fn set_subtree<const SUBTREE_DEPTH: u8>(
@@ -190,15 +185,15 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         subtree_insertion_index: u64,
         subtree: SimpleSmt<SUBTREE_DEPTH>,
     ) -> Result<RpoDigest, MerkleError> {
-        if subtree.depth() > self.depth() {
+        if SUBTREE_DEPTH > DEPTH {
             return Err(MerkleError::InvalidSubtreeDepth {
-                subtree_depth: subtree.depth(),
-                tree_depth: self.depth(),
+                subtree_depth: SUBTREE_DEPTH,
+                tree_depth: DEPTH,
             });
         }
 
         // Verify that `subtree_insertion_index` is valid.
-        let subtree_root_insertion_depth = self.depth() - subtree.depth();
+        let subtree_root_insertion_depth = DEPTH - SUBTREE_DEPTH;
         let subtree_root_index =
             NodeIndex::new(subtree_root_insertion_depth, subtree_insertion_index)?;
 
@@ -212,10 +207,10 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         // you can see it as there's a full subtree sitting on its left. In general, for
         // `subtree_insertion_index = i`, there are `i` subtrees sitting before the subtree we want
         // to insert, so we need to adjust all its leaves by `i * 2^d`.
-        let leaf_index_shift: u64 = subtree_insertion_index * 2_u64.pow(subtree.depth().into());
+        let leaf_index_shift: u64 = subtree_insertion_index * 2_u64.pow(SUBTREE_DEPTH.into());
         for (subtree_leaf_idx, leaf_value) in subtree.leaves() {
             let new_leaf_idx = leaf_index_shift + subtree_leaf_idx;
-            debug_assert!(new_leaf_idx < 2_u64.pow(self.depth().into()));
+            debug_assert!(new_leaf_idx < 2_u64.pow(DEPTH.into()));
 
             self.leaves.insert(new_leaf_idx, *leaf_value);
         }
@@ -259,7 +254,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
 
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
         self.inner_nodes.get(&index).cloned().unwrap_or_else(|| {
-            let node = EmptySubtreeRoots::entry(self.depth(), index.depth() + 1);
+            let node = EmptySubtreeRoots::entry(DEPTH, index.depth() + 1);
 
             InnerNode { left: *node, right: *node }
         })
@@ -280,7 +275,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
 
         match self.leaves.get(&leaf_pos) {
             Some(word) => *word,
-            None => Word::from(*EmptySubtreeRoots::entry(self.depth(), self.depth())),
+            None => Word::from(*EmptySubtreeRoots::entry(DEPTH, DEPTH)),
         }
     }
 
@@ -297,11 +292,8 @@ impl<const DEPTH: u8> TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt<DEPTH> {
     type DiffType = MerkleTreeDelta;
 
     fn try_apply(&mut self, diff: MerkleTreeDelta) -> Result<(), MerkleError> {
-        if diff.depth() != self.depth() {
-            return Err(MerkleError::InvalidDepth {
-                expected: self.depth(),
-                provided: diff.depth(),
-            });
+        if diff.depth() != DEPTH {
+            return Err(MerkleError::InvalidDepth { expected: DEPTH, provided: diff.depth() });
         }
 
         for slot in diff.cleared_slots() {

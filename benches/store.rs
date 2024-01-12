@@ -108,13 +108,12 @@ fn get_leaf_simplesmt(c: &mut Criterion) {
             .collect::<Vec<(u64, Word)>>();
         let smt = SimpleSmt::<SMT_MAX_DEPTH>::with_leaves(smt_leaves.clone()).unwrap();
         let store = MerkleStore::from(&smt);
-        let depth = smt.depth();
         let root = smt.root();
         let size_u64 = size as u64;
 
         group.bench_function(BenchmarkId::new("SimpleSmt", size), |b| {
             b.iter_batched(
-                || random_index(size_u64, depth),
+                || random_index(size_u64, SMT_MAX_DEPTH),
                 |index| black_box(smt.get_node(index)),
                 BatchSize::SmallInput,
             )
@@ -122,7 +121,7 @@ fn get_leaf_simplesmt(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || random_index(size_u64, depth),
+                || random_index(size_u64, SMT_MAX_DEPTH),
                 |index| black_box(store.get_node(root, index)),
                 BatchSize::SmallInput,
             )
@@ -217,7 +216,7 @@ fn get_node_simplesmt(c: &mut Criterion) {
         let smt = SimpleSmt::<SMT_MAX_DEPTH>::with_leaves(smt_leaves.clone()).unwrap();
         let store = MerkleStore::from(&smt);
         let root = smt.root();
-        let half_depth = smt.depth() / 2;
+        let half_depth = SMT_MAX_DEPTH / 2;
         let half_size = 2_u64.pow(half_depth as u32);
 
         group.bench_function(BenchmarkId::new("SimpleSmt", size), |b| {
@@ -290,13 +289,12 @@ fn get_leaf_path_simplesmt(c: &mut Criterion) {
             .collect::<Vec<(u64, Word)>>();
         let smt = SimpleSmt::<SMT_MAX_DEPTH>::with_leaves(smt_leaves.clone()).unwrap();
         let store = MerkleStore::from(&smt);
-        let depth = smt.depth();
         let root = smt.root();
         let size_u64 = size as u64;
 
         group.bench_function(BenchmarkId::new("SimpleSmt", size), |b| {
             b.iter_batched(
-                || random_index(size_u64, depth),
+                || random_index(size_u64, SMT_MAX_DEPTH),
                 |index| {
                     black_box(
                         smt.get_leaf_path(LeafIndex::<SMT_MAX_DEPTH>::new(index.value()).unwrap()),
@@ -308,7 +306,7 @@ fn get_leaf_path_simplesmt(c: &mut Criterion) {
 
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || random_index(size_u64, depth),
+                || random_index(size_u64, SMT_MAX_DEPTH),
                 |index| black_box(store.get_path(root, index)),
                 BatchSize::SmallInput,
             )
@@ -441,7 +439,6 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
             .collect::<Vec<(u64, Word)>>();
         let mut smt = SimpleSmt::<SMT_MAX_DEPTH>::with_leaves(smt_leaves.clone()).unwrap();
         let mut store = MerkleStore::from(&smt);
-        let depth = smt.depth();
         let root = smt.root();
         let size_u64 = size as u64;
 
@@ -460,7 +457,7 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
         let mut store_root = root;
         group.bench_function(BenchmarkId::new("MerkleStore", size), |b| {
             b.iter_batched(
-                || (random_index(size_u64, depth), random_word()),
+                || (random_index(size_u64, SMT_MAX_DEPTH), random_word()),
                 |(index, value)| {
                     // The MerkleTree automatically updates its internal root, the Store maintains
                     // the old root and adds the new one. Here we update the root to have a fair
