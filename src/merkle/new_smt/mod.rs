@@ -58,19 +58,11 @@ impl NewSmt {
         // create an empty tree
         let mut tree = Self::new();
 
-        // compute the max number of entries. We use an upper bound of depth 63 because we consider
-        // passing in a vector of size 2^64 infeasible.
-        let max_num_entries = 2_usize.pow(tree.depth().min(63).into());
-
         // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
         // entries with the empty value need additional tracking.
         let mut key_set_to_zero = BTreeSet::new();
 
-        for (idx, (key, value)) in entries.into_iter().enumerate() {
-            if idx >= max_num_entries {
-                return Err(MerkleError::InvalidNumEntries(max_num_entries));
-            }
-
+        for (key, value) in entries {
             let old_value = tree.update_leaf(key, value);
 
             if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
