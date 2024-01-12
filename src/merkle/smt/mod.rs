@@ -180,7 +180,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
             None => {
                 self.leaves.insert(leaf_index.value(), SmtLeaf::Single((key, value)));
 
-                Some(Self::Value::default())
+                None
             }
         }
     }
