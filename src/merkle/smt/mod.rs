@@ -137,41 +137,11 @@ impl Smt {
         let leaf_index: LeafIndex<SMT_DEPTH> = key.into();
 
         if let Some(leaf) = self.leaves.get_mut(&leaf_index.value()) {
-            match leaf {
-                SmtLeaf::Single((key_at_leaf, value_at_leaf)) => {
-                    if *key_at_leaf == key {
-                        // our key was indeed stored in the leaf, so we remove the leaf and return
-                        // the value that was stored in it
-                        let old_value = *value_at_leaf;
-                        self.leaves.remove(&leaf_index.value());
-                        Some(old_value)
-                    } else {
-                        // another key is stored at leaf; nothing to update
-                        None
-                    }
-                }
-                SmtLeaf::Multiple(kv_pairs) => {
-                    match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
-                        Ok(pos) => {
-                            let old_value = kv_pairs[pos].1;
-
-                            kv_pairs.remove(pos);
-                            debug_assert!(!kv_pairs.is_empty());
-
-                            if kv_pairs.len() == 1 {
-                                // convert the leaf into `Single`
-                                *leaf = SmtLeaf::Single(kv_pairs[0]);
-                            }
-
-                            Some(old_value)
-                        }
-                        Err(_) => {
-                            // other keys are stored at leaf; nothing to update
-                            None
-                        }
-                    }
-                }
+            let (old_value, is_empty) = leaf.remove(key);
+            if is_empty {
+                self.leaves.remove(&leaf_index.value());
             }
+            old_value
         } else {
             // there's nothing stored at the leaf; nothing to update
             None
@@ -339,6 +309,47 @@ impl SmtLeaf {
                         kv_pairs.insert(pos, (key, value));
 
                         None
+                    }
+                }
+            }
+        }
+    }
+
+    /// Remove key-value pair into the leaf stored at key; return the previous value associated with
+    /// `key`, if any. We also return an `is_empty` flag which indicates whether the leaf is empty,
+    /// and must be removed from the data structure it is contained in.
+    fn remove(&mut self, key: SmtKey) -> (Option<Word>, bool) {
+        match self {
+            SmtLeaf::Single((key_at_leaf, value_at_leaf)) => {
+                if *key_at_leaf == key {
+                    // our key was indeed stored in the leaf, so we return the value that was stored
+                    // in it, and indicate that the leaf should be removed
+                    let old_value = *value_at_leaf;
+
+                    (Some(old_value), true)
+                } else {
+                    // another key is stored at leaf; nothing to update
+                    (None, false)
+                }
+            }
+            SmtLeaf::Multiple(kv_pairs) => {
+                match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
+                    Ok(pos) => {
+                        let old_value = kv_pairs[pos].1;
+
+                        kv_pairs.remove(pos);
+                        debug_assert!(!kv_pairs.is_empty());
+
+                        if kv_pairs.len() == 1 {
+                            // convert the leaf into `Single`
+                            *self = SmtLeaf::Single(kv_pairs[0]);
+                        }
+
+                        (Some(old_value), false)
+                    }
+                    Err(_) => {
+                        // other keys are stored at leaf; nothing to update
+                        (None, false)
                     }
                 }
             }
