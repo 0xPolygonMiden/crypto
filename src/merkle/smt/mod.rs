@@ -193,6 +193,18 @@ impl From<SmtKey> for LeafIndex<SMT_DEPTH> {
     }
 }
 
+impl From<RpoDigest> for SmtKey {
+    fn from(digest: RpoDigest) -> Self {
+        Self { word: digest }
+    }
+}
+
+impl From<Word> for SmtKey {
+    fn from(word: Word) -> Self {
+        Self { word: word.into() }
+    }
+}
+
 // LEAF
 // ================================================================================================
 
