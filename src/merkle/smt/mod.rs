@@ -173,47 +173,23 @@ impl Default for Smt {
     }
 }
 
-// KEY
+// SMT KEY
 // ================================================================================================
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Represents a key (256 bits) for the Smt.
+///
+/// The most significant `u64` determines the corresponding leaf index when inserting values into
+/// the Smt.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SmtKey {
-    word: Word,
+    word: RpoDigest,
 }
 
 impl From<SmtKey> for LeafIndex<SMT_DEPTH> {
     fn from(key: SmtKey) -> Self {
         let most_significant_felt = key.word[0];
         Self::new_max_depth(most_significant_felt.as_int())
-    }
-}
-
-impl Ord for SmtKey {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // Note that the indices are reversed. This is because a `Word` is treated as little-endian
-        // (i.e. most significant Felt is at index 3). In comparing integer arrays, we want to
-        // compare the most significant felts first, and so on until the least signifcant felt.
-        let self_word: [u64; 4] = [
-            self.word[3].as_int(),
-            self.word[2].as_int(),
-            self.word[1].as_int(),
-            self.word[0].as_int(),
-        ];
-        let other_word: [u64; 4] = [
-            other.word[3].as_int(),
-            other.word[2].as_int(),
-            other.word[1].as_int(),
-            other.word[0].as_int(),
-        ];
-
-        self_word.cmp(&other_word)
-    }
-}
-
-impl PartialOrd for SmtKey {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 
