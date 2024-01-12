@@ -216,18 +216,25 @@ pub enum SmtLeaf {
 }
 
 impl SmtLeaf {
-    pub fn hash(&self) -> RpoDigest {
-        fn kv_to_elements((key, value): &(SmtKey, Word)) -> impl Iterator<Item = Felt> + '_ {
-            let key_elements = key.word.iter().copied();
-            let value_elements = value.iter().copied();
+    /// Converts a leaf to a list of field elements
+    pub fn to_elements(&self) -> Vec<Felt> {
+        self.clone().into_elements()
+    }
 
-            key_elements.chain(value_elements)
-        }
-
+    /// Converts a leaf to a list of field elements
+    pub fn into_elements(self) -> Vec<Felt> {
         match self {
-            SmtLeaf::Single((key, value)) => Rpo256::merge(&[key.word.into(), value.into()]),
+            SmtLeaf::Single(kv_pair) => kv_to_elements(kv_pair).collect(),
+            SmtLeaf::Multiple(kv_pairs) => kv_pairs.into_iter().flat_map(kv_to_elements).collect(),
+        }
+    }
+
+    /// Compute the hash of the leaf
+    pub fn hash(&self) -> RpoDigest {
+        match self {
+            SmtLeaf::Single((key, value)) => Rpo256::merge(&[key.word, value.into()]),
             SmtLeaf::Multiple(kvs) => {
-                let elements: Vec<Felt> = kvs.iter().flat_map(kv_to_elements).collect();
+                let elements: Vec<Felt> = kvs.iter().copied().flat_map(kv_to_elements).collect();
                 Rpo256::hash_elements(&elements)
             }
         }
@@ -236,6 +243,14 @@ impl SmtLeaf {
 
 // HELPER FUNCTIONS
 // ================================================================================================
+
+/// Converts a key-value tuple to an iterator of `Felt`s
+fn kv_to_elements((key, value): (SmtKey, Word)) -> impl Iterator<Item = Felt> {
+    let key_elements = key.word.into_iter();
+    let value_elements = value.into_iter();
+
+    key_elements.chain(value_elements)
+}
 
 /// Compares two keys, compared element-by-element using their integer representations starting with
 /// the most significant element.
