@@ -266,7 +266,7 @@ fn build_multiple_leaf_node(kv_pairs: &[(SmtKey, Word)]) -> RpoDigest {
         .iter()
         .flat_map(|(key, value)| {
             let key_elements = key.word.into_iter();
-            let value_elements = value.clone().into_iter();
+            let value_elements = (*value).into_iter();
 
             key_elements.chain(value_elements)
         })
