@@ -224,12 +224,13 @@ impl SmtLeaf {
             key_elements.chain(value_elements)
         }
 
-        let elements: Vec<Felt> = match self {
-            SmtLeaf::Single(kv) => kv_to_elements(kv).collect(),
-            SmtLeaf::Multiple(kvs) => kvs.iter().flat_map(kv_to_elements).collect(),
-        };
-
-        Rpo256::hash_elements(&elements)
+        match self {
+            SmtLeaf::Single((key, value)) => Rpo256::merge(&[key.word.into(), value.into()]),
+            SmtLeaf::Multiple(kvs) => {
+                let elements: Vec<Felt> = kvs.iter().flat_map(kv_to_elements).collect();
+                Rpo256::hash_elements(&elements)
+            }
+        }
     }
 }
 
