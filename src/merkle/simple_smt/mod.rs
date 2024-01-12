@@ -9,12 +9,6 @@ use super::{
 #[cfg(test)]
 mod tests;
 
-// CONSTANTS
-// ================================================================================================
-
-/// Value of an empty leaf.
-pub const EMPTY_VALUE: Word = super::EMPTY_WORD;
-
 // SPARSE MERKLE TREE
 // ================================================================================================
 
@@ -86,11 +80,11 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
             let old_value = tree.update_leaf(LeafIndex::<DEPTH>::new(key)?, value);
 
-            if old_value != EMPTY_VALUE || key_set_to_zero.contains(&key) {
+            if old_value != Self::EMPTY_VALUE || key_set_to_zero.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(key));
             }
 
-            if value == EMPTY_VALUE {
+            if value == Self::EMPTY_VALUE {
                 key_set_to_zero.insert(key);
             };
         }
@@ -281,7 +275,7 @@ impl<const DEPTH: u8> TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt<DEPTH> {
         }
 
         for slot in diff.cleared_slots() {
-            self.update_leaf(LeafIndex::<DEPTH>::new(*slot)?, EMPTY_VALUE);
+            self.update_leaf(LeafIndex::<DEPTH>::new(*slot)?, Self::EMPTY_VALUE);
         }
 
         for (slot, value) in diff.updated_slots() {
