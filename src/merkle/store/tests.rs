@@ -240,27 +240,27 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
     // STORE LEAVES ARE CORRECT ==============================================================
     // checks the leaves in the store corresponds to the expected values
     assert_eq!(
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 0)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 0)),
         Ok(VALUES4[0]),
         "node 0 must be in the tree"
     );
     assert_eq!(
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 1)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 1)),
         Ok(VALUES4[1]),
         "node 1 must be in the tree"
     );
     assert_eq!(
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 2)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 2)),
         Ok(VALUES4[2]),
         "node 2 must be in the tree"
     );
     assert_eq!(
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 3)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 3)),
         Ok(VALUES4[3]),
         "node 3 must be in the tree"
     );
     assert_eq!(
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 4)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 4)),
         Ok(RpoDigest::default()),
         "unmodified node 4 must be ZERO"
     );
@@ -268,34 +268,34 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
     // STORE LEAVES MATCH TREE ===============================================================
     // sanity check the values returned by the store and the tree
     assert_eq!(
-        smt.get_node(NodeIndex::make(smt.depth(), 0)),
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 0)),
+        smt.get_node(NodeIndex::make(SMT_MAX_DEPTH, 0)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 0)),
         "node 0 must be the same for both SparseMerkleTree and MerkleStore"
     );
     assert_eq!(
-        smt.get_node(NodeIndex::make(smt.depth(), 1)),
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 1)),
+        smt.get_node(NodeIndex::make(SMT_MAX_DEPTH, 1)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 1)),
         "node 1 must be the same for both SparseMerkleTree and MerkleStore"
     );
     assert_eq!(
-        smt.get_node(NodeIndex::make(smt.depth(), 2)),
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 2)),
+        smt.get_node(NodeIndex::make(SMT_MAX_DEPTH, 2)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 2)),
         "node 2 must be the same for both SparseMerkleTree and MerkleStore"
     );
     assert_eq!(
-        smt.get_node(NodeIndex::make(smt.depth(), 3)),
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 3)),
+        smt.get_node(NodeIndex::make(SMT_MAX_DEPTH, 3)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 3)),
         "node 3 must be the same for both SparseMerkleTree and MerkleStore"
     );
     assert_eq!(
-        smt.get_node(NodeIndex::make(smt.depth(), 4)),
-        store.get_node(smt.root(), NodeIndex::make(smt.depth(), 4)),
+        smt.get_node(NodeIndex::make(SMT_MAX_DEPTH, 4)),
+        store.get_node(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 4)),
         "node 4 must be the same for both SparseMerkleTree and MerkleStore"
     );
 
     // STORE MERKLE PATH MATCHS ==============================================================
     // assert the merkle path returned by the store is the same as the one in the tree
-    let result = store.get_path(smt.root(), NodeIndex::make(smt.depth(), 0)).unwrap();
+    let result = store.get_path(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 0)).unwrap();
     assert_eq!(
         VALUES4[0], result.value,
         "Value for merkle path at index 0 must match leaf value"
@@ -306,7 +306,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "merkle path for index 0 must be the same for the MerkleTree and MerkleStore"
     );
 
-    let result = store.get_path(smt.root(), NodeIndex::make(smt.depth(), 1)).unwrap();
+    let result = store.get_path(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 1)).unwrap();
     assert_eq!(
         VALUES4[1], result.value,
         "Value for merkle path at index 1 must match leaf value"
@@ -317,7 +317,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "merkle path for index 1 must be the same for the MerkleTree and MerkleStore"
     );
 
-    let result = store.get_path(smt.root(), NodeIndex::make(smt.depth(), 2)).unwrap();
+    let result = store.get_path(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 2)).unwrap();
     assert_eq!(
         VALUES4[2], result.value,
         "Value for merkle path at index 2 must match leaf value"
@@ -328,7 +328,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "merkle path for index 2 must be the same for the MerkleTree and MerkleStore"
     );
 
-    let result = store.get_path(smt.root(), NodeIndex::make(smt.depth(), 3)).unwrap();
+    let result = store.get_path(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 3)).unwrap();
     assert_eq!(
         VALUES4[3], result.value,
         "Value for merkle path at index 3 must match leaf value"
@@ -339,7 +339,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "merkle path for index 3 must be the same for the MerkleTree and MerkleStore"
     );
 
-    let result = store.get_path(smt.root(), NodeIndex::make(smt.depth(), 4)).unwrap();
+    let result = store.get_path(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 4)).unwrap();
     assert_eq!(
         RpoDigest::default(),
         result.value,
@@ -559,10 +559,9 @@ fn test_constructors() -> Result<(), MerkleError> {
     let smt =
         SimpleSmt::<DEPTH>::with_leaves(KEYS4.into_iter().zip(digests_to_words(&VALUES4))).unwrap();
     let store = MerkleStore::from(&smt);
-    let depth = smt.depth();
 
     for key in KEYS4 {
-        let index = NodeIndex::make(depth, key);
+        let index = NodeIndex::make(DEPTH, key);
         let value_path = store.get_path(smt.root(), index)?;
         assert_eq!(smt.get_leaf_path(LeafIndex::<DEPTH>::new(key).unwrap()), value_path.path);
     }
@@ -898,13 +897,13 @@ fn test_recorder() {
     let node = recorder.get_node(mtree.root(), index_0).unwrap();
     assert_eq!(node, mtree.get_node(index_0).unwrap());
 
-    let index_1 = NodeIndex::new(smtree.depth(), 1).unwrap();
+    let index_1 = NodeIndex::new(TREE_DEPTH, 1).unwrap();
     let node = recorder.get_node(smtree.root(), index_1).unwrap();
     assert_eq!(node, smtree.get_node(index_1).unwrap());
 
     // insert a value and assert that when we request it next time it is accurate
     let new_value = [ZERO, ZERO, ONE, ONE].into();
-    let index_2 = NodeIndex::new(smtree.depth(), 2).unwrap();
+    let index_2 = NodeIndex::new(TREE_DEPTH, 2).unwrap();
     let root = recorder.set_node(smtree.root(), index_2, new_value).unwrap().root;
     assert_eq!(recorder.get_node(root, index_2).unwrap(), new_value);
 
@@ -927,7 +926,7 @@ fn test_recorder() {
     );
 
     // assert that is doesnt contain nodes that were not recorded
-    let not_recorded_index = NodeIndex::new(smtree.depth(), 4).unwrap();
+    let not_recorded_index = NodeIndex::new(TREE_DEPTH, 4).unwrap();
     assert!(merkle_store.get_node(smtree.root(), not_recorded_index).is_err());
     assert!(smtree.get_node(not_recorded_index).is_ok());
 }

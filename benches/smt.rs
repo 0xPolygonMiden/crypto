@@ -27,7 +27,7 @@ fn smt_rpo(c: &mut Criterion) {
             // benchmark 1
             let mut insert = c.benchmark_group("smt update_leaf".to_string());
             {
-                let depth = tree.depth();
+                let depth = DEPTH;
                 let key = count >> 2;
                 insert.bench_with_input(
                     format!("simple smt(depth:{depth},count:{count})"),
@@ -45,7 +45,7 @@ fn smt_rpo(c: &mut Criterion) {
             // benchmark 2
             let mut path = c.benchmark_group("smt get_leaf_path".to_string());
             {
-                let depth = tree.depth();
+                let depth = DEPTH;
                 let key = count >> 2;
                 path.bench_with_input(
                     format!("simple smt(depth:{depth},count:{count})"),
