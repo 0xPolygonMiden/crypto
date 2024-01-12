@@ -1,7 +1,9 @@
+use crate::EMPTY_WORD;
+
 use super::{
-    sparse_merkle_tree::SMT_MAX_DEPTH, BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex,
-    MerkleError, MerkleTreeDelta, NodeIndex, RpoDigest, SparseMerkleTree, StoreNode, TryApplyDiff,
-    Word, SMT_MIN_DEPTH,
+    sparse_merkle_tree::SMT_MAX_DEPTH, BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode,
+    InnerNodeInfo, LeafIndex, MerkleError, MerkleTreeDelta, NodeIndex, RpoDigest, SparseMerkleTree,
+    StoreNode, TryApplyDiff, Word, SMT_MIN_DEPTH,
 };
 
 #[cfg(test)]
@@ -220,6 +222,8 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     type Key = LeafIndex<DEPTH>;
     type Value = Word;
     type Leaf = Word;
+
+    const EMPTY_VALUE: Self::Value = EMPTY_WORD;
 
     fn root(&self) -> RpoDigest {
         self.root
