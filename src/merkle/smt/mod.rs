@@ -96,7 +96,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
         self.inner_nodes.get(&index).cloned().unwrap_or_else(|| {
-            let node = EmptySubtreeRoots::entry(self.depth(), index.depth() + 1);
+            let node = EmptySubtreeRoots::entry(SMT_DEPTH, index.depth() + 1);
 
             InnerNode { left: *node, right: *node }
         })
@@ -156,10 +156,9 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
         match self.leaves.get(&leaf_pos) {
             Some(leaf) => leaf.clone(),
-            None => SmtLeaf::Single((
-                *key,
-                Word::from(*EmptySubtreeRoots::entry(self.depth(), self.depth())),
-            )),
+            None => {
+                SmtLeaf::Single((*key, Word::from(*EmptySubtreeRoots::entry(SMT_DEPTH, SMT_DEPTH))))
+            }
         }
     }
 
