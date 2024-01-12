@@ -111,6 +111,106 @@ impl Smt {
     pub fn update_leaf(&mut self, key: SmtKey, value: Word) -> Word {
         <Self as SparseMerkleTree<SMT_DEPTH>>::update_leaf(self, key, value)
     }
+
+    // HELPERS
+    // --------------------------------------------------------------------------------------------
+
+    /// Inserts `value` at leaf index pointed to by `key`. `value` is guaranteed to not be the empty
+    /// value, such that this is indeed an insertion.
+    fn perform_insert(&mut self, key: SmtKey, value: Word) -> Option<Word> {
+        debug_assert_ne!(value, Self::EMPTY_VALUE);
+
+        let leaf_index: LeafIndex<SMT_DEPTH> = key.into();
+
+        match self.leaves.get_mut(&leaf_index.value()) {
+            Some(leaf) => match leaf {
+                SmtLeaf::Single(kv_pair) => {
+                    if kv_pair.0 == key {
+                        // the key is already in this leaf. Update the value and return the previous
+                        // value
+                        let old_value = kv_pair.1;
+                        kv_pair.1 = value;
+                        Some(old_value)
+                    } else {
+                        // Another entry is present in this leaf. Transform the entry into a list
+                        // entry, and make sure the key-value pairs are sorted by key
+                        let mut pairs = vec![*kv_pair, (key, value)];
+                        pairs.sort_by(|(key_1, _), (key_2, _)| cmp_keys(*key_1, *key_2));
+
+                        self.leaves.insert(leaf_index.value(), SmtLeaf::Multiple(pairs));
+
+                        None
+                    }
+                }
+                SmtLeaf::Multiple(kv_pairs) => {
+                    match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
+                        Ok(pos) => {
+                            let old_value = kv_pairs[pos].1;
+                            kv_pairs[pos].1 = value;
+
+                            Some(old_value)
+                        }
+                        Err(pos) => {
+                            kv_pairs.insert(pos, (key, value));
+
+                            None
+                        }
+                    }
+                }
+            },
+            None => {
+                self.leaves.insert(leaf_index.value(), SmtLeaf::Single((key, value)));
+
+                None
+            }
+        }
+    }
+
+    /// Removes `key`/`value` pair at leaf index pointed to by `key` if it exists.
+    fn perform_remove(&mut self, key: SmtKey) -> Option<Word> {
+        let leaf_index: LeafIndex<SMT_DEPTH> = key.into();
+
+        if let Some(leaf) = self.leaves.get_mut(&leaf_index.value()) {
+            match leaf {
+                SmtLeaf::Single((key_at_leaf, value_at_leaf)) => {
+                    if *key_at_leaf == key {
+                        // our key was indeed stored in the leaf, so we remove the leaf and return
+                        // the value that was stored in it
+                        let old_value = *value_at_leaf;
+                        self.leaves.remove(&leaf_index.value());
+                        Some(old_value)
+                    } else {
+                        // another key is stored at leaf; nothing to update
+                        None
+                    }
+                }
+                SmtLeaf::Multiple(kv_pairs) => {
+                    match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
+                        Ok(pos) => {
+                            let old_value = kv_pairs[pos].1;
+
+                            kv_pairs.remove(pos);
+                            debug_assert!(!kv_pairs.is_empty());
+
+                            if kv_pairs.len() == 1 {
+                                // convert the leaf into `Single`
+                                *leaf = SmtLeaf::Single(kv_pairs[0]);
+                            }
+
+                            Some(old_value)
+                        }
+                        Err(_) => {
+                            // other keys are stored at leaf; nothing to update
+                            None
+                        }
+                    }
+                }
+            }
+        } else {
+            // there's nothing stored at the leaf; nothing to update
+            None
+        }
+    }
 }
 
 impl SparseMerkleTree<SMT_DEPTH> for Smt {
@@ -141,47 +241,11 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     }
 
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
-        let leaf_index: LeafIndex<SMT_DEPTH> = key.into();
-        match self.leaves.get_mut(&leaf_index.value()) {
-            Some(leaf) => match leaf {
-                SmtLeaf::Single(kv_pair) => {
-                    // if the key is already in this entry, update the value and return
-                    if kv_pair.0 == key {
-                        let old_value = kv_pair.1;
-                        kv_pair.1 = value;
-                        return Some(old_value);
-                    }
-
-                    // transform the entry into a list entry, and make sure the key-value pairs
-                    // are sorted by key
-                    let mut pairs = vec![*kv_pair, (key, value)];
-                    pairs.sort_by(|(key_1, _), (key_2, _)| cmp_keys(*key_1, *key_2));
-
-                    self.leaves.insert(leaf_index.value(), SmtLeaf::Multiple(pairs));
-
-                    None
-                }
-                SmtLeaf::Multiple(kv_pairs) => {
-                    match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
-                        Ok(pos) => {
-                            let old_value = kv_pairs[pos].1;
-                            kv_pairs[pos].1 = value;
-
-                            Some(old_value)
-                        }
-                        Err(pos) => {
-                            kv_pairs.insert(pos, (key, value));
-
-                            None
-                        }
-                    }
-                }
-            },
-            None => {
-                self.leaves.insert(leaf_index.value(), SmtLeaf::Single((key, value)));
-
-                None
-            }
+        // inserting an `EMPTY_VALUE` is equivalent to removing any value associated with `key`
+        if value != Self::EMPTY_VALUE {
+            self.perform_insert(key, value)
+        } else {
+            self.perform_remove(key)
         }
     }
 
