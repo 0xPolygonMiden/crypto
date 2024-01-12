@@ -1,9 +1,10 @@
 use crate::EMPTY_WORD;
 
 use super::{
-    sparse_merkle_tree::SMT_MAX_DEPTH, BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode,
-    InnerNodeInfo, LeafIndex, MerkleError, MerkleTreeDelta, NodeIndex, RpoDigest, SparseMerkleTree,
-    StoreNode, TryApplyDiff, Word, SMT_MIN_DEPTH,
+    sparse_merkle_tree::{SparseMerkleTree, SMT_MAX_DEPTH},
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
+    MerklePath, MerkleTreeDelta, NodeIndex, RpoDigest, StoreNode, TryApplyDiff, Word,
+    SMT_MIN_DEPTH,
 };
 
 #[cfg(test)]
@@ -112,6 +113,28 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         DEPTH
     }
 
+    /// Returns the root of the tree
+    pub fn root(&self) -> RpoDigest {
+        <Self as SparseMerkleTree<DEPTH>>::root(self)
+    }
+
+    /// Returns the leaf at the specified index.
+    pub fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Word {
+        <Self as SparseMerkleTree<DEPTH>>::get_leaf(self, key)
+    }
+
+    /// Inserts an inner node at the given index
+    pub fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
+        <Self as SparseMerkleTree<DEPTH>>::get_inner_node(self, index)
+    }
+
+    /// Returns a Merkle path from the leaf node specified by the key to the root.
+    ///
+    /// The node itself is not included in the path.
+    pub fn get_leaf_path(&self, key: LeafIndex<DEPTH>) -> MerklePath {
+        <Self as SparseMerkleTree<DEPTH>>::get_leaf_path(self, key)
+    }
+
     /// Returns a node at the specified index.
     ///
     /// # Errors
@@ -150,6 +173,13 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
+
+    /// Updates value of the leaf at the specified index returning the old leaf value.
+    ///
+    /// This also recomputes all hashes between the leaf and the root, updating the root itself.
+    pub fn update_leaf(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Word {
+        <Self as SparseMerkleTree<DEPTH>>::update_leaf(self, key, value)
+    }
 
     /// Inserts a subtree at the specified index. The depth at which the subtree is inserted is
     /// computed as `self.depth() - subtree.depth()`.

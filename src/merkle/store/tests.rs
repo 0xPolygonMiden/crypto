@@ -4,8 +4,7 @@ use super::{
 };
 use crate::{
     merkle::{
-        digests_to_words, int_to_leaf, int_to_node, LeafIndex, MerkleTree, SimpleSmt,
-        SparseMerkleTree, SMT_MAX_DEPTH,
+        digests_to_words, int_to_leaf, int_to_node, LeafIndex, MerkleTree, SimpleSmt, SMT_MAX_DEPTH,
     },
     Felt, Word, ONE, WORD_SIZE, ZERO,
 };

@@ -27,10 +27,8 @@ pub use path::{MerklePath, RootPath, ValuePath};
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
 
-mod sparse_merkle_tree;
-pub use sparse_merkle_tree::{
-    InnerNode, LeafIndex, SparseMerkleTree, SMT_MAX_DEPTH, SMT_MIN_DEPTH,
-};
+pub(crate) mod sparse_merkle_tree;
+pub use sparse_merkle_tree::{InnerNode, LeafIndex, SMT_MAX_DEPTH, SMT_MIN_DEPTH};
 
 mod smt;
 pub use smt::{Smt, SmtKey, SmtLeaf, SMT_DEPTH};

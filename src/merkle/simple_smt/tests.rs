@@ -4,9 +4,7 @@ use super::{
 };
 use crate::{
     hash::rpo::Rpo256,
-    merkle::{
-        digests_to_words, int_to_leaf, int_to_node, EmptySubtreeRoots, LeafIndex, SparseMerkleTree,
-    },
+    merkle::{digests_to_words, int_to_leaf, int_to_node, EmptySubtreeRoots, LeafIndex},
     utils::collections::Vec,
     Word,
 };

@@ -1,7 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use miden_crypto::merkle::{
-    DefaultMerkleStore as MerkleStore, LeafIndex, MerkleTree, NodeIndex, SimpleSmt,
-    SparseMerkleTree, SMT_MAX_DEPTH,
+    DefaultMerkleStore as MerkleStore, LeafIndex, MerkleTree, NodeIndex, SimpleSmt, SMT_MAX_DEPTH,
 };
 use miden_crypto::Word;
 use miden_crypto::{hash::rpo::RpoDigest, Felt};

@@ -6,9 +6,10 @@ use crate::hash::rpo::Rpo256;
 use crate::utils::{collections::Vec, vec};
 use crate::{Felt, EMPTY_WORD};
 
+use super::sparse_merkle_tree::SparseMerkleTree;
 use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, LeafIndex, MerkleError, NodeIndex, RpoDigest,
-    SparseMerkleTree, Word,
+    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNode, LeafIndex, MerkleError, MerklePath,
+    NodeIndex, RpoDigest, Word,
 };
 
 #[cfg(test)]
@@ -76,6 +77,35 @@ impl Smt {
             };
         }
         Ok(tree)
+    }
+
+    /// Returns the root of the tree
+    pub fn root(&self) -> RpoDigest {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::root(self)
+    }
+
+    /// Returns the leaf at the specified index.
+    pub fn get_leaf(&self, key: &SmtKey) -> SmtLeaf {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
+    }
+
+    /// Inserts an inner node at the given index
+    pub fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::get_inner_node(self, index)
+    }
+
+    /// Returns a Merkle path from the leaf node specified by the key to the root.
+    ///
+    /// The node itself is not included in the path.
+    pub fn get_leaf_path(&self, key: SmtKey) -> MerklePath {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf_path(self, key)
+    }
+
+    /// Updates value of the leaf at the specified index returning the old leaf value.
+    ///
+    /// This also recomputes all hashes between the leaf and the root, updating the root itself.
+    pub fn update_leaf(&mut self, key: SmtKey, value: Word) -> Word {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::update_leaf(self, key, value)
     }
 }
 
