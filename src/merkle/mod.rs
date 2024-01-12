@@ -27,11 +27,11 @@ pub use path::{MerklePath, RootPath, ValuePath};
 mod simple_smt;
 pub use simple_smt::SimpleSmt;
 
-mod smt;
-pub use smt::{InnerNode, LeafIndex, SparseMerkleTree, SMT_MAX_DEPTH, SMT_MIN_DEPTH};
+mod sparse_merkle_tree;
+pub use sparse_merkle_tree::{InnerNode, LeafIndex, SparseMerkleTree, SMT_MAX_DEPTH, SMT_MIN_DEPTH};
 
-mod new_smt;
-pub use new_smt::{Smt, SmtKey, SmtLeaf, SMT_DEPTH};
+mod smt;
+pub use smt::{Smt, SmtKey, SmtLeaf, SMT_DEPTH};
 
 mod tiered_smt;
 pub use tiered_smt::{TieredSmt, TieredSmtProof, TieredSmtProofError};

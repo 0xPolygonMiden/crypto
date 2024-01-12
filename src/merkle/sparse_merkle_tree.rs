@@ -32,7 +32,7 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 /// longer its proofs are - of exactly `log(depth)` size. A tree cannot have depth 0, since such a
 /// tree is just a single value, and is probably a programming mistake.
 ///
-/// Every key value maps to one leaf. If there are as many keys as there are leaves, then
+/// Every key maps to one leaf. If there are as many keys as there are leaves, then
 /// [Self::Leaf] should be the same type as [Self::Value], as is the case with
 /// [crate::merkle::SimpleSmt]. However, if there are more keys than leaves, then [`Self::Leaf`]
 /// must accomodate all keys that map to the same leaf.
