@@ -179,7 +179,7 @@ impl PartialMerkleTree {
     /// # Errors
     /// Returns an error if the specified NodeIndex is not contained in the nodes map.
     pub fn get_node(&self, index: NodeIndex) -> Result<RpoDigest, MerkleError> {
-        self.nodes.get(&index).ok_or(MerkleError::NodeNotInSet(index)).map(|hash| *hash)
+        self.nodes.get(&index).ok_or(MerkleError::NodeNotInSet(index)).copied()
     }
 
     /// Returns true if provided index contains in the leaves set, false otherwise.
