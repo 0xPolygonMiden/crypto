@@ -46,7 +46,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a leaf
     type Leaf;
     /// The type for an opening (i.e. a "proof") of a leaf
-    type Opening: Into<(MerklePath, Self::Leaf)>;
+    type Opening: From<(MerklePath, Self::Leaf)>;
 
     /// The default value used to compute the hash of empty leaves
     const EMPTY_VALUE: Self::Value;
@@ -57,22 +57,28 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    fn open(&self, key: Self::Key) -> MerklePath {
+    fn open(&self, key: Self::Key) -> Self::Opening {
+        let leaf = self.get_leaf(&key);
+
         let mut index: NodeIndex = {
             let leaf_index: LeafIndex<DEPTH> = key.into();
             leaf_index.into()
         };
 
-        let mut path = Vec::with_capacity(index.depth() as usize);
-        for _ in 0..index.depth() {
-            let is_right = index.is_value_odd();
-            index.move_up();
-            let InnerNode { left, right } = self.get_inner_node(index);
-            let value = if is_right { left } else { right };
-            path.push(value);
-        }
+        let merkle_path = {
+            let mut path = Vec::with_capacity(index.depth() as usize);
+            for _ in 0..index.depth() {
+                let is_right = index.is_value_odd();
+                index.move_up();
+                let InnerNode { left, right } = self.get_inner_node(index);
+                let value = if is_right { left } else { right };
+                path.push(value);
+            }
 
-        MerklePath::new(path)
+            MerklePath::new(path)
+        };
+
+        (merkle_path, leaf).into()
     }
 
     /// Inserts a value at the specified key, returning the previous value associated with that key.
