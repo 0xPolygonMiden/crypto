@@ -316,8 +316,8 @@ impl SmtLeaf {
     }
 
     /// Remove key-value pair into the leaf stored at key; return the previous value associated with
-    /// `key`, if any. We also return an `is_empty` flag which indicates whether the leaf is empty,
-    /// and must be removed from the data structure it is contained in.
+    /// `key`, if any. We also return an `is_empty` flag which indicates whether the leaf became
+    /// empty, and must be removed from the data structure it is contained in.
     fn remove(&mut self, key: SmtKey) -> (Option<Word>, bool) {
         match self {
             SmtLeaf::Single((key_at_leaf, value_at_leaf)) => {
