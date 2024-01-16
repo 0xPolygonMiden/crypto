@@ -156,7 +156,7 @@ fn test_smt_insert_multiple_values() {
         assert_eq!(smt.root(), tree_root);
 
         let expected_path = store.get_path(tree_root, key_index).unwrap();
-        assert_eq!(smt.get_leaf_path(key), expected_path.path);
+        assert_eq!(smt.open(key), expected_path.path);
     }
 }
 
@@ -251,7 +251,7 @@ fn test_smt_path_to_keys_in_same_leaf_are_equal() {
 
     let smt = Smt::with_entries([(key_1, value_1), (key_2, value_2)]).unwrap();
 
-    assert_eq!(smt.get_leaf_path(key_1), smt.get_leaf_path(key_2));
+    assert_eq!(smt.open(key_1), smt.open(key_2));
 }
 
 // HELPERS
