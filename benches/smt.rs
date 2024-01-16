@@ -52,7 +52,7 @@ fn smt_rpo(c: &mut Criterion) {
                     &key,
                     |b, key| {
                         b.iter(|| {
-                            tree.open(black_box(LeafIndex::<DEPTH>::new(*key).unwrap()));
+                            tree.open(black_box(&LeafIndex::<DEPTH>::new(*key).unwrap()));
                         });
                     },
                 );

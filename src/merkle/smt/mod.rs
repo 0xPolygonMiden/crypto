@@ -103,7 +103,7 @@ impl Smt {
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    pub fn open(&self, key: RpoDigest) -> (MerklePath, SmtLeaf) {
+    pub fn open(&self, key: &RpoDigest) -> (MerklePath, SmtLeaf) {
         <Self as SparseMerkleTree<SMT_DEPTH>>::open(self, key)
     }
 
