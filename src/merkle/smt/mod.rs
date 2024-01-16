@@ -1,365 +1,241 @@
-use core::cmp::Ordering;
-
 use winter_math::StarkField;
 
-use crate::hash::rpo::Rpo256;
-use crate::utils::{collections::Vec, vec};
-use crate::{Felt, EMPTY_WORD};
-
-use super::sparse_merkle_tree::{InnerNode, SparseMerkleTree};
-use super::{
-    BTreeMap, BTreeSet, EmptySubtreeRoots, LeafIndex, MerkleError, MerklePath, NodeIndex,
-    RpoDigest, Word,
+use crate::{
+    hash::rpo::{Rpo256, RpoDigest},
+    Word,
 };
 
-#[cfg(test)]
-mod tests;
+use super::{MerkleError, MerklePath, NodeIndex, Vec};
+
+mod full;
+pub use full::{Smt, SmtLeaf, SMT_DEPTH};
+
+mod simple;
+pub use simple::SimpleSmt;
 
 // CONSTANTS
 // ================================================================================================
 
-pub const SMT_DEPTH: u8 = 64;
+/// Minimum supported depth.
+pub const SMT_MIN_DEPTH: u8 = 1;
 
-// SMT
+/// Maximum supported depth.
+pub const SMT_MAX_DEPTH: u8 = 64;
+
+// SPARSE MERKLE TREE
 // ================================================================================================
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Smt {
-    root: RpoDigest,
-    leaves: BTreeMap<u64, SmtLeaf>,
-    inner_nodes: BTreeMap<NodeIndex, InnerNode>,
-}
+/// An abstract description of a sparse Merkle tree.
+///
+/// A sparse Merkle tree is a key-value map which also supports proving that a given value is indeed
+/// stored at a given key in the tree. It is viewed as always being fully populated. If a leaf's
+/// value was not explicitly set, then its value is the default value. Typically, the vast majority
+/// of leaves will store the default value (hence it is "sparse"), and therefore the internal
+/// representation of the tree will only keep track of the leaves that have a different value from
+/// the default.
+///
+/// All leaves sit at the same depth. The deeper the tree, the more leaves it has; but also the
+/// longer its proofs are - of exactly `log(depth)` size. A tree cannot have depth 0, since such a
+/// tree is just a single value, and is probably a programming mistake.
+///
+/// Every key maps to one leaf. If there are as many keys as there are leaves, then
+/// [Self::Leaf] should be the same type as [Self::Value], as is the case with
+/// [crate::merkle::SimpleSmt]. However, if there are more keys than leaves, then [`Self::Leaf`]
+/// must accomodate all keys that map to the same leaf.
+///
+/// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
+pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
+    /// The type for a key
+    type Key: Clone;
+    /// The type for a value
+    type Value: Clone + PartialEq;
+    /// The type for a leaf
+    type Leaf;
+    /// The type for an opening (i.e. a "proof") of a leaf
+    type Opening: From<(MerklePath, Self::Leaf)>;
 
-impl Smt {
-    // CONSTRUCTORS
-    // --------------------------------------------------------------------------------------------
+    /// The default value used to compute the hash of empty leaves
+    const EMPTY_VALUE: Self::Value;
 
-    /// Returns a new [NewSmt].
-    ///
-    /// All leaves in the returned tree are set to [ZERO; 4].
-    pub fn new() -> Self {
-        let root = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
-
-        Self {
-            root,
-            leaves: BTreeMap::new(),
-            inner_nodes: BTreeMap::new(),
-        }
-    }
-
-    /// Returns a new [SimpleSmt] instantiated with leaves set as specified by the provided entries.
-    ///
-    /// All leaves omitted from the entries list are set to [ZERO; 4].
-    ///
-    /// # Errors
-    /// Returns an error if:
-    /// - The number of entries exceeds 2^63 entries.
-    /// - The provided entries contain multiple values for the same key.
-    pub fn with_entries(
-        entries: impl IntoIterator<Item = (RpoDigest, Word)>,
-    ) -> Result<Self, MerkleError> {
-        // create an empty tree
-        let mut tree = Self::new();
-
-        // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
-        // entries with the empty value need additional tracking.
-        let mut key_set_to_zero = BTreeSet::new();
-
-        for (key, value) in entries {
-            let old_value = tree.insert(key, value);
-
-            if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
-                return Err(MerkleError::DuplicateValuesForIndex(
-                    LeafIndex::<SMT_DEPTH>::from(key).value(),
-                ));
-            }
-
-            if value == EMPTY_WORD {
-                key_set_to_zero.insert(key);
-            };
-        }
-        Ok(tree)
-    }
-
-    // PUBLIC ACCESSORS
-    // --------------------------------------------------------------------------------------------
-
-    /// Returns the root of the tree
-    pub fn root(&self) -> RpoDigest {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::root(self)
-    }
-
-    /// Returns the leaf at the specified index.
-    pub fn get_leaf(&self, key: &RpoDigest) -> SmtLeaf {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
-    }
-
-    /// Returns the depth of the tree
-    pub const fn depth(&self) -> u8 {
-        SMT_DEPTH
-    }
+    // PROVIDED METHODS
+    // ---------------------------------------------------------------------------------------------
 
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    pub fn open(&self, key: &RpoDigest) -> (MerklePath, SmtLeaf) {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::open(self, key)
-    }
+    fn open(&self, key: &Self::Key) -> Self::Opening {
+        let leaf = self.get_leaf(key);
 
-    // STATE MUTATORS
-    // --------------------------------------------------------------------------------------------
+        let mut index: NodeIndex = {
+            let leaf_index: LeafIndex<DEPTH> = Self::key_to_leaf_index(key);
+            leaf_index.into()
+        };
+
+        let merkle_path = {
+            let mut path = Vec::with_capacity(index.depth() as usize);
+            for _ in 0..index.depth() {
+                let is_right = index.is_value_odd();
+                index.move_up();
+                let InnerNode { left, right } = self.get_inner_node(index);
+                let value = if is_right { left } else { right };
+                path.push(value);
+            }
+
+            MerklePath::new(path)
+        };
+
+        (merkle_path, leaf).into()
+    }
 
     /// Inserts a value at the specified key, returning the previous value associated with that key.
     /// Recall that by definition, any key that hasn't been updated is associated with
-    /// [`EMPTY_WORD`].
+    /// [`Self::EMPTY_VALUE`].
     ///
     /// This also recomputes all hashes between the leaf (associated with the key) and the root,
     /// updating the root itself.
-    pub fn insert(&mut self, key: RpoDigest, value: Word) -> Word {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::insert(self, key, value)
-    }
+    fn insert(&mut self, key: Self::Key, value: Self::Value) -> Self::Value {
+        let old_value = self.insert_value(key.clone(), value.clone()).unwrap_or(Self::EMPTY_VALUE);
 
-    // HELPERS
-    // --------------------------------------------------------------------------------------------
-
-    /// Inserts `value` at leaf index pointed to by `key`. `value` is guaranteed to not be the empty
-    /// value, such that this is indeed an insertion.
-    fn perform_insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
-        debug_assert_ne!(value, Self::EMPTY_VALUE);
-
-        let leaf_index: LeafIndex<SMT_DEPTH> = Self::key_to_leaf_index(&key);
-
-        match self.leaves.get_mut(&leaf_index.value()) {
-            Some(leaf) => leaf.insert(key, value),
-            None => {
-                self.leaves.insert(leaf_index.value(), SmtLeaf::Single((key, value)));
-
-                None
-            }
+        // if the old value and new value are the same, there is nothing to update
+        if value == old_value {
+            return value;
         }
+
+        let leaf = self.get_leaf(&key);
+        let node_index = {
+            let leaf_index: LeafIndex<DEPTH> = Self::key_to_leaf_index(&key);
+            leaf_index.into()
+        };
+
+        self.recompute_nodes_from_index_to_root(node_index, Self::hash_leaf(&leaf));
+
+        old_value
     }
 
-    /// Removes key-value pair at leaf index pointed to by `key` if it exists.
-    fn perform_remove(&mut self, key: RpoDigest) -> Option<Word> {
-        let leaf_index: LeafIndex<SMT_DEPTH> = Self::key_to_leaf_index(&key);
-
-        if let Some(leaf) = self.leaves.get_mut(&leaf_index.value()) {
-            let (old_value, is_empty) = leaf.remove(key);
-            if is_empty {
-                self.leaves.remove(&leaf_index.value());
-            }
-            old_value
-        } else {
-            // there's nothing stored at the leaf; nothing to update
-            None
+    /// Recomputes the branch nodes (including the root) from `index` all the way to the root.
+    /// `node_hash_at_index` is the hash of the node stored at index.
+    fn recompute_nodes_from_index_to_root(
+        &mut self,
+        mut index: NodeIndex,
+        node_hash_at_index: RpoDigest,
+    ) {
+        let mut value = node_hash_at_index;
+        for _ in 0..index.depth() {
+            let is_right = index.is_value_odd();
+            index.move_up();
+            let InnerNode { left, right } = self.get_inner_node(index);
+            let (left, right) = if is_right { (left, value) } else { (value, right) };
+            self.insert_inner_node(index, InnerNode { left, right });
+            value = Rpo256::merge(&[left, right]);
         }
-    }
-}
-
-impl SparseMerkleTree<SMT_DEPTH> for Smt {
-    type Key = RpoDigest;
-    type Value = Word;
-    type Leaf = SmtLeaf;
-    type Opening = (MerklePath, SmtLeaf);
-
-    const EMPTY_VALUE: Self::Value = EMPTY_WORD;
-
-    fn root(&self) -> RpoDigest {
-        self.root
+        self.set_root(value);
     }
 
-    fn set_root(&mut self, root: RpoDigest) {
-        self.root = root;
-    }
-
-    fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
-        self.inner_nodes.get(&index).cloned().unwrap_or_else(|| {
-            let node = EmptySubtreeRoots::entry(SMT_DEPTH, index.depth() + 1);
-
-            InnerNode { left: *node, right: *node }
-        })
-    }
-
-    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
-        self.inner_nodes.insert(index, inner_node);
-    }
-
-    fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
-        // inserting an `EMPTY_VALUE` is equivalent to removing any value associated with `key`
-        if value != Self::EMPTY_VALUE {
-            self.perform_insert(key, value)
-        } else {
-            self.perform_remove(key)
-        }
-    }
-
-    fn get_leaf(&self, key: &RpoDigest) -> Self::Leaf {
-        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
-
-        match self.leaves.get(&leaf_pos) {
-            Some(leaf) => leaf.clone(),
-            None => SmtLeaf::Single((*key, Self::EMPTY_VALUE)),
-        }
-    }
-
-    fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest {
-        leaf.hash()
-    }
-
-    fn key_to_leaf_index(key: &RpoDigest) -> LeafIndex<SMT_DEPTH> {
-        let most_significant_felt = key[3];
-        LeafIndex::new_max_depth(most_significant_felt.as_int())
-    }
-}
-
-impl Default for Smt {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-// LEAF
-// ================================================================================================
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum SmtLeaf {
-    Single((RpoDigest, Word)),
-    Multiple(Vec<(RpoDigest, Word)>),
-}
-
-impl SmtLeaf {
-    /// Converts a leaf to a list of field elements
-    pub fn to_elements(&self) -> Vec<Felt> {
-        self.clone().into_elements()
-    }
-
-    /// Converts a leaf to a list of field elements
-    pub fn into_elements(self) -> Vec<Felt> {
-        match self {
-            SmtLeaf::Single(kv_pair) => kv_to_elements(kv_pair).collect(),
-            SmtLeaf::Multiple(kv_pairs) => kv_pairs.into_iter().flat_map(kv_to_elements).collect(),
-        }
-    }
-
-    /// Compute the hash of the leaf
-    pub fn hash(&self) -> RpoDigest {
-        match self {
-            SmtLeaf::Single((key, value)) => Rpo256::merge(&[*key, value.into()]),
-            SmtLeaf::Multiple(kvs) => {
-                let elements: Vec<Felt> = kvs.iter().copied().flat_map(kv_to_elements).collect();
-                Rpo256::hash_elements(&elements)
-            }
-        }
-    }
-
-    // HELPERS
+    // REQUIRED METHODS
     // ---------------------------------------------------------------------------------------------
 
-    /// Insert key-value pair into the leaf; return the previous value associated with `key`, if
-    /// any.
-    fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
-        match self {
-            SmtLeaf::Single(kv_pair) => {
-                if kv_pair.0 == key {
-                    // the key is already in this leaf. Update the value and return the previous
-                    // value
-                    let old_value = kv_pair.1;
-                    kv_pair.1 = value;
-                    Some(old_value)
-                } else {
-                    // Another entry is present in this leaf. Transform the entry into a list
-                    // entry, and make sure the key-value pairs are sorted by key
-                    let mut pairs = vec![*kv_pair, (key, value)];
-                    pairs.sort_by(|(key_1, _), (key_2, _)| cmp_keys(*key_1, *key_2));
+    /// The root of the tree
+    fn root(&self) -> RpoDigest;
 
-                    *self = SmtLeaf::Multiple(pairs);
+    /// Sets the root of the tree
+    fn set_root(&mut self, root: RpoDigest);
 
-                    None
-                }
-            }
-            SmtLeaf::Multiple(kv_pairs) => {
-                match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
-                    Ok(pos) => {
-                        let old_value = kv_pairs[pos].1;
-                        kv_pairs[pos].1 = value;
+    /// Retrieves an inner node at the given index
+    fn get_inner_node(&self, index: NodeIndex) -> InnerNode;
 
-                        Some(old_value)
-                    }
-                    Err(pos) => {
-                        kv_pairs.insert(pos, (key, value));
+    /// Inserts an inner node at the given index
+    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode);
 
-                        None
-                    }
-                }
-            }
-        }
-    }
+    /// Inserts a leaf node, and returns the value at the key if already exists
+    fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
 
-    /// Remove key-value pair into the leaf stored at key; return the previous value associated with
-    /// `key`, if any. We also return an `is_empty` flag which indicates whether the leaf became
-    /// empty, and must be removed from the data structure it is contained in.
-    fn remove(&mut self, key: RpoDigest) -> (Option<Word>, bool) {
-        match self {
-            SmtLeaf::Single((key_at_leaf, value_at_leaf)) => {
-                if *key_at_leaf == key {
-                    // our key was indeed stored in the leaf, so we return the value that was stored
-                    // in it, and indicate that the leaf should be removed
-                    let old_value = *value_at_leaf;
+    /// Returns the leaf at the specified index.
+    fn get_leaf(&self, key: &Self::Key) -> Self::Leaf;
 
-                    (Some(old_value), true)
-                } else {
-                    // another key is stored at leaf; nothing to update
-                    (None, false)
-                }
-            }
-            SmtLeaf::Multiple(kv_pairs) => {
-                match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
-                    Ok(pos) => {
-                        let old_value = kv_pairs[pos].1;
+    /// Returns the hash of a leaf
+    fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest;
 
-                        kv_pairs.remove(pos);
-                        debug_assert!(!kv_pairs.is_empty());
-
-                        if kv_pairs.len() == 1 {
-                            // convert the leaf into `Single`
-                            *self = SmtLeaf::Single(kv_pairs[0]);
-                        }
-
-                        (Some(old_value), false)
-                    }
-                    Err(_) => {
-                        // other keys are stored at leaf; nothing to update
-                        (None, false)
-                    }
-                }
-            }
-        }
-    }
+    fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
 }
 
-// HELPER FUNCTIONS
+// INNER NODE
 // ================================================================================================
 
-/// Converts a key-value tuple to an iterator of `Felt`s
-fn kv_to_elements((key, value): (RpoDigest, Word)) -> impl Iterator<Item = Felt> {
-    let key_elements = key.into_iter();
-    let value_elements = value.into_iter();
-
-    key_elements.chain(value_elements)
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub(crate) struct InnerNode {
+    pub left: RpoDigest,
+    pub right: RpoDigest,
 }
 
-/// Compares two keys, compared element-by-element using their integer representations starting with
-/// the most significant element.
-fn cmp_keys(key_1: RpoDigest, key_2: RpoDigest) -> Ordering {
-    for (v1, v2) in key_1.iter().zip(key_2.iter()).rev() {
-        let v1 = v1.as_int();
-        let v2 = v2.as_int();
-        if v1 != v2 {
-            return v1.cmp(&v2);
+impl InnerNode {
+    pub fn hash(&self) -> RpoDigest {
+        Rpo256::merge(&[self.left, self.right])
+    }
+}
+
+// LEAF INDEX
+// ================================================================================================
+
+/// The index of a leaf, at a depth known at compile-time.
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct LeafIndex<const DEPTH: u8> {
+    index: NodeIndex,
+}
+
+impl<const DEPTH: u8> LeafIndex<DEPTH> {
+    pub fn new(value: u64) -> Result<Self, MerkleError> {
+        if DEPTH < SMT_MIN_DEPTH {
+            return Err(MerkleError::DepthTooSmall(DEPTH));
         }
+
+        Ok(LeafIndex { index: NodeIndex::new(DEPTH, value)? })
     }
 
-    Ordering::Equal
+    pub fn value(&self) -> u64 {
+        self.index.value()
+    }
+}
+
+impl LeafIndex<SMT_MAX_DEPTH> {
+    pub fn new_max_depth(value: u64) -> Self {
+        LeafIndex {
+            index: NodeIndex::new_unchecked(SMT_MAX_DEPTH, value),
+        }
+    }
+}
+
+impl<const DEPTH: u8> From<LeafIndex<DEPTH>> for NodeIndex {
+    fn from(value: LeafIndex<DEPTH>) -> Self {
+        value.index
+    }
+}
+
+impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
+    type Error = MerkleError;
+
+    fn try_from(node_index: NodeIndex) -> Result<Self, Self::Error> {
+        if node_index.depth() != DEPTH {
+            return Err(MerkleError::InvalidDepth {
+                expected: DEPTH,
+                provided: node_index.depth(),
+            });
+        }
+
+        Self::new(node_index.value())
+    }
+}
+
+impl From<Word> for LeafIndex<SMT_MAX_DEPTH> {
+    fn from(value: Word) -> Self {
+        // We use the most significant `Felt` of a `Word` as the leaf index.
+        Self::new_max_depth(value[3].as_int())
+    }
+}
+
+impl From<RpoDigest> for LeafIndex<SMT_MAX_DEPTH> {
+    fn from(value: RpoDigest) -> Self {
+        Word::from(value).into()
+    }
 }
