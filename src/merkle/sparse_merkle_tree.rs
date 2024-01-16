@@ -45,6 +45,8 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     type Value: Clone + PartialEq;
     /// The type for a leaf
     type Leaf;
+    /// The type for an opening (i.e. a "proof") of a leaf
+    type Opening: Into<(MerklePath, Self::Leaf)>;
 
     /// The default value used to compute the hash of empty leaves
     const EMPTY_VALUE: Self::Value;
