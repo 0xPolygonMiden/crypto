@@ -8,7 +8,10 @@ use super::{
     InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
     SMT_MAX_DEPTH, SMT_MIN_DEPTH,
 };
-use crate::utils::collections::{BTreeMap, BTreeSet};
+use crate::utils::{
+    collections::{BTreeMap, BTreeSet},
+    Cow,
+};
 
 #[cfg(test)]
 mod tests;
@@ -117,7 +120,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     }
 
     /// Returns the leaf at the specified index.
-    pub fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Word {
+    pub fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Cow<'_, Word> {
         <Self as SparseMerkleTree<DEPTH>>::get_leaf(self, key)
     }
 
@@ -129,7 +132,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    pub fn open(&self, key: &LeafIndex<DEPTH>) -> (MerklePath, Word) {
+    pub fn open(&self, key: &LeafIndex<DEPTH>) -> (MerklePath, Cow<'_, Word>) {
         <Self as SparseMerkleTree<DEPTH>>::open(self, key)
     }
 
@@ -144,7 +147,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         } else if index.depth() > DEPTH {
             Err(MerkleError::DepthTooBig(index.depth() as u64))
         } else if index.depth() == DEPTH {
-            let leaf = self.get_leaf(&LeafIndex::<DEPTH>::try_from(index)?);
+            let leaf = self.get_leaf(&LeafIndex::<DEPTH>::try_from(index)?).into_owned();
 
             Ok(leaf.into())
         } else {
@@ -247,7 +250,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     type Key = LeafIndex<DEPTH>;
     type Value = Word;
     type Leaf = Word;
-    type Opening = (MerklePath, Word);
+    type Opening<'a> = (MerklePath, Cow<'a, Word>);
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
 
@@ -275,14 +278,18 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
         self.leaves.insert(key.value(), value)
     }
 
-    fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Word {
+    fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Cow<'_, Word> {
         // the lookup in empty_hashes could fail only if empty_hashes were not built correctly
         // by the constructor as we check the depth of the lookup above.
         let leaf_pos = key.value();
 
         match self.leaves.get(&leaf_pos) {
-            Some(word) => *word,
-            None => Word::from(*EmptySubtreeRoots::entry(DEPTH, DEPTH)),
+            Some(word) => Cow::Borrowed(word),
+            None => {
+                let empty_root = *EmptySubtreeRoots::entry(DEPTH, DEPTH);
+
+                Cow::Owned(empty_root.into())
+            }
         }
     }
 

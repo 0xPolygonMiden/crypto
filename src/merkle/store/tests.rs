@@ -922,7 +922,10 @@ fn test_recorder() {
     let node = merkle_store.get_node(smtree.root(), index_2).unwrap();
     assert_eq!(
         node,
-        smtree.get_leaf(&LeafIndex::<TREE_DEPTH>::try_from(index_2).unwrap()).into()
+        smtree
+            .get_leaf(&LeafIndex::<TREE_DEPTH>::try_from(index_2).unwrap())
+            .into_owned()
+            .into()
     );
 
     // assert that is doesnt contain nodes that were not recorded

@@ -2,6 +2,7 @@ use winter_math::StarkField;
 
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
+    utils::Cow,
     Word,
 };
 
@@ -50,9 +51,11 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a value
     type Value: Clone + PartialEq;
     /// The type for a leaf
-    type Leaf;
+    type Leaf: Clone;
     /// The type for an opening (i.e. a "proof") of a leaf
-    type Opening: From<(MerklePath, Self::Leaf)>;
+    type Opening<'a>: From<(MerklePath, Cow<'a, Self::Leaf>)>
+    where
+        Self: 'a;
 
     /// The default value used to compute the hash of empty leaves
     const EMPTY_VALUE: Self::Value;
@@ -63,7 +66,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    fn open(&self, key: &Self::Key) -> Self::Opening {
+    fn open(&self, key: &Self::Key) -> Self::Opening<'_> {
         let leaf = self.get_leaf(key);
 
         let mut index: NodeIndex = {
@@ -150,7 +153,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
 
     /// Returns the leaf at the specified index.
-    fn get_leaf(&self, key: &Self::Key) -> Self::Leaf;
+    fn get_leaf(&self, key: &Self::Key) -> Cow<'_, Self::Leaf>;
 
     /// Returns the hash of a leaf
     fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest;
