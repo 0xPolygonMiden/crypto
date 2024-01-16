@@ -73,10 +73,13 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         MerklePath::new(path)
     }
 
-    /// Updates value of the leaf at the specified index returning the old leaf value.
+    /// Inserts a value at the specified key, returning the previous value associated with that key.
+    /// Recall that by definition, any key that hasn't been updated is associated with
+    /// [`Self::EMPTY_VALUE`].
     ///
-    /// This also recomputes all hashes between the leaf and the root, updating the root itself.
-    fn update_leaf(&mut self, key: Self::Key, value: Self::Value) -> Self::Value {
+    /// This also recomputes all hashes between the leaf (associated with the key) and the root,
+    /// updating the root itself.
+    fn insert(&mut self, key: Self::Key, value: Self::Value) -> Self::Value {
         let old_value = self.insert_value(key.clone(), value.clone()).unwrap_or(Self::EMPTY_VALUE);
 
         // if the old value and new value are the same, there is nothing to update
