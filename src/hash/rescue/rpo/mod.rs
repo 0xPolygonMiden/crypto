@@ -27,12 +27,8 @@ mod tests;
 /// * Number of founds: 7.
 /// * S-Box degree: 7.
 ///
-/// The above parameters target a 128-bit security level for the permutation. However, the hash
-/// function might have less than 128-bit security due to the use of some of the capacity elements
-/// by the padding rule or for the purpose of enforcing domain separation. The amount of security
-/// degradation due to the current padding rule is of 1 bit and for enforcing domain separation is
-/// 2 bits.
-/// The digest consists of four field elements and it can be serialized into 32 bytes (256 bits).
+/// The above parameters target a 128-bit security level. The digest consists of four field elements
+/// and it can be serialized into 32 bytes (256 bits).
 ///
 /// ## Hash output consistency
 /// Functions [hash_elements()](Rpo256::hash_elements), [merge()](Rpo256::merge), and
@@ -59,9 +55,8 @@ mod tests;
 pub struct Rpo256();
 
 impl Hasher for Rpo256 {
-    /// Rpo256 collision resistance is 127-bits. The loss of 1 bit of security is related to
-    /// the use of the first capacity element as a binary flag by the padding rule.
-    const COLLISION_RESISTANCE: u32 = 127;
+    /// Rpo256 collision resistance is 128-bits.
+    const COLLISION_RESISTANCE: u32 = 128;
 
     type Digest = RpoDigest;
 
@@ -272,8 +267,7 @@ impl Rpo256 {
     // DOMAIN IDENTIFIER
     // --------------------------------------------------------------------------------------------
 
-    /// Returns a hash of two digests and a domain identifier. Note that the implementations'
-    /// use of the capacity registers degrades the security of the hash function to 125.
+    /// Returns a hash of two digests and a domain identifier.
     pub fn merge_in_domain(values: &[RpoDigest; 2], domain: Felt) -> RpoDigest {
         // initialize the state by copying the digest elements into the rate portion of the state
         // (8 total elements), and set the capacity elements to 0.

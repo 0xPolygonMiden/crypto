@@ -30,12 +30,8 @@ pub type CubicExtElement = CubeExtension<Felt>;
 /// - (M): `apply_mds` → `add_constants`.
 /// * Permutation: (FB) (E) (FB) (E) (FB) (E) (M).
 ///
-/// The above parameters target a 128-bit security level for the permutation. However, the hash
-/// function might have less than 128-bit security due to the use of some of the capacity elements
-/// by the padding rule or for the purpose of enforcing domain separation. The amount of security
-/// degradation due to the current padding rule is of 3 bits and for enforcing domain separation is
-/// 2 bits.
-/// The digest consists of four field elements and it can be serialized into 32 bytes (256 bits).
+/// The above parameters target a 128-bit security level. The digest consists of four field elements
+/// and it can be serialized into 32 bytes (256 bits).
 ///
 /// ## Hash output consistency
 /// Functions [hash_elements()](Rpx256::hash_elements), [merge()](Rpx256::merge), and
@@ -62,10 +58,8 @@ pub type CubicExtElement = CubeExtension<Felt>;
 pub struct Rpx256();
 
 impl Hasher for Rpx256 {
-    /// Rpx256 collision resistance is 125-bits. The loss of 3 bits of security is related to
-    /// the use of the first capacity element as a flag, with 8 potential values, by the padding
-    /// rule.
-    const COLLISION_RESISTANCE: u32 = 125;
+    /// Rpx256 collision resistance is 128-bits.
+    const COLLISION_RESISTANCE: u32 = 128;
 
     type Digest = RpxDigest;
 
@@ -266,8 +260,7 @@ impl Rpx256 {
     // DOMAIN IDENTIFIER
     // --------------------------------------------------------------------------------------------
 
-    /// Returns a hash of two digests and a domain identifier. Note that the implementations'
-    /// use of the capacity registers degrades the security of the hash function to 123.
+    /// Returns a hash of two digests and a domain identifier.
     pub fn merge_in_domain(values: &[RpxDigest; 2], domain: Felt) -> RpxDigest {
         // initialize the state by copying the digest elements into the rate portion of the state
         // (8 total elements), and set the capacity elements to 0.
