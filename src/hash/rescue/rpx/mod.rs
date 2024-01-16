@@ -67,14 +67,12 @@ impl Hasher for Rpx256 {
         // initialize the state with zeroes
         let mut state = [ZERO; STATE_WIDTH];
 
-        // set the capacity (first element) to a flag on whether or not the input length is evenly
-        // divided by the rate. this will prevent collisions between padded and non-padded inputs,
-        // and will rule out the need to perform an extra permutation in case of evenly divided
-        // inputs.
-        let is_rate_multiple = bytes.len() % RATE_WIDTH == 0;
-        if !is_rate_multiple {
-            state[CAPACITY_RANGE.start] = ONE;
-        }
+        // determine the number of field elements needed to encode `bytes` when each field element
+        // represents at most 7 bytes.
+        let num_field_elem = bytes.len().div_ceil(BINARY_CHUNK_SIZE);
+
+        // set the second capacity element to `num_field_elem % RATE_WIDTH`.
+        state[CAPACITY_RANGE.start + 1] = Felt::from((num_field_elem % RATE_WIDTH) as u8);
 
         // initialize a buffer to receive the little-endian elements.
         let mut buf = [0_u8; 8];
@@ -113,11 +111,11 @@ impl Hasher for Rpx256 {
 
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
         // the number of elements is not a multiple of RATE_WIDTH), apply the RPX permutation. we
-        // don't need to apply any extra padding because the first capacity element contains a
-        // flag indicating whether the input is evenly divisible by the rate.
+        // don't need to apply any extra padding because the second capacity element contains a
+        // flag indicating the number of field elements constituting the last block when the latter
+        // is not divisible by `RATE_WIDTH`.
         if i != 0 {
             state[RATE_RANGE.start + i..RATE_RANGE.end].fill(ZERO);
-            state[RATE_RANGE.start + i] = ONE;
             Self::apply_permutation(&mut state);
         }
 
