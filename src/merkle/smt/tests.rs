@@ -11,10 +11,10 @@ fn test_smt_insert_at_same_key() {
 
     assert_eq!(smt.root(), *EmptySubtreeRoots::entry(SMT_DEPTH, 0));
 
-    let key_1: SmtKey = {
+    let key_1: RpoDigest = {
         let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
 
-        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into()
+        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)])
     };
     let key_1_index: NodeIndex = LeafIndex::<SMT_DEPTH>::from(key_1).into();
 
@@ -48,10 +48,10 @@ fn test_smt_insert_at_same_key() {
 /// only the case where the leaf type is `SmtLeaf::Multiple`
 #[test]
 fn test_smt_insert_at_same_key_2() {
-    let key_already_present: SmtKey = {
+    let key_already_present: RpoDigest = {
         let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
 
-        RpoDigest::from([ONE + ONE, ONE + ONE, ONE + ONE, Felt::new(raw)]).into()
+        RpoDigest::from([ONE + ONE, ONE + ONE, ONE + ONE, Felt::new(raw)])
     };
     let key_already_present_index: NodeIndex =
         LeafIndex::<SMT_DEPTH>::from(key_already_present).into();
@@ -69,10 +69,10 @@ fn test_smt_insert_at_same_key_2() {
         store
     };
 
-    let key_1: SmtKey = {
+    let key_1: RpoDigest = {
         let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
 
-        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into()
+        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)])
     };
     let key_1_index: NodeIndex = LeafIndex::<SMT_DEPTH>::from(key_1).into();
 
@@ -120,22 +120,22 @@ fn test_smt_insert_multiple_values() {
 
     assert_eq!(smt.root(), *EmptySubtreeRoots::entry(SMT_DEPTH, 0));
 
-    let key_1: SmtKey = {
+    let key_1: RpoDigest = {
         let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
 
-        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into()
+        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)])
     };
 
-    let key_2: SmtKey = {
+    let key_2: RpoDigest = {
         let raw = 0b_11111111_11111111_11111111_11111111_11111111_11111111_11111111_11111111_u64;
 
-        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into()
+        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)])
     };
 
-    let key_3: SmtKey = {
+    let key_3: RpoDigest = {
         let raw = 0b_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000_u64;
 
-        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into()
+        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)])
     };
 
     let value_1 = [ONE; WORD_SIZE];
@@ -169,11 +169,11 @@ fn test_smt_removal() {
 
     let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
 
-    let key_1: SmtKey = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into();
-    let key_2: SmtKey =
-        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(raw)]).into();
-    let key_3: SmtKey =
-        RpoDigest::from([3_u64.into(), 3_u64.into(), 3_u64.into(), Felt::new(raw)]).into();
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(raw)]);
+    let key_3: RpoDigest =
+        RpoDigest::from([3_u64.into(), 3_u64.into(), 3_u64.into(), Felt::new(raw)]);
 
     let value_1 = [ONE; WORD_SIZE];
     let value_2 = [2_u64.into(); WORD_SIZE];
@@ -242,9 +242,9 @@ fn test_smt_removal() {
 fn test_smt_path_to_keys_in_same_leaf_are_equal() {
     let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
 
-    let key_1: SmtKey = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]).into();
-    let key_2: SmtKey =
-        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(raw)]).into();
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(raw)]);
 
     let value_1 = [ONE; WORD_SIZE];
     let value_2 = [2_u64.into(); WORD_SIZE];
@@ -257,15 +257,15 @@ fn test_smt_path_to_keys_in_same_leaf_are_equal() {
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
-fn build_single_leaf_node(key: SmtKey, value: Word) -> RpoDigest {
+fn build_single_leaf_node(key: RpoDigest, value: Word) -> RpoDigest {
     SmtLeaf::Single((key, value)).hash()
 }
 
-fn build_multiple_leaf_node(kv_pairs: &[(SmtKey, Word)]) -> RpoDigest {
+fn build_multiple_leaf_node(kv_pairs: &[(RpoDigest, Word)]) -> RpoDigest {
     let elements: Vec<Felt> = kv_pairs
         .iter()
         .flat_map(|(key, value)| {
-            let key_elements = key.word.into_iter();
+            let key_elements = key.into_iter();
             let value_elements = (*value).into_iter();
 
             key_elements.chain(value_elements)

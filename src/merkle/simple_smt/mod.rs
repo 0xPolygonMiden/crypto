@@ -286,6 +286,10 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
         // `SimpleSmt` takes the leaf value itself as the hash
         leaf.into()
     }
+
+    fn key_to_leaf_index(leaf: &LeafIndex<DEPTH>) -> LeafIndex<DEPTH> {
+        *leaf
+    }
 }
 
 // TRY APPLY DIFF

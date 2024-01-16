@@ -39,8 +39,8 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 ///
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
 pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
-    /// The type for a key, which must be convertible into a `u64` infaillibly
-    type Key: Into<LeafIndex<DEPTH>> + Clone;
+    /// The type for a key
+    type Key: Clone;
     /// The type for a value
     type Value: Clone + PartialEq;
     /// The type for a leaf
@@ -61,7 +61,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         let leaf = self.get_leaf(&key);
 
         let mut index: NodeIndex = {
-            let leaf_index: LeafIndex<DEPTH> = key.into();
+            let leaf_index: LeafIndex<DEPTH> = Self::key_to_leaf_index(&key);
             leaf_index.into()
         };
 
@@ -97,7 +97,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
         let leaf = self.get_leaf(&key);
         let node_index = {
-            let leaf_index: LeafIndex<DEPTH> = key.into();
+            let leaf_index: LeafIndex<DEPTH> = Self::key_to_leaf_index(&key);
             leaf_index.into()
         };
 
@@ -148,6 +148,8 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
     /// Returns the hash of a leaf
     fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest;
+
+    fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
 }
 
 // INNER NODE
@@ -223,5 +225,11 @@ impl From<Word> for LeafIndex<SMT_MAX_DEPTH> {
     fn from(value: Word) -> Self {
         // We use the most significant `Felt` of a `Word` as the leaf index.
         Self::new_max_depth(value[3].as_int())
+    }
+}
+
+impl From<RpoDigest> for LeafIndex<SMT_MAX_DEPTH> {
+    fn from(value: RpoDigest) -> Self {
+        Word::from(value).into()
     }
 }
