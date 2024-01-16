@@ -95,6 +95,11 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
     }
 
+    /// Returns the depth of the tree
+    pub const fn depth(&self) -> u8 {
+        SMT_DEPTH
+    }
+
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
