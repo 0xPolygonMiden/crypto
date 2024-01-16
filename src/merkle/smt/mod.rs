@@ -103,8 +103,8 @@ impl Smt {
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    pub fn get_leaf_path(&self, key: SmtKey) -> MerklePath {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf_path(self, key)
+    pub fn open(&self, key: SmtKey) -> MerklePath {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::open(self, key)
     }
 
     // STATE MUTATORS
