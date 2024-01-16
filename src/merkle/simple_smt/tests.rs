@@ -59,7 +59,7 @@ fn build_sparse_tree() {
     assert_eq!(mt2.root(), smt.root());
     assert_eq!(
         mt2.get_path(NodeIndex::make(3, 6)).unwrap(),
-        smt.open(LeafIndex::<3>::new(6).unwrap()).0
+        smt.open(&LeafIndex::<3>::new(6).unwrap()).0
     );
     assert_eq!(old_value, EMPTY_WORD);
 
@@ -72,7 +72,7 @@ fn build_sparse_tree() {
     assert_eq!(mt3.root(), smt.root());
     assert_eq!(
         mt3.get_path(NodeIndex::make(3, 2)).unwrap(),
-        smt.open(LeafIndex::<3>::new(2).unwrap()).0
+        smt.open(&LeafIndex::<3>::new(2).unwrap()).0
     );
     assert_eq!(old_value, EMPTY_WORD);
 }
@@ -108,10 +108,10 @@ fn test_depth2_tree() {
     assert_eq!(VALUES4[3], tree.get_node(NodeIndex::make(2, 3)).unwrap());
 
     // check get_path(): depth 2
-    assert_eq!(vec![VALUES4[1], node3], *tree.open(LeafIndex::<2>::new(0).unwrap()).0);
-    assert_eq!(vec![VALUES4[0], node3], *tree.open(LeafIndex::<2>::new(1).unwrap()).0);
-    assert_eq!(vec![VALUES4[3], node2], *tree.open(LeafIndex::<2>::new(2).unwrap()).0);
-    assert_eq!(vec![VALUES4[2], node2], *tree.open(LeafIndex::<2>::new(3).unwrap()).0);
+    assert_eq!(vec![VALUES4[1], node3], *tree.open(&LeafIndex::<2>::new(0).unwrap()).0);
+    assert_eq!(vec![VALUES4[0], node3], *tree.open(&LeafIndex::<2>::new(1).unwrap()).0);
+    assert_eq!(vec![VALUES4[3], node2], *tree.open(&LeafIndex::<2>::new(2).unwrap()).0);
+    assert_eq!(vec![VALUES4[2], node2], *tree.open(&LeafIndex::<2>::new(3).unwrap()).0);
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn small_tree_opening_is_consistent() {
     ];
 
     for (key, path) in cases {
-        let (opening, _) = tree.open(LeafIndex::<3>::new(key).unwrap());
+        let (opening, _) = tree.open(&LeafIndex::<3>::new(key).unwrap());
 
         assert_eq!(path, *opening);
     }
