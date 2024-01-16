@@ -34,7 +34,7 @@ fn smt_rpo(c: &mut Criterion) {
                     &(key, leaf),
                     |b, (key, leaf)| {
                         b.iter(|| {
-                            tree.update_leaf(black_box(LeafIndex::<DEPTH>::new(*key).unwrap()), black_box(*leaf));
+                            tree.insert(black_box(LeafIndex::<DEPTH>::new(*key).unwrap()), black_box(*leaf));
                         });
                     },
                 );
