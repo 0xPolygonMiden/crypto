@@ -26,7 +26,7 @@ fn test_smt_insert_at_same_key() {
         let leaf_node = build_single_leaf_node(key_1, value_1);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
-        let old_value_1 = smt.update_leaf(key_1, value_1);
+        let old_value_1 = smt.insert(key_1, value_1);
         assert_eq!(old_value_1, EMPTY_WORD);
 
         assert_eq!(smt.root(), tree_root);
@@ -37,7 +37,7 @@ fn test_smt_insert_at_same_key() {
         let leaf_node = build_single_leaf_node(key_1, value_2);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
-        let old_value_2 = smt.update_leaf(key_1, value_2);
+        let old_value_2 = smt.insert(key_1, value_2);
         assert_eq!(old_value_2, value_1);
 
         assert_eq!(smt.root(), tree_root);
@@ -90,7 +90,7 @@ fn test_smt_insert_at_same_key_2() {
         ]);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
-        let old_value_1 = smt.update_leaf(key_1, value_1);
+        let old_value_1 = smt.insert(key_1, value_1);
         assert_eq!(old_value_1, EMPTY_WORD);
 
         assert_eq!(smt.root(), tree_root);
@@ -104,7 +104,7 @@ fn test_smt_insert_at_same_key_2() {
         ]);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
-        let old_value_2 = smt.update_leaf(key_1, value_2);
+        let old_value_2 = smt.insert(key_1, value_2);
         assert_eq!(old_value_2, value_1);
 
         assert_eq!(smt.root(), tree_root);
@@ -150,7 +150,7 @@ fn test_smt_insert_multiple_values() {
         let leaf_node = build_single_leaf_node(key, value);
         let tree_root = store.set_node(smt.root(), key_index, leaf_node).unwrap().root;
 
-        let old_value = smt.update_leaf(key, value);
+        let old_value = smt.insert(key, value);
         assert_eq!(old_value, EMPTY_WORD);
 
         assert_eq!(smt.root(), tree_root);
@@ -181,7 +181,7 @@ fn test_smt_removal() {
 
     // insert key-value 1
     {
-        let old_value_1 = smt.update_leaf(key_1, value_1);
+        let old_value_1 = smt.insert(key_1, value_1);
         assert_eq!(old_value_1, EMPTY_WORD);
 
         assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Single((key_1, value_1)));
@@ -189,7 +189,7 @@ fn test_smt_removal() {
 
     // insert key-value 2
     {
-        let old_value_2 = smt.update_leaf(key_2, value_2);
+        let old_value_2 = smt.insert(key_2, value_2);
         assert_eq!(old_value_2, EMPTY_WORD);
 
         assert_eq!(
@@ -200,7 +200,7 @@ fn test_smt_removal() {
 
     // insert key-value 3
     {
-        let old_value_3 = smt.update_leaf(key_3, value_3);
+        let old_value_3 = smt.insert(key_3, value_3);
         assert_eq!(old_value_3, EMPTY_WORD);
 
         assert_eq!(
@@ -211,7 +211,7 @@ fn test_smt_removal() {
 
     // remove key 3
     {
-        let old_value_3 = smt.update_leaf(key_3, EMPTY_WORD);
+        let old_value_3 = smt.insert(key_3, EMPTY_WORD);
         assert_eq!(old_value_3, value_3);
 
         assert_eq!(
@@ -222,7 +222,7 @@ fn test_smt_removal() {
 
     // remove key 2
     {
-        let old_value_2 = smt.update_leaf(key_2, EMPTY_WORD);
+        let old_value_2 = smt.insert(key_2, EMPTY_WORD);
         assert_eq!(old_value_2, value_2);
 
         assert_eq!(smt.get_leaf(&key_2), SmtLeaf::Single((key_1, value_1)));
@@ -230,7 +230,7 @@ fn test_smt_removal() {
 
     // remove key 1
     {
-        let old_value_1 = smt.update_leaf(key_1, EMPTY_WORD);
+        let old_value_1 = smt.insert(key_1, EMPTY_WORD);
         assert_eq!(old_value_1, value_1);
 
         assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Single((key_1, EMPTY_WORD)));

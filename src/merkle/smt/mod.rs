@@ -67,7 +67,7 @@ impl Smt {
         let mut key_set_to_zero = BTreeSet::new();
 
         for (key, value) in entries {
-            let old_value = tree.update_leaf(key, value);
+            let old_value = tree.insert(key, value);
 
             if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(
@@ -110,10 +110,13 @@ impl Smt {
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
-    /// Updates value of the leaf at the specified index returning the old leaf value.
+    /// Inserts a value at the specified key, returning the previous value associated with that key.
+    /// Recall that by definition, any key that hasn't been updated is associated with
+    /// [`Self::EMPTY_VALUE`].
     ///
-    /// This also recomputes all hashes between the leaf and the root, updating the root itself.
-    pub fn update_leaf(&mut self, key: SmtKey, value: Word) -> Word {
+    /// This also recomputes all hashes between the leaf (associated with the key) and the root,
+    /// updating the root itself.
+    pub fn insert(&mut self, key: SmtKey, value: Word) -> Word {
         <Self as SparseMerkleTree<SMT_DEPTH>>::insert(self, key, value)
     }
 
