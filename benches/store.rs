@@ -447,7 +447,7 @@ fn update_leaf_simplesmt(c: &mut Criterion) {
                 || (rand_value::<u64>() % size_u64, random_word()),
                 |(index, value)| {
                     black_box(
-                        smt.update_leaf(LeafIndex::<SMT_MAX_DEPTH>::new(index).unwrap(), value),
+                        smt.insert(LeafIndex::<SMT_MAX_DEPTH>::new(index).unwrap(), value),
                     )
                 },
                 BatchSize::SmallInput,

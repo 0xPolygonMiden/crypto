@@ -78,7 +78,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
                 return Err(MerkleError::InvalidNumEntries(max_num_entries));
             }
 
-            let old_value = tree.update_leaf(LeafIndex::<DEPTH>::new(key)?, value);
+            let old_value = tree.insert(LeafIndex::<DEPTH>::new(key)?, value);
 
             if old_value != Self::EMPTY_VALUE || key_set_to_zero.contains(&key) {
                 return Err(MerkleError::DuplicateValuesForIndex(key));
@@ -168,10 +168,13 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     // STATE MUTATORS
     // --------------------------------------------------------------------------------------------
 
-    /// Updates value of the leaf at the specified index returning the old leaf value.
+    /// Inserts a value at the specified key, returning the previous value associated with that key.
+    /// Recall that by definition, any key that hasn't been updated is associated with
+    /// [`EMPTY_WORD`].
     ///
-    /// This also recomputes all hashes between the leaf and the root, updating the root itself.
-    pub fn update_leaf(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Word {
+    /// This also recomputes all hashes between the leaf (associated with the key) and the root,
+    /// updating the root itself.
+    pub fn insert(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Word {
         <Self as SparseMerkleTree<DEPTH>>::insert(self, key, value)
     }
 
@@ -296,11 +299,11 @@ impl<const DEPTH: u8> TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt<DEPTH> {
         }
 
         for slot in diff.cleared_slots() {
-            self.update_leaf(LeafIndex::<DEPTH>::new(*slot)?, Self::EMPTY_VALUE);
+            self.insert(LeafIndex::<DEPTH>::new(*slot)?, Self::EMPTY_VALUE);
         }
 
         for (slot, value) in diff.updated_slots() {
-            self.update_leaf(LeafIndex::<DEPTH>::new(*slot)?, *value);
+            self.insert(LeafIndex::<DEPTH>::new(*slot)?, *value);
         }
 
         Ok(())

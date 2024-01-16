@@ -112,7 +112,7 @@ impl Smt {
 
     /// Inserts a value at the specified key, returning the previous value associated with that key.
     /// Recall that by definition, any key that hasn't been updated is associated with
-    /// [`Self::EMPTY_VALUE`].
+    /// [`EMPTY_WORD`].
     ///
     /// This also recomputes all hashes between the leaf (associated with the key) and the root,
     /// updating the root itself.
