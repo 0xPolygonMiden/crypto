@@ -114,7 +114,7 @@ impl Smt {
     ///
     /// This also recomputes all hashes between the leaf and the root, updating the root itself.
     pub fn update_leaf(&mut self, key: SmtKey, value: Word) -> Word {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::update_leaf(self, key, value)
+        <Self as SparseMerkleTree<SMT_DEPTH>>::insert(self, key, value)
     }
 
     // HELPERS

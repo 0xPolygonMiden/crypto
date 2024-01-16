@@ -172,7 +172,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     ///
     /// This also recomputes all hashes between the leaf and the root, updating the root itself.
     pub fn update_leaf(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Word {
-        <Self as SparseMerkleTree<DEPTH>>::update_leaf(self, key, value)
+        <Self as SparseMerkleTree<DEPTH>>::insert(self, key, value)
     }
 
     /// Inserts a subtree at the specified index. The depth at which the subtree is inserted is
