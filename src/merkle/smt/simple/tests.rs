@@ -1,15 +1,15 @@
 use super::{
-    super::{InnerNodeInfo, MerkleError, MerkleTree, RpoDigest, SimpleSmt, EMPTY_WORD},
+    super::{MerkleError, RpoDigest, SimpleSmt},
     NodeIndex,
 };
 use crate::{
     hash::rpo::Rpo256,
     merkle::{
-        digests_to_words, int_to_leaf, int_to_node, sparse_merkle_tree::SparseMerkleTree,
-        EmptySubtreeRoots, LeafIndex,
+        digests_to_words, int_to_leaf, int_to_node, smt::SparseMerkleTree, EmptySubtreeRoots,
+        InnerNodeInfo, LeafIndex, MerkleTree,
     },
     utils::collections::Vec,
-    Word,
+    Word, EMPTY_WORD,
 };
 
 // TEST DATA

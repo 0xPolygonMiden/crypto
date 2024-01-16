@@ -1,10 +1,14 @@
-use crate::EMPTY_WORD;
+use crate::{
+    merkle::{EmptySubtreeRoots, InnerNodeInfo, MerkleTreeDelta, StoreNode},
+    utils::collections::TryApplyDiff,
+    EMPTY_WORD,
+};
 
 use super::{
-    sparse_merkle_tree::{InnerNode, SparseMerkleTree, SMT_MAX_DEPTH},
-    BTreeMap, BTreeSet, EmptySubtreeRoots, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
-    MerkleTreeDelta, NodeIndex, RpoDigest, StoreNode, TryApplyDiff, Word, SMT_MIN_DEPTH,
+    InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
+    SMT_MAX_DEPTH, SMT_MIN_DEPTH,
 };
+use crate::utils::collections::{BTreeMap, BTreeSet};
 
 #[cfg(test)]
 mod tests;

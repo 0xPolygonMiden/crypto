@@ -1,6 +1,8 @@
-use crate::{merkle::MerkleStore, ONE, WORD_SIZE};
-
 use super::*;
+use crate::{
+    merkle::{EmptySubtreeRoots, MerkleStore},
+    ONE, WORD_SIZE,
+};
 
 /// This test checks that inserting twice at the same key functions as expected. The test covers
 /// only the case where the key is alone in its leaf
