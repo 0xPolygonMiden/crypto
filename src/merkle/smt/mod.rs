@@ -161,6 +161,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     type Key = SmtKey;
     type Value = Word;
     type Leaf = SmtLeaf;
+    type Opening = (MerklePath, SmtLeaf);
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
 

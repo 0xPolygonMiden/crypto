@@ -243,6 +243,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     type Key = LeafIndex<DEPTH>;
     type Value = Word;
     type Leaf = Word;
+    type Opening = (MerklePath, Word);
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
 
