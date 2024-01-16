@@ -156,7 +156,7 @@ fn test_smt_insert_multiple_values() {
         assert_eq!(smt.root(), tree_root);
 
         let expected_path = store.get_path(tree_root, key_index).unwrap();
-        assert_eq!(smt.open(key), expected_path.path);
+        assert_eq!(smt.open(key).0, expected_path.path);
     }
 }
 
