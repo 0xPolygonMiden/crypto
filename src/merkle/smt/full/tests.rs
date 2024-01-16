@@ -186,7 +186,7 @@ fn test_smt_removal() {
         let old_value_1 = smt.insert(key_1, value_1);
         assert_eq!(old_value_1, EMPTY_WORD);
 
-        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Single((key_1, value_1)));
+        assert_eq!(smt.get_leaf(&key_1).into_owned(), SmtLeaf::Single((key_1, value_1)));
     }
 
     // insert key-value 2
@@ -195,7 +195,7 @@ fn test_smt_removal() {
         assert_eq!(old_value_2, EMPTY_WORD);
 
         assert_eq!(
-            smt.get_leaf(&key_2),
+            smt.get_leaf(&key_2).into_owned(),
             SmtLeaf::Multiple(vec![(key_1, value_1), (key_2, value_2)])
         );
     }
@@ -206,7 +206,7 @@ fn test_smt_removal() {
         assert_eq!(old_value_3, EMPTY_WORD);
 
         assert_eq!(
-            smt.get_leaf(&key_3),
+            smt.get_leaf(&key_3).into_owned(),
             SmtLeaf::Multiple(vec![(key_1, value_1), (key_2, value_2), (key_3, value_3)])
         );
     }
@@ -217,7 +217,7 @@ fn test_smt_removal() {
         assert_eq!(old_value_3, value_3);
 
         assert_eq!(
-            smt.get_leaf(&key_3),
+            smt.get_leaf(&key_3).into_owned(),
             SmtLeaf::Multiple(vec![(key_1, value_1), (key_2, value_2)])
         );
     }
@@ -227,7 +227,7 @@ fn test_smt_removal() {
         let old_value_2 = smt.insert(key_2, EMPTY_WORD);
         assert_eq!(old_value_2, value_2);
 
-        assert_eq!(smt.get_leaf(&key_2), SmtLeaf::Single((key_1, value_1)));
+        assert_eq!(smt.get_leaf(&key_2).into_owned(), SmtLeaf::Single((key_1, value_1)));
     }
 
     // remove key 1
@@ -235,7 +235,7 @@ fn test_smt_removal() {
         let old_value_1 = smt.insert(key_1, EMPTY_WORD);
         assert_eq!(old_value_1, value_1);
 
-        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Single((key_1, EMPTY_WORD)));
+        assert_eq!(smt.get_leaf(&key_1).into_owned(), SmtLeaf::Single((key_1, EMPTY_WORD)));
     }
 }
 
