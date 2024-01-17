@@ -155,6 +155,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Returns the hash of a leaf
     fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest;
 
+    /// Maps a key to a leaf index
     fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
 }
 
