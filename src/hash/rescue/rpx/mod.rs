@@ -75,7 +75,8 @@ impl Hasher for Rpx256 {
         // this to achieve:
         // 1. Domain separating hashing of `[u8]` from hashing of `[Felt]`.
         // 2. Avoiding collisions at the `[Felt]` representation of the encoded bytes.
-        state[CAPACITY_RANGE.start] = Felt::from((RATE_WIDTH + (num_field_elem % RATE_WIDTH)) as u8);
+        state[CAPACITY_RANGE.start] =
+            Felt::from((RATE_WIDTH + (num_field_elem % RATE_WIDTH)) as u8);
 
         // initialize a buffer to receive the little-endian elements.
         let mut buf = [0_u8; 8];
