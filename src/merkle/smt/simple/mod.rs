@@ -111,6 +111,11 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
+    /// Returns the depth of the tree
+    pub const fn depth(&self) -> u8 {
+        DEPTH
+    }
+
     /// Returns the root of the tree
     pub fn root(&self) -> RpoDigest {
         <Self as SparseMerkleTree<DEPTH>>::root(self)
@@ -119,11 +124,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// Returns the leaf at the specified index.
     pub fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Word {
         <Self as SparseMerkleTree<DEPTH>>::get_leaf(self, key)
-    }
-
-    /// Returns the depth of the tree
-    pub const fn depth(&self) -> u8 {
-        DEPTH
     }
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
