@@ -126,12 +126,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         <Self as SparseMerkleTree<DEPTH>>::get_leaf(self, key)
     }
 
-    /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
-    /// path to the leaf, as well as the leaf itself.
-    pub fn open(&self, key: &LeafIndex<DEPTH>) -> (MerklePath, Word) {
-        <Self as SparseMerkleTree<DEPTH>>::open(self, key)
-    }
-
     /// Returns a node at the specified index.
     ///
     /// # Errors
@@ -149,6 +143,12 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         } else {
             Ok(self.get_inner_node(index).hash())
         }
+    }
+
+    /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
+    /// path to the leaf, as well as the leaf itself.
+    pub fn open(&self, key: &LeafIndex<DEPTH>) -> (MerklePath, Word) {
+        <Self as SparseMerkleTree<DEPTH>>::open(self, key)
     }
 
     // ITERATORS
