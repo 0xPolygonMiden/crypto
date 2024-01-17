@@ -280,7 +280,7 @@ impl Mmr {
             // Update the depth of the tree to correspond to a subtree
             forest_target >>= 1;
 
-            // compute the indeces of the right and left subtrees based on the post-order
+            // compute the indices of the right and left subtrees based on the post-order
             let right_offset = index - 1;
             let left_offset = right_offset - nodes_in_forest(forest_target);
 
