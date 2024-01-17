@@ -290,8 +290,8 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
         leaf.into()
     }
 
-    fn key_to_leaf_index(leaf: &LeafIndex<DEPTH>) -> LeafIndex<DEPTH> {
-        *leaf
+    fn key_to_leaf_index(key: &LeafIndex<DEPTH>) -> LeafIndex<DEPTH> {
+        *key
     }
 }
 
