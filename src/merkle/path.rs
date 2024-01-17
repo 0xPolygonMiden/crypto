@@ -174,8 +174,8 @@ pub struct ValuePath {
 
 impl ValuePath {
     /// Returns a new [ValuePath] instantiated from the specified value and path.
-    pub fn new(value: RpoDigest, path: Vec<RpoDigest>) -> Self {
-        Self { value, path: MerklePath::new(path) }
+    pub fn new(value: RpoDigest, path: MerklePath) -> Self {
+        Self { value, path }
     }
 }
 
