@@ -60,9 +60,8 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     // PROVIDED METHODS
     // ---------------------------------------------------------------------------------------------
 
-    /// Returns a Merkle path from the leaf node specified by the key to the root.
-    ///
-    /// The node itself is not included in the path.
+    /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
+    /// path to the leaf, as well as the leaf itself.
     fn open(&self, key: &Self::Key) -> Self::Opening {
         let leaf = self.get_leaf(key);
 
