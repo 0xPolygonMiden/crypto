@@ -159,7 +159,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         self.leaves.iter().map(|(i, w)| (*i, w))
     }
 
-    /// Returns an iterator over the inner nodes of this Merkle tree.
+    /// Returns an iterator over the inner nodes of this [SimpleSmt].
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         self.inner_nodes.values().map(|e| InnerNodeInfo {
             value: e.hash(),
