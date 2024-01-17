@@ -196,7 +196,7 @@ impl<const DEPTH: u8> LeafIndex<DEPTH> {
 }
 
 impl LeafIndex<SMT_MAX_DEPTH> {
-    pub fn new_max_depth(value: u64) -> Self {
+    pub const fn new_max_depth(value: u64) -> Self {
         LeafIndex {
             index: NodeIndex::new_unchecked(SMT_MAX_DEPTH, value),
         }
