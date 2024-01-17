@@ -4,10 +4,10 @@ use super::{utils::string::String, Word};
 use core::fmt::{self, Display, Write};
 
 #[cfg(not(feature = "std"))]
-pub use alloc::{borrow::Cow, format, vec};
+pub use alloc::{format, vec};
 
 #[cfg(feature = "std")]
-pub use std::{borrow::Cow, format, vec};
+pub use std::{format, vec};
 
 mod diff;
 mod kv_map;
