@@ -2,7 +2,7 @@ use super::{
     add_constants, add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox, apply_inv_sbox,
     apply_mds, apply_sbox, CubeExtension, Digest, ElementHasher, Felt, FieldElement, Hasher,
     StarkField, ARK1, ARK2, BINARY_CHUNK_SIZE, CAPACITY_RANGE, DIGEST_BYTES, DIGEST_RANGE,
-    DIGEST_SIZE, INPUT1_RANGE, INPUT2_RANGE, MDS, NUM_ROUNDS, ONE, RATE_RANGE, RATE_WIDTH,
+    DIGEST_SIZE, INPUT1_RANGE, INPUT2_RANGE, MDS, NUM_ROUNDS, RATE_RANGE, RATE_WIDTH,
     STATE_WIDTH, ZERO,
 };
 use core::{convert::TryInto, ops::Range};
@@ -157,9 +157,6 @@ impl Hasher for Rpx256 {
             state[INPUT2_RANGE.start + 1] = Felt::new(value / Felt::MODULUS);
             state[CAPACITY_RANGE.start] = Felt::from(6_u8);
         }
-
-        // common padding for both cases
-        state[CAPACITY_RANGE.start] = ONE;
 
         // apply the RPX permutation and return the first four elements of the state
         Self::apply_permutation(&mut state);
