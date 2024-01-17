@@ -173,7 +173,7 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
         // the path is computed from root to leaf, so it must be reversed
         path.reverse();
 
-        Ok(ValuePath::new(hash, path))
+        Ok(ValuePath::new(hash, MerklePath::new(path)))
     }
 
     // LEAF TRAVERSAL
