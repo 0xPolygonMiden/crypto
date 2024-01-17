@@ -71,8 +71,11 @@ impl Hasher for Rpx256 {
         // represents at most 7 bytes.
         let num_field_elem = bytes.len().div_ceil(BINARY_CHUNK_SIZE);
 
-        // set the second capacity element to `num_field_elem % RATE_WIDTH`.
-        state[CAPACITY_RANGE.start + 1] = Felt::from((num_field_elem % RATE_WIDTH) as u8);
+        // set the first capacity element to `RATE_WIDTH + (num_field_elem % RATE_WIDTH)`. We do
+        // this to achieve:
+        // 1. Domain separating hashing of `[u8]` from hashing of `[Felt]`.
+        // 2. Avoiding collisions at the `[Felt]` representation of the encoded bytes.
+        state[CAPACITY_RANGE.start] = Felt::from((RATE_WIDTH + (num_field_elem % RATE_WIDTH)) as u8);
 
         // initialize a buffer to receive the little-endian elements.
         let mut buf = [0_u8; 8];
@@ -86,7 +89,7 @@ impl Hasher for Rpx256 {
         let i = bytes.chunks(BINARY_CHUNK_SIZE).fold(0, |i, chunk| {
             // the last element of the iteration may or may not be a full chunk. if it's not, then
             // we need to pad the remainder bytes of the chunk with zeroes, separated by a `1`.
-            // this will avoid collisions.
+            // this will avoid collisions at the bytes level.
             if chunk.len() == BINARY_CHUNK_SIZE {
                 buf[..BINARY_CHUNK_SIZE].copy_from_slice(chunk);
             } else {
@@ -111,7 +114,7 @@ impl Hasher for Rpx256 {
 
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
         // the number of elements is not a multiple of RATE_WIDTH), apply the RPX permutation. we
-        // don't need to apply any extra padding because the second capacity element contains a
+        // don't need to apply any extra padding because the first capacity element contains a
         // flag indicating the number of field elements constituting the last block when the latter
         // is not divisible by `RATE_WIDTH`.
         if i != 0 {
