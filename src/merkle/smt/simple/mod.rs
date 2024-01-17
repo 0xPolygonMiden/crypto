@@ -126,9 +126,8 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         DEPTH
     }
 
-    /// Returns a Merkle path from the leaf node specified by the key to the root.
-    ///
-    /// The node itself is not included in the path.
+    /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
+    /// path to the leaf, as well as the leaf itself.
     pub fn open(&self, key: &LeafIndex<DEPTH>) -> (MerklePath, Word) {
         <Self as SparseMerkleTree<DEPTH>>::open(self, key)
     }
