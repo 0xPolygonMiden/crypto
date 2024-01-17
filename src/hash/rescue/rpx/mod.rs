@@ -2,8 +2,8 @@ use super::{
     add_constants, add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox, apply_inv_sbox,
     apply_mds, apply_sbox, CubeExtension, Digest, ElementHasher, Felt, FieldElement, Hasher,
     StarkField, ARK1, ARK2, BINARY_CHUNK_SIZE, CAPACITY_RANGE, DIGEST_BYTES, DIGEST_RANGE,
-    DIGEST_SIZE, INPUT1_RANGE, INPUT2_RANGE, MDS, NUM_ROUNDS, ONE, RATE_RANGE, RATE_WIDTH,
-    STATE_WIDTH, ZERO,
+    DIGEST_SIZE, INPUT1_RANGE, INPUT2_RANGE, MDS, NUM_ROUNDS, RATE_RANGE, RATE_WIDTH, STATE_WIDTH,
+    ZERO,
 };
 use core::{convert::TryInto, ops::Range};
 
@@ -30,7 +30,7 @@ pub type CubicExtElement = CubeExtension<Felt>;
 /// - (M): `apply_mds` → `add_constants`.
 /// * Permutation: (FB) (E) (FB) (E) (FB) (E) (M).
 ///
-/// The above parameters target 128-bit security level. The digest consists of four field elements
+/// The above parameters target a 128-bit security level. The digest consists of four field elements
 /// and it can be serialized into 32 bytes (256 bits).
 ///
 /// ## Hash output consistency
@@ -58,13 +58,7 @@ pub type CubicExtElement = CubeExtension<Felt>;
 pub struct Rpx256();
 
 impl Hasher for Rpx256 {
-    /// Rpx256 collision resistance is the same as the security level, that is 128-bits.
-    ///
-    /// #### Collision resistance
-    ///
-    /// However, our setup of the capacity registers might drop it to 126.
-    ///
-    /// Related issue: [#69](https://github.com/0xPolygonMiden/crypto/issues/69)
+    /// Rpx256 collision resistance is 128-bits.
     const COLLISION_RESISTANCE: u32 = 128;
 
     type Digest = RpxDigest;
@@ -73,14 +67,16 @@ impl Hasher for Rpx256 {
         // initialize the state with zeroes
         let mut state = [ZERO; STATE_WIDTH];
 
-        // set the capacity (first element) to a flag on whether or not the input length is evenly
-        // divided by the rate. this will prevent collisions between padded and non-padded inputs,
-        // and will rule out the need to perform an extra permutation in case of evenly divided
-        // inputs.
-        let is_rate_multiple = bytes.len() % RATE_WIDTH == 0;
-        if !is_rate_multiple {
-            state[CAPACITY_RANGE.start] = ONE;
-        }
+        // determine the number of field elements needed to encode `bytes` when each field element
+        // represents at most 7 bytes.
+        let num_field_elem = bytes.len().div_ceil(BINARY_CHUNK_SIZE);
+
+        // set the first capacity element to `RATE_WIDTH + (num_field_elem % RATE_WIDTH)`. We do
+        // this to achieve:
+        // 1. Domain separating hashing of `[u8]` from hashing of `[Felt]`.
+        // 2. Avoiding collisions at the `[Felt]` representation of the encoded bytes.
+        state[CAPACITY_RANGE.start] =
+            Felt::from((RATE_WIDTH + (num_field_elem % RATE_WIDTH)) as u8);
 
         // initialize a buffer to receive the little-endian elements.
         let mut buf = [0_u8; 8];
@@ -94,7 +90,7 @@ impl Hasher for Rpx256 {
         let i = bytes.chunks(BINARY_CHUNK_SIZE).fold(0, |i, chunk| {
             // the last element of the iteration may or may not be a full chunk. if it's not, then
             // we need to pad the remainder bytes of the chunk with zeroes, separated by a `1`.
-            // this will avoid collisions.
+            // this will avoid collisions at the bytes level.
             if chunk.len() == BINARY_CHUNK_SIZE {
                 buf[..BINARY_CHUNK_SIZE].copy_from_slice(chunk);
             } else {
@@ -120,10 +116,10 @@ impl Hasher for Rpx256 {
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
         // the number of elements is not a multiple of RATE_WIDTH), apply the RPX permutation. we
         // don't need to apply any extra padding because the first capacity element contains a
-        // flag indicating whether the input is evenly divisible by the rate.
+        // flag indicating the number of field elements constituting the last block when the latter
+        // is not divisible by `RATE_WIDTH`.
         if i != 0 {
             state[RATE_RANGE.start + i..RATE_RANGE.end].fill(ZERO);
-            state[RATE_RANGE.start + i] = ONE;
             Self::apply_permutation(&mut state);
         }
 
@@ -148,24 +144,19 @@ impl Hasher for Rpx256 {
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
         // initialize the state as follows:
         // - seed is copied into the first 4 elements of the rate portion of the state.
-        // - if the value fits into a single field element, copy it into the fifth rate element
-        //   and set the sixth rate element to 1.
+        // - if the value fits into a single field element, copy it into the fifth rate element and
+        //   set the first capacity element to 5.
         // - if the value doesn't fit into a single field element, split it into two field
-        //   elements, copy them into rate elements 5 and 6, and set the seventh rate element
-        //   to 1.
-        // - set the first capacity element to 1
+        //   elements, copy them into rate elements 5 and 6 and set the first capacity element to 6.
         let mut state = [ZERO; STATE_WIDTH];
         state[INPUT1_RANGE].copy_from_slice(seed.as_elements());
         state[INPUT2_RANGE.start] = Felt::new(value);
         if value < Felt::MODULUS {
-            state[INPUT2_RANGE.start + 1] = ONE;
+            state[CAPACITY_RANGE.start] = Felt::from(5_u8);
         } else {
             state[INPUT2_RANGE.start + 1] = Felt::new(value / Felt::MODULUS);
-            state[INPUT2_RANGE.start + 2] = ONE;
+            state[CAPACITY_RANGE.start] = Felt::from(6_u8);
         }
-
-        // common padding for both cases
-        state[CAPACITY_RANGE.start] = ONE;
 
         // apply the RPX permutation and return the first four elements of the state
         Self::apply_permutation(&mut state);
@@ -181,11 +172,9 @@ impl ElementHasher for Rpx256 {
         let elements = E::slice_as_base_elements(elements);
 
         // initialize state to all zeros, except for the first element of the capacity part, which
-        // is set to 1 if the number of elements is not a multiple of RATE_WIDTH.
+        // is set to `elements.len() % RATE_WIDTH`.
         let mut state = [ZERO; STATE_WIDTH];
-        if elements.len() % RATE_WIDTH != 0 {
-            state[CAPACITY_RANGE.start] = ONE;
-        }
+        state[CAPACITY_RANGE.start] = Self::BaseField::from((elements.len() % RATE_WIDTH) as u8);
 
         // absorb elements into the state one by one until the rate portion of the state is filled
         // up; then apply the Rescue permutation and start absorbing again; repeat until all
@@ -202,11 +191,8 @@ impl ElementHasher for Rpx256 {
 
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
         // the number of elements is not a multiple of RATE_WIDTH), apply the RPX permutation after
-        // padding by appending a 1 followed by as many 0 as necessary to make the input length a
-        // multiple of the RATE_WIDTH.
+        // padding by as many 0 as necessary to make the input length a multiple of the RATE_WIDTH.
         if i > 0 {
-            state[RATE_RANGE.start + i] = ONE;
-            i += 1;
             while i != RATE_WIDTH {
                 state[RATE_RANGE.start + i] = ZERO;
                 i += 1;
@@ -354,7 +340,7 @@ impl Rpx256 {
         add_constants(state, &ARK1[round]);
     }
 
-    /// Computes an exponentiation to the power 7 in cubic extension field
+    /// Computes an exponentiation to the power 7 in cubic extension field.
     #[inline(always)]
     pub fn exp7(x: CubeExtension<Felt>) -> CubeExtension<Felt> {
         let x2 = x.square();
