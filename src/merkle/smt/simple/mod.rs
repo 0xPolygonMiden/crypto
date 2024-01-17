@@ -1,12 +1,12 @@
 use crate::{
-    merkle::{EmptySubtreeRoots, InnerNodeInfo, MerkleTreeDelta, StoreNode},
+    merkle::{EmptySubtreeRoots, InnerNodeInfo, MerkleTreeDelta, StoreNode, ValuePath},
     utils::collections::TryApplyDiff,
     EMPTY_WORD,
 };
 
 use super::{
-    InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
-    SMT_MAX_DEPTH, SMT_MIN_DEPTH,
+    InnerNode, LeafIndex, MerkleError, NodeIndex, RpoDigest, SparseMerkleTree, Word, SMT_MAX_DEPTH,
+    SMT_MIN_DEPTH,
 };
 use crate::utils::collections::{BTreeMap, BTreeSet};
 
@@ -147,7 +147,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
     /// path to the leaf, as well as the leaf itself.
-    pub fn open(&self, key: &LeafIndex<DEPTH>) -> (MerklePath, Word) {
+    pub fn open(&self, key: &LeafIndex<DEPTH>) -> ValuePath {
         <Self as SparseMerkleTree<DEPTH>>::open(self, key)
     }
 
@@ -246,7 +246,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     type Key = LeafIndex<DEPTH>;
     type Value = Word;
     type Leaf = Word;
-    type Opening = (MerklePath, Word);
+    type Opening = ValuePath;
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
 

@@ -1,3 +1,5 @@
+use crate::Word;
+
 use super::{vec, InnerNodeInfo, MerkleError, NodeIndex, Rpo256, RpoDigest, Vec};
 use core::ops::{Deref, DerefMut};
 use winter_utils::{ByteReader, Deserializable, DeserializationError, Serializable};
@@ -176,6 +178,12 @@ impl ValuePath {
     /// Returns a new [ValuePath] instantiated from the specified value and path.
     pub fn new(value: RpoDigest, path: MerklePath) -> Self {
         Self { value, path }
+    }
+}
+
+impl From<(MerklePath, Word)> for ValuePath {
+    fn from((path, value): (MerklePath, Word)) -> Self {
+        ValuePath::new(value.into(), path)
     }
 }
 
