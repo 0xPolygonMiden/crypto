@@ -6,7 +6,7 @@ use crate::hash::rpo::Rpo256;
 use crate::merkle::EmptySubtreeRoots;
 use crate::utils::{
     collections::{BTreeMap, BTreeSet, Vec},
-    vec, Cow,
+    vec,
 };
 use crate::{Felt, EMPTY_WORD};
 
@@ -93,7 +93,7 @@ impl Smt {
     }
 
     /// Returns the leaf at the specified index.
-    pub fn get_leaf(&self, key: &RpoDigest) -> Cow<'_, SmtLeaf> {
+    pub fn get_leaf(&self, key: &RpoDigest) -> SmtLeaf {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
     }
 
@@ -105,7 +105,7 @@ impl Smt {
     /// Returns a Merkle path from the leaf node specified by the key to the root.
     ///
     /// The node itself is not included in the path.
-    pub fn open(&self, key: &RpoDigest) -> (MerklePath, Cow<'_, SmtLeaf>) {
+    pub fn open(&self, key: &RpoDigest) -> (MerklePath, SmtLeaf) {
         <Self as SparseMerkleTree<SMT_DEPTH>>::open(self, key)
     }
 
@@ -163,7 +163,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     type Key = RpoDigest;
     type Value = Word;
     type Leaf = SmtLeaf;
-    type Opening<'a> = (MerklePath, Cow<'a, SmtLeaf>);
+    type Opening = (MerklePath, SmtLeaf);
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
 
@@ -196,16 +196,12 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         }
     }
 
-    fn get_leaf(&self, key: &RpoDigest) -> Cow<'_, Self::Leaf> {
+    fn get_leaf(&self, key: &RpoDigest) -> Self::Leaf {
         let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
 
         match self.leaves.get(&leaf_pos) {
-            Some(leaf) => Cow::Borrowed(leaf),
-            None => {
-                let default_leaf = SmtLeaf::Single((*key, Self::EMPTY_VALUE));
-
-                Cow::Owned(default_leaf)
-            }
+            Some(leaf) => leaf.clone(),
+            None => SmtLeaf::Single((*key, Self::EMPTY_VALUE)),
         }
     }
 
