@@ -19,7 +19,7 @@ pub struct MerkleStoreDelta(pub Vec<(RpoDigest, MerkleTreeDelta)>);
 // MERKLE TREE DELTA
 // ================================================================================================
 
-/// [MerkleDelta] stores the differences between the initial and final Merkle tree states.
+/// [MerkleTreeDelta] stores the differences between the initial and final Merkle tree states.
 ///
 /// The differences are represented as follows:
 /// - depth: the depth of the merkle tree.
@@ -47,7 +47,7 @@ impl MerkleTreeDelta {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    /// Returns the depth of the Merkle tree the [MerkleDelta] is associated with.
+    /// Returns the depth of the Merkle tree the [MerkleTreeDelta] is associated with.
     pub fn depth(&self) -> u8 {
         self.depth
     }
@@ -75,7 +75,7 @@ impl MerkleTreeDelta {
     }
 }
 
-/// Extracts a [MerkleDelta] object by comparing the leaves of two Merkle trees specifies by
+/// Extracts a [MerkleTreeDelta] object by comparing the leaves of two Merkle trees specifies by
 /// their roots and depth.
 pub fn merkle_tree_delta<T: KvMap<RpoDigest, StoreNode>>(
     tree_root_1: RpoDigest,
