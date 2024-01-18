@@ -42,7 +42,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// All leaves in the returned tree are set to [ZERO; 4].
     ///
     /// # Errors
-    /// Returns an error if [DEPTH] is 0 or is greater than 64.
+    /// Returns an error if [Self::DEPTH] is 0 or is greater than 64.
     pub fn new() -> Result<Self, MerkleError> {
         // validate the range of the depth.
         if DEPTH < SMT_MIN_DEPTH {
