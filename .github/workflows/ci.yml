@@ -86,7 +86,7 @@ jobs:
           args: ${{matrix.features}}
 
   no-std:
-    name: build ${{matrix.toolchain}} no-std for wasm32-unknown-unknown 
+    name: build ${{matrix.toolchain}} no-std for wasm32-unknown-unknown
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -107,3 +107,27 @@ jobs:
         with:
           command: build
           args: --no-default-features --target wasm32-unknown-unknown
+
+  docs:
+    name: Verify the docs on ${{matrix.toolchain}}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{matrix.toolchain}}
+          override: true
+      - name: Check docs
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTDOCFLAGS: -D warnings
+        with:
+          command: doc
+          args: --verbose --all-features --keep-going
