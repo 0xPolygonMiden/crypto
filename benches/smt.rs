@@ -1,16 +1,20 @@
 use core::mem::swap;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use miden_crypto::{merkle::SimpleSmt, Felt, Word};
+use miden_crypto::{
+    merkle::{LeafIndex, SimpleSmt},
+    Felt, Word,
+};
 use rand_utils::prng_array;
+use seq_macro::seq;
 
 fn smt_rpo(c: &mut Criterion) {
     // setup trees
 
     let mut seed = [0u8; 32];
-    let mut trees = vec![];
+    let leaf = generate_word(&mut seed);
 
-    for depth in 14..=20 {
-        let leaves = ((1 << depth) - 1) as u64;
+    seq!(DEPTH in 14..=20 {
+        let leaves = ((1 << DEPTH) - 1) as u64;
         for count in [1, leaves / 2, leaves] {
             let entries: Vec<_> = (0..count)
                 .map(|i| {
@@ -18,50 +22,45 @@ fn smt_rpo(c: &mut Criterion) {
                     (i, word)
                 })
                 .collect();
-            let tree = SimpleSmt::with_leaves(depth, entries).unwrap();
-            trees.push((tree, count));
+            let mut tree = SimpleSmt::<DEPTH>::with_leaves(entries).unwrap();
+
+            // benchmark 1
+            let mut insert = c.benchmark_group("smt update_leaf".to_string());
+            {
+                let depth = DEPTH;
+                let key = count >> 2;
+                insert.bench_with_input(
+                    format!("simple smt(depth:{depth},count:{count})"),
+                    &(key, leaf),
+                    |b, (key, leaf)| {
+                        b.iter(|| {
+                            tree.insert(black_box(LeafIndex::<DEPTH>::new(*key).unwrap()), black_box(*leaf));
+                        });
+                    },
+                );
+
+            }
+            insert.finish();
+
+            // benchmark 2
+            let mut path = c.benchmark_group("smt get_leaf_path".to_string());
+            {
+                let depth = DEPTH;
+                let key = count >> 2;
+                path.bench_with_input(
+                    format!("simple smt(depth:{depth},count:{count})"),
+                    &key,
+                    |b, key| {
+                        b.iter(|| {
+                            tree.open(black_box(&LeafIndex::<DEPTH>::new(*key).unwrap()));
+                        });
+                    },
+                );
+
+            }
+            path.finish();
         }
-    }
-
-    let leaf = generate_word(&mut seed);
-
-    // benchmarks
-
-    let mut insert = c.benchmark_group("smt update_leaf".to_string());
-
-    for (tree, count) in trees.iter_mut() {
-        let depth = tree.depth();
-        let key = *count >> 2;
-        insert.bench_with_input(
-            format!("simple smt(depth:{depth},count:{count})"),
-            &(key, leaf),
-            |b, (key, leaf)| {
-                b.iter(|| {
-                    tree.update_leaf(black_box(*key), black_box(*leaf)).unwrap();
-                });
-            },
-        );
-    }
-
-    insert.finish();
-
-    let mut path = c.benchmark_group("smt get_leaf_path".to_string());
-
-    for (tree, count) in trees.iter_mut() {
-        let depth = tree.depth();
-        let key = *count >> 2;
-        path.bench_with_input(
-            format!("simple smt(depth:{depth},count:{count})"),
-            &key,
-            |b, key| {
-                b.iter(|| {
-                    tree.get_leaf_path(black_box(*key)).unwrap();
-                });
-            },
-        );
-    }
-
-    path.finish();
+    });
 }
 
 criterion_group!(smt_group, smt_rpo);
