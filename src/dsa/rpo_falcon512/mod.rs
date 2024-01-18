@@ -39,10 +39,10 @@ const NONCE_LEN: usize = 40;
 const NONCE_ELEMENTS: usize = 8;
 
 /// Public key length as a u8 vector.
-const PK_LEN: usize = 897;
+pub const PK_LEN: usize = 897;
 
 /// Secret key length as a u8 vector.
-const SK_LEN: usize = 1281;
+pub const SK_LEN: usize = 1281;
 
 /// Signature length as a u8 vector.
 const SIG_LEN: usize = 626;
