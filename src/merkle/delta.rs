@@ -25,7 +25,6 @@ pub struct MerkleStoreDelta(pub Vec<(RpoDigest, MerkleTreeDelta)>);
 /// - depth: the depth of the merkle tree.
 /// - cleared_slots: indexes of slots where values were set to [ZERO; 4].
 /// - updated_slots: index-value pairs of slots where values were set to non [ZERO; 4] values.
-#[cfg(not(test))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct MerkleTreeDelta {
@@ -105,52 +104,48 @@ pub fn merkle_tree_delta<T: KvMap<RpoDigest, StoreNode>>(
     })
 }
 
-// INTERNALS
-// --------------------------------------------------------------------------------------------
-#[cfg(test)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct MerkleTreeDelta {
-    pub depth: u8,
-    pub cleared_slots: Vec<u64>,
-    pub updated_slots: Vec<(u64, Word)>,
-}
-
-// MERKLE DELTA
+// TESTS
 // ================================================================================================
-#[test]
-fn test_compute_merkle_delta() {
-    let entries = vec![
-        (10, [ZERO, ONE, Felt::new(2), Felt::new(3)]),
-        (15, [Felt::new(4), Felt::new(5), Felt::new(6), Felt::new(7)]),
-        (20, [Felt::new(8), Felt::new(9), Felt::new(10), Felt::new(11)]),
-        (31, [Felt::new(12), Felt::new(13), Felt::new(14), Felt::new(15)]),
-    ];
-    let simple_smt = SimpleSmt::with_leaves(30, entries.clone()).unwrap();
-    let mut store: MerkleStore = (&simple_smt).into();
-    let root = simple_smt.root();
 
-    // add a new node
-    let new_value = [Felt::new(16), Felt::new(17), Felt::new(18), Felt::new(19)];
-    let new_index = NodeIndex::new(simple_smt.depth(), 32).unwrap();
-    let root = store.set_node(root, new_index, new_value.into()).unwrap().root;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    // update an existing node
-    let update_value = [Felt::new(20), Felt::new(21), Felt::new(22), Felt::new(23)];
-    let update_idx = NodeIndex::new(simple_smt.depth(), entries[0].0).unwrap();
-    let root = store.set_node(root, update_idx, update_value.into()).unwrap().root;
+    #[test]
+    fn test_compute_merkle_delta() {
+        const TREE_DEPTH: u8 = 30;
 
-    // remove a node
-    let remove_idx = NodeIndex::new(simple_smt.depth(), entries[1].0).unwrap();
-    let root = store.set_node(root, remove_idx, EMPTY_WORD.into()).unwrap().root;
+        let entries = vec![
+            (10, [ZERO, ONE, Felt::new(2), Felt::new(3)]),
+            (15, [Felt::new(4), Felt::new(5), Felt::new(6), Felt::new(7)]),
+            (20, [Felt::new(8), Felt::new(9), Felt::new(10), Felt::new(11)]),
+            (31, [Felt::new(12), Felt::new(13), Felt::new(14), Felt::new(15)]),
+        ];
+        let simple_smt = SimpleSmt::<TREE_DEPTH>::with_leaves(entries.clone()).unwrap();
+        let mut store: MerkleStore = (&simple_smt).into();
+        let root = simple_smt.root();
 
-    let merkle_delta =
-        merkle_tree_delta(simple_smt.root(), root, simple_smt.depth(), &store).unwrap();
-    let expected_merkle_delta = MerkleTreeDelta {
-        depth: simple_smt.depth(),
-        cleared_slots: vec![remove_idx.value()],
-        updated_slots: vec![(update_idx.value(), update_value), (new_index.value(), new_value)],
-    };
+        // add a new node
+        let new_value = [Felt::new(16), Felt::new(17), Felt::new(18), Felt::new(19)];
+        let new_index = NodeIndex::new(TREE_DEPTH, 32).unwrap();
+        let root = store.set_node(root, new_index, new_value.into()).unwrap().root;
 
-    assert_eq!(merkle_delta, expected_merkle_delta);
+        // update an existing node
+        let update_value = [Felt::new(20), Felt::new(21), Felt::new(22), Felt::new(23)];
+        let update_idx = NodeIndex::new(TREE_DEPTH, entries[0].0).unwrap();
+        let root = store.set_node(root, update_idx, update_value.into()).unwrap().root;
+
+        // remove a node
+        let remove_idx = NodeIndex::new(TREE_DEPTH, entries[1].0).unwrap();
+        let root = store.set_node(root, remove_idx, EMPTY_WORD.into()).unwrap().root;
+
+        let merkle_delta = merkle_tree_delta(simple_smt.root(), root, TREE_DEPTH, &store).unwrap();
+        let expected_merkle_delta = MerkleTreeDelta {
+            depth: TREE_DEPTH,
+            cleared_slots: vec![remove_idx.value()],
+            updated_slots: vec![(update_idx.value(), update_value), (new_index.value(), new_value)],
+        };
+
+        assert_eq!(merkle_delta, expected_merkle_delta);
+    }
 }

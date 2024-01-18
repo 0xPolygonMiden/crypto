@@ -24,8 +24,8 @@ pub use merkle_tree::{path_to_text, tree_to_text, MerkleTree};
 mod path;
 pub use path::{MerklePath, RootPath, ValuePath};
 
-mod simple_smt;
-pub use simple_smt::SimpleSmt;
+mod smt;
+pub use smt::{LeafIndex, SimpleSmt, SMT_MAX_DEPTH, SMT_MIN_DEPTH};
 
 mod tiered_smt;
 pub use tiered_smt::{TieredSmt, TieredSmtProof, TieredSmtProofError};

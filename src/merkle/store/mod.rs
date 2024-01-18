@@ -173,7 +173,7 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
         // the path is computed from root to leaf, so it must be reversed
         path.reverse();
 
-        Ok(ValuePath::new(hash, path))
+        Ok(ValuePath::new(hash, MerklePath::new(path)))
     }
 
     // LEAF TRAVERSAL
@@ -490,8 +490,8 @@ impl<T: KvMap<RpoDigest, StoreNode>> From<&MerkleTree> for MerkleStore<T> {
     }
 }
 
-impl<T: KvMap<RpoDigest, StoreNode>> From<&SimpleSmt> for MerkleStore<T> {
-    fn from(value: &SimpleSmt) -> Self {
+impl<T: KvMap<RpoDigest, StoreNode>, const DEPTH: u8> From<&SimpleSmt<DEPTH>> for MerkleStore<T> {
+    fn from(value: &SimpleSmt<DEPTH>) -> Self {
         let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
         Self { nodes }
     }
