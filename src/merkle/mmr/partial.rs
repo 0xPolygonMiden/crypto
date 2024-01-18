@@ -101,14 +101,31 @@ impl PartialMmr {
         MmrPeaks::new(self.forest, self.peaks.clone()).expect("invalid MMR peaks")
     }
 
-    /// Given a leaf position, returns the Merkle path to its corresponding peak.
-    ///
-    /// If the position is greater-or-equal than the tree size an error is returned. If the
-    /// requested value is not tracked returns `None`.
+    /// Returns true if this partial MMR tracks an authentication path for the leaf at the
+    /// specified position.
+    pub fn is_tracked(&self, pos: usize) -> bool {
+        if pos >= self.forest {
+            return false;
+        } else if pos == self.forest - 1 && self.forest & 1 != 0 {
+            // if the number of leaves in the MMR is odd and the position is for the last leaf
+            // whether the leaf is tracked is defined by the `track_latest` flag
+            return self.track_latest;
+        }
+
+        let leaf_index = InOrderIndex::from_leaf_pos(pos);
+        self.is_tracked_node(&leaf_index)
+    }
+
+    /// Given a leaf position, returns the Merkle path to its corresponding peak, or None if this
+    /// partial MMR does not track an authentication paths for the specified leaf.
     ///
     /// Note: The leaf position is the 0-indexed number corresponding to the order the leaves were
     /// added, this corresponds to the MMR size _prior_ to adding the element. So the 1st element
     /// has position 0, the second position 1, and so on.
+    ///
+    /// # Errors
+    /// Returns an error if the specified position is greater-or-equal than the number of leaves
+    /// in the underlying MMR.
     pub fn open(&self, pos: usize) -> Result<Option<MmrProof>, MmrError> {
         let tree_bit =
             leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::InvalidPosition(pos))?;
@@ -149,13 +166,13 @@ impl PartialMmr {
     ///
     /// The order of iteration is not defined. If a leaf is not presented in this partial MMR it
     /// is silently ignored.
-    pub fn inner_nodes<'a, I: Iterator<Item = &'a (usize, RpoDigest)> + 'a>(
+    pub fn inner_nodes<'a, I: Iterator<Item = (usize, RpoDigest)> + 'a>(
         &'a self,
         mut leaves: I,
     ) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         let stack = if let Some((pos, leaf)) = leaves.next() {
-            let idx = InOrderIndex::from_leaf_pos(*pos);
-            vec![(idx, *leaf)]
+            let idx = InOrderIndex::from_leaf_pos(pos);
+            vec![(idx, leaf)]
         } else {
             Vec::new()
         };
@@ -425,14 +442,14 @@ impl From<&PartialMmr> for MmrPeaks {
 // ================================================================================================
 
 /// An iterator over every inner node of the [PartialMmr].
-pub struct InnerNodeIterator<'a, I: Iterator<Item = &'a (usize, RpoDigest)>> {
+pub struct InnerNodeIterator<'a, I: Iterator<Item = (usize, RpoDigest)>> {
     nodes: &'a BTreeMap<InOrderIndex, RpoDigest>,
     leaves: I,
     stack: Vec<(InOrderIndex, RpoDigest)>,
     seen_nodes: BTreeSet<InOrderIndex>,
 }
 
-impl<'a, I: Iterator<Item = &'a (usize, RpoDigest)>> Iterator for InnerNodeIterator<'a, I> {
+impl<'a, I: Iterator<Item = (usize, RpoDigest)>> Iterator for InnerNodeIterator<'a, I> {
     type Item = InnerNodeInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -459,8 +476,8 @@ impl<'a, I: Iterator<Item = &'a (usize, RpoDigest)>> Iterator for InnerNodeItera
 
             // the previous leaf has been processed, try to process the next leaf
             if let Some((pos, leaf)) = self.leaves.next() {
-                let idx = InOrderIndex::from_leaf_pos(*pos);
-                self.stack.push((idx, *leaf));
+                let idx = InOrderIndex::from_leaf_pos(pos);
+                self.stack.push((idx, leaf));
             }
         }
 
@@ -626,11 +643,11 @@ mod tests {
         partial_mmr.add(1, node1, &proof1.merkle_path).unwrap();
 
         // empty iterator should have no nodes
-        assert_eq!(partial_mmr.inner_nodes([].iter()).next(), None);
+        assert_eq!(partial_mmr.inner_nodes([].iter().cloned()).next(), None);
 
         // build Merkle store from authentication paths in partial MMR
         let mut store: MerkleStore = MerkleStore::new();
-        store.extend(partial_mmr.inner_nodes([(1, node1)].iter()));
+        store.extend(partial_mmr.inner_nodes([(1, node1)].iter().cloned()));
 
         let index1 = NodeIndex::new(2, 1).unwrap();
         let path1 = store.get_path(first_peak, index1).unwrap().path;
@@ -655,12 +672,12 @@ mod tests {
         // make sure there are no duplicates
         let leaves = [(0, node0), (1, node1), (2, node2)];
         let mut nodes = BTreeSet::new();
-        for node in partial_mmr.inner_nodes(leaves.iter()) {
+        for node in partial_mmr.inner_nodes(leaves.iter().cloned()) {
             assert!(nodes.insert(node.value));
         }
 
         // and also that the store is still be built correctly
-        store.extend(partial_mmr.inner_nodes(leaves.iter()));
+        store.extend(partial_mmr.inner_nodes(leaves.iter().cloned()));
 
         let index0 = NodeIndex::new(2, 0).unwrap();
         let index1 = NodeIndex::new(2, 1).unwrap();
@@ -687,7 +704,7 @@ mod tests {
 
         // build Merkle store from authentication paths in partial MMR
         let mut store: MerkleStore = MerkleStore::new();
-        store.extend(partial_mmr.inner_nodes([(1, node1), (5, node5)].iter()));
+        store.extend(partial_mmr.inner_nodes([(1, node1), (5, node5)].iter().cloned()));
 
         let index1 = NodeIndex::new(2, 1).unwrap();
         let index5 = NodeIndex::new(1, 1).unwrap();

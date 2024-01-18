@@ -4,7 +4,7 @@ use core::ops::{Add, Mul, Sub};
 // FALCON POLYNOMIAL
 // ================================================================================================
 
-/// A polynomial over Z_p[x]/(phi) where phi := x^512 + 1
+/// A polynomial over Z_p\[x\]/(phi) where phi := x^512 + 1
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Polynomial([u16; N]);
 
@@ -24,7 +24,7 @@ impl Polynomial {
         Self(data)
     }
 
-    /// Decodes raw bytes representing a public key into a polynomial in Z_p[x]/(phi).
+    /// Decodes raw bytes representing a public key into a polynomial in Z_p\[x\]/(phi).
     ///
     /// # Errors
     /// Returns an error if:
@@ -69,14 +69,14 @@ impl Polynomial {
         }
     }
 
-    /// Decodes the signature into the coefficients of a polynomial in Z_p[x]/(phi). It assumes
+    /// Decodes the signature into the coefficients of a polynomial in Z_p\[x\]/(phi). It assumes
     /// that the signature has been encoded using the uncompressed format.
     ///
     /// # Errors
     /// Returns an error if:
     /// - The signature has been encoded using a different algorithm than the reference compressed
     ///   encoding algorithm.
-    /// - The encoded signature polynomial is in Z_p[x]/(phi') where phi' = x^N' + 1 and N' != 512.
+    /// - The encoded signature polynomial is in Z_p\[x\]/(phi') where phi' = x^N' + 1 and N' != 512.
     /// - While decoding the high bits of a coefficient, the current accumulated value of its
     ///  high bits is larger than 2048.
     /// - The decoded  coefficient is -0.
@@ -149,12 +149,12 @@ impl Polynomial {
     // POLYNOMIAL OPERATIONS
     // --------------------------------------------------------------------------------------------
 
-    /// Multiplies two polynomials over Z_p[x] without reducing modulo p. Given that the degrees
+    /// Multiplies two polynomials over Z_p\[x\] without reducing modulo p. Given that the degrees
     /// of the input polynomials are less than 512 and their coefficients are less than the modulus
     /// q equal to 12289, the resulting product polynomial is guaranteed to have coefficients less
     /// than the Miden prime.
     ///
-    /// Note that this multiplication is not over Z_p[x]/(phi).
+    /// Note that this multiplication is not over Z_p\[x\]/(phi).
     pub fn mul_modulo_p(a: &Self, b: &Self) -> [u64; 1024] {
         let mut c = [0; 2 * N];
         for i in 0..N {
@@ -166,8 +166,8 @@ impl Polynomial {
         c
     }
 
-    /// Reduces a polynomial, that is the product of two polynomials over Z_p[x], modulo
-    /// the irreducible polynomial phi. This results in an element in Z_p[x]/(phi).
+    /// Reduces a polynomial, that is the product of two polynomials over Z_p\[x\], modulo
+    /// the irreducible polynomial phi. This results in an element in Z_p\[x\]/(phi).
     pub fn reduce_negacyclic(a: &[u64; 1024]) -> Self {
         let mut c = [0; N];
         for i in 0..N {
@@ -181,7 +181,7 @@ impl Polynomial {
         Self(c)
     }
 
-    /// Computes the norm squared of a polynomial in Z_p[x]/(phi) after normalizing its
+    /// Computes the norm squared of a polynomial in Z_p\[x\]/(phi) after normalizing its
     /// coefficients to be in the interval (-p/2, p/2].
     pub fn sq_norm(&self) -> u64 {
         let mut res = 0;
@@ -203,7 +203,7 @@ impl Default for Polynomial {
     }
 }
 
-/// Multiplication over Z_p[x]/(phi)
+/// Multiplication over Z_p\[x\]/(phi)
 impl Mul for Polynomial {
     type Output = Self;
 
@@ -227,7 +227,7 @@ impl Mul for Polynomial {
     }
 }
 
-/// Addition over Z_p[x]/(phi)
+/// Addition over Z_p\[x\]/(phi)
 impl Add for Polynomial {
     type Output = Self;
 
@@ -239,7 +239,7 @@ impl Add for Polynomial {
     }
 }
 
-/// Subtraction over Z_p[x]/(phi)
+/// Subtraction over Z_p\[x\]/(phi)
 impl Sub for Polynomial {
     type Output = Self;
 

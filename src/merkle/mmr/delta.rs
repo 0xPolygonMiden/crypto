@@ -1,16 +1,16 @@
 use super::super::{RpoDigest, Vec};
 
-/// Container for the update data of a [PartialMmr]
+/// Container for the update data of a [super::PartialMmr]
 #[derive(Debug)]
 pub struct MmrDelta {
-    /// The new version of the [Mmr]
+    /// The new version of the [super::Mmr]
     pub forest: usize,
 
     /// Update data.
     ///
     /// The data is packed as follows:
     /// 1. All the elements needed to perform authentication path updates. These are the right
-    ///    siblings required to perform tree merges on the [PartialMmr].
+    ///    siblings required to perform tree merges on the [super::PartialMmr].
     /// 2. The new peaks.
     pub data: Vec<RpoDigest>,
 }

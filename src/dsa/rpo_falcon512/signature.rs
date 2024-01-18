@@ -11,7 +11,7 @@ use core::cell::OnceCell;
 
 /// An RPO Falcon512 signature over a message.
 ///
-/// The signature is a pair of polynomials (s1, s2) in (Z_p[x]/(phi))^2, where:
+/// The signature is a pair of polynomials (s1, s2) in (Z_p\[x\]/(phi))^2, where:
 /// - p := 12289
 /// - phi := x^512 + 1
 /// - s1 = c - s2 * h
@@ -86,7 +86,7 @@ impl Signature {
     // HASH-TO-POINT
     // --------------------------------------------------------------------------------------------
 
-    /// Returns a polynomial in Z_p[x]/(phi) representing the hash of the provided message.
+    /// Returns a polynomial in Z_p\[x\]/(phi) representing the hash of the provided message.
     pub fn hash_to_point(&self, message: Word) -> Polynomial {
         hash_to_point(message, &self.nonce())
     }

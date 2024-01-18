@@ -33,6 +33,11 @@ impl RpxDigest {
     {
         digests.flat_map(|d| d.0.iter())
     }
+
+    /// Returns hexadecimal representation of this digest prefixed with `0x`.
+    pub fn to_hex(&self) -> String {
+        bytes_to_hex_string(self.as_bytes())
+    }
 }
 
 impl Digest for RpxDigest {
@@ -158,7 +163,7 @@ impl From<RpxDigest> for [u8; DIGEST_BYTES] {
 impl From<RpxDigest> for String {
     /// The returned string starts with `0x`.
     fn from(value: RpxDigest) -> Self {
-        bytes_to_hex_string(value.as_bytes())
+        value.to_hex()
     }
 }
 

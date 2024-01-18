@@ -107,7 +107,7 @@ fn test_merkle_tree() -> Result<(), MerkleError> {
         "node 3 must be the same for both MerkleTree and MerkleStore"
     );
 
-    // STORE MERKLE PATH MATCHS ==============================================================
+    // STORE MERKLE PATH MATCHES ==============================================================
     // assert the merkle path returned by the store is the same as the one in the tree
     let result = store.get_path(mtree.root(), NodeIndex::make(mtree.depth(), 0)).unwrap();
     assert_eq!(
@@ -293,7 +293,7 @@ fn test_sparse_merkle_tree() -> Result<(), MerkleError> {
         "node 4 must be the same for both SparseMerkleTree and MerkleStore"
     );
 
-    // STORE MERKLE PATH MATCHS ==============================================================
+    // STORE MERKLE PATH MATCHES ==============================================================
     // assert the merkle path returned by the store is the same as the one in the tree
     let result = store.get_path(smt.root(), NodeIndex::make(SMT_MAX_DEPTH, 0)).unwrap();
     assert_eq!(
@@ -428,7 +428,7 @@ fn test_add_merkle_paths() -> Result<(), MerkleError> {
         "node 3 must be the same for both PartialMerkleTree and MerkleStore"
     );
 
-    // STORE MERKLE PATH MATCHS ==============================================================
+    // STORE MERKLE PATH MATCHES ==============================================================
     // assert the merkle path returned by the store is the same as the one in the pmt
     let result = store.get_path(pmt.root(), NodeIndex::make(pmt.max_depth(), 0)).unwrap();
     assert_eq!(
@@ -651,7 +651,7 @@ fn get_leaf_depth_works_depth_64() {
         let index = NodeIndex::new(64, k).unwrap();
 
         // assert the leaf doesn't exist before the insert. the returned depth should always
-        // increment with the paths count of the set, as they are insersecting one another up to
+        // increment with the paths count of the set, as they are intersecting one another up to
         // the first bits of the used key.
         assert_eq!(d, store.get_leaf_depth(root, 64, k).unwrap());
 

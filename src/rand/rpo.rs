@@ -19,7 +19,7 @@ const HALF_RATE_WIDTH: usize = (Rpo256::RATE_RANGE.end - Rpo256::RATE_RANGE.star
 // RPO RANDOM COIN
 // ================================================================================================
 /// A simplified version of the `SPONGE_PRG` reseedable pseudo-random number generator algorithm
-/// described in https://eprint.iacr.org/2011/499.pdf.
+/// described in <https://eprint.iacr.org/2011/499.pdf>.
 ///
 /// The simplification is related to the following facts:
 /// 1. A call to the reseed method implies one and only one call to the permutation function.

@@ -27,7 +27,7 @@ mod tests;
 /// * Number of founds: 7.
 /// * S-Box degree: 7.
 ///
-/// The above parameters target 128-bit security level. The digest consists of four field elements
+/// The above parameters target a 128-bit security level. The digest consists of four field elements
 /// and it can be serialized into 32 bytes (256 bits).
 ///
 /// ## Hash output consistency
@@ -55,13 +55,7 @@ mod tests;
 pub struct Rpo256();
 
 impl Hasher for Rpo256 {
-    /// Rpo256 collision resistance is the same as the security level, that is 128-bits.
-    ///
-    /// #### Collision resistance
-    ///
-    /// However, our setup of the capacity registers might drop it to 126.
-    ///
-    /// Related issue: [#69](https://github.com/0xPolygonMiden/crypto/issues/69)
+    /// Rpo256 collision resistance is 128-bits.
     const COLLISION_RESISTANCE: u32 = 128;
 
     type Digest = RpoDigest;

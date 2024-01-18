@@ -165,7 +165,7 @@ impl<'a> Iterator for InnerNodeIterator<'a> {
 // MERKLE PATH CONTAINERS
 // ================================================================================================
 
-/// A container for a [Word] value and its [MerklePath] opening.
+/// A container for a [crate::Word] value and its [MerklePath] opening.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ValuePath {
     /// The node value opening for `path`.
@@ -187,7 +187,7 @@ impl From<(MerklePath, Word)> for ValuePath {
     }
 }
 
-/// A container for a [MerklePath] and its [Word] root.
+/// A container for a [MerklePath] and its [crate::Word] root.
 ///
 /// This structure does not provide any guarantees regarding the correctness of the path to the
 /// root. For more information, check [MerklePath::verify].
