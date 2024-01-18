@@ -28,6 +28,12 @@ pub struct SimpleSmt<const DEPTH: u8> {
 }
 
 impl<const DEPTH: u8> SimpleSmt<DEPTH> {
+    // CONSTANTS
+    // --------------------------------------------------------------------------------------------
+
+    /// The default value used to compute the hash of empty leaves
+    pub const EMPTY_VALUE: Word = <Self as SparseMerkleTree<DEPTH>>::EMPTY_VALUE;
+
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
