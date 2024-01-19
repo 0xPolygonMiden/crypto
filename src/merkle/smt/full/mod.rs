@@ -1,4 +1,5 @@
 use core::cmp::Ordering;
+use core::f64::consts::E;
 
 use winter_math::StarkField;
 
@@ -34,12 +35,17 @@ pub struct Smt {
 }
 
 impl Smt {
+    // CONSTANTS
+    // --------------------------------------------------------------------------------------------
+    /// The default value used to compute the hash of empty leaves
+    pub const EMPTY_VALUE: Word = <Self as SparseMerkleTree<SMT_DEPTH>>::EMPTY_VALUE;
+
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns a new [NewSmt].
+    /// Returns a new [Smt].
     ///
-    /// All leaves in the returned tree are set to [ZERO; 4].
+    /// All leaves in the returned tree are set to [Self::EMPTY_VALUE].
     pub fn new() -> Self {
         let root = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
 
@@ -50,9 +56,9 @@ impl Smt {
         }
     }
 
-    /// Returns a new [SimpleSmt] instantiated with leaves set as specified by the provided entries.
+    /// Returns a new [Smt] instantiated with leaves set as specified by the provided entries.
     ///
-    /// All leaves omitted from the entries list are set to [ZERO; 4].
+    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
     ///
     /// # Errors
     /// Returns an error if:
