@@ -252,6 +252,15 @@ fn test_smt_path_to_keys_in_same_leaf_are_equal() {
     assert_eq!(smt.open(&key_1), smt.open(&key_2));
 }
 
+/// Tests that an empty leaf hashes to the empty word
+#[test]
+fn test_empty_leaf_hash() {
+    let smt = Smt::default();
+
+    let leaf = smt.get_leaf(&RpoDigest::default());
+    assert_eq!(leaf.hash(), EMPTY_WORD.into());
+}
+
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
