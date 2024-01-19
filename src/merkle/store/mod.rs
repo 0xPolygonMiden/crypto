@@ -1,7 +1,7 @@
 use super::{
     mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath,
-    MerkleStoreDelta, MerkleTree, NodeIndex, PartialMerkleTree, RecordingMap, RootPath, Rpo256,
-    RpoDigest, SimpleSmt, TieredSmt, TryApplyDiff, ValuePath, Vec, EMPTY_WORD,
+    MerkleTree, NodeIndex, PartialMerkleTree, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
+    TieredSmt, ValuePath, Vec,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::borrow::Borrow;
@@ -547,39 +547,6 @@ impl<T: KvMap<RpoDigest, StoreNode>> Extend<InnerNodeInfo> for MerkleStore<T> {
             iter.into_iter()
                 .map(|info| (info.value, StoreNode { left: info.left, right: info.right })),
         );
-    }
-}
-
-// DiffT & ApplyDiffT TRAIT IMPLEMENTATION
-// ================================================================================================
-impl<T: KvMap<RpoDigest, StoreNode>> TryApplyDiff<RpoDigest, StoreNode> for MerkleStore<T> {
-    type Error = MerkleError;
-    type DiffType = MerkleStoreDelta;
-
-    fn try_apply(&mut self, diff: Self::DiffType) -> Result<(), MerkleError> {
-        for (root, delta) in diff.0 {
-            let mut root = root;
-            for cleared_slot in delta.cleared_slots() {
-                root = self
-                    .set_node(
-                        root,
-                        NodeIndex::new(delta.depth(), *cleared_slot)?,
-                        EMPTY_WORD.into(),
-                    )?
-                    .root;
-            }
-            for (updated_slot, updated_value) in delta.updated_slots() {
-                root = self
-                    .set_node(
-                        root,
-                        NodeIndex::new(delta.depth(), *updated_slot)?,
-                        (*updated_value).into(),
-                    )?
-                    .root;
-            }
-        }
-
-        Ok(())
     }
 }
 

@@ -9,7 +9,6 @@ pub use alloc::{format, vec};
 #[cfg(feature = "std")]
 pub use std::{format, vec};
 
-mod diff;
 mod kv_map;
 
 // RE-EXPORTS
@@ -20,7 +19,6 @@ pub use winter_utils::{
 };
 
 pub mod collections {
-    pub use super::diff::*;
     pub use super::kv_map::*;
     pub use winter_utils::collections::*;
 }

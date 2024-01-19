@@ -1,4 +1,3 @@
-use super::{collections::ApplyDiff, diff::Diff};
 use core::cell::RefCell;
 use winter_utils::{
     collections::{btree_map::IntoIter, BTreeMap, BTreeSet},
@@ -209,74 +208,6 @@ impl<K: Clone + Ord, V: Clone> IntoIterator for RecordingMap<K, V> {
     }
 }
 
-// KV MAP DIFF
-// ================================================================================================
-/// [KvMapDiff] stores the difference between two key-value maps.
-///
-/// The [KvMapDiff] is composed of two parts:
-/// - `updates` - a map of key-value pairs that were updated in the second map compared to the
-///               first map. This includes new key-value pairs.
-/// - `removed` - a set of keys that were removed from the second map compared to the first map.
-#[derive(Debug, Clone)]
-pub struct KvMapDiff<K, V> {
-    pub updated: BTreeMap<K, V>,
-    pub removed: BTreeSet<K>,
-}
-
-impl<K, V> KvMapDiff<K, V> {
-    // CONSTRUCTOR
-    // --------------------------------------------------------------------------------------------
-    /// Creates a new [KvMapDiff] instance.
-    pub fn new() -> Self {
-        KvMapDiff {
-            updated: BTreeMap::new(),
-            removed: BTreeSet::new(),
-        }
-    }
-}
-
-impl<K, V> Default for KvMapDiff<K, V> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<K: Ord + Clone, V: Clone + PartialEq, T: KvMap<K, V>> Diff<K, V> for T {
-    type DiffType = KvMapDiff<K, V>;
-
-    fn diff(&self, other: &T) -> Self::DiffType {
-        let mut diff = KvMapDiff::default();
-        for (k, v) in self.iter() {
-            if let Some(other_value) = other.get(k) {
-                if v != other_value {
-                    diff.updated.insert(k.clone(), other_value.clone());
-                }
-            } else {
-                diff.removed.insert(k.clone());
-            }
-        }
-        for (k, v) in other.iter() {
-            if self.get(k).is_none() {
-                diff.updated.insert(k.clone(), v.clone());
-            }
-        }
-        diff
-    }
-}
-
-impl<K: Ord + Clone, V: Clone, T: KvMap<K, V>> ApplyDiff<K, V> for T {
-    type DiffType = KvMapDiff<K, V>;
-
-    fn apply(&mut self, diff: Self::DiffType) {
-        for (k, v) in diff.updated {
-            self.insert(k, v);
-        }
-        for k in diff.removed {
-            self.remove(&k);
-        }
-    }
-}
-
 // TESTS
 // ================================================================================================
 
@@ -469,36 +400,5 @@ mod tests {
                 _ => assert_eq!(proof.get(key), None),
             }
         }
-    }
-
-    #[test]
-    fn test_kv_map_diff() {
-        let mut initial_state = ITEMS.into_iter().collect::<BTreeMap<_, _>>();
-        let mut map = RecordingMap::new(initial_state.clone());
-
-        // remove an item that exists
-        let key = 0;
-        let _value = map.remove(&key).unwrap();
-
-        // add a new item
-        let key = 100;
-        let value = 100;
-        map.insert(key, value);
-
-        // update an existing item
-        let key = 1;
-        let value = 100;
-        map.insert(key, value);
-
-        // compute a diff
-        let diff = initial_state.diff(map.inner());
-        assert!(diff.updated.len() == 2);
-        assert!(diff.updated.iter().all(|(k, v)| [(100, 100), (1, 100)].contains(&(*k, *v))));
-        assert!(diff.removed.len() == 1);
-        assert!(diff.removed.first() == Some(&0));
-
-        // apply the diff to the initial state and assert the contents are the same as the map
-        initial_state.apply(diff);
-        assert!(initial_state.iter().eq(map.iter()));
     }
 }
