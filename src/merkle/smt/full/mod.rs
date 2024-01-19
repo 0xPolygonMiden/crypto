@@ -45,7 +45,7 @@ impl Smt {
 
     /// Returns a new [Smt].
     ///
-    /// All leaves in the returned tree are set to [Self::EMPTY_VALUE].
+    /// All keys in the returned tree are associated to [Self::EMPTY_VALUE].
     pub fn new() -> Self {
         let root = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
 
@@ -58,12 +58,10 @@ impl Smt {
 
     /// Returns a new [Smt] instantiated with leaves set as specified by the provided entries.
     ///
-    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
+    /// All keys omitted from the entries list are associated to [Self::EMPTY_VALUE].
     ///
     /// # Errors
-    /// Returns an error if:
-    /// - The number of entries exceeds 2^63 entries.
-    /// - The provided entries contain multiple values for the same key.
+    /// Returns an error if the provided entries contain multiple values for the same key.
     pub fn with_entries(
         entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
