@@ -231,7 +231,7 @@ fn test_smt_removal() {
         let old_value_1 = smt.insert(key_1, EMPTY_WORD);
         assert_eq!(old_value_1, value_1);
 
-        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Single((key_1, EMPTY_WORD)));
+        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Empty);
     }
 }
 

@@ -44,7 +44,7 @@ impl Smt {
 
     /// Returns a new [Smt].
     ///
-    /// All keys in the returned tree are associated to [Self::EMPTY_VALUE].
+    /// All leaves in the returned tree are set to [Self::EMPTY_VALUE].
     pub fn new() -> Self {
         let root = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
 
@@ -57,7 +57,7 @@ impl Smt {
 
     /// Returns a new [Smt] instantiated with leaves set as specified by the provided entries.
     ///
-    /// All keys omitted from the entries list are associated to [Self::EMPTY_VALUE].
+    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
     ///
     /// # Errors
     /// Returns an error if the provided entries contain multiple values for the same key.
@@ -203,7 +203,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
         match self.leaves.get(&leaf_pos) {
             Some(leaf) => leaf.clone(),
-            None => SmtLeaf::Single((*key, Self::EMPTY_VALUE)),
+            None => SmtLeaf::Empty,
         }
     }
 
@@ -229,6 +229,7 @@ impl Default for Smt {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum SmtLeaf {
+    Empty,
     Single((RpoDigest, Word)),
     Multiple(Vec<(RpoDigest, Word)>),
 }
@@ -242,6 +243,7 @@ impl SmtLeaf {
     /// Converts a leaf to a list of field elements
     pub fn into_elements(self) -> Vec<Felt> {
         match self {
+            SmtLeaf::Empty => Vec::new(),
             SmtLeaf::Single(kv_pair) => kv_to_elements(kv_pair).collect(),
             SmtLeaf::Multiple(kv_pairs) => kv_pairs.into_iter().flat_map(kv_to_elements).collect(),
         }
@@ -250,6 +252,7 @@ impl SmtLeaf {
     /// Computes the hash of the leaf
     pub fn hash(&self) -> RpoDigest {
         match self {
+            SmtLeaf::Empty => EMPTY_WORD.into(),
             SmtLeaf::Single((key, value)) => Rpo256::merge(&[*key, value.into()]),
             SmtLeaf::Multiple(kvs) => {
                 let elements: Vec<Felt> = kvs.iter().copied().flat_map(kv_to_elements).collect();
@@ -265,6 +268,10 @@ impl SmtLeaf {
     /// any.
     fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
         match self {
+            SmtLeaf::Empty => {
+                *self = SmtLeaf::Single((key, value));
+                None
+            }
             SmtLeaf::Single(kv_pair) => {
                 if kv_pair.0 == key {
                     // the key is already in this leaf. Update the value and return the previous
@@ -306,11 +313,16 @@ impl SmtLeaf {
     /// empty, and must be removed from the data structure it is contained in.
     fn remove(&mut self, key: RpoDigest) -> (Option<Word>, bool) {
         match self {
+            SmtLeaf::Empty => (None, false),
             SmtLeaf::Single((key_at_leaf, value_at_leaf)) => {
                 if *key_at_leaf == key {
                     // our key was indeed stored in the leaf, so we return the value that was stored
                     // in it, and indicate that the leaf should be removed
                     let old_value = *value_at_leaf;
+
+                    // Note: this is not strictly needed, since the caller is expected to drop this
+                    // `SmtLeaf` object.
+                    *self = SmtLeaf::Empty;
 
                     (Some(old_value), true)
                 } else {
