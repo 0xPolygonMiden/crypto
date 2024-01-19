@@ -247,7 +247,7 @@ impl SmtLeaf {
         }
     }
 
-    /// Compute the hash of the leaf
+    /// Computes the hash of the leaf
     pub fn hash(&self) -> RpoDigest {
         match self {
             SmtLeaf::Single((key, value)) => Rpo256::merge(&[*key, value.into()]),
@@ -261,7 +261,7 @@ impl SmtLeaf {
     // HELPERS
     // ---------------------------------------------------------------------------------------------
 
-    /// Insert key-value pair into the leaf; return the previous value associated with `key`, if
+    /// Inserts key-value pair into the leaf; returns the previous value associated with `key`, if
     /// any.
     fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
         match self {
