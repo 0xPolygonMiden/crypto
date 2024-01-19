@@ -301,8 +301,8 @@ impl SmtLeaf {
         }
     }
 
-    /// Remove key-value pair into the leaf stored at key; return the previous value associated with
-    /// `key`, if any. We also return an `is_empty` flag which indicates whether the leaf became
+    /// Removes key-value pair from the leaf stored at key; returns the previous value associated
+    /// with `key`, if any. Also returns an `is_empty` flag, indicating whether the leaf became
     /// empty, and must be removed from the data structure it is contained in.
     fn remove(&mut self, key: RpoDigest) -> (Option<Word>, bool) {
         match self {
