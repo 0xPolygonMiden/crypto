@@ -50,11 +50,11 @@ fn test_smt_insert_at_same_key() {
 /// only the case where the leaf type is `SmtLeaf::Multiple`
 #[test]
 fn test_smt_insert_at_same_key_2() {
-    let key_already_present: RpoDigest = {
-        let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+    // The most significant u64 used for both keys (to ensure they map to the same leaf)
+    let key_msb: u64 = 42;
 
-        RpoDigest::from([ONE + ONE, ONE + ONE, ONE + ONE, Felt::new(raw)])
-    };
+    let key_already_present: RpoDigest =
+        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(key_msb)]);
     let key_already_present_index: NodeIndex =
         LeafIndex::<SMT_DEPTH>::from(key_already_present).into();
     let value_already_present = [ONE + ONE + ONE; WORD_SIZE];
@@ -71,11 +71,7 @@ fn test_smt_insert_at_same_key_2() {
         store
     };
 
-    let key_1: RpoDigest = {
-        let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
-
-        RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)])
-    };
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(key_msb)]);
     let key_1_index: NodeIndex = LeafIndex::<SMT_DEPTH>::from(key_1).into();
 
     assert_eq!(key_1_index, key_already_present_index);
