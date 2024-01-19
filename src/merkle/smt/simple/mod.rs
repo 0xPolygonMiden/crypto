@@ -1,6 +1,5 @@
 use crate::{
-    merkle::{EmptySubtreeRoots, InnerNodeInfo, MerkleTreeDelta, StoreNode, ValuePath},
-    utils::collections::TryApplyDiff,
+    merkle::{EmptySubtreeRoots, InnerNodeInfo, ValuePath},
     EMPTY_WORD,
 };
 
@@ -298,28 +297,5 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
 
     fn key_to_leaf_index(key: &LeafIndex<DEPTH>) -> LeafIndex<DEPTH> {
         *key
-    }
-}
-
-// TRY APPLY DIFF
-// ================================================================================================
-impl<const DEPTH: u8> TryApplyDiff<RpoDigest, StoreNode> for SimpleSmt<DEPTH> {
-    type Error = MerkleError;
-    type DiffType = MerkleTreeDelta;
-
-    fn try_apply(&mut self, diff: MerkleTreeDelta) -> Result<(), MerkleError> {
-        if diff.depth() != DEPTH {
-            return Err(MerkleError::InvalidDepth { expected: DEPTH, provided: diff.depth() });
-        }
-
-        for slot in diff.cleared_slots() {
-            self.insert(LeafIndex::<DEPTH>::new(*slot)?, Self::EMPTY_VALUE);
-        }
-
-        for (slot, value) in diff.updated_slots() {
-            self.insert(LeafIndex::<DEPTH>::new(*slot)?, *value);
-        }
-
-        Ok(())
     }
 }

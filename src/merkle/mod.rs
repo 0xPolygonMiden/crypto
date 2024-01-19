@@ -2,7 +2,7 @@
 
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, TryApplyDiff, Vec},
+    utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, Vec},
     Felt, StarkField, Word, EMPTY_WORD, ZERO,
 };
 
@@ -11,9 +11,6 @@ use super::{
 
 mod empty_roots;
 pub use empty_roots::EmptySubtreeRoots;
-
-mod delta;
-pub use delta::{merkle_tree_delta, MerkleStoreDelta, MerkleTreeDelta};
 
 mod index;
 pub use index::NodeIndex;
