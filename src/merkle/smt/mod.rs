@@ -7,6 +7,9 @@ use crate::{
 
 use super::{MerkleError, MerklePath, NodeIndex, Vec};
 
+mod full;
+pub use full::{Smt, SmtLeaf, SMT_DEPTH};
+
 mod simple;
 pub use simple::SimpleSmt;
 
