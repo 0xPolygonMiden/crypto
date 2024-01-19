@@ -1,5 +1,4 @@
 use core::cmp::Ordering;
-use core::f64::consts::E;
 
 use winter_math::StarkField;
 
