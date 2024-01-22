@@ -59,8 +59,6 @@ fn gkr_workflow() {
     // 2. Randomness defining the Lagrange kernel in the final sum-check protocol. Note that this
     // Lagrange kernel is different from the one used by the STARK (outer) prover to open the MLs
     // at the evaluation point.
-    let circuit_outputs =
-        (circuit_outputs[0], circuit_outputs[1], circuit_outputs[2], circuit_outputs[3]);
     let (final_eval_claim, gkr_lagrange_kernel_rand) = gkr_before_last_proof.verify_virtual_bus(
         composition_polys.clone(),
         final_layer_proof,
@@ -101,7 +99,7 @@ fn gkr_workflow() {
     let left_den_eval = mls[2].evaluate(&evaluation_point);
     let right_den_eval = mls[3].evaluate(&evaluation_point);
 
-    // The verifier absorbs the claimed openings and generates batching randomness
+    // The verifier absorbs the claimed openings and generates batching randomness lambda
     let mut query = vec![left_num_eval, right_num_eval, left_den_eval, right_den_eval];
     transcript.reseed(Rpo256::hash_elements(&query));
     let lambdas: Vec<BaseElement> = vec![
@@ -112,17 +110,17 @@ fn gkr_workflow() {
     let batched_query =
         query[0] + query[1] * lambdas[0] + query[2] * lambdas[1] + query[3] * lambdas[2];
 
-    // The prover generates the Lagrange kernel
+    // The prover generates the Lagrange kernel as an auxiliary column
     let mut rev_evaluation_point = evaluation_point;
     rev_evaluation_point.reverse();
     let lagrange_kernel = EqPolynomial::new(rev_evaluation_point).evaluations();
+
+    // The prover generates the additional auxiliary column for the inner product
     let tmp_col: Vec<BaseElement> = (0..mls[0].len())
         .map(|i| {
             mls[0][i] + mls[1][i] * lambdas[0] + mls[2][i] * lambdas[1] + mls[3][i] * lambdas[2]
         })
         .collect();
-
-    // The prover generates the additional auxiliary column for the inner product
     let mut running_sum_col = vec![BaseElement::ZERO; tmp_col.len() + 1];
     running_sum_col[0] = BaseElement::ZERO;
     for i in 1..(tmp_col.len() + 1) {

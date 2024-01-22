@@ -541,19 +541,19 @@ impl<E: FieldElement<BaseField = BaseElement> + 'static> CircuitProof<E> {
         H: ElementHasher<BaseField = BaseElement>,
     >(
         &self,
-        claims_sum_vec: &(E, E, E, E),
+        claims_sum_vec: &[E],
         transcript: &mut C,
     ) -> ((E, E), Vec<E>) {
         let num_layers = self.proof.len() as usize - 1;
         let mut rand: Vec<E> = Vec::new();
 
-        let data = vec![claims_sum_vec.0, claims_sum_vec.1, claims_sum_vec.2, claims_sum_vec.3];
+        let data = claims_sum_vec;
         transcript.reseed(H::hash_elements(&data));
 
         let r_cord = transcript.draw().unwrap();
 
-        let p_poly_coef = vec![claims_sum_vec.0, claims_sum_vec.1];
-        let q_poly_coef = vec![claims_sum_vec.2, claims_sum_vec.3];
+        let p_poly_coef = vec![claims_sum_vec[0], claims_sum_vec[1]];
+        let q_poly_coef = vec![claims_sum_vec[2], claims_sum_vec[3]];
 
         let p_poly = MultiLinear::new(p_poly_coef);
         let q_poly = MultiLinear::new(q_poly_coef);
@@ -619,27 +619,27 @@ impl<E: FieldElement<BaseField = BaseElement> + 'static> CircuitProof<E> {
         &self,
         composition_polys: Vec<Vec<Arc<dyn CompositionPolynomial<E>>>>,
         final_layer_proof: super::sumcheck::FullProof<E>,
-        claims_sum_vec: &(E, E, E, E),
+        claims_sum_vec: &[E],
         transcript: &mut C,
     ) -> (FinalEvaluationClaim<E>, Vec<E>) {
         let num_layers = self.proof.len() as usize;
         let mut rand: Vec<E> = Vec::new();
 
         // Check that a/b + d/e is equal to 0
-        assert_ne!(claims_sum_vec.2, E::ZERO);
-        assert_ne!(claims_sum_vec.3, E::ZERO);
+        assert_ne!(claims_sum_vec[2], E::ZERO);
+        assert_ne!(claims_sum_vec[3], E::ZERO);
         assert_eq!(
-            claims_sum_vec.0 * claims_sum_vec.3 + claims_sum_vec.1 * claims_sum_vec.2,
+            claims_sum_vec[0] * claims_sum_vec[3] + claims_sum_vec[1] * claims_sum_vec[2],
             E::ZERO
         );
 
-        let data = vec![claims_sum_vec.0, claims_sum_vec.1, claims_sum_vec.2, claims_sum_vec.3];
+        let data = claims_sum_vec;
         transcript.reseed(H::hash_elements(&data));
 
         let r_cord = transcript.draw().unwrap();
 
-        let p_poly_coef = vec![claims_sum_vec.0, claims_sum_vec.1];
-        let q_poly_coef = vec![claims_sum_vec.2, claims_sum_vec.3];
+        let p_poly_coef = vec![claims_sum_vec[0], claims_sum_vec[1]];
+        let q_poly_coef = vec![claims_sum_vec[2], claims_sum_vec[3]];
 
         let p_poly = MultiLinear::new(p_poly_coef);
         let q_poly = MultiLinear::new(q_poly_coef);
@@ -905,7 +905,7 @@ mod sum_circuit_tests {
 
         let seed = [BaseElement::ZERO; 4];
         let mut transcript = RpoRandomCoin::new(seed.into());
-        let claims = (p0, p1, q0, q1);
+        let claims = vec![p0, p1, q0, q1];
         proof.verify(&claims, &mut transcript);
     }
 
@@ -971,7 +971,7 @@ mod sum_circuit_tests {
 
         let seed = [BaseElement::ZERO; 4];
         let mut transcript = RpoRandomCoin::new(seed.into());
-        let claims = (p0, p1, q0, q1);
+        let claims = vec![p0, p1, q0, q1];
         proof.verify(&claims, &mut transcript);
     }
 }
