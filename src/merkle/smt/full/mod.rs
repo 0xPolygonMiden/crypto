@@ -123,6 +123,13 @@ impl Smt {
     // ITERATORS
     // --------------------------------------------------------------------------------------------
 
+    /// Returns an iterator over the leaves of this [Smt].
+    pub fn leaves(&self) -> impl Iterator<Item = (LeafIndex<SMT_DEPTH>, &SmtLeaf)> {
+        self.leaves
+            .iter()
+            .map(|(leaf_index, leaf)| (LeafIndex::new_max_depth(*leaf_index), leaf))
+    }
+
     /// Returns an iterator over the inner nodes of this [Smt].
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         self.inner_nodes.values().map(|e| InnerNodeInfo {
