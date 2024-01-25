@@ -3,7 +3,7 @@ use core::cmp::Ordering;
 use winter_math::StarkField;
 
 use crate::hash::rpo::Rpo256;
-use crate::merkle::EmptySubtreeRoots;
+use crate::merkle::{EmptySubtreeRoots, InnerNodeInfo};
 use crate::utils::{
     collections::{BTreeMap, BTreeSet, Vec},
     vec,
@@ -109,6 +109,18 @@ impl Smt {
     /// path to the leaf, as well as the leaf itself.
     pub fn open(&self, key: &RpoDigest) -> (MerklePath, SmtLeaf) {
         <Self as SparseMerkleTree<SMT_DEPTH>>::open(self, key)
+    }
+
+    // ITERATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns an iterator over the inner nodes of this [Smt].
+    pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+        self.inner_nodes.values().map(|e| InnerNodeInfo {
+            value: e.hash(),
+            left: e.left,
+            right: e.right,
+        })
     }
 
     // STATE MUTATORS
