@@ -30,7 +30,7 @@ pub const SMT_DEPTH: u8 = 64;
 ///
 /// All leaves sit at depth 64. The most significant word of the key is used to identify the leaf to
 /// which the key maps.
-/// 
+///
 /// A leaf is either empty, or holds one or more key-value pairs. An empty leaf hashes to the empty
 /// word. Otherwise, a leaf hashes to the hash of its key-value pairs, ordered by key first, value
 /// second.
