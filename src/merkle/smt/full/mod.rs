@@ -277,6 +277,24 @@ impl SmtLeaf {
         }
     }
 
+    /// Returns the key-value pairs in the leaf
+    pub fn kv_pairs(&self) -> Vec<&(RpoDigest, Word)> {
+        match self {
+            SmtLeaf::Empty => Vec::new(),
+            SmtLeaf::Single(kv_pair) => vec![kv_pair],
+            SmtLeaf::Multiple(kv_pairs) => kv_pairs.iter().collect(),
+        }
+    }
+
+    /// Converts a leaf the key-value pairs in the leaf
+    pub fn into_kv_pairs(self) -> Vec<(RpoDigest, Word)> {
+        match self {
+            SmtLeaf::Empty => Vec::new(),
+            SmtLeaf::Single(kv_pair) => vec![kv_pair],
+            SmtLeaf::Multiple(kv_pairs) => kv_pairs,
+        }
+    }
+
     /// Computes the hash of the leaf
     pub fn hash(&self) -> RpoDigest {
         match self {
