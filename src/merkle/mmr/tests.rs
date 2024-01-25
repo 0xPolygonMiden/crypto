@@ -769,7 +769,7 @@ fn test_partial_mmr_simple() {
     // check state after adding tracking one element
     let proof1 = mmr.open(0, mmr.forest()).unwrap();
     let el1 = mmr.get(proof1.position).unwrap();
-    partial.add(proof1.position, el1, &proof1.merkle_path).unwrap();
+    partial.track(proof1.position, el1, &proof1.merkle_path).unwrap();
 
     // check the number of nodes increased by the number of nodes in the proof
     assert_eq!(partial.nodes.len(), proof1.merkle_path.len());
@@ -781,7 +781,7 @@ fn test_partial_mmr_simple() {
 
     let proof2 = mmr.open(1, mmr.forest()).unwrap();
     let el2 = mmr.get(proof2.position).unwrap();
-    partial.add(proof2.position, el2, &proof2.merkle_path).unwrap();
+    partial.track(proof2.position, el2, &proof2.merkle_path).unwrap();
 
     // check the number of nodes increased by a single element (the one that is not shared)
     assert_eq!(partial.nodes.len(), 3);
@@ -800,7 +800,7 @@ fn test_partial_mmr_update_single() {
     let mut partial: PartialMmr = full.peaks(full.forest()).unwrap().into();
 
     let proof = full.open(0, full.forest()).unwrap();
-    partial.add(proof.position, zero, &proof.merkle_path).unwrap();
+    partial.track(proof.position, zero, &proof.merkle_path).unwrap();
 
     for i in 1..100 {
         let node = int_to_node(i);
@@ -812,7 +812,7 @@ fn test_partial_mmr_update_single() {
         assert_eq!(partial.peaks(), full.peaks(full.forest()).unwrap());
 
         let proof1 = full.open(i as usize, full.forest()).unwrap();
-        partial.add(proof1.position, node, &proof1.merkle_path).unwrap();
+        partial.track(proof1.position, node, &proof1.merkle_path).unwrap();
         let proof2 = partial.open(proof1.position).unwrap().unwrap();
         assert_eq!(proof1.merkle_path, proof2.merkle_path);
     }
@@ -828,11 +828,11 @@ fn test_mmr_add_invalid_odd_leaf() {
 
     // None of the other leaves should work
     for node in LEAVES.iter().cloned().rev().skip(1) {
-        let result = partial.add(LEAVES.len() - 1, node, &empty);
+        let result = partial.track(LEAVES.len() - 1, node, &empty);
         assert!(result.is_err());
     }
 
-    let result = partial.add(LEAVES.len() - 1, LEAVES[6], &empty);
+    let result = partial.track(LEAVES.len() - 1, LEAVES[6], &empty);
     assert!(result.is_ok());
 }
 
