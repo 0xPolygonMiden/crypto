@@ -1,7 +1,7 @@
 use super::{
     mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath,
     MerkleTree, NodeIndex, PartialMerkleTree, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
-    TieredSmt, ValuePath, Vec,
+    Smt, TieredSmt, ValuePath, Vec,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::borrow::Borrow;
@@ -492,6 +492,13 @@ impl<T: KvMap<RpoDigest, StoreNode>> From<&MerkleTree> for MerkleStore<T> {
 
 impl<T: KvMap<RpoDigest, StoreNode>, const DEPTH: u8> From<&SimpleSmt<DEPTH>> for MerkleStore<T> {
     fn from(value: &SimpleSmt<DEPTH>) -> Self {
+        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
+        Self { nodes }
+    }
+}
+
+impl<T: KvMap<RpoDigest, StoreNode>> From<&Smt> for MerkleStore<T> {
+    fn from(value: &Smt) -> Self {
         let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
         Self { nodes }
     }
