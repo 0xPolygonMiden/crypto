@@ -25,6 +25,12 @@ pub const SMT_DEPTH: u8 = 64;
 // SMT
 // ================================================================================================
 
+/// Sparse Merkle tree mapping 256-bit keys to 256-bit values. Both keys and values are represented
+/// by 4 field elements.
+///
+/// All leaves sit at depth 64. A leaf is either empty, or holds one or more key-value pairs. An
+/// empty leaf hashes to the empty word. Otherwise, a leaf hashes to the hash of its key-value
+/// pairs, ordered by key first, value second.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Smt {
