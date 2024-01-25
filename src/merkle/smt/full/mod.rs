@@ -270,11 +270,7 @@ impl SmtLeaf {
 
     /// Converts a leaf to a list of field elements
     pub fn into_elements(self) -> Vec<Felt> {
-        match self {
-            SmtLeaf::Empty => Vec::new(),
-            SmtLeaf::Single(kv_pair) => kv_to_elements(kv_pair).collect(),
-            SmtLeaf::Multiple(kv_pairs) => kv_pairs.into_iter().flat_map(kv_to_elements).collect(),
-        }
+        self.into_kv_pairs().into_iter().flat_map(kv_to_elements).collect()
     }
 
     /// Returns the key-value pairs in the leaf
