@@ -133,7 +133,7 @@ impl Deserializable for Signature {
         let pk_polynomial = Polynomial::from_pub_key(&pk)
             .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?
             .into();
-        let sig_polynomial = Polynomial::from_signature(&sig[41..])
+        let sig_polynomial = Polynomial::from_signature(&sig)
             .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?
             .into();
 
@@ -193,7 +193,7 @@ fn decode_nonce(nonce: &NonceBytes) -> NonceElements {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::{
-        super::{ffi::*, Felt},
+        super::{ffi::*, Felt, KeyPair},
         *,
     };
     use libc::c_void;
@@ -267,5 +267,15 @@ mod tests {
         // Check that the coefficients are correct
         let nonce = decode_nonce(&nonce);
         assert_eq!(res, hash_to_point(msg_felts, &nonce).inner());
+    }
+
+    #[test]
+    fn test_serialization_round_trip() {
+        let key = KeyPair::new().unwrap();
+        let signature = key.sign(Word::default()).unwrap();
+        let serialized = signature.to_bytes();
+        let deserialized = Signature::read_from_bytes(&serialized).unwrap();
+        assert_eq!(signature.sig_poly(), deserialized.sig_poly());
+        assert_eq!(signature.pub_key_poly(), deserialized.pub_key_poly());
     }
 }
