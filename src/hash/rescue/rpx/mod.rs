@@ -88,10 +88,8 @@ impl Hasher for Rpx256 {
         // `i` is not zero, then the chunks count wasn't enough to fill the state range, and an
         // additional permutation must be performed.
         let i = bytes.chunks(BINARY_CHUNK_SIZE).fold(0, |i, chunk| {
-            // the last element of the iteration may or may not be a full chunk. if it's not, then
-            // we need to pad the remainder bytes of the chunk with zeroes, separated by a `1`.
-            // this will avoid collisions at the bytes level.
-            if chunk.len() == BINARY_CHUNK_SIZE {
+            // we always pad `bytes` with a 1 followed by as many 0's to fill up `buf`.
+            if i != num_field_elem - 1 {
                 buf[..BINARY_CHUNK_SIZE].copy_from_slice(chunk);
             } else {
                 buf.fill(0);
