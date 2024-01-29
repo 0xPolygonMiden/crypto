@@ -3,7 +3,7 @@ use core::cmp::Ordering;
 use winter_math::StarkField;
 
 use crate::hash::rpo::Rpo256;
-use crate::merkle::EmptySubtreeRoots;
+use crate::merkle::{EmptySubtreeRoots, InnerNodeInfo};
 use crate::utils::{
     collections::{BTreeMap, BTreeSet, Vec},
     vec,
@@ -25,6 +25,15 @@ pub const SMT_DEPTH: u8 = 64;
 // SMT
 // ================================================================================================
 
+/// Sparse Merkle tree mapping 256-bit keys to 256-bit values. Both keys and values are represented
+/// by 4 field elements.
+///
+/// All leaves sit at depth 64. The most significant element of the key is used to identify the leaf to
+/// which the key maps.
+///
+/// A leaf is either empty, or holds one or more key-value pairs. An empty leaf hashes to the empty
+/// word. Otherwise, a leaf hashes to the hash of its key-value pairs, ordered by key first, value
+/// second.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Smt {
@@ -109,6 +118,25 @@ impl Smt {
     /// path to the leaf, as well as the leaf itself.
     pub fn open(&self, key: &RpoDigest) -> (MerklePath, SmtLeaf) {
         <Self as SparseMerkleTree<SMT_DEPTH>>::open(self, key)
+    }
+
+    // ITERATORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns an iterator over the leaves of this [Smt].
+    pub fn leaves(&self) -> impl Iterator<Item = (LeafIndex<SMT_DEPTH>, &SmtLeaf)> {
+        self.leaves
+            .iter()
+            .map(|(leaf_index, leaf)| (LeafIndex::new_max_depth(*leaf_index), leaf))
+    }
+
+    /// Returns an iterator over the inner nodes of this [Smt].
+    pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+        self.inner_nodes.values().map(|e| InnerNodeInfo {
+            value: e.hash(),
+            left: e.left,
+            right: e.right,
+        })
     }
 
     // STATE MUTATORS
@@ -242,10 +270,24 @@ impl SmtLeaf {
 
     /// Converts a leaf to a list of field elements
     pub fn into_elements(self) -> Vec<Felt> {
+        self.into_kv_pairs().into_iter().flat_map(kv_to_elements).collect()
+    }
+
+    /// Returns the key-value pairs in the leaf
+    pub fn kv_pairs(&self) -> Vec<&(RpoDigest, Word)> {
         match self {
             SmtLeaf::Empty => Vec::new(),
-            SmtLeaf::Single(kv_pair) => kv_to_elements(kv_pair).collect(),
-            SmtLeaf::Multiple(kv_pairs) => kv_pairs.into_iter().flat_map(kv_to_elements).collect(),
+            SmtLeaf::Single(kv_pair) => vec![kv_pair],
+            SmtLeaf::Multiple(kv_pairs) => kv_pairs.iter().collect(),
+        }
+    }
+
+    /// Converts a leaf the key-value pairs in the leaf
+    pub fn into_kv_pairs(self) -> Vec<(RpoDigest, Word)> {
+        match self {
+            SmtLeaf::Empty => Vec::new(),
+            SmtLeaf::Single(kv_pair) => vec![kv_pair],
+            SmtLeaf::Multiple(kv_pairs) => kv_pairs,
         }
     }
 
