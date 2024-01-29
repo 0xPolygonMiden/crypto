@@ -41,6 +41,7 @@ use core::cell::OnceCell;
 /// 3. 625 bytes encoding the `s2` polynomial above.
 ///
 /// The total size of the signature (including the extended public key) is 1563 bytes.
+#[derive(Debug, Clone)]
 pub struct Signature {
     pub(super) pk: PublicKeyBytes,
     pub(super) sig: SignatureBytes,
