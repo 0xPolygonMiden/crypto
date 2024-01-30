@@ -137,6 +137,11 @@ impl Smt {
             .map(|(leaf_index, leaf)| (LeafIndex::new_max_depth(*leaf_index), leaf))
     }
 
+    /// Returns an iterator over the key-value pairs of this [Smt].
+    pub fn entries(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
+        self.leaves().flat_map(|(_, leaf)| leaf.kv_pairs())
+    }
+
     /// Returns an iterator over the inner nodes of this [Smt].
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
         self.inner_nodes.values().map(|e| InnerNodeInfo {
