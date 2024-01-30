@@ -132,3 +132,9 @@ impl MmrPeaks {
         elements
     }
 }
+
+impl From<MmrPeaks> for Vec<RpoDigest> {
+    fn from(peaks: MmrPeaks) -> Self {
+        peaks.peaks
+    }
+}

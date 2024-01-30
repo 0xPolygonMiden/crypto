@@ -10,6 +10,11 @@ use crate::{
     },
 };
 
+// TYPE ALIASES
+// ================================================================================================
+
+type NodeMap = BTreeMap<InOrderIndex, RpoDigest>;
+
 // PARTIAL MERKLE MOUNTAIN RANGE
 // ================================================================================================
 /// Partially materialized Merkle Mountain Range (MMR), used to efficiently store and update the
@@ -55,7 +60,7 @@ pub struct PartialMmr {
     /// permits for easy computation of the relative nodes (left/right children, sibling, parent),
     /// which is useful for traversal. The indexing is also stable, meaning that merges to the
     /// trees in the MMR can be represented without rewrites of the indexes.
-    pub(crate) nodes: BTreeMap<InOrderIndex, RpoDigest>,
+    pub(crate) nodes: NodeMap,
 
     /// Flag indicating if the odd element should be tracked.
     ///
@@ -68,12 +73,23 @@ impl PartialMmr {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
 
-    /// Constructs a [PartialMmr] from the given [MmrPeaks].
+    /// Returns a new [PartialMmr] instantiated from the specified peaks.
     pub fn from_peaks(peaks: MmrPeaks) -> Self {
         let forest = peaks.num_leaves();
-        let peaks = peaks.peaks().to_vec();
+        let peaks = peaks.into();
         let nodes = BTreeMap::new();
         let track_latest = false;
+
+        Self { forest, peaks, nodes, track_latest }
+    }
+
+    /// Returns a new [PartialMmr] instantiated from the specified components.
+    ///
+    /// This constructor does not check the consistency between peaks and nodes. If the specified
+    /// peaks are nodes are inconsistent, the returned partial MMR may exhibit undefined behavior.
+    pub fn from_parts(peaks: MmrPeaks, nodes: NodeMap, track_latest: bool) -> Self {
+        let forest = peaks.num_leaves();
+        let peaks = peaks.into();
 
         Self { forest, peaks, nodes, track_latest }
     }
@@ -516,7 +532,7 @@ impl From<&PartialMmr> for MmrPeaks {
 
 /// An iterator over every inner node of the [PartialMmr].
 pub struct InnerNodeIterator<'a, I: Iterator<Item = (usize, RpoDigest)>> {
-    nodes: &'a BTreeMap<InOrderIndex, RpoDigest>,
+    nodes: &'a NodeMap,
     leaves: I,
     stack: Vec<(InOrderIndex, RpoDigest)>,
     seen_nodes: BTreeSet<InOrderIndex>,
