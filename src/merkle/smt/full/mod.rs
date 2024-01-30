@@ -109,9 +109,19 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::root(self)
     }
 
-    /// Returns the leaf at the specified index.
+    /// Returns the leaf to which `key` maps
     pub fn get_leaf(&self, key: &RpoDigest) -> SmtLeaf {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
+    }
+
+    /// Returns the value associated with `key`
+    pub fn get_value(&self, key: &RpoDigest) -> Word {
+        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
+
+        match self.leaves.get(&leaf_pos) {
+            Some(leaf) => leaf.get_value(key),
+            None => EMPTY_WORD,
+        }
     }
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
@@ -128,6 +138,11 @@ impl Smt {
         self.leaves
             .iter()
             .map(|(leaf_index, leaf)| (LeafIndex::new_max_depth(*leaf_index), leaf))
+    }
+
+    /// Returns an iterator over the key-value pairs of this [Smt].
+    pub fn entries(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
+        self.leaves().flat_map(|(_, leaf)| leaf.entries())
     }
 
     /// Returns an iterator over the inner nodes of this [Smt].
@@ -270,11 +285,11 @@ impl SmtLeaf {
 
     /// Converts a leaf to a list of field elements
     pub fn into_elements(self) -> Vec<Felt> {
-        self.into_kv_pairs().into_iter().flat_map(kv_to_elements).collect()
+        self.into_entries().into_iter().flat_map(kv_to_elements).collect()
     }
 
     /// Returns the key-value pairs in the leaf
-    pub fn kv_pairs(&self) -> Vec<&(RpoDigest, Word)> {
+    pub fn entries(&self) -> Vec<&(RpoDigest, Word)> {
         match self {
             SmtLeaf::Empty => Vec::new(),
             SmtLeaf::Single(kv_pair) => vec![kv_pair],
@@ -283,7 +298,7 @@ impl SmtLeaf {
     }
 
     /// Converts a leaf the key-value pairs in the leaf
-    pub fn into_kv_pairs(self) -> Vec<(RpoDigest, Word)> {
+    pub fn into_entries(self) -> Vec<(RpoDigest, Word)> {
         match self {
             SmtLeaf::Empty => Vec::new(),
             SmtLeaf::Single(kv_pair) => vec![kv_pair],
@@ -305,6 +320,29 @@ impl SmtLeaf {
 
     // HELPERS
     // ---------------------------------------------------------------------------------------------
+
+    /// Returns the value associated with `key` in the leaf
+    fn get_value(&self, key: &RpoDigest) -> Word {
+        match self {
+            SmtLeaf::Empty => EMPTY_WORD,
+            SmtLeaf::Single((key_in_leaf, value_in_leaf)) => {
+                if key == key_in_leaf {
+                    *value_in_leaf
+                } else {
+                    EMPTY_WORD
+                }
+            }
+            SmtLeaf::Multiple(kv_pairs) => {
+                for (key_in_leaf, value_in_leaf) in kv_pairs {
+                    if key == key_in_leaf {
+                        return *value_in_leaf;
+                    }
+                }
+
+                EMPTY_WORD
+            }
+        }
+    }
 
     /// Inserts key-value pair into the leaf; returns the previous value associated with `key`, if
     /// any.
