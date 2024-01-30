@@ -263,7 +263,7 @@ fn test_empty_leaf_hash() {
 
 /// Tests that `get_value()` works as expected
 #[test]
-fn test_get_value() {
+fn test_smt_get_value() {
     let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
     let key_2: RpoDigest =
         RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), 2_u64.into()]);
@@ -286,6 +286,26 @@ fn test_get_value() {
     assert_eq!(EMPTY_WORD, smt.get_value(&key_no_value));
 }
 
+/// Tests that `entries()` works as expected
+#[test]
+fn test_smt_entries() {
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), 2_u64.into()]);
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u64.into(); WORD_SIZE];
+
+    let smt = Smt::with_entries([(key_1, value_1), (key_2, value_2)]).unwrap();
+
+    let mut entries = smt.entries();
+
+    // Note: for simplicity, we assume the order `(k1,v1), (k2,v2)`. If a new implementation
+    // switches the order, it is OK to modify the order here as well.
+    assert_eq!(&(key_1, value_1), entries.next().unwrap());
+    assert_eq!(&(key_2, value_2), entries.next().unwrap());
+    assert!(entries.next().is_none());
+}
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
