@@ -282,7 +282,7 @@ fn test_smt_get_value() {
     // Check that a key with no inserted value returns the empty word
     let key_no_value =
         RpoDigest::from([42_u64.into(), 42_u64.into(), 42_u64.into(), 42_u64.into()]);
-    
+
     assert_eq!(EMPTY_WORD, smt.get_value(&key_no_value));
 }
 
