@@ -261,6 +261,31 @@ fn test_empty_leaf_hash() {
     assert_eq!(leaf.hash(), EMPTY_WORD.into());
 }
 
+/// Tests that `get_value()` works as expected
+#[test]
+fn test_get_value() {
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), 2_u64.into()]);
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u64.into(); WORD_SIZE];
+
+    let smt = Smt::with_entries([(key_1, value_1), (key_2, value_2)]).unwrap();
+
+    let returned_value_1 = smt.get_value(&key_1);
+    let returned_value_2 = smt.get_value(&key_2);
+
+    assert_eq!(value_1, returned_value_1);
+    assert_eq!(value_2, returned_value_2);
+
+    // Check that a key with no inserted value returns the empty word
+    let key_no_value =
+        RpoDigest::from([42_u64.into(), 42_u64.into(), 42_u64.into(), 42_u64.into()]);
+    
+    assert_eq!(EMPTY_WORD, smt.get_value(&key_no_value));
+}
+
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
