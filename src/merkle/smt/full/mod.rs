@@ -116,9 +116,12 @@ impl Smt {
 
     /// Returns the value associated with `key`
     pub fn get_value(&self, key: &RpoDigest) -> Word {
-        let leaf = self.get_leaf(key);
+        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
 
-        leaf.get_value(key)
+        match self.leaves.get(&leaf_pos) {
+            Some(leaf) => leaf.get_value(key),
+            None => EMPTY_WORD,
+        }
     }
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
@@ -320,13 +323,25 @@ impl SmtLeaf {
 
     /// Returns the value associated with `key` in the leaf
     fn get_value(&self, key: &RpoDigest) -> Word {
-        for (key_in_leaf, value_in_leaf) in self.entries() {
-            if key == key_in_leaf {
-                return *value_in_leaf;
+        match self {
+            SmtLeaf::Empty => EMPTY_WORD,
+            SmtLeaf::Single((key_in_leaf, value_in_leaf)) => {
+                if key == key_in_leaf {
+                    *value_in_leaf
+                } else {
+                    EMPTY_WORD
+                }
+            }
+            SmtLeaf::Multiple(kv_pairs) => {
+                for (key_in_leaf, value_in_leaf) in kv_pairs {
+                    if key == key_in_leaf {
+                        return *value_in_leaf;
+                    }
+                }
+
+                EMPTY_WORD
             }
         }
-
-        EMPTY_WORD
     }
 
     /// Inserts key-value pair into the leaf; returns the previous value associated with `key`, if
