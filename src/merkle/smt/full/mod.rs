@@ -109,9 +109,16 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::root(self)
     }
 
-    /// Returns the leaf at the specified index.
+    /// Returns the leaf to which `key` maps
     pub fn get_leaf(&self, key: &RpoDigest) -> SmtLeaf {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
+    }
+
+    /// Returns the value associated with `key`
+    pub fn get_value(&self, key: &RpoDigest) -> Word {
+        let leaf = self.get_leaf(key);
+
+        leaf.get_value(key)
     }
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
@@ -305,6 +312,17 @@ impl SmtLeaf {
 
     // HELPERS
     // ---------------------------------------------------------------------------------------------
+
+    /// Returns the value associated with `key` in the leaf
+    fn get_value(&self, key: &RpoDigest) -> Word {
+        for (key_in_leaf, value_in_leaf) in self.kv_pairs() {
+            if key == key_in_leaf {
+                return *value_in_leaf;
+            }
+        }
+
+        EMPTY_WORD
+    }
 
     /// Inserts key-value pair into the leaf; returns the previous value associated with `key`, if
     /// any.
