@@ -5,7 +5,7 @@ use crate::{
     Word,
 };
 
-use super::{MerkleError, MerklePath, NodeIndex, Vec};
+use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex, Vec};
 
 mod full;
 pub use full::{Smt, SmtLeaf, SMT_DEPTH};
@@ -119,13 +119,20 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         node_hash_at_index: RpoDigest,
     ) {
         let mut value = node_hash_at_index;
-        for _ in 0..index.depth() {
+        for node_depth in 0..index.depth() {
             let is_right = index.is_value_odd();
             index.move_up();
             let InnerNode { left, right } = self.get_inner_node(index);
             let (left, right) = if is_right { (left, value) } else { (value, right) };
-            self.insert_inner_node(index, InnerNode { left, right });
             value = Rpo256::merge(&[left, right]);
+
+            if value == *EmptySubtreeRoots::entry(DEPTH, node_depth) {
+                // If a subtree is empty, when can remove the inner node, since it's equal to the
+                // default value
+                self.remove_inner_node(index)
+            } else {
+                self.insert_inner_node(index, InnerNode { left, right });
+            }
         }
         self.set_root(value);
     }
