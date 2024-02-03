@@ -25,7 +25,7 @@ fn test_smt_insert_at_same_key() {
 
     // Insert value 1 and ensure root is as expected
     {
-        let leaf_node = build_single_leaf_node(key_1, value_1);
+        let leaf_node = build_empty_or_single_leaf_node(key_1, value_1);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
         let old_value_1 = smt.insert(key_1, value_1);
@@ -36,7 +36,7 @@ fn test_smt_insert_at_same_key() {
 
     // Insert value 2 and ensure root is as expected
     {
-        let leaf_node = build_single_leaf_node(key_1, value_2);
+        let leaf_node = build_empty_or_single_leaf_node(key_1, value_2);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
         let old_value_2 = smt.insert(key_1, value_2);
@@ -64,7 +64,7 @@ fn test_smt_insert_at_same_key_2() {
     let mut store: MerkleStore = {
         let mut store = MerkleStore::default();
 
-        let leaf_node = build_single_leaf_node(key_already_present, value_already_present);
+        let leaf_node = build_empty_or_single_leaf_node(key_already_present, value_already_present);
         store
             .set_node(*EmptySubtreeRoots::entry(SMT_DEPTH, 0), key_already_present_index, leaf_node)
             .unwrap();
@@ -121,7 +121,7 @@ fn test_smt_insert_and_remove_multiple_values() {
         for &(key, value) in key_values {
             let key_index: NodeIndex = LeafIndex::<SMT_DEPTH>::from(key).into();
 
-            let leaf_node = build_single_leaf_node(key, value);
+            let leaf_node = build_empty_or_single_leaf_node(key, value);
             let tree_root = store.set_node(smt.root(), key_index, leaf_node).unwrap().root;
 
             let _ = smt.insert(key, value);
@@ -322,8 +322,12 @@ fn test_smt_entries() {
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
-fn build_single_leaf_node(key: RpoDigest, value: Word) -> RpoDigest {
-    SmtLeaf::Single((key, value)).hash()
+fn build_empty_or_single_leaf_node(key: RpoDigest, value: Word) -> RpoDigest {
+    if value == EMPTY_WORD {
+        SmtLeaf::Empty.hash()
+    } else {
+        SmtLeaf::Single((key, value)).hash()
+    }
 }
 
 fn build_multiple_leaf_node(kv_pairs: &[(RpoDigest, Word)]) -> RpoDigest {
