@@ -262,7 +262,6 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         let most_significant_felt = key[3];
         LeafIndex::new_max_depth(most_significant_felt.as_int())
     }
-
 }
 
 impl Default for Smt {

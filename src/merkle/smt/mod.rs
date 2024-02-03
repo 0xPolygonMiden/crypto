@@ -123,7 +123,11 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             let is_right = index.is_value_odd();
             index.move_up();
             let InnerNode { left, right } = self.get_inner_node(index);
-            let (left, right) = if is_right { (left, node_hash) } else { (node_hash, right) };
+            let (left, right) = if is_right {
+                (left, node_hash)
+            } else {
+                (node_hash, right)
+            };
             node_hash = Rpo256::merge(&[left, right]);
 
             if node_hash == *EmptySubtreeRoots::entry(DEPTH, node_depth) {

@@ -274,7 +274,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
         self.inner_nodes.insert(index, inner_node);
     }
-    
+
     fn remove_inner_node(&mut self, index: NodeIndex) {
         let _ = self.inner_nodes.remove(&index);
     }
