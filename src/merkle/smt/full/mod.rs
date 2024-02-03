@@ -232,6 +232,10 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         self.inner_nodes.insert(index, inner_node);
     }
 
+    fn remove_inner_node(&mut self, index: NodeIndex) {
+        let _ = self.inner_nodes.remove(&index);
+    }
+
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
         // inserting an `EMPTY_VALUE` is equivalent to removing any value associated with `key`
         if value != Self::EMPTY_VALUE {
@@ -258,6 +262,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         let most_significant_felt = key[3];
         LeafIndex::new_max_depth(most_significant_felt.as_int())
     }
+
 }
 
 impl Default for Smt {

@@ -145,6 +145,9 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Inserts an inner node at the given index
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode);
 
+    /// Removes an inner node at the given index
+    fn remove_inner_node(&mut self, index: NodeIndex);
+
     /// Inserts a leaf node, and returns the value at the key if already exists
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
 
