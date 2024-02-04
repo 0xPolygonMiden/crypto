@@ -169,6 +169,10 @@ fn test_smt_insert_and_remove_multiple_values() {
 
     let empty_root = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
     assert_eq!(smt.root(), empty_root);
+
+    // an empty tree should have no leaves or inner nodes
+    assert!(smt.leaves.is_empty());
+    assert!(smt.inner_nodes.is_empty());
 }
 
 /// This tests that inserting the empty value does indeed remove the key-value contained at the
