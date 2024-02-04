@@ -25,7 +25,7 @@ fn test_smt_insert_at_same_key() {
 
     // Insert value 1 and ensure root is as expected
     {
-        let leaf_node = build_single_leaf_node(key_1, value_1);
+        let leaf_node = build_empty_or_single_leaf_node(key_1, value_1);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
         let old_value_1 = smt.insert(key_1, value_1);
@@ -36,7 +36,7 @@ fn test_smt_insert_at_same_key() {
 
     // Insert value 2 and ensure root is as expected
     {
-        let leaf_node = build_single_leaf_node(key_1, value_2);
+        let leaf_node = build_empty_or_single_leaf_node(key_1, value_2);
         let tree_root = store.set_node(smt.root(), key_1_index, leaf_node).unwrap().root;
 
         let old_value_2 = smt.insert(key_1, value_2);
@@ -64,7 +64,7 @@ fn test_smt_insert_at_same_key_2() {
     let mut store: MerkleStore = {
         let mut store = MerkleStore::default();
 
-        let leaf_node = build_single_leaf_node(key_already_present, value_already_present);
+        let leaf_node = build_empty_or_single_leaf_node(key_already_present, value_already_present);
         store
             .set_node(*EmptySubtreeRoots::entry(SMT_DEPTH, 0), key_already_present_index, leaf_node)
             .unwrap();
@@ -109,10 +109,29 @@ fn test_smt_insert_at_same_key_2() {
     }
 }
 
-/// This test ensures that the root of the tree is as expected when we add 3 items at 3 different
-/// keys. This also tests that the merkle paths produced are as expected.
+/// This test ensures that the root of the tree is as expected when we add/remove 3 items at 3
+/// different keys. This also tests that the merkle paths produced are as expected.
 #[test]
-fn test_smt_insert_multiple_values() {
+fn test_smt_insert_and_remove_multiple_values() {
+    fn insert_values_and_assert_path(
+        smt: &mut Smt,
+        store: &mut MerkleStore,
+        key_values: &[(RpoDigest, Word)],
+    ) {
+        for &(key, value) in key_values {
+            let key_index: NodeIndex = LeafIndex::<SMT_DEPTH>::from(key).into();
+
+            let leaf_node = build_empty_or_single_leaf_node(key, value);
+            let tree_root = store.set_node(smt.root(), key_index, leaf_node).unwrap().root;
+
+            let _ = smt.insert(key, value);
+
+            assert_eq!(smt.root(), tree_root);
+
+            let expected_path = store.get_path(tree_root, key_index).unwrap();
+            assert_eq!(smt.open(&key).0, expected_path.path);
+        }
+    }
     let mut smt = Smt::default();
     let mut store: MerkleStore = MerkleStore::default();
 
@@ -140,22 +159,20 @@ fn test_smt_insert_multiple_values() {
     let value_2 = [ONE + ONE; WORD_SIZE];
     let value_3 = [ONE + ONE + ONE; WORD_SIZE];
 
+    // Insert values in the tree
     let key_values = [(key_1, value_1), (key_2, value_2), (key_3, value_3)];
+    insert_values_and_assert_path(&mut smt, &mut store, &key_values);
 
-    for (key, value) in key_values {
-        let key_index: NodeIndex = LeafIndex::<SMT_DEPTH>::from(key).into();
+    // Remove values from the tree
+    let key_empty_values = [(key_1, EMPTY_WORD), (key_2, EMPTY_WORD), (key_3, EMPTY_WORD)];
+    insert_values_and_assert_path(&mut smt, &mut store, &key_empty_values);
 
-        let leaf_node = build_single_leaf_node(key, value);
-        let tree_root = store.set_node(smt.root(), key_index, leaf_node).unwrap().root;
+    let empty_root = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
+    assert_eq!(smt.root(), empty_root);
 
-        let old_value = smt.insert(key, value);
-        assert_eq!(old_value, EMPTY_WORD);
-
-        assert_eq!(smt.root(), tree_root);
-
-        let expected_path = store.get_path(tree_root, key_index).unwrap();
-        assert_eq!(smt.open(&key).0, expected_path.path);
-    }
+    // an empty tree should have no leaves or inner nodes
+    assert!(smt.leaves.is_empty());
+    assert!(smt.inner_nodes.is_empty());
 }
 
 /// This tests that inserting the empty value does indeed remove the key-value contained at the
@@ -309,8 +326,12 @@ fn test_smt_entries() {
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
-fn build_single_leaf_node(key: RpoDigest, value: Word) -> RpoDigest {
-    SmtLeaf::Single((key, value)).hash()
+fn build_empty_or_single_leaf_node(key: RpoDigest, value: Word) -> RpoDigest {
+    if value == EMPTY_WORD {
+        SmtLeaf::Empty.hash()
+    } else {
+        SmtLeaf::Single((key, value)).hash()
+    }
 }
 
 fn build_multiple_leaf_node(kv_pairs: &[(RpoDigest, Word)]) -> RpoDigest {
