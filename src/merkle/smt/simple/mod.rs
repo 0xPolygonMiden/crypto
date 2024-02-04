@@ -275,6 +275,10 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
         self.inner_nodes.insert(index, inner_node);
     }
 
+    fn remove_inner_node(&mut self, index: NodeIndex) {
+        let _ = self.inner_nodes.remove(&index);
+    }
+
     fn insert_value(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Option<Word> {
         self.leaves.insert(key.value(), value)
     }

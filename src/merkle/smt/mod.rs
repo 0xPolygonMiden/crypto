@@ -5,7 +5,7 @@ use crate::{
     Word,
 };
 
-use super::{MerkleError, MerklePath, NodeIndex, Vec};
+use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex, Vec};
 
 mod full;
 pub use full::{Smt, SmtLeaf, SMT_DEPTH};
@@ -118,16 +118,27 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         mut index: NodeIndex,
         node_hash_at_index: RpoDigest,
     ) {
-        let mut value = node_hash_at_index;
-        for _ in 0..index.depth() {
+        let mut node_hash = node_hash_at_index;
+        for node_depth in (0..index.depth()).rev() {
             let is_right = index.is_value_odd();
             index.move_up();
             let InnerNode { left, right } = self.get_inner_node(index);
-            let (left, right) = if is_right { (left, value) } else { (value, right) };
-            self.insert_inner_node(index, InnerNode { left, right });
-            value = Rpo256::merge(&[left, right]);
+            let (left, right) = if is_right {
+                (left, node_hash)
+            } else {
+                (node_hash, right)
+            };
+            node_hash = Rpo256::merge(&[left, right]);
+
+            if node_hash == *EmptySubtreeRoots::entry(DEPTH, node_depth) {
+                // If a subtree is empty, when can remove the inner node, since it's equal to the
+                // default value
+                self.remove_inner_node(index)
+            } else {
+                self.insert_inner_node(index, InnerNode { left, right });
+            }
         }
-        self.set_root(value);
+        self.set_root(node_hash);
     }
 
     // REQUIRED METHODS
@@ -144,6 +155,9 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
     /// Inserts an inner node at the given index
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode);
+
+    /// Removes an inner node at the given index
+    fn remove_inner_node(&mut self, index: NodeIndex);
 
     /// Inserts a leaf node, and returns the value at the key if already exists
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
