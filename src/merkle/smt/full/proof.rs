@@ -40,13 +40,13 @@ impl SmtProof {
 
         match maybe_value_in_leaf {
             Some(value_in_leaf) => {
-        // The value must match for the proof to be valid
-        if value_in_leaf != *value {
-            return false;
-        }
+                // The value must match for the proof to be valid
+                if value_in_leaf != *value {
+                    return false;
+                }
 
-        // make sure the Merkle path resolves to the correct root
-        self.compute_root() == *root
+                // make sure the Merkle path resolves to the correct root
+                self.compute_root() == *root
             }
             // If the key maps to a different leaf, the proof cannot verify membership of `value`
             None => false,
@@ -71,6 +71,6 @@ impl SmtProof {
 
     /// Consume the proof and returns its parts.
     pub fn into_parts(self) -> (MerklePath, SmtLeaf) {
-        todo!()
+        (self.path, self.leaf)
     }
 }
