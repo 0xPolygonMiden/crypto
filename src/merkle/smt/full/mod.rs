@@ -14,6 +14,9 @@ use super::{
     InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
 };
 
+mod error;
+pub use error::SmtLeafError;
+
 mod proof;
 pub use proof::SmtProof;
 
@@ -285,12 +288,64 @@ pub enum SmtLeaf {
 }
 
 impl SmtLeaf {
-    // TODO: Add constructor new(entries, leaf_index) -> Result
+    // CONSTRUCTORS
+    // ---------------------------------------------------------------------------------------------
 
-    /// Returns a new empty leaf with the specified constructor
+    /// Returns a new leaf with the specified entries
+    pub fn new(
+        entries: Vec<(RpoDigest, Word)>,
+        leaf_index: LeafIndex<SMT_DEPTH>,
+    ) -> Result<Self, SmtLeafError> {
+        match entries.len() {
+            0 => Ok(Self::new_empty(leaf_index)),
+            1 => Ok(Self::new_single(entries[0])),
+            _ => Self::new_multiple(entries),
+        }
+    }
+
+    /// Returns a new empty leaf with the specified leaf index
     pub fn new_empty(leaf_index: LeafIndex<SMT_DEPTH>) -> Self {
         Self::Empty(leaf_index)
     }
+
+    /// Returns a new single leaf with the specified entry. The leaf index is derived from the
+    /// entry's key.
+    pub fn new_single(entry: (RpoDigest, Word)) -> Self {
+        Self::Single(entry)
+    }
+
+    /// Returns a new single leaf with the specified entry. The leaf index is derived from the
+    /// entry's key.
+    pub fn new_multiple(entries: Vec<(RpoDigest, Word)>) -> Result<Self, SmtLeafError> {
+        if entries.len() < 2 {
+            return Err(SmtLeafError::InvalidNumEntriesForMultiple(entries.len()));
+        }
+
+        // Check that all keys map to the same leaf index
+        {
+            let mut keys = entries.iter().map(|(key, _)| key);
+
+            let first_key = *keys.next().expect("ensured at least 2 entries");
+            let first_leaf_index: LeafIndex<SMT_DEPTH> = first_key.into();
+
+            for &next_key in keys {
+                let next_leaf_index: LeafIndex<SMT_DEPTH> = next_key.into();
+
+                if next_leaf_index != first_leaf_index {
+                    return Err(SmtLeafError::InconsistentKeysInEntries {
+                        entries,
+                        key_1: first_key,
+                        key_2: next_key,
+                    });
+                }
+            }
+        }
+
+        Ok(Self::Multiple(entries))
+    }
+
+    // PUBLIC ACCESSORS
+    // ---------------------------------------------------------------------------------------------
 
     /// Returns true if the leaf is empty
     pub fn is_empty(&self) -> bool {
@@ -323,7 +378,7 @@ impl SmtLeaf {
     }
 
     // ITERATORS
-    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // ---------------------------------------------------------------------------------------------
 
     /// Returns the key-value pairs in the leaf
     pub fn entries(&self) -> Vec<&(RpoDigest, Word)> {
@@ -335,7 +390,7 @@ impl SmtLeaf {
     }
 
     // CONVERSIONS
-    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // ---------------------------------------------------------------------------------------------
 
     /// Converts a leaf to a list of field elements
     pub fn to_elements(&self) -> Vec<Felt> {

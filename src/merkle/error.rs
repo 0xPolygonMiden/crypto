@@ -4,6 +4,8 @@ use crate::{
 };
 use core::fmt;
 
+use super::smt::SmtLeafError;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MerkleError {
     ConflictingRoots(Vec<RpoDigest>),
@@ -20,6 +22,7 @@ pub enum MerkleError {
     NodeNotInStore(RpoDigest, NodeIndex),
     NumLeavesNotPowerOfTwo(usize),
     RootNotInStore(RpoDigest),
+    SmtLeaf(SmtLeafError),
 }
 
 impl fmt::Display for MerkleError {
@@ -50,9 +53,16 @@ impl fmt::Display for MerkleError {
                 write!(f, "the leaves count {leaves} is not a power of 2")
             }
             RootNotInStore(root) => write!(f, "the root {:?} is not in the store", root),
+            SmtLeaf(smt_leaf_error) => write!(f, "smt leaf error: {smt_leaf_error}"),
         }
     }
 }
 
 #[cfg(feature = "std")]
 impl std::error::Error for MerkleError {}
+
+impl From<SmtLeafError> for MerkleError {
+    fn from(value: SmtLeafError) -> Self {
+        Self::SmtLeaf(value)
+    }
+}
