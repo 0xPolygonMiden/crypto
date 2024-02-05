@@ -88,7 +88,7 @@ impl SmtLeaf {
         matches!(self, Self::Empty(_))
     }
 
-    /// Returns the leaf's index in the [`Smt`]
+    /// Returns the leaf's index in the [`super::Smt`]
     pub fn index(&self) -> LeafIndex<SMT_DEPTH> {
         match self {
             SmtLeaf::Empty(leaf_index) => *leaf_index,
