@@ -439,6 +439,16 @@ impl SmtLeaf {
     }
 }
 
+impl From<Vec<(RpoDigest, Word)>> for SmtLeaf {
+    fn from(entries: Vec<(RpoDigest, Word)>) -> Self {
+        match entries.len() {
+            0 => Self::Empty,
+            1 => Self::Single(entries[0]),
+            _ => Self::Multiple(entries),
+        }
+    }
+}
+
 // HELPER FUNCTIONS
 // ================================================================================================
 
