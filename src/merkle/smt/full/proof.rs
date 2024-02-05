@@ -1,3 +1,4 @@
+use crate::utils::string::ToString;
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 use super::{MerklePath, RpoDigest, SmtLeaf, SmtProofError, Word, SMT_DEPTH};
