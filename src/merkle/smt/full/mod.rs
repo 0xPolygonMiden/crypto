@@ -288,32 +288,9 @@ pub enum SmtLeaf {
 }
 
 impl SmtLeaf {
-    /// Converts a leaf to a list of field elements
-    pub fn to_elements(&self) -> Vec<Felt> {
-        self.clone().into_elements()
-    }
-
-    /// Converts a leaf to a list of field elements
-    pub fn into_elements(self) -> Vec<Felt> {
-        self.into_entries().into_iter().flat_map(kv_to_elements).collect()
-    }
-
-    /// Returns the key-value pairs in the leaf
-    pub fn entries(&self) -> Vec<&(RpoDigest, Word)> {
-        match self {
-            SmtLeaf::Empty => Vec::new(),
-            SmtLeaf::Single(kv_pair) => vec![kv_pair],
-            SmtLeaf::Multiple(kv_pairs) => kv_pairs.iter().collect(),
-        }
-    }
-
-    /// Converts a leaf the key-value pairs in the leaf
-    pub fn into_entries(self) -> Vec<(RpoDigest, Word)> {
-        match self {
-            SmtLeaf::Empty => Vec::new(),
-            SmtLeaf::Single(kv_pair) => vec![kv_pair],
-            SmtLeaf::Multiple(kv_pairs) => kv_pairs,
-        }
+    /// Returns true if the leaf is empty
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty)
     }
 
     /// Computes the hash of the leaf
@@ -325,6 +302,40 @@ impl SmtLeaf {
                 let elements: Vec<Felt> = kvs.iter().copied().flat_map(kv_to_elements).collect();
                 Rpo256::hash_elements(&elements)
             }
+        }
+    }
+
+    // ITERATORS
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Returns the key-value pairs in the leaf
+    pub fn entries(&self) -> Vec<&(RpoDigest, Word)> {
+        match self {
+            SmtLeaf::Empty => Vec::new(),
+            SmtLeaf::Single(kv_pair) => vec![kv_pair],
+            SmtLeaf::Multiple(kv_pairs) => kv_pairs.iter().collect(),
+        }
+    }
+
+    // CONVERSIONS
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// Converts a leaf to a list of field elements
+    pub fn to_elements(&self) -> Vec<Felt> {
+        self.clone().into_elements()
+    }
+
+    /// Converts a leaf to a list of field elements
+    pub fn into_elements(self) -> Vec<Felt> {
+        self.into_entries().into_iter().flat_map(kv_to_elements).collect()
+    }
+
+    /// Converts a leaf the key-value pairs in the leaf
+    pub fn into_entries(self) -> Vec<(RpoDigest, Word)> {
+        match self {
+            SmtLeaf::Empty => Vec::new(),
+            SmtLeaf::Single(kv_pair) => vec![kv_pair],
+            SmtLeaf::Multiple(kv_pairs) => kv_pairs,
         }
     }
 

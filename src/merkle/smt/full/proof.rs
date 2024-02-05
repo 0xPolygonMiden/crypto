@@ -4,8 +4,7 @@ use super::{MerklePath, RpoDigest, SmtLeaf, SmtProofError, Word, SMT_DEPTH};
 /// [`super::Smt`].
 ///
 /// The proof consists of a Merkle path and leaf which describes the node located at the base of the
-/// path. If the node at the base of the path resolves to [ZERO; 4], the entries will contain a
-/// single item with value set to [ZERO; 4].
+/// path.
 #[derive(PartialEq, Eq, Debug)]
 pub struct SmtProof {
     path: MerklePath,
@@ -37,7 +36,15 @@ impl SmtProof {
     /// Note: this method cannot be used to assert non-membership. That is, if false is returned,
     /// it does not mean that the provided key-value pair is not in the tree.
     pub fn verify_membership(&self, key: &RpoDigest, value: &Word, root: &RpoDigest) -> bool {
-        todo!()
+        let value_in_leaf = self.leaf.get_value(key);
+
+        // The value must match for the proof to be valid
+        if value_in_leaf != *value {
+            return false;
+        }
+
+        // make sure the Merkle path resolves to the correct root
+        self.compute_root() == *root
     }
 
     // PUBLIC ACCESSORS
