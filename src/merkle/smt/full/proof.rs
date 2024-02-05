@@ -36,8 +36,10 @@ impl SmtProof {
     /// Note: this method cannot be used to assert non-membership. That is, if false is returned,
     /// it does not mean that the provided key-value pair is not in the tree.
     pub fn verify_membership(&self, key: &RpoDigest, value: &Word, root: &RpoDigest) -> bool {
-        let value_in_leaf = self.leaf.get_value(key);
+        let maybe_value_in_leaf = self.leaf.get_value(key);
 
+        match maybe_value_in_leaf {
+            Some(value_in_leaf) => {
         // The value must match for the proof to be valid
         if value_in_leaf != *value {
             return false;
@@ -45,6 +47,10 @@ impl SmtProof {
 
         // make sure the Merkle path resolves to the correct root
         self.compute_root() == *root
+            }
+            // If the key maps to a different leaf, the proof cannot verify membership of `value`
+            None => false,
+        }
     }
 
     // PUBLIC ACCESSORS
