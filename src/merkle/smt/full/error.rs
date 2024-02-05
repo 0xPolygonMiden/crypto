@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::{hash::rpo::RpoDigest, Word};
+use crate::{hash::rpo::RpoDigest, utils::collections::Vec, Word};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SmtLeafError {
