@@ -4,6 +4,9 @@ use crate::{
     ONE, WORD_SIZE,
 };
 
+// SMT
+// --------------------------------------------------------------------------------------------
+
 /// This test checks that inserting twice at the same key functions as expected. The test covers
 /// only the case where the key is alone in its leaf
 #[test]
@@ -323,6 +326,53 @@ fn test_smt_entries() {
     assert_eq!(&(key_2, value_2), entries.next().unwrap());
     assert!(entries.next().is_none());
 }
+
+// SMT LEAF
+// --------------------------------------------------------------------------------------------
+
+#[test]
+fn test_empty_smt_leaf_serialization() {
+    let empty_leaf = SmtLeaf::new_empty(LeafIndex::new_max_depth(42));
+
+    let serialized = empty_leaf.to_bytes();
+    let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
+
+    assert_eq!(empty_leaf, deserialized);
+}
+
+#[test]
+fn test_single_smt_leaf_serialization() {
+    let single_leaf = SmtLeaf::new_single(
+        RpoDigest::from([10_u64.into(), 11_u64.into(), 12_u64.into(), 13_u64.into()]),
+        [1_u64.into(), 2_u64.into(), 3_u64.into(), 4_u64.into()],
+    );
+
+    let serialized = single_leaf.to_bytes();
+    let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
+
+    assert_eq!(single_leaf, deserialized);
+}
+
+#[test]
+fn test_multiple_smt_leaf_serialization_success() {
+    let multiple_leaf = SmtLeaf::new_multiple(vec![
+        (
+            RpoDigest::from([10_u64.into(), 11_u64.into(), 12_u64.into(), 13_u64.into()]),
+            [1_u64.into(), 2_u64.into(), 3_u64.into(), 4_u64.into()],
+        ),
+        (
+            RpoDigest::from([100_u64.into(), 101_u64.into(), 102_u64.into(), 13_u64.into()]),
+            [11_u64.into(), 12_u64.into(), 13_u64.into(), 14_u64.into()],
+        ),
+    ])
+    .unwrap();
+
+    let serialized = multiple_leaf.to_bytes();
+    let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
+
+    assert_eq!(multiple_leaf, deserialized);
+}
+
 // HELPERS
 // --------------------------------------------------------------------------------------------
 

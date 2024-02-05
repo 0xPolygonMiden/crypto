@@ -307,7 +307,11 @@ impl SmtLeaf {
     ) -> Result<Self, SmtLeafError> {
         match entries.len() {
             0 => Ok(Self::new_empty(leaf_index)),
-            1 => Ok(Self::new_single(entries[0])),
+            1 => {
+                let (key, value) = entries[0];
+
+                Ok(Self::new_single(key, value))
+            }
             _ => Self::new_multiple(entries),
         }
     }
@@ -319,8 +323,8 @@ impl SmtLeaf {
 
     /// Returns a new single leaf with the specified entry. The leaf index is derived from the
     /// entry's key.
-    pub fn new_single(entry: (RpoDigest, Word)) -> Self {
-        Self::Single(entry)
+    pub fn new_single(key: RpoDigest, value: Word) -> Self {
+        Self::Single((key, value))
     }
 
     /// Returns a new single leaf with the specified entry. The leaf index is derived from the
