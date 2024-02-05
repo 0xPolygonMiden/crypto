@@ -1,4 +1,5 @@
 use core::fmt;
+use std::error::Error;
 
 use crate::{hash::rpo::RpoDigest, utils::collections::Vec, Word};
 
@@ -11,6 +12,9 @@ pub enum SmtLeafError {
     },
     InvalidNumEntriesForMultiple(usize),
 }
+
+#[cfg(feature = "std")]
+impl Error for SmtLeafError {}
 
 impl fmt::Display for SmtLeafError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
