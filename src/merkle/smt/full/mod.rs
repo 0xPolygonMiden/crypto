@@ -125,7 +125,7 @@ impl Smt {
         let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
 
         match self.leaves.get(&leaf_pos) {
-            Some(leaf) => leaf.get_value(key),
+            Some(leaf) => leaf.get_value(key).unwrap_or_default(),
             None => EMPTY_WORD,
         }
     }
@@ -362,34 +362,37 @@ impl SmtLeaf {
     // HELPERS
     // ---------------------------------------------------------------------------------------------
 
-    /// Returns the value associated with `key` in the leaf
-    fn get_value(&self, key: &RpoDigest) -> Word {
-        // TODO: Return `Option<Word>`, and check leaf index
-        todo!();
+    /// Returns the value associated with `key` in the leaf, or `None` if `key` maps to another leaf.
+    fn get_value(&self, key: &RpoDigest) -> Option<Word> {
+        // Ensure that `key` maps to this leaf
+        if self.index() != key.into() {
+            return None;
+        }
+
         match self {
-            SmtLeaf::Empty(_) => EMPTY_WORD,
+            SmtLeaf::Empty(_) => Some(EMPTY_WORD),
             SmtLeaf::Single((key_in_leaf, value_in_leaf)) => {
                 if key == key_in_leaf {
-                    *value_in_leaf
+                    Some(*value_in_leaf)
                 } else {
-                    EMPTY_WORD
+                    Some(EMPTY_WORD)
                 }
             }
             SmtLeaf::Multiple(kv_pairs) => {
                 for (key_in_leaf, value_in_leaf) in kv_pairs {
                     if key == key_in_leaf {
-                        return *value_in_leaf;
+                        return Some(*value_in_leaf);
                     }
                 }
 
-                EMPTY_WORD
+                Some(EMPTY_WORD)
             }
         }
     }
 
     /// Inserts key-value pair into the leaf; returns the previous value associated with `key`, if
     /// any.
-    /// 
+    ///
     /// The caller needs to ensure that `key` has the same leaf index as all other keys in the leaf
     fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
         match self {

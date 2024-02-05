@@ -253,3 +253,9 @@ impl From<RpoDigest> for LeafIndex<SMT_MAX_DEPTH> {
         Word::from(value).into()
     }
 }
+
+impl From<&RpoDigest> for LeafIndex<SMT_MAX_DEPTH> {
+    fn from(value: &RpoDigest) -> Self {
+        Word::from(value).into()
+    }
+}
