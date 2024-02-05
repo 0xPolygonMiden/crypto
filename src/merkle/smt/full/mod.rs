@@ -16,7 +16,7 @@ use super::{
 };
 
 mod error;
-pub use error::SmtLeafError;
+pub use error::{SmtLeafError, SmtProofError};
 
 mod proof;
 pub use proof::SmtProof;

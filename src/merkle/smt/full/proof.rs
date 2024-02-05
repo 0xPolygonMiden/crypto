@@ -1,4 +1,4 @@
-use super::{MerklePath, RpoDigest, SmtLeaf, Word};
+use super::{MerklePath, RpoDigest, SmtLeaf, SmtProofError, Word, SMT_DEPTH};
 
 /// A proof which can be used to assert membership (or non-membership) of key-value pairs in a
 /// [`super::Smt`].
@@ -19,8 +19,12 @@ impl SmtProof {
     ///
     /// # Errors
     /// Returns an error if the path length is not [`SMT_DEPTH`].
-    pub fn new(path: MerklePath, leaf: SmtLeaf) -> Self {
-        Self { path, leaf }
+    pub fn new(path: MerklePath, leaf: SmtLeaf) -> Result<Self, SmtProofError> {
+        if path.len() != SMT_DEPTH.into() {
+            return Err(SmtProofError::InvalidPathLength(path.len()));
+        }
+
+        Ok(Self { path, leaf })
     }
 
     // PROOF VERIFIER
@@ -75,6 +79,7 @@ impl SmtProof {
 
 impl From<(MerklePath, SmtLeaf)> for SmtProof {
     fn from((path, leaf): (MerklePath, SmtLeaf)) -> Self {
-        Self::new(path, leaf)
+        // TODO REMOVE
+        todo!()
     }
 }
