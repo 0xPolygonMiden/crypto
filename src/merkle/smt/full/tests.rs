@@ -129,7 +129,7 @@ fn test_smt_insert_and_remove_multiple_values() {
             assert_eq!(smt.root(), tree_root);
 
             let expected_path = store.get_path(tree_root, key_index).unwrap();
-            assert_eq!(smt.open(&key).0, expected_path.path);
+            assert_eq!(smt.open(&key).into_parts().0, expected_path.path);
         }
     }
     let mut smt = Smt::default();

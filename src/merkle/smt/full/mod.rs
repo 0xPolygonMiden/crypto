@@ -14,9 +14,6 @@ use super::{
     InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
 };
 
-mod error;
-pub use error::SmtProofError;
-
 mod proof;
 pub use proof::SmtProof;
 
@@ -132,7 +129,7 @@ impl Smt {
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
     /// path to the leaf, as well as the leaf itself.
-    pub fn open(&self, key: &RpoDigest) -> (MerklePath, SmtLeaf) {
+    pub fn open(&self, key: &RpoDigest) -> SmtProof {
         <Self as SparseMerkleTree<SMT_DEPTH>>::open(self, key)
     }
 
@@ -214,7 +211,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     type Key = RpoDigest;
     type Value = Word;
     type Leaf = SmtLeaf;
-    type Opening = (MerklePath, SmtLeaf);
+    type Opening = SmtProof;
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
 
