@@ -66,7 +66,9 @@ impl SmtProof {
 
     /// Computes the root of a [`super::Smt`] to which this proof resolves.
     pub fn compute_root(&self) -> RpoDigest {
-        todo!()
+        self.path
+            .compute_root(self.leaf.index().value(), self.leaf.hash())
+            .expect("failed to compute Merkle path root")
     }
 
     /// Consume the proof and returns its parts.
