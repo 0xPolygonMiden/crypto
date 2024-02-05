@@ -256,7 +256,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
         match self.leaves.get(&leaf_pos) {
             Some(leaf) => leaf.clone(),
-            None => SmtLeaf::Empty((*key).into()),
+            None => SmtLeaf::Empty(key.into()),
         }
     }
 
@@ -288,7 +288,6 @@ pub enum SmtLeaf {
 }
 
 impl SmtLeaf {
-
     // TODO: Add constructor new(entries, leaf_index) -> Result
 
     /// Returns a new empty leaf with the specified constructor
@@ -299,6 +298,19 @@ impl SmtLeaf {
     /// Returns true if the leaf is empty
     pub fn is_empty(&self) -> bool {
         matches!(self, Self::Empty(_))
+    }
+
+    /// Returns the leaf's index in the [`Smt`]
+    pub fn index(&self) -> LeafIndex<SMT_DEPTH> {
+        match self {
+            SmtLeaf::Empty(leaf_index) => *leaf_index,
+            SmtLeaf::Single((key, _)) => key.into(),
+            SmtLeaf::Multiple(entries) => {
+                // Note: All keys are guaranteed to have the same leaf index
+                let (first_key, _) = entries[0];
+                first_key.into()
+            }
+        }
     }
 
     /// Computes the hash of the leaf
@@ -377,6 +389,8 @@ impl SmtLeaf {
 
     /// Inserts key-value pair into the leaf; returns the previous value associated with `key`, if
     /// any.
+    /// 
+    /// The caller needs to ensure that `key` has the same leaf index as all other keys in the leaf
     fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
         match self {
             SmtLeaf::Empty(_) => {
