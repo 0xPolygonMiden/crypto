@@ -27,6 +27,13 @@ impl SmtProof {
         Ok(Self { path, leaf })
     }
 
+    /// Returns a new instance of [`SmtProof`] instantiated from the specified path and leaf.
+    ///
+    /// The length of the path is not checked. Reserved for internal use.
+    pub(crate) fn new_unchecked(path: MerklePath, leaf: SmtLeaf) -> Self {
+        Self { path, leaf }
+    }
+
     // PROOF VERIFIER
     // --------------------------------------------------------------------------------------------
 
@@ -74,12 +81,5 @@ impl SmtProof {
     /// Consume the proof and returns its parts.
     pub fn into_parts(self) -> (MerklePath, SmtLeaf) {
         (self.path, self.leaf)
-    }
-}
-
-impl From<(MerklePath, SmtLeaf)> for SmtProof {
-    fn from((path, leaf): (MerklePath, SmtLeaf)) -> Self {
-        // TODO REMOVE
-        todo!()
     }
 }

@@ -269,6 +269,10 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         let most_significant_felt = key[3];
         LeafIndex::new_max_depth(most_significant_felt.as_int())
     }
+
+    fn path_and_leaf_to_opening(path: MerklePath, leaf: SmtLeaf) -> SmtProof {
+        SmtProof::new_unchecked(path, leaf)
+    }
 }
 
 impl Default for Smt {

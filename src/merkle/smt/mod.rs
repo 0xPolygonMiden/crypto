@@ -50,7 +50,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a leaf
     type Leaf;
     /// The type for an opening (i.e. a "proof") of a leaf
-    type Opening: From<(MerklePath, Self::Leaf)>;
+    type Opening;
 
     /// The default value used to compute the hash of empty leaves
     const EMPTY_VALUE: Self::Value;
@@ -81,7 +81,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             MerklePath::new(path)
         };
 
-        (merkle_path, leaf).into()
+        Self::path_and_leaf_to_opening(merkle_path, leaf)
     }
 
     /// Inserts a value at the specified key, returning the previous value associated with that key.
@@ -168,6 +168,11 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
     /// Maps a key to a leaf index
     fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
+
+    /// Maps a (MerklePath, Self::Leaf) to an opening.
+    ///
+    /// The length `path` is guaranteed to be equal to `DEPTH`
+    fn path_and_leaf_to_opening(path: MerklePath, leaf: Self::Leaf) -> Self::Opening;
 }
 
 // INNER NODE

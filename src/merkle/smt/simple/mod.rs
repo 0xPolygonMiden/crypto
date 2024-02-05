@@ -1,5 +1,5 @@
 use crate::{
-    merkle::{EmptySubtreeRoots, InnerNodeInfo, ValuePath},
+    merkle::{EmptySubtreeRoots, InnerNodeInfo, MerklePath, ValuePath},
     EMPTY_WORD,
 };
 
@@ -301,5 +301,9 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
 
     fn key_to_leaf_index(key: &LeafIndex<DEPTH>) -> LeafIndex<DEPTH> {
         *key
+    }
+
+    fn path_and_leaf_to_opening(path: MerklePath, leaf: Word) -> ValuePath {
+        (path, leaf).into()
     }
 }
