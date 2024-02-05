@@ -248,7 +248,7 @@ fn test_smt_removal() {
         let old_value_1 = smt.insert(key_1, EMPTY_WORD);
         assert_eq!(old_value_1, value_1);
 
-        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Empty);
+        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::new_empty(key_1.into()));
     }
 }
 
@@ -328,7 +328,7 @@ fn test_smt_entries() {
 
 fn build_empty_or_single_leaf_node(key: RpoDigest, value: Word) -> RpoDigest {
     if value == EMPTY_WORD {
-        SmtLeaf::Empty.hash()
+        SmtLeaf::new_empty(key.into()).hash()
     } else {
         SmtLeaf::Single((key, value)).hash()
     }

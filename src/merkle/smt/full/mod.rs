@@ -256,7 +256,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
         match self.leaves.get(&leaf_pos) {
             Some(leaf) => leaf.clone(),
-            None => SmtLeaf::Empty,
+            None => SmtLeaf::Empty((*key).into()),
         }
     }
 
@@ -282,21 +282,29 @@ impl Default for Smt {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum SmtLeaf {
-    Empty,
+    Empty(LeafIndex<SMT_DEPTH>),
     Single((RpoDigest, Word)),
     Multiple(Vec<(RpoDigest, Word)>),
 }
 
 impl SmtLeaf {
+
+    // TODO: Add constructor new(entries, leaf_index) -> Result
+
+    /// Returns a new empty leaf with the specified constructor
+    pub fn new_empty(leaf_index: LeafIndex<SMT_DEPTH>) -> Self {
+        Self::Empty(leaf_index)
+    }
+
     /// Returns true if the leaf is empty
     pub fn is_empty(&self) -> bool {
-        matches!(self, Self::Empty)
+        matches!(self, Self::Empty(_))
     }
 
     /// Computes the hash of the leaf
     pub fn hash(&self) -> RpoDigest {
         match self {
-            SmtLeaf::Empty => EMPTY_WORD.into(),
+            SmtLeaf::Empty(_) => EMPTY_WORD.into(),
             SmtLeaf::Single((key, value)) => Rpo256::merge(&[*key, value.into()]),
             SmtLeaf::Multiple(kvs) => {
                 let elements: Vec<Felt> = kvs.iter().copied().flat_map(kv_to_elements).collect();
@@ -311,7 +319,7 @@ impl SmtLeaf {
     /// Returns the key-value pairs in the leaf
     pub fn entries(&self) -> Vec<&(RpoDigest, Word)> {
         match self {
-            SmtLeaf::Empty => Vec::new(),
+            SmtLeaf::Empty(_) => Vec::new(),
             SmtLeaf::Single(kv_pair) => vec![kv_pair],
             SmtLeaf::Multiple(kv_pairs) => kv_pairs.iter().collect(),
         }
@@ -333,7 +341,7 @@ impl SmtLeaf {
     /// Converts a leaf the key-value pairs in the leaf
     pub fn into_entries(self) -> Vec<(RpoDigest, Word)> {
         match self {
-            SmtLeaf::Empty => Vec::new(),
+            SmtLeaf::Empty(_) => Vec::new(),
             SmtLeaf::Single(kv_pair) => vec![kv_pair],
             SmtLeaf::Multiple(kv_pairs) => kv_pairs,
         }
@@ -344,8 +352,10 @@ impl SmtLeaf {
 
     /// Returns the value associated with `key` in the leaf
     fn get_value(&self, key: &RpoDigest) -> Word {
+        // TODO: Return `Option<Word>`, and check leaf index
+        todo!();
         match self {
-            SmtLeaf::Empty => EMPTY_WORD,
+            SmtLeaf::Empty(_) => EMPTY_WORD,
             SmtLeaf::Single((key_in_leaf, value_in_leaf)) => {
                 if key == key_in_leaf {
                     *value_in_leaf
@@ -369,7 +379,7 @@ impl SmtLeaf {
     /// any.
     fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
         match self {
-            SmtLeaf::Empty => {
+            SmtLeaf::Empty(_) => {
                 *self = SmtLeaf::Single((key, value));
                 None
             }
@@ -414,7 +424,7 @@ impl SmtLeaf {
     /// empty, and must be removed from the data structure it is contained in.
     fn remove(&mut self, key: RpoDigest) -> (Option<Word>, bool) {
         match self {
-            SmtLeaf::Empty => (None, false),
+            SmtLeaf::Empty(_) => (None, false),
             SmtLeaf::Single((key_at_leaf, value_at_leaf)) => {
                 if *key_at_leaf == key {
                     // our key was indeed stored in the leaf, so we return the value that was stored
@@ -423,7 +433,7 @@ impl SmtLeaf {
 
                     // Note: this is not strictly needed, since the caller is expected to drop this
                     // `SmtLeaf` object.
-                    *self = SmtLeaf::Empty;
+                    *self = SmtLeaf::Empty(key.into());
 
                     (Some(old_value), true)
                 } else {
@@ -452,16 +462,6 @@ impl SmtLeaf {
                     }
                 }
             }
-        }
-    }
-}
-
-impl From<Vec<(RpoDigest, Word)>> for SmtLeaf {
-    fn from(entries: Vec<(RpoDigest, Word)>) -> Self {
-        match entries.len() {
-            0 => Self::Empty,
-            1 => Self::Single(entries[0]),
-            _ => Self::Multiple(entries),
         }
     }
 }
