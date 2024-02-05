@@ -1,6 +1,7 @@
 use core::cmp::Ordering;
 
 use winter_math::StarkField;
+use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 use crate::hash::rpo::Rpo256;
 use crate::merkle::{EmptySubtreeRoots, InnerNodeInfo};
@@ -297,6 +298,9 @@ impl SmtLeaf {
     // ---------------------------------------------------------------------------------------------
 
     /// Returns a new leaf with the specified entries
+    ///
+    /// Errors
+    ///   - Returns an error if 2 keys in `entries` map to a different leaf index
     pub fn new(
         entries: Vec<(RpoDigest, Word)>,
         leaf_index: LeafIndex<SMT_DEPTH>,
@@ -320,7 +324,10 @@ impl SmtLeaf {
     }
 
     /// Returns a new single leaf with the specified entry. The leaf index is derived from the
-    /// entry's key.
+    /// entries' keys.
+    ///
+    /// Errors
+    ///   - Returns an error if 2 keys in `entries` map to a different leaf index
     pub fn new_multiple(entries: Vec<(RpoDigest, Word)>) -> Result<Self, SmtLeafError> {
         if entries.len() < 2 {
             return Err(SmtLeafError::InvalidNumEntriesForMultiple(entries.len()));
@@ -537,6 +544,36 @@ impl SmtLeaf {
                 }
             }
         }
+    }
+}
+
+impl Serializable for SmtLeaf {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        let leaf_index: u64 = self.index().value();
+
+        leaf_index.write_into(target);
+        self.to_elements().write_into(target)
+    }
+}
+
+impl Deserializable for SmtLeaf {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let leaf_index: LeafIndex<SMT_DEPTH> = {
+            let value = source.read_u64()?;
+            LeafIndex::new_max_depth(value)
+        };
+
+        let mut entries: Vec<(RpoDigest, Word)> = Vec::new();
+
+        while source.has_more_bytes() {
+            let key: RpoDigest = source.read()?;
+            let value: Word = source.read()?;
+
+            entries.push((key, value));
+        }
+
+        Self::new(entries, leaf_index)
+            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))
     }
 }
 
