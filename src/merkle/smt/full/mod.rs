@@ -12,6 +12,7 @@ use crate::{Felt, EMPTY_WORD};
 
 use super::{
     InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
+    SMT_MAX_DEPTH,
 };
 
 mod error;
@@ -558,4 +559,26 @@ fn cmp_keys(key_1: RpoDigest, key_2: RpoDigest) -> Ordering {
     }
 
     Ordering::Equal
+}
+
+// CONVERSIONS
+// ================================================================================================
+
+impl From<Word> for LeafIndex<SMT_MAX_DEPTH> {
+    fn from(value: Word) -> Self {
+        // We use the most significant `Felt` of a `Word` as the leaf index.
+        Self::new_max_depth(value[3].as_int())
+    }
+}
+
+impl From<RpoDigest> for LeafIndex<SMT_MAX_DEPTH> {
+    fn from(value: RpoDigest) -> Self {
+        Word::from(value).into()
+    }
+}
+
+impl From<&RpoDigest> for LeafIndex<SMT_MAX_DEPTH> {
+    fn from(value: &RpoDigest) -> Self {
+        Word::from(value).into()
+    }
 }
