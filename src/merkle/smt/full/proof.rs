@@ -1,3 +1,5 @@
+use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+
 use super::{MerklePath, RpoDigest, SmtLeaf, SmtProofError, Word, SMT_DEPTH};
 
 /// A proof which can be used to assert membership (or non-membership) of key-value pairs in a
@@ -81,5 +83,21 @@ impl SmtProof {
     /// Consume the proof and returns its parts.
     pub fn into_parts(self) -> (MerklePath, SmtLeaf) {
         (self.path, self.leaf)
+    }
+}
+
+impl Serializable for SmtProof {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        self.path.write_into(target);
+        self.leaf.write_into(target);
+    }
+}
+
+impl Deserializable for SmtProof {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let path = MerklePath::read_from(source)?;
+        let leaf = SmtLeaf::read_from(source)?;
+
+        Self::new(path, leaf).map_err(|err| DeserializationError::InvalidValue(err.to_string()))
     }
 }
