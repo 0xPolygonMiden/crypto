@@ -3,6 +3,7 @@ use winter_utils::{Deserializable, Serializable};
 use super::*;
 use crate::{
     merkle::{EmptySubtreeRoots, MerkleStore},
+    utils::collections::Vec,
     ONE, WORD_SIZE,
 };
 
