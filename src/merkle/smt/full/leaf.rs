@@ -185,7 +185,7 @@ impl SmtLeaf {
     pub(crate) fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
         match self {
             SmtLeaf::Empty(_) => {
-                *self = SmtLeaf::Single((key, value));
+                *self = SmtLeaf::new_single(key, value);
                 None
             }
             SmtLeaf::Single(kv_pair) => {
@@ -238,7 +238,7 @@ impl SmtLeaf {
 
                     // Note: this is not strictly needed, since the caller is expected to drop this
                     // `SmtLeaf` object.
-                    *self = SmtLeaf::Empty(key.into());
+                    *self = SmtLeaf::new_empty(key.into());
 
                     (Some(old_value), true)
                 } else {
