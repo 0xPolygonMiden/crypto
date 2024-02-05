@@ -14,6 +14,12 @@ use super::{
     InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
 };
 
+mod error;
+pub use error::SmtProofError;
+
+mod proof;
+pub use proof::SmtProof;
+
 #[cfg(test)]
 mod tests;
 
