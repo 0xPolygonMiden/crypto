@@ -31,6 +31,10 @@ impl SmtLeaf {
             1 => {
                 let (key, value) = entries[0];
 
+                if LeafIndex::<SMT_DEPTH>::from(key) != leaf_index {
+                    return Err(SmtLeafError::KeyInconsistentWithLeafIndex { key, leaf_index });
+                }
+
                 Ok(Self::new_single(key, value))
             }
             _ => Self::new_multiple(entries),

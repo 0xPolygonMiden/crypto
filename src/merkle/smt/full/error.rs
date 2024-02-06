@@ -1,6 +1,11 @@
 use core::fmt;
 
-use crate::{hash::rpo::RpoDigest, merkle::SMT_DEPTH, utils::collections::Vec, Word};
+use crate::{
+    hash::rpo::RpoDigest,
+    merkle::{LeafIndex, SMT_DEPTH},
+    utils::collections::Vec,
+    Word,
+};
 
 // SMT LEAF ERROR
 // =================================================================================================
@@ -13,6 +18,10 @@ pub enum SmtLeafError {
         key_2: RpoDigest,
     },
     InvalidNumEntriesForMultiple(usize),
+    KeyInconsistentWithLeafIndex {
+        key: RpoDigest,
+        leaf_index: LeafIndex<SMT_DEPTH>,
+    },
 }
 
 #[cfg(feature = "std")]
@@ -27,6 +36,13 @@ impl fmt::Display for SmtLeafError {
             }
             InconsistentKeysInEntries { entries, key_1, key_2 } => {
                 write!(f, "Multiple leaf requires all keys to map to the same leaf index. Offending keys: {key_1} and {key_2}. Entries: {entries:?}.")
+            }
+            KeyInconsistentWithLeafIndex { key, leaf_index } => {
+                write!(
+                    f,
+                    "Single key in leaf inconsistent with leaf index. Key: {key}, leaf index: {}",
+                    leaf_index.value()
+                )
             }
         }
     }
