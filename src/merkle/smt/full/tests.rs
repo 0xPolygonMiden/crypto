@@ -1,8 +1,14 @@
+use winter_utils::{Deserializable, Serializable};
+
 use super::*;
 use crate::{
     merkle::{EmptySubtreeRoots, MerkleStore},
+    utils::collections::Vec,
     ONE, WORD_SIZE,
 };
+
+// SMT
+// --------------------------------------------------------------------------------------------
 
 /// This test checks that inserting twice at the same key functions as expected. The test covers
 /// only the case where the key is alone in its leaf
@@ -129,7 +135,7 @@ fn test_smt_insert_and_remove_multiple_values() {
             assert_eq!(smt.root(), tree_root);
 
             let expected_path = store.get_path(tree_root, key_index).unwrap();
-            assert_eq!(smt.open(&key).0, expected_path.path);
+            assert_eq!(smt.open(&key).into_parts().0, expected_path.path);
         }
     }
     let mut smt = Smt::default();
@@ -248,7 +254,7 @@ fn test_smt_removal() {
         let old_value_1 = smt.insert(key_1, EMPTY_WORD);
         assert_eq!(old_value_1, value_1);
 
-        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::Empty);
+        assert_eq!(smt.get_leaf(&key_1), SmtLeaf::new_empty(key_1.into()));
     }
 }
 
@@ -323,12 +329,65 @@ fn test_smt_entries() {
     assert_eq!(&(key_2, value_2), entries.next().unwrap());
     assert!(entries.next().is_none());
 }
+
+// SMT LEAF
+// --------------------------------------------------------------------------------------------
+
+#[test]
+fn test_empty_smt_leaf_serialization() {
+    let empty_leaf = SmtLeaf::new_empty(LeafIndex::new_max_depth(42));
+
+    let mut serialized = empty_leaf.to_bytes();
+    // extend buffer with random bytes
+    serialized.extend([1, 2, 3, 4, 5]);
+    let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
+
+    assert_eq!(empty_leaf, deserialized);
+}
+
+#[test]
+fn test_single_smt_leaf_serialization() {
+    let single_leaf = SmtLeaf::new_single(
+        RpoDigest::from([10_u64.into(), 11_u64.into(), 12_u64.into(), 13_u64.into()]),
+        [1_u64.into(), 2_u64.into(), 3_u64.into(), 4_u64.into()],
+    );
+
+    let mut serialized = single_leaf.to_bytes();
+    // extend buffer with random bytes
+    serialized.extend([1, 2, 3, 4, 5]);
+    let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
+
+    assert_eq!(single_leaf, deserialized);
+}
+
+#[test]
+fn test_multiple_smt_leaf_serialization_success() {
+    let multiple_leaf = SmtLeaf::new_multiple(vec![
+        (
+            RpoDigest::from([10_u64.into(), 11_u64.into(), 12_u64.into(), 13_u64.into()]),
+            [1_u64.into(), 2_u64.into(), 3_u64.into(), 4_u64.into()],
+        ),
+        (
+            RpoDigest::from([100_u64.into(), 101_u64.into(), 102_u64.into(), 13_u64.into()]),
+            [11_u64.into(), 12_u64.into(), 13_u64.into(), 14_u64.into()],
+        ),
+    ])
+    .unwrap();
+
+    let mut serialized = multiple_leaf.to_bytes();
+    // extend buffer with random bytes
+    serialized.extend([1, 2, 3, 4, 5]);
+    let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
+
+    assert_eq!(multiple_leaf, deserialized);
+}
+
 // HELPERS
 // --------------------------------------------------------------------------------------------
 
 fn build_empty_or_single_leaf_node(key: RpoDigest, value: Word) -> RpoDigest {
     if value == EMPTY_WORD {
-        SmtLeaf::Empty.hash()
+        SmtLeaf::new_empty(key.into()).hash()
     } else {
         SmtLeaf::Single((key, value)).hash()
     }
