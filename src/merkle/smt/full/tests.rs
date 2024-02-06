@@ -337,7 +337,9 @@ fn test_smt_entries() {
 fn test_empty_smt_leaf_serialization() {
     let empty_leaf = SmtLeaf::new_empty(LeafIndex::new_max_depth(42));
 
-    let serialized = empty_leaf.to_bytes();
+    let mut serialized = empty_leaf.to_bytes();
+    // extend buffer with random bytes
+    serialized.extend([1, 2, 3, 4, 5]);
     let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
 
     assert_eq!(empty_leaf, deserialized);
@@ -350,7 +352,9 @@ fn test_single_smt_leaf_serialization() {
         [1_u64.into(), 2_u64.into(), 3_u64.into(), 4_u64.into()],
     );
 
-    let serialized = single_leaf.to_bytes();
+    let mut serialized = single_leaf.to_bytes();
+    // extend buffer with random bytes
+    serialized.extend([1, 2, 3, 4, 5]);
     let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
 
     assert_eq!(single_leaf, deserialized);
@@ -370,7 +374,9 @@ fn test_multiple_smt_leaf_serialization_success() {
     ])
     .unwrap();
 
-    let serialized = multiple_leaf.to_bytes();
+    let mut serialized = multiple_leaf.to_bytes();
+    // extend buffer with random bytes
+    serialized.extend([1, 2, 3, 4, 5]);
     let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
 
     assert_eq!(multiple_leaf, deserialized);
