@@ -20,7 +20,7 @@ impl SmtLeaf {
 
     /// Returns a new leaf with the specified entries
     ///
-    /// Errors
+    /// # Errors
     ///   - Returns an error if 2 keys in `entries` map to a different leaf index
     pub fn new(
         entries: Vec<(RpoDigest, Word)>,
@@ -51,7 +51,7 @@ impl SmtLeaf {
     /// Returns a new single leaf with the specified entry. The leaf index is derived from the
     /// entries' keys.
     ///
-    /// Errors
+    /// # Errors
     ///   - Returns an error if 2 keys in `entries` map to a different leaf index
     pub fn new_multiple(entries: Vec<(RpoDigest, Word)>) -> Result<Self, SmtLeafError> {
         if entries.len() < 2 {
