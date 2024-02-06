@@ -22,7 +22,10 @@ mod path;
 pub use path::{MerklePath, RootPath, ValuePath};
 
 mod smt;
-pub use smt::{LeafIndex, SimpleSmt, Smt, SmtLeaf, SMT_DEPTH, SMT_MAX_DEPTH, SMT_MIN_DEPTH};
+pub use smt::{
+    LeafIndex, SimpleSmt, Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH,
+    SMT_MAX_DEPTH, SMT_MIN_DEPTH,
+};
 
 mod tiered_smt;
 pub use tiered_smt::{TieredSmt, TieredSmtProof, TieredSmtProofError};
