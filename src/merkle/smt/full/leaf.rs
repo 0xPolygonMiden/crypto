@@ -22,6 +22,8 @@ impl SmtLeaf {
     ///
     /// # Errors
     ///   - Returns an error if 2 keys in `entries` map to a different leaf index
+    ///   - Returns an error if 1 or more keys in `entries` map to a leaf index
+    ///     different from `leaf_index`
     pub fn new(
         entries: Vec<(RpoDigest, Word)>,
         leaf_index: LeafIndex<SMT_DEPTH>,
@@ -32,12 +34,28 @@ impl SmtLeaf {
                 let (key, value) = entries[0];
 
                 if LeafIndex::<SMT_DEPTH>::from(key) != leaf_index {
-                    return Err(SmtLeafError::KeyInconsistentWithLeafIndex { key, leaf_index });
+                    return Err(SmtLeafError::SingleKeyInconsistentWithLeafIndex {
+                        key,
+                        leaf_index,
+                    });
                 }
 
                 Ok(Self::new_single(key, value))
             }
-            _ => Self::new_multiple(entries),
+            _ => {
+                let leaf = Self::new_multiple(entries)?;
+
+                // `new_multiple()` checked that all keys map to the same leaf index. We still need
+                // to ensure that that leaf index is `leaf_index`.
+                if leaf.index() != leaf_index {
+                    Err(SmtLeafError::MultipleKeysInconsistentWithLeafIndex {
+                        leaf_index_from_keys: leaf.index(),
+                        leaf_index_supplied: leaf_index,
+                    })
+                } else {
+                    Ok(leaf)
+                }
+            }
         }
     }
 
@@ -73,7 +91,7 @@ impl SmtLeaf {
                 let next_leaf_index: LeafIndex<SMT_DEPTH> = next_key.into();
 
                 if next_leaf_index != first_leaf_index {
-                    return Err(SmtLeafError::InconsistentKeysInEntries {
+                    return Err(SmtLeafError::InconsistentKeys {
                         entries,
                         key_1: first_key,
                         key_2: next_key,
