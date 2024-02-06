@@ -6,7 +6,7 @@ use crate::{
 use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex, Vec};
 
 mod full;
-pub use full::{Smt, SmtLeaf, SmtLeafError, SMT_DEPTH};
+pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};
 
 mod simple;
 pub use simple::SimpleSmt;
