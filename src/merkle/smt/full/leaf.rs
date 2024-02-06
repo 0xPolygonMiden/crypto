@@ -124,6 +124,15 @@ impl SmtLeaf {
         }
     }
 
+    /// Returns the number of entries stored in the leaf
+    pub fn num_entries(&self) -> usize {
+        match self {
+            SmtLeaf::Empty(_) => 0,
+            SmtLeaf::Single(_) => 1,
+            SmtLeaf::Multiple(entries) => entries.len(),
+        }
+    }
+
     /// Computes the hash of the leaf
     pub fn hash(&self) -> RpoDigest {
         match self {
