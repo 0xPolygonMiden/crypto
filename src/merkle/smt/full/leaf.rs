@@ -174,7 +174,7 @@ impl SmtLeaf {
     // ---------------------------------------------------------------------------------------------
 
     /// Returns the value associated with `key` in the leaf, or `None` if `key` maps to another leaf.
-    pub(crate) fn get_value(&self, key: &RpoDigest) -> Option<Word> {
+    pub(super) fn get_value(&self, key: &RpoDigest) -> Option<Word> {
         // Ensure that `key` maps to this leaf
         if self.index() != key.into() {
             return None;
@@ -205,7 +205,7 @@ impl SmtLeaf {
     /// any.
     ///
     /// The caller needs to ensure that `key` has the same leaf index as all other keys in the leaf
-    pub(crate) fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
+    pub(super) fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
         match self {
             SmtLeaf::Empty(_) => {
                 *self = SmtLeaf::new_single(key, value);
@@ -250,7 +250,7 @@ impl SmtLeaf {
     /// Removes key-value pair from the leaf stored at key; returns the previous value associated
     /// with `key`, if any. Also returns an `is_empty` flag, indicating whether the leaf became
     /// empty, and must be removed from the data structure it is contained in.
-    pub(crate) fn remove(&mut self, key: RpoDigest) -> (Option<Word>, bool) {
+    pub(super) fn remove(&mut self, key: RpoDigest) -> (Option<Word>, bool) {
         match self {
             SmtLeaf::Empty(_) => (None, false),
             SmtLeaf::Single((key_at_leaf, value_at_leaf)) => {
