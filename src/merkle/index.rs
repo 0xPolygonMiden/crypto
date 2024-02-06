@@ -1,4 +1,4 @@
-use super::{Felt, MerkleError, RpoDigest, StarkField};
+use super::{Felt, MerkleError, RpoDigest};
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::fmt::Display;
 

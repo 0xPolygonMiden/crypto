@@ -1,5 +1,3 @@
-use winter_math::StarkField;
-
 use crate::hash::rpo::Rpo256;
 use crate::merkle::{EmptySubtreeRoots, InnerNodeInfo};
 use crate::utils::collections::{BTreeMap, BTreeSet};

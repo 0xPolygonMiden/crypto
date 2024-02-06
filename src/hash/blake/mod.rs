@@ -1,4 +1,4 @@
-use super::{Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField};
+use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
 use crate::utils::{
     bytes_to_hex_string, hex_to_bytes, string::String, ByteReader, ByteWriter, Deserializable,
     DeserializationError, HexParseError, Serializable,
