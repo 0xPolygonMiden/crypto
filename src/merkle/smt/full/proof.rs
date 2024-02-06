@@ -8,7 +8,7 @@ use super::{MerklePath, RpoDigest, SmtLeaf, SmtProofError, Word, SMT_DEPTH};
 ///
 /// The proof consists of a Merkle path and leaf which describes the node located at the base of the
 /// path.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SmtProof {
     path: MerklePath,
     leaf: SmtLeaf,
