@@ -1,5 +1,3 @@
-use winter_math::StarkField;
-
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
     Word,
@@ -8,7 +6,7 @@ use crate::{
 use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex, Vec};
 
 mod full;
-pub use full::{Smt, SmtLeaf, SMT_DEPTH};
+pub use full::{Smt, SmtLeaf, SmtLeafError, SMT_DEPTH};
 
 mod simple;
 pub use simple::SimpleSmt;
@@ -52,7 +50,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a leaf
     type Leaf;
     /// The type for an opening (i.e. a "proof") of a leaf
-    type Opening: From<(MerklePath, Self::Leaf)>;
+    type Opening;
 
     /// The default value used to compute the hash of empty leaves
     const EMPTY_VALUE: Self::Value;
@@ -83,7 +81,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             MerklePath::new(path)
         };
 
-        (merkle_path, leaf).into()
+        Self::path_and_leaf_to_opening(merkle_path, leaf)
     }
 
     /// Inserts a value at the specified key, returning the previous value associated with that key.
@@ -170,6 +168,11 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
     /// Maps a key to a leaf index
     fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
+
+    /// Maps a (MerklePath, Self::Leaf) to an opening.
+    ///
+    /// The length `path` is guaranteed to be equal to `DEPTH`
+    fn path_and_leaf_to_opening(path: MerklePath, leaf: Self::Leaf) -> Self::Opening;
 }
 
 // INNER NODE
@@ -238,18 +241,5 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
         }
 
         Self::new(node_index.value())
-    }
-}
-
-impl From<Word> for LeafIndex<SMT_MAX_DEPTH> {
-    fn from(value: Word) -> Self {
-        // We use the most significant `Felt` of a `Word` as the leaf index.
-        Self::new_max_depth(value[3].as_int())
-    }
-}
-
-impl From<RpoDigest> for LeafIndex<SMT_MAX_DEPTH> {
-    fn from(value: RpoDigest) -> Self {
-        Word::from(value).into()
     }
 }

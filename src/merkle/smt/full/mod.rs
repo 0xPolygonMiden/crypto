@@ -1,18 +1,22 @@
-use core::cmp::Ordering;
-
 use winter_math::StarkField;
 
 use crate::hash::rpo::Rpo256;
 use crate::merkle::{EmptySubtreeRoots, InnerNodeInfo};
-use crate::utils::{
-    collections::{BTreeMap, BTreeSet, Vec},
-    vec,
-};
+use crate::utils::collections::{BTreeMap, BTreeSet};
 use crate::{Felt, EMPTY_WORD};
 
 use super::{
     InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
 };
+
+mod error;
+pub use error::{SmtLeafError, SmtProofError};
+
+mod leaf;
+pub use leaf::SmtLeaf;
+
+mod proof;
+pub use proof::SmtProof;
 
 #[cfg(test)]
 mod tests;
@@ -119,14 +123,14 @@ impl Smt {
         let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
 
         match self.leaves.get(&leaf_pos) {
-            Some(leaf) => leaf.get_value(key),
+            Some(leaf) => leaf.get_value(key).unwrap_or_default(),
             None => EMPTY_WORD,
         }
     }
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
     /// path to the leaf, as well as the leaf itself.
-    pub fn open(&self, key: &RpoDigest) -> (MerklePath, SmtLeaf) {
+    pub fn open(&self, key: &RpoDigest) -> SmtProof {
         <Self as SparseMerkleTree<SMT_DEPTH>>::open(self, key)
     }
 
@@ -208,7 +212,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     type Key = RpoDigest;
     type Value = Word;
     type Leaf = SmtLeaf;
-    type Opening = (MerklePath, SmtLeaf);
+    type Opening = SmtProof;
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
 
@@ -250,7 +254,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
         match self.leaves.get(&leaf_pos) {
             Some(leaf) => leaf.clone(),
-            None => SmtLeaf::Empty,
+            None => SmtLeaf::new_empty(key.into()),
         }
     }
 
@@ -262,6 +266,10 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         let most_significant_felt = key[3];
         LeafIndex::new_max_depth(most_significant_felt.as_int())
     }
+
+    fn path_and_leaf_to_opening(path: MerklePath, leaf: SmtLeaf) -> SmtProof {
+        SmtProof::new_unchecked(path, leaf)
+    }
 }
 
 impl Default for Smt {
@@ -270,196 +278,24 @@ impl Default for Smt {
     }
 }
 
-// LEAF
+// CONVERSIONS
 // ================================================================================================
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum SmtLeaf {
-    Empty,
-    Single((RpoDigest, Word)),
-    Multiple(Vec<(RpoDigest, Word)>),
-}
-
-impl SmtLeaf {
-    /// Converts a leaf to a list of field elements
-    pub fn to_elements(&self) -> Vec<Felt> {
-        self.clone().into_elements()
-    }
-
-    /// Converts a leaf to a list of field elements
-    pub fn into_elements(self) -> Vec<Felt> {
-        self.into_entries().into_iter().flat_map(kv_to_elements).collect()
-    }
-
-    /// Returns the key-value pairs in the leaf
-    pub fn entries(&self) -> Vec<&(RpoDigest, Word)> {
-        match self {
-            SmtLeaf::Empty => Vec::new(),
-            SmtLeaf::Single(kv_pair) => vec![kv_pair],
-            SmtLeaf::Multiple(kv_pairs) => kv_pairs.iter().collect(),
-        }
-    }
-
-    /// Converts a leaf the key-value pairs in the leaf
-    pub fn into_entries(self) -> Vec<(RpoDigest, Word)> {
-        match self {
-            SmtLeaf::Empty => Vec::new(),
-            SmtLeaf::Single(kv_pair) => vec![kv_pair],
-            SmtLeaf::Multiple(kv_pairs) => kv_pairs,
-        }
-    }
-
-    /// Computes the hash of the leaf
-    pub fn hash(&self) -> RpoDigest {
-        match self {
-            SmtLeaf::Empty => EMPTY_WORD.into(),
-            SmtLeaf::Single((key, value)) => Rpo256::merge(&[*key, value.into()]),
-            SmtLeaf::Multiple(kvs) => {
-                let elements: Vec<Felt> = kvs.iter().copied().flat_map(kv_to_elements).collect();
-                Rpo256::hash_elements(&elements)
-            }
-        }
-    }
-
-    // HELPERS
-    // ---------------------------------------------------------------------------------------------
-
-    /// Returns the value associated with `key` in the leaf
-    fn get_value(&self, key: &RpoDigest) -> Word {
-        match self {
-            SmtLeaf::Empty => EMPTY_WORD,
-            SmtLeaf::Single((key_in_leaf, value_in_leaf)) => {
-                if key == key_in_leaf {
-                    *value_in_leaf
-                } else {
-                    EMPTY_WORD
-                }
-            }
-            SmtLeaf::Multiple(kv_pairs) => {
-                for (key_in_leaf, value_in_leaf) in kv_pairs {
-                    if key == key_in_leaf {
-                        return *value_in_leaf;
-                    }
-                }
-
-                EMPTY_WORD
-            }
-        }
-    }
-
-    /// Inserts key-value pair into the leaf; returns the previous value associated with `key`, if
-    /// any.
-    fn insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
-        match self {
-            SmtLeaf::Empty => {
-                *self = SmtLeaf::Single((key, value));
-                None
-            }
-            SmtLeaf::Single(kv_pair) => {
-                if kv_pair.0 == key {
-                    // the key is already in this leaf. Update the value and return the previous
-                    // value
-                    let old_value = kv_pair.1;
-                    kv_pair.1 = value;
-                    Some(old_value)
-                } else {
-                    // Another entry is present in this leaf. Transform the entry into a list
-                    // entry, and make sure the key-value pairs are sorted by key
-                    let mut pairs = vec![*kv_pair, (key, value)];
-                    pairs.sort_by(|(key_1, _), (key_2, _)| cmp_keys(*key_1, *key_2));
-
-                    *self = SmtLeaf::Multiple(pairs);
-
-                    None
-                }
-            }
-            SmtLeaf::Multiple(kv_pairs) => {
-                match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
-                    Ok(pos) => {
-                        let old_value = kv_pairs[pos].1;
-                        kv_pairs[pos].1 = value;
-
-                        Some(old_value)
-                    }
-                    Err(pos) => {
-                        kv_pairs.insert(pos, (key, value));
-
-                        None
-                    }
-                }
-            }
-        }
-    }
-
-    /// Removes key-value pair from the leaf stored at key; returns the previous value associated
-    /// with `key`, if any. Also returns an `is_empty` flag, indicating whether the leaf became
-    /// empty, and must be removed from the data structure it is contained in.
-    fn remove(&mut self, key: RpoDigest) -> (Option<Word>, bool) {
-        match self {
-            SmtLeaf::Empty => (None, false),
-            SmtLeaf::Single((key_at_leaf, value_at_leaf)) => {
-                if *key_at_leaf == key {
-                    // our key was indeed stored in the leaf, so we return the value that was stored
-                    // in it, and indicate that the leaf should be removed
-                    let old_value = *value_at_leaf;
-
-                    // Note: this is not strictly needed, since the caller is expected to drop this
-                    // `SmtLeaf` object.
-                    *self = SmtLeaf::Empty;
-
-                    (Some(old_value), true)
-                } else {
-                    // another key is stored at leaf; nothing to update
-                    (None, false)
-                }
-            }
-            SmtLeaf::Multiple(kv_pairs) => {
-                match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
-                    Ok(pos) => {
-                        let old_value = kv_pairs[pos].1;
-
-                        kv_pairs.remove(pos);
-                        debug_assert!(!kv_pairs.is_empty());
-
-                        if kv_pairs.len() == 1 {
-                            // convert the leaf into `Single`
-                            *self = SmtLeaf::Single(kv_pairs[0]);
-                        }
-
-                        (Some(old_value), false)
-                    }
-                    Err(_) => {
-                        // other keys are stored at leaf; nothing to update
-                        (None, false)
-                    }
-                }
-            }
-        }
+impl From<Word> for LeafIndex<SMT_DEPTH> {
+    fn from(value: Word) -> Self {
+        // We use the most significant `Felt` of a `Word` as the leaf index.
+        Self::new_max_depth(value[3].as_int())
     }
 }
 
-// HELPER FUNCTIONS
-// ================================================================================================
-
-/// Converts a key-value tuple to an iterator of `Felt`s
-fn kv_to_elements((key, value): (RpoDigest, Word)) -> impl Iterator<Item = Felt> {
-    let key_elements = key.into_iter();
-    let value_elements = value.into_iter();
-
-    key_elements.chain(value_elements)
+impl From<RpoDigest> for LeafIndex<SMT_DEPTH> {
+    fn from(value: RpoDigest) -> Self {
+        Word::from(value).into()
+    }
 }
 
-/// Compares two keys, compared element-by-element using their integer representations starting with
-/// the most significant element.
-fn cmp_keys(key_1: RpoDigest, key_2: RpoDigest) -> Ordering {
-    for (v1, v2) in key_1.iter().zip(key_2.iter()).rev() {
-        let v1 = v1.as_int();
-        let v2 = v2.as_int();
-        if v1 != v2 {
-            return v1.cmp(&v2);
-        }
+impl From<&RpoDigest> for LeafIndex<SMT_DEPTH> {
+    fn from(value: &RpoDigest) -> Self {
+        Word::from(value).into()
     }
-
-    Ordering::Equal
 }
