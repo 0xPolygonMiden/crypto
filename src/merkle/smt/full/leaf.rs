@@ -125,11 +125,13 @@ impl SmtLeaf {
     }
 
     /// Returns the number of entries stored in the leaf
-    pub fn num_entries(&self) -> usize {
+    pub fn num_entries(&self) -> u64 {
         match self {
             SmtLeaf::Empty(_) => 0,
             SmtLeaf::Single(_) => 1,
-            SmtLeaf::Multiple(entries) => entries.len(),
+            SmtLeaf::Multiple(entries) => {
+                entries.len().try_into().expect("shouldn't have more than 2^64 entries")
+            }
         }
     }
 
@@ -305,23 +307,35 @@ impl SmtLeaf {
 
 impl Serializable for SmtLeaf {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        let leaf_index: u64 = self.index().value();
+        // Write: num entries
+        self.num_entries().write_into(target);
 
+        // Write: leaf index
+        let leaf_index: u64 = self.index().value();
         leaf_index.write_into(target);
-        self.to_elements().write_into(target)
+
+        // Write: entries
+        for (key, value) in self.entries() {
+            key.write_into(target);
+            value.write_into(target);
+        }
     }
 }
 
 impl Deserializable for SmtLeaf {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        // Read: num entries
+        let num_entries = source.read_u64()?;
+
+        // Read: leaf index
         let leaf_index: LeafIndex<SMT_DEPTH> = {
             let value = source.read_u64()?;
             LeafIndex::new_max_depth(value)
         };
 
+        // Read: entries
         let mut entries: Vec<(RpoDigest, Word)> = Vec::new();
-
-        while source.has_more_bytes() {
+        for _ in 0..num_entries {
             let key: RpoDigest = source.read()?;
             let value: Word = source.read()?;
 
