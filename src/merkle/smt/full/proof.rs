@@ -81,6 +81,16 @@ impl SmtProof {
             .expect("failed to compute Merkle path root")
     }
 
+    /// Returns the proof's Merkle path.
+    pub fn path(&self) -> &MerklePath {
+        &self.path
+    }
+
+    /// Returns the leaf associated with the proof.
+    pub fn leaf(&self) -> &SmtLeaf {
+        &self.leaf
+    }
+
     /// Consume the proof and returns its parts.
     pub fn into_parts(self) -> (MerklePath, SmtLeaf) {
         (self.path, self.leaf)
