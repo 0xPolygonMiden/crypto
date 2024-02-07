@@ -85,7 +85,7 @@ impl SmtProof {
     pub fn path(&self) -> &MerklePath {
         &self.path
     }
-    
+
     /// Returns the leaf associated with the proof
     pub fn leaf(&self) -> &SmtLeaf {
         &self.leaf
