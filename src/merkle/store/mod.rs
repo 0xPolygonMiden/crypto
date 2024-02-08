@@ -1,7 +1,7 @@
 use super::{
     mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath,
     MerkleTree, NodeIndex, PartialMerkleTree, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
-    Smt, TieredSmt, ValuePath, Vec,
+    Smt, ValuePath, Vec,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::borrow::Borrow;
@@ -361,9 +361,6 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
 
                 // if the node is not in the store assume it is a leaf
                 } else {
-                    // assert that if we have a leaf that is not at the max depth then it must be
-                    // at the depth of one of the tiers of an TSMT.
-                    debug_assert!(TieredSmt::TIER_DEPTHS[..3].contains(&index.depth()));
                     return Some((index, node_hash));
                 }
             }
@@ -506,13 +503,6 @@ impl<T: KvMap<RpoDigest, StoreNode>> From<&Smt> for MerkleStore<T> {
 
 impl<T: KvMap<RpoDigest, StoreNode>> From<&Mmr> for MerkleStore<T> {
     fn from(value: &Mmr) -> Self {
-        let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
-        Self { nodes }
-    }
-}
-
-impl<T: KvMap<RpoDigest, StoreNode>> From<&TieredSmt> for MerkleStore<T> {
-    fn from(value: &TieredSmt) -> Self {
         let nodes = combine_nodes_with_empty_hashes(value.inner_nodes()).collect();
         Self { nodes }
     }
