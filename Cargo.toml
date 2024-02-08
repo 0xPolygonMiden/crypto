@@ -12,6 +12,13 @@ keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
 rust-version = "1.73"
 
+[[bin]]
+name = "miden-crypto"
+path = "src/main.rs"
+bench = false
+doctest = false
+required-features = ["executable"]
+
 [[bench]]
 name = "hash"
 harness = false
@@ -26,6 +33,7 @@ harness = false
 
 [features]
 default = ["std"]
+executable = ["dep:clap", "dep:rand_utils", "std"]
 serde = ["dep:serde", "serde?/alloc", "winter_math/serde"]
 std = [
     "blake3/std",
