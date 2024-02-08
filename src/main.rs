@@ -1,19 +1,14 @@
 use clap::Parser;
 use miden_crypto::{
     hash::rpo::{Rpo256, RpoDigest},
-    merkle::{MerkleError, TieredSmt},
+    merkle::{MerkleError, Smt},
     Felt, Word, ONE,
 };
 use rand_utils::rand_value;
 use std::time::Instant;
 
 #[derive(Parser, Debug)]
-#[clap(
-    name = "Benchmark",
-    about = "Tiered SMT benchmark",
-    version,
-    rename_all = "kebab-case"
-)]
+#[clap(name = "Benchmark", about = "SMT benchmark", version, rename_all = "kebab-case")]
 pub struct BenchmarkCmd {
     /// Size of the tree
     #[clap(short = 's', long = "size")]
@@ -21,11 +16,11 @@ pub struct BenchmarkCmd {
 }
 
 fn main() {
-    benchmark_tsmt();
+    benchmark_smt();
 }
 
-/// Run a benchmark for the Tiered SMT.
-pub fn benchmark_tsmt() {
+/// Run a benchmark for [`Smt`].
+pub fn benchmark_smt() {
     let args = BenchmarkCmd::parse();
     let tree_size = args.size;
 
@@ -42,38 +37,25 @@ pub fn benchmark_tsmt() {
     proof_generation(&mut tree, tree_size).unwrap();
 }
 
-/// Runs the construction benchmark for the Tiered SMT, returning the constructed tree.
-pub fn construction(entries: Vec<(RpoDigest, Word)>, size: u64) -> Result<TieredSmt, MerkleError> {
+/// Runs the construction benchmark for [`Smt`], returning the constructed tree.
+pub fn construction(entries: Vec<(RpoDigest, Word)>, size: u64) -> Result<Smt, MerkleError> {
     println!("Running a construction benchmark:");
     let now = Instant::now();
-    let tree = TieredSmt::with_entries(entries)?;
+    let tree = Smt::with_entries(entries)?;
     let elapsed = now.elapsed();
     println!(
-        "Constructed a TSMT with {} key-value pairs in {:.3} seconds",
+        "Constructed a SMT with {} key-value pairs in {:.3} seconds",
         size,
         elapsed.as_secs_f32(),
     );
 
-    // Count how many nodes end up at each tier
-    let mut nodes_num_16_32_48 = (0, 0, 0);
-
-    tree.upper_leaf_nodes().for_each(|(index, _)| match index.depth() {
-        16 => nodes_num_16_32_48.0 += 1,
-        32 => nodes_num_16_32_48.1 += 1,
-        48 => nodes_num_16_32_48.2 += 1,
-        _ => unreachable!(),
-    });
-
-    println!("Number of nodes on depth 16: {}", nodes_num_16_32_48.0);
-    println!("Number of nodes on depth 32: {}", nodes_num_16_32_48.1);
-    println!("Number of nodes on depth 48: {}", nodes_num_16_32_48.2);
-    println!("Number of nodes on depth 64: {}\n", tree.bottom_leaves().count());
+    println!("Number of leaf nodes: {}\n", tree.leaves().count());
 
     Ok(tree)
 }
 
-/// Runs the insertion benchmark for the Tiered SMT.
-pub fn insertion(tree: &mut TieredSmt, size: u64) -> Result<(), MerkleError> {
+/// Runs the insertion benchmark for the [`Smt`].
+pub fn insertion(tree: &mut Smt, size: u64) -> Result<(), MerkleError> {
     println!("Running an insertion benchmark:");
 
     let mut insertion_times = Vec::new();
@@ -89,7 +71,7 @@ pub fn insertion(tree: &mut TieredSmt, size: u64) -> Result<(), MerkleError> {
     }
 
     println!(
-        "An average insertion time measured by 20 inserts into a TSMT with {} key-value pairs is {:.3} milliseconds\n",
+        "An average insertion time measured by 20 inserts into a SMT with {} key-value pairs is {:.3} milliseconds\n",
         size,
         // calculate the average by dividing by 20 and convert to milliseconds by multiplying by 
         // 1000. As a result, we can only multiply by 50
@@ -99,8 +81,8 @@ pub fn insertion(tree: &mut TieredSmt, size: u64) -> Result<(), MerkleError> {
     Ok(())
 }
 
-/// Runs the proof generation benchmark for the Tiered SMT.
-pub fn proof_generation(tree: &mut TieredSmt, size: u64) -> Result<(), MerkleError> {
+/// Runs the proof generation benchmark for the [`Smt`].
+pub fn proof_generation(tree: &mut Smt, size: u64) -> Result<(), MerkleError> {
     println!("Running a proof generation benchmark:");
 
     let mut insertion_times = Vec::new();
@@ -111,13 +93,13 @@ pub fn proof_generation(tree: &mut TieredSmt, size: u64) -> Result<(), MerkleErr
         tree.insert(test_key, test_value);
 
         let now = Instant::now();
-        let _proof = tree.prove(test_key);
+        let _proof = tree.open(&test_key);
         let elapsed = now.elapsed();
         insertion_times.push(elapsed.as_secs_f32());
     }
 
     println!(
-        "An average proving time measured by 20 value proofs in a TSMT with {} key-value pairs in {:.3} microseconds",
+        "An average proving time measured by 20 value proofs in a SMT with {} key-value pairs in {:.3} microseconds",
         size,
         // calculate the average by dividing by 20 and convert to microseconds by multiplying by
         // 1000000. As a result, we can only multiply by 50000
