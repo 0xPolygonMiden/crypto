@@ -27,9 +27,6 @@ pub use smt::{
     SMT_MAX_DEPTH, SMT_MIN_DEPTH,
 };
 
-mod tiered_smt;
-pub use tiered_smt::{TieredSmt, TieredSmtProof, TieredSmtProofError};
-
 mod mmr;
 pub use mmr::{InOrderIndex, Mmr, MmrDelta, MmrError, MmrPeaks, MmrProof, PartialMmr};
 
