@@ -1,4 +1,4 @@
-use super::{Felt, FeltRng, FieldElement, StarkField, Word, ZERO};
+use super::{Felt, FeltRng, FieldElement, Word, ZERO};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::{

@@ -234,15 +234,12 @@ impl TryFrom<[u64; DIGEST_SIZE]> for RpxDigest {
     type Error = RpxDigestError;
 
     fn try_from(value: [u64; DIGEST_SIZE]) -> Result<Self, RpxDigestError> {
-        if value[0] >= Felt::MODULUS
-            || value[1] >= Felt::MODULUS
-            || value[2] >= Felt::MODULUS
-            || value[3] >= Felt::MODULUS
-        {
-            return Err(RpxDigestError::InvalidInteger);
-        }
-
-        Ok(Self([value[0].into(), value[1].into(), value[2].into(), value[3].into()]))
+        Ok(Self([
+            value[0].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value[1].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value[2].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value[3].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+        ]))
     }
 }
 

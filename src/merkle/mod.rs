@@ -3,7 +3,7 @@
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, Vec},
-    Felt, StarkField, Word, EMPTY_WORD, ZERO,
+    Felt, Word, EMPTY_WORD, ZERO,
 };
 
 // REEXPORTS

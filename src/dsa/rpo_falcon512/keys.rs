@@ -4,7 +4,7 @@ use super::{
 };
 
 #[cfg(feature = "std")]
-use super::{ffi, NonceBytes, StarkField, NONCE_LEN, PK_LEN, SIG_LEN, SK_LEN};
+use super::{ffi, NonceBytes, NONCE_LEN, PK_LEN, SIG_LEN, SK_LEN};
 
 // PUBLIC KEY
 // ================================================================================================

@@ -60,7 +60,7 @@ fn test_smt_insert_at_same_key_2() {
     let key_msb: u64 = 42;
 
     let key_already_present: RpoDigest =
-        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(key_msb)]);
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), Felt::new(key_msb)]);
     let key_already_present_index: NodeIndex =
         LeafIndex::<SMT_DEPTH>::from(key_already_present).into();
     let value_already_present = [ONE + ONE + ONE; WORD_SIZE];
@@ -192,13 +192,13 @@ fn test_smt_removal() {
 
     let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
     let key_2: RpoDigest =
-        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(raw)]);
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), Felt::new(raw)]);
     let key_3: RpoDigest =
-        RpoDigest::from([3_u64.into(), 3_u64.into(), 3_u64.into(), Felt::new(raw)]);
+        RpoDigest::from([3_u32.into(), 3_u32.into(), 3_u32.into(), Felt::new(raw)]);
 
     let value_1 = [ONE; WORD_SIZE];
-    let value_2 = [2_u64.into(); WORD_SIZE];
-    let value_3: [Felt; 4] = [3_u64.into(); WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
+    let value_3: [Felt; 4] = [3_u32.into(); WORD_SIZE];
 
     // insert key-value 1
     {
@@ -265,10 +265,10 @@ fn test_smt_path_to_keys_in_same_leaf_are_equal() {
 
     let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
     let key_2: RpoDigest =
-        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), Felt::new(raw)]);
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), Felt::new(raw)]);
 
     let value_1 = [ONE; WORD_SIZE];
-    let value_2 = [2_u64.into(); WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
 
     let smt = Smt::with_entries([(key_1, value_1), (key_2, value_2)]).unwrap();
 
@@ -289,10 +289,10 @@ fn test_empty_leaf_hash() {
 fn test_smt_get_value() {
     let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
     let key_2: RpoDigest =
-        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), 2_u64.into()]);
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), 2_u32.into()]);
 
     let value_1 = [ONE; WORD_SIZE];
-    let value_2 = [2_u64.into(); WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
 
     let smt = Smt::with_entries([(key_1, value_1), (key_2, value_2)]).unwrap();
 
@@ -304,7 +304,7 @@ fn test_smt_get_value() {
 
     // Check that a key with no inserted value returns the empty word
     let key_no_value =
-        RpoDigest::from([42_u64.into(), 42_u64.into(), 42_u64.into(), 42_u64.into()]);
+        RpoDigest::from([42_u32.into(), 42_u32.into(), 42_u32.into(), 42_u32.into()]);
 
     assert_eq!(EMPTY_WORD, smt.get_value(&key_no_value));
 }
@@ -314,10 +314,10 @@ fn test_smt_get_value() {
 fn test_smt_entries() {
     let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
     let key_2: RpoDigest =
-        RpoDigest::from([2_u64.into(), 2_u64.into(), 2_u64.into(), 2_u64.into()]);
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), 2_u32.into()]);
 
     let value_1 = [ONE; WORD_SIZE];
-    let value_2 = [2_u64.into(); WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
 
     let smt = Smt::with_entries([(key_1, value_1), (key_2, value_2)]).unwrap();
 
@@ -348,8 +348,8 @@ fn test_empty_smt_leaf_serialization() {
 #[test]
 fn test_single_smt_leaf_serialization() {
     let single_leaf = SmtLeaf::new_single(
-        RpoDigest::from([10_u64.into(), 11_u64.into(), 12_u64.into(), 13_u64.into()]),
-        [1_u64.into(), 2_u64.into(), 3_u64.into(), 4_u64.into()],
+        RpoDigest::from([10_u32.into(), 11_u32.into(), 12_u32.into(), 13_u32.into()]),
+        [1_u32.into(), 2_u32.into(), 3_u32.into(), 4_u32.into()],
     );
 
     let mut serialized = single_leaf.to_bytes();
@@ -364,12 +364,12 @@ fn test_single_smt_leaf_serialization() {
 fn test_multiple_smt_leaf_serialization_success() {
     let multiple_leaf = SmtLeaf::new_multiple(vec![
         (
-            RpoDigest::from([10_u64.into(), 11_u64.into(), 12_u64.into(), 13_u64.into()]),
-            [1_u64.into(), 2_u64.into(), 3_u64.into(), 4_u64.into()],
+            RpoDigest::from([10_u32.into(), 11_u32.into(), 12_u32.into(), 13_u32.into()]),
+            [1_u32.into(), 2_u32.into(), 3_u32.into(), 4_u32.into()],
         ),
         (
-            RpoDigest::from([100_u64.into(), 101_u64.into(), 102_u64.into(), 13_u64.into()]),
-            [11_u64.into(), 12_u64.into(), 13_u64.into(), 14_u64.into()],
+            RpoDigest::from([100_u32.into(), 101_u32.into(), 102_u32.into(), 13_u32.into()]),
+            [11_u32.into(), 12_u32.into(), 13_u32.into(), 14_u32.into()],
         ),
     ])
     .unwrap();
