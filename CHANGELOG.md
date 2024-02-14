@@ -1,12 +1,14 @@
-## 0.8.0 (TBD)
+## 0.8.0 (2024-02-14)
 
 * Implemented the `PartialMmr` data structure (#195).
-* Updated Winterfell dependency to v0.7 (#200)
 * Implemented RPX hash function (#201).
 * Added `FeltRng` and `RpoRandomCoin` (#237).
 * Accelerated RPO/RPX hash functions using AVX512 instructions (#234).
 * Added `inner_nodes()` method to `PartialMmr` (#238).
 * Improved `PartialMmr::apply_delta()` (#242).
+* Refactored `SimpleSmt` struct (#245).
+* Replaced `TieredSmt` struct with `Smt` struct (#254, #277).
+* Updated Winterfell dependency to v0.8 (#275).
 
 ## 0.7.1 (2023-10-10)
 
