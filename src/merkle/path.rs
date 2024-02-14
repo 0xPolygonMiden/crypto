@@ -206,14 +206,14 @@ impl Serializable for MerklePath {
     fn write_into<W: winter_utils::ByteWriter>(&self, target: &mut W) {
         assert!(self.nodes.len() <= u8::MAX.into(), "Length enforced in the constructor");
         target.write_u8(self.nodes.len() as u8);
-        self.nodes.write_into(target);
+        target.write_many(&self.nodes);
     }
 }
 
 impl Deserializable for MerklePath {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let count = source.read_u8()?.into();
-        let nodes = RpoDigest::read_batch_from(source, count)?;
+        let nodes = source.read_many::<RpoDigest>(count)?;
         Ok(Self { nodes })
     }
 }

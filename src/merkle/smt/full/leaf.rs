@@ -1,7 +1,6 @@
 use core::cmp::Ordering;
 
 use crate::utils::{collections::Vec, string::ToString, vec};
-use winter_math::StarkField;
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 use super::{Felt, LeafIndex, Rpo256, RpoDigest, SmtLeafError, Word, EMPTY_WORD, SMT_DEPTH};

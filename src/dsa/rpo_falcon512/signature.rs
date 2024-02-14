@@ -1,6 +1,6 @@
 use super::{
-    ByteReader, ByteWriter, Deserializable, DeserializationError, NonceBytes, NonceElements,
-    Polynomial, PublicKeyBytes, Rpo256, Serializable, SignatureBytes, StarkField, Word, MODULUS, N,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, NonceBytes, NonceElements,
+    Polynomial, PublicKeyBytes, Rpo256, Serializable, SignatureBytes, Word, MODULUS, N,
     SIG_L2_BOUND, ZERO,
 };
 use crate::utils::string::ToString;
@@ -182,7 +182,9 @@ fn decode_nonce(nonce: &NonceBytes) -> NonceElements {
     let mut result = [ZERO; 8];
     for (i, bytes) in nonce.chunks(5).enumerate() {
         buffer[..5].copy_from_slice(bytes);
-        result[i] = u64::from_le_bytes(buffer).into();
+        // we can safely (without overflow) create a new Felt from u64 value here since this value
+        // contains at most 5 bytes
+        result[i] = Felt::new(u64::from_le_bytes(buffer));
     }
 
     result

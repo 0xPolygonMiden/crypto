@@ -4,7 +4,7 @@ use crate::{
         collections::Vec, ByteReader, ByteWriter, Deserializable, DeserializationError,
         Serializable,
     },
-    Felt, StarkField, Word, ZERO,
+    Felt, Word, ZERO,
 };
 
 #[cfg(feature = "std")]

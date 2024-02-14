@@ -2,7 +2,7 @@
 
 pub use winter_crypto::{DefaultRandomCoin as WinterRandomCoin, RandomCoin, RandomCoinError};
 
-use crate::{Felt, FieldElement, StarkField, Word, ZERO};
+use crate::{Felt, FieldElement, Word, ZERO};
 
 mod rpo;
 pub use rpo::RpoRandomCoin;
