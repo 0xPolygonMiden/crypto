@@ -4,7 +4,7 @@ use super::{
     ARK2, BINARY_CHUNK_SIZE, CAPACITY_RANGE, DIGEST_BYTES, DIGEST_RANGE, DIGEST_SIZE, INPUT1_RANGE,
     INPUT2_RANGE, MDS, NUM_ROUNDS, ONE, RATE_RANGE, RATE_WIDTH, STATE_WIDTH, ZERO,
 };
-use core::{convert::TryInto, ops::Range};
+use core::ops::Range;
 
 mod digest;
 pub use digest::RpoDigest;
