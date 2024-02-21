@@ -6,7 +6,6 @@ use crate::{
     utils::collections::{BTreeSet, Vec},
     Word,
 };
-use core::convert::TryInto;
 use proptest::prelude::*;
 use rand_utils::rand_value;
 
