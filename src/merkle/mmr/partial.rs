@@ -1,14 +1,9 @@
 use super::{MmrDelta, MmrProof, Rpo256, RpoDigest};
-use crate::{
-    merkle::{
-        mmr::{leaf_to_corresponding_tree, nodes_in_forest},
-        InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks,
-    },
-    utils::{
-        collections::{BTreeMap, BTreeSet, Vec},
-        vec,
-    },
+use crate::merkle::{
+    mmr::{leaf_to_corresponding_tree, nodes_in_forest},
+    InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks,
 };
+use winter_utils::collections::*;
 
 // TYPE ALIASES
 // ================================================================================================

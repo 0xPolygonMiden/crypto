@@ -1,7 +1,9 @@
-use super::{InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word};
-use crate::utils::{string::String, uninit_vector, word_to_hex};
+use super::{InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Word};
+use crate::utils::{uninit_vector, word_to_hex};
 use core::{fmt, ops::Deref, slice};
 use winter_math::log2;
+use winter_utils::collections::*;
+use winter_utils::string::*;
 
 // MERKLE TREE
 // ================================================================================================

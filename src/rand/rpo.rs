@@ -1,12 +1,13 @@
 use super::{Felt, FeltRng, FieldElement, Word, ZERO};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::{
-        collections::Vec, string::ToString, vec, ByteReader, ByteWriter, Deserializable,
-        DeserializationError, Serializable,
-    },
+    utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable},
 };
 pub use winter_crypto::{RandomCoin, RandomCoinError};
+use winter_utils::{collections::*, string::*};
+
+#[cfg(not(feature = "std"))]
+pub use alloc::vec;
 
 // CONSTANTS
 // ================================================================================================

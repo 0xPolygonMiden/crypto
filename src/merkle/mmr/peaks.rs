@@ -1,7 +1,8 @@
 use super::{
-    super::{RpoDigest, Vec, ZERO},
+    super::{RpoDigest, ZERO},
     Felt, MmrError, MmrProof, Rpo256, Word,
 };
+use winter_utils::collections::*;
 
 // MMR PEAKS
 // ================================================================================================

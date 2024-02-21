@@ -1,8 +1,6 @@
-use crate::{
-    merkle::{MerklePath, NodeIndex, RpoDigest},
-    utils::collections::Vec,
-};
+use crate::merkle::{MerklePath, NodeIndex, RpoDigest};
 use core::fmt;
+use winter_utils::collections::*;
 
 use super::smt::SmtLeafError;
 

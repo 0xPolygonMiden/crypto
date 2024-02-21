@@ -8,9 +8,9 @@ use crate::{
         digests_to_words, int_to_leaf, int_to_node, smt::SparseMerkleTree, EmptySubtreeRoots,
         InnerNodeInfo, LeafIndex, MerkleTree,
     },
-    utils::collections::Vec,
     Word, EMPTY_WORD,
 };
+use winter_utils::collections::*;
 
 // TEST DATA
 // ================================================================================================

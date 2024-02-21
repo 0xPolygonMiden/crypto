@@ -1,7 +1,8 @@
 use crate::Word;
 
-use super::{vec, InnerNodeInfo, MerkleError, NodeIndex, Rpo256, RpoDigest, Vec};
+use super::{InnerNodeInfo, MerkleError, NodeIndex, Rpo256, RpoDigest};
 use core::ops::{Deref, DerefMut};
+use winter_utils::collections::*;
 use winter_utils::{ByteReader, Deserializable, DeserializationError, Serializable};
 
 // MERKLE PATH

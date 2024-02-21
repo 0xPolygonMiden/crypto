@@ -1,12 +1,12 @@
 use super::{
-    BTreeMap, BTreeSet, InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest,
-    ValuePath, Vec, Word, EMPTY_WORD,
+    InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, ValuePath, Word,
+    EMPTY_WORD,
 };
 use crate::utils::{
-    format, string::String, vec, word_to_hex, ByteReader, ByteWriter, Deserializable,
-    DeserializationError, Serializable,
+    word_to_hex, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
 };
 use core::fmt;
+use winter_utils::{collections::*, string::*};
 
 #[cfg(test)]
 mod tests;

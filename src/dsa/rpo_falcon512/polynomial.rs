@@ -1,5 +1,6 @@
-use super::{FalconError, Felt, Vec, LOG_N, MODULUS, MODULUS_MINUS_1_OVER_TWO, N, PK_LEN};
+use super::{FalconError, Felt, LOG_N, MODULUS, MODULUS_MINUS_1_OVER_TWO, N, PK_LEN};
 use core::ops::{Add, Mul, Sub};
+use winter_utils::collections::*;
 
 // FALCON POLYNOMIAL
 // ================================================================================================

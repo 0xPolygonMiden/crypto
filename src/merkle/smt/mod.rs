@@ -3,7 +3,8 @@ use crate::{
     Word,
 };
 
-use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex, Vec};
+use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex};
+use winter_utils::collections::*;
 
 mod full;
 pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};

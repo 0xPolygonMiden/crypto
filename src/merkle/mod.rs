@@ -2,7 +2,7 @@
 
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, Vec},
+    utils::collections::{KvMap, RecordingMap},
     Felt, Word, EMPTY_WORD, ZERO,
 };
 
@@ -44,6 +44,9 @@ pub use error::MerkleError;
 
 // HELPER FUNCTIONS
 // ================================================================================================
+
+#[cfg(test)]
+use winter_utils::collections::*;
 
 #[cfg(test)]
 const fn int_to_node(value: u64) -> RpoDigest {

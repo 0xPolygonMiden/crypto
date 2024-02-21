@@ -1,10 +1,11 @@
 use super::{
-    mmr::Mmr, BTreeMap, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath,
-    MerkleTree, NodeIndex, PartialMerkleTree, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt,
-    Smt, ValuePath, Vec,
+    mmr::Mmr, EmptySubtreeRoots, InnerNodeInfo, KvMap, MerkleError, MerklePath, MerkleTree,
+    NodeIndex, PartialMerkleTree, RecordingMap, RootPath, Rpo256, RpoDigest, SimpleSmt, Smt,
+    ValuePath,
 };
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 use core::borrow::Borrow;
+use winter_utils::collections::*;
 
 #[cfg(test)]
 mod tests;

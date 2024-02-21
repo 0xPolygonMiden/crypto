@@ -3,8 +3,8 @@ use super::{
     Polynomial, PublicKeyBytes, Rpo256, Serializable, SignatureBytes, Word, MODULUS, N,
     SIG_L2_BOUND, ZERO,
 };
-use crate::utils::string::ToString;
 use core::cell::OnceCell;
+use winter_utils::string::*;
 
 // FALCON SIGNATURE
 // ================================================================================================

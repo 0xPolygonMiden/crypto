@@ -1,5 +1,5 @@
 use super::{
-    super::{InnerNodeInfo, Rpo256, RpoDigest, Vec},
+    super::{InnerNodeInfo, Rpo256, RpoDigest},
     bit::TrueBitPositionIterator,
     full::high_bitmask,
     leaf_to_corresponding_tree, nodes_in_forest, Mmr, MmrPeaks, PartialMmr,
@@ -8,6 +8,7 @@ use crate::{
     merkle::{int_to_node, InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex},
     Felt, Word,
 };
+use winter_utils::collections::*;
 
 #[test]
 fn test_position_equal_or_higher_than_leafs_is_never_contained() {

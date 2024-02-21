@@ -1,6 +1,6 @@
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
 use crate::utils::{
-    bytes_to_hex_string, hex_to_bytes, string::String, ByteReader, ByteWriter, Deserializable,
+    bytes_to_hex_string, hex_to_bytes, ByteReader, ByteWriter, Deserializable,
     DeserializationError, HexParseError, Serializable,
 };
 use core::{
@@ -8,6 +8,7 @@ use core::{
     ops::Deref,
     slice::from_raw_parts,
 };
+use winter_utils::string::*;
 
 #[cfg(test)]
 mod tests;
