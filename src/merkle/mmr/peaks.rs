@@ -2,7 +2,7 @@ use super::{
     super::{RpoDigest, ZERO},
     Felt, MmrError, MmrProof, Rpo256, Word,
 };
-use winter_utils::collections::*;
+use crate::utils::collections::*;
 
 // MMR PEAKS
 // ================================================================================================

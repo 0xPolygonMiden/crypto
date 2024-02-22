@@ -1,10 +1,10 @@
-use super::{Felt, LeafIndex, Rpo256, RpoDigest, SmtLeafError, Word, EMPTY_WORD, SMT_DEPTH};
 use core::cmp::Ordering;
-use winter_utils::{collections::*, string::*};
-use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
-#[cfg(not(feature = "std"))]
-pub use alloc::vec;
+use super::{Felt, LeafIndex, Rpo256, RpoDigest, SmtLeafError, Word, EMPTY_WORD, SMT_DEPTH};
+use crate::utils::{
+    collections::*, string::*, vec, ByteReader, ByteWriter, Deserializable, DeserializationError,
+    Serializable,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

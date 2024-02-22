@@ -1,7 +1,8 @@
-use super::*;
 use proptest::prelude::*;
 use rand_utils::rand_vector;
-use winter_utils::collections::*;
+
+use super::*;
+use crate::utils::collections::*;
 
 #[test]
 fn blake3_hash_elements() {

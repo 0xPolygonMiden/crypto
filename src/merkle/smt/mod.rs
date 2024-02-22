@@ -1,10 +1,9 @@
+use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
+    utils::collections::*,
     Word,
 };
-
-use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex};
-use winter_utils::collections::*;
 
 mod full;
 pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};

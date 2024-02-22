@@ -1,10 +1,11 @@
-use crate::hash::rpo::Rpo256;
-use crate::merkle::{EmptySubtreeRoots, InnerNodeInfo};
-use crate::utils::collections::{BTreeMap, BTreeSet};
-use crate::{Felt, EMPTY_WORD};
-
 use super::{
     InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
+};
+use crate::{
+    hash::rpo::Rpo256,
+    merkle::{EmptySubtreeRoots, InnerNodeInfo},
+    utils::collections::{BTreeMap, BTreeSet},
+    Felt, EMPTY_WORD,
 };
 
 mod error;

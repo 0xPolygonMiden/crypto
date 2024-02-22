@@ -1,5 +1,6 @@
-use super::{Felt, RpoDigest, EMPTY_WORD};
 use core::slice;
+
+use super::{Felt, RpoDigest, EMPTY_WORD};
 
 // EMPTY NODES SUBTREES
 // ================================================================================================

@@ -1,12 +1,13 @@
+use core::fmt;
+
 use super::{
     InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, ValuePath, Word,
     EMPTY_WORD,
 };
 use crate::utils::{
-    word_to_hex, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
+    collections::*, format, string::*, vec, word_to_hex, ByteReader, ByteWriter, Deserializable,
+    DeserializationError, Serializable,
 };
-use core::fmt;
-use winter_utils::{collections::*, string::*};
 
 #[cfg(test)]
 mod tests;

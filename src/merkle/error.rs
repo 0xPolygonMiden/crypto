@@ -1,8 +1,10 @@
-use crate::merkle::{MerklePath, NodeIndex, RpoDigest};
 use core::fmt;
-use winter_utils::collections::*;
 
 use super::smt::SmtLeafError;
+use crate::{
+    merkle::{MerklePath, NodeIndex, RpoDigest},
+    utils::collections::*,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MerkleError {

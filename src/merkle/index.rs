@@ -1,6 +1,7 @@
+use core::fmt::Display;
+
 use super::{Felt, MerkleError, RpoDigest};
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
-use core::fmt::Display;
 
 // NODE INDEX
 // ================================================================================================
@@ -181,8 +182,9 @@ impl Deserializable for NodeIndex {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use proptest::prelude::*;
+
+    use super::*;
 
     #[test]
     fn test_node_index_value_too_high() {

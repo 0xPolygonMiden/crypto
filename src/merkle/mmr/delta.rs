@@ -1,5 +1,5 @@
 use super::super::RpoDigest;
-use winter_utils::collections::*;
+use crate::utils::collections::*;
 
 /// Container for the update data of a [super::PartialMmr]
 #[derive(Debug)]

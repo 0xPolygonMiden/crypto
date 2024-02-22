@@ -96,9 +96,10 @@ pub struct Rpo128Context {
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
+    use rand_utils::{rand_array, rand_value, rand_vector};
+
     use super::*;
     use crate::dsa::rpo_falcon512::{NONCE_LEN, PK_LEN, SIG_LEN, SK_LEN};
-    use rand_utils::{rand_array, rand_value, rand_vector};
 
     #[test]
     fn falcon_ffi() {

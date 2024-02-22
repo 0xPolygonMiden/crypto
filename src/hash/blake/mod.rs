@@ -1,14 +1,14 @@
-use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
-use crate::utils::{
-    bytes_to_hex_string, hex_to_bytes, ByteReader, ByteWriter, Deserializable,
-    DeserializationError, HexParseError, Serializable,
-};
 use core::{
     mem::{size_of, transmute, transmute_copy},
     ops::Deref,
     slice::from_raw_parts,
 };
-use winter_utils::string::*;
+
+use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
+use crate::utils::{
+    bytes_to_hex_string, hex_to_bytes, string::*, ByteReader, ByteWriter, Deserializable,
+    DeserializationError, HexParseError, Serializable,
+};
 
 #[cfg(test)]
 mod tests;

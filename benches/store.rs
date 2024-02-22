@@ -1,9 +1,12 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
-use miden_crypto::merkle::{
-    DefaultMerkleStore as MerkleStore, LeafIndex, MerkleTree, NodeIndex, SimpleSmt, SMT_MAX_DEPTH,
+use miden_crypto::{
+    hash::rpo::RpoDigest,
+    merkle::{
+        DefaultMerkleStore as MerkleStore, LeafIndex, MerkleTree, NodeIndex, SimpleSmt,
+        SMT_MAX_DEPTH,
+    },
+    Felt, Word,
 };
-use miden_crypto::Word;
-use miden_crypto::{hash::rpo::RpoDigest, Felt};
 use rand_utils::{rand_array, rand_value};
 
 /// Since MerkleTree can only be created when a power-of-two number of elements is used, the sample

@@ -16,7 +16,7 @@ use super::{
     leaf_to_corresponding_tree, nodes_in_forest, MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256,
     RpoDigest,
 };
-use winter_utils::collections::*;
+use crate::utils::collections::*;
 
 // MMR
 // ===============================================================================================

@@ -6,9 +6,9 @@ use super::{
 };
 use crate::{
     merkle::{int_to_node, InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex},
+    utils::collections::*,
     Felt, Word,
 };
-use winter_utils::collections::*;
 
 #[test]
 fn test_position_equal_or_higher_than_leafs_is_never_contained() {
@@ -838,8 +838,9 @@ fn test_mmr_add_invalid_odd_leaf() {
 }
 
 mod property_tests {
-    use super::leaf_to_corresponding_tree;
     use proptest::prelude::*;
+
+    use super::leaf_to_corresponding_tree;
 
     proptest! {
         #[test]
