@@ -1,8 +1,8 @@
-use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex};
+use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::collections::*,
-    Word,
+    Felt, Word, EMPTY_WORD,
 };
 
 mod full;

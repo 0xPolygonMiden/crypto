@@ -1,12 +1,8 @@
 use super::{
-    InnerNode, LeafIndex, MerkleError, MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word,
+    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
+    NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
-use crate::{
-    hash::rpo::Rpo256,
-    merkle::{EmptySubtreeRoots, InnerNodeInfo},
-    utils::collections::{BTreeMap, BTreeSet},
-    Felt, EMPTY_WORD,
-};
+use crate::utils::collections::*;
 
 mod error;
 pub use error::{SmtLeafError, SmtProofError};

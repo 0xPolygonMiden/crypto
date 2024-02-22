@@ -1,6 +1,6 @@
 use core::cell::RefCell;
 
-use winter_utils::{
+use super::{
     boxed::*,
     collections::{btree_map::*, *},
 };

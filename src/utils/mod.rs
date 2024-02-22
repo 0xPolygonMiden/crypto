@@ -16,8 +16,8 @@ mod kv_map;
 // RE-EXPORTS
 // ================================================================================================
 pub use winter_utils::{
-    string, uninit_vector, Box, ByteReader, ByteWriter, Deserializable, DeserializationError,
-    Serializable, SliceReader,
+    boxed, string, uninit_vector, Box, ByteReader, ByteWriter, Deserializable,
+    DeserializationError, Serializable, SliceReader,
 };
 
 pub mod collections {

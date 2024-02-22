@@ -1,7 +1,4 @@
-use super::{
-    super::{RpoDigest, ZERO},
-    Felt, MmrError, MmrProof, Rpo256, Word,
-};
+use super::{super::ZERO, Felt, MmrError, MmrProof, Rpo256, RpoDigest, Word};
 use crate::utils::collections::*;
 
 // MMR PEAKS

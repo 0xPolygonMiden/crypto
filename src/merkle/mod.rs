@@ -43,6 +43,7 @@ pub use error::MerkleError;
 
 // HELPER FUNCTIONS
 // ================================================================================================
+
 #[cfg(test)]
 use crate::utils::collections::*;
 
