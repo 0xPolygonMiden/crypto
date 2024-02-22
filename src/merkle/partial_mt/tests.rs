@@ -1,10 +1,11 @@
 use super::{
     super::{
-        digests_to_words, int_to_node, BTreeMap, DefaultMerkleStore as MerkleStore, MerkleTree,
-        NodeIndex, PartialMerkleTree,
+        digests_to_words, int_to_node, DefaultMerkleStore as MerkleStore, MerkleTree, NodeIndex,
+        PartialMerkleTree,
     },
-    Deserializable, InnerNodeInfo, RpoDigest, Serializable, ValuePath, Vec,
+    Deserializable, InnerNodeInfo, RpoDigest, Serializable, ValuePath,
 };
+use crate::utils::collections::*;
 
 // TEST DATA
 // ================================================================================================

@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use clap::Parser;
 use miden_crypto::{
     hash::rpo::{Rpo256, RpoDigest},
@@ -5,7 +7,6 @@ use miden_crypto::{
     Felt, Word, ONE,
 };
 use rand_utils::rand_value;
-use std::time::Instant;
 
 #[derive(Parser, Debug)]
 #[clap(name = "Benchmark", about = "SMT benchmark", version, rename_all = "kebab-case")]

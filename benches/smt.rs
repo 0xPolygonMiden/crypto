@@ -1,4 +1,5 @@
 use core::mem::swap;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use miden_crypto::{
     merkle::{LeafIndex, SimpleSmt},

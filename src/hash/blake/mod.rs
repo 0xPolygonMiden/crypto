@@ -1,12 +1,13 @@
-use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
-use crate::utils::{
-    bytes_to_hex_string, hex_to_bytes, string::String, ByteReader, ByteWriter, Deserializable,
-    DeserializationError, HexParseError, Serializable,
-};
 use core::{
     mem::{size_of, transmute, transmute_copy},
     ops::Deref,
     slice::from_raw_parts,
+};
+
+use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
+use crate::utils::{
+    bytes_to_hex_string, hex_to_bytes, string::*, ByteReader, ByteWriter, Deserializable,
+    DeserializationError, HexParseError, Serializable,
 };
 
 #[cfg(test)]

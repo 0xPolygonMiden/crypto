@@ -1,10 +1,9 @@
+#[cfg(feature = "std")]
+use super::{ffi, NonceBytes, NONCE_LEN, PK_LEN, SIG_LEN, SK_LEN};
 use super::{
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Polynomial,
     PublicKeyBytes, Rpo256, SecretKeyBytes, Serializable, Signature, Word,
 };
-
-#[cfg(feature = "std")]
-use super::{ffi, NonceBytes, NONCE_LEN, PK_LEN, SIG_LEN, SK_LEN};
 
 // PUBLIC KEY
 // ================================================================================================
@@ -182,8 +181,9 @@ impl Deserializable for KeyPair {
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
-    use super::{super::Felt, KeyPair, NonceBytes, Word};
     use rand_utils::{rand_array, rand_vector};
+
+    use super::{super::Felt, KeyPair, NonceBytes, Word};
 
     #[test]
     fn test_falcon_verification() {

@@ -1,7 +1,9 @@
-use super::{InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Vec, Word};
-use crate::utils::{string::String, uninit_vector, word_to_hex};
 use core::{fmt, ops::Deref, slice};
+
 use winter_math::log2;
+
+use super::{InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Word};
+use crate::utils::{collections::*, string::*, uninit_vector, word_to_hex};
 
 // MERKLE TREE
 // ================================================================================================
@@ -283,13 +285,15 @@ pub fn path_to_text(path: &MerklePath) -> Result<String, fmt::Error> {
 
 #[cfg(test)]
 mod tests {
+    use core::mem::size_of;
+
+    use proptest::prelude::*;
+
     use super::*;
     use crate::{
-        merkle::{digests_to_words, int_to_leaf, int_to_node, InnerNodeInfo},
-        Felt, Word, WORD_SIZE,
+        merkle::{digests_to_words, int_to_leaf, int_to_node},
+        Felt, WORD_SIZE,
     };
-    use core::mem::size_of;
-    use proptest::prelude::*;
 
     const LEAVES4: [RpoDigest; WORD_SIZE] =
         [int_to_node(1), int_to_node(2), int_to_node(3), int_to_node(4)];

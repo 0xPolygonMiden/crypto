@@ -3,7 +3,7 @@ use core::fmt;
 use crate::{
     hash::rpo::RpoDigest,
     merkle::{LeafIndex, SMT_DEPTH},
-    utils::collections::Vec,
+    utils::collections::*,
     Word,
 };
 

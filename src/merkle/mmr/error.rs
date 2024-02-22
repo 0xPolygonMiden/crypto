@@ -1,8 +1,8 @@
-use crate::merkle::MerkleError;
 use core::fmt::{Display, Formatter};
-
 #[cfg(feature = "std")]
 use std::error::Error;
+
+use crate::merkle::MerkleError;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum MmrError {

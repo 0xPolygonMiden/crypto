@@ -1,7 +1,6 @@
 #[cfg(target_feature = "sve")]
 pub mod optimized {
-    use crate::hash::rescue::STATE_WIDTH;
-    use crate::Felt;
+    use crate::{hash::rescue::STATE_WIDTH, Felt};
 
     mod ffi {
         #[link(name = "rpo_sve", kind = "static")]
@@ -50,8 +49,10 @@ mod x86_64_avx2;
 #[cfg(target_feature = "avx2")]
 pub mod optimized {
     use super::x86_64_avx2::{apply_inv_sbox, apply_sbox};
-    use crate::hash::rescue::{add_constants, STATE_WIDTH};
-    use crate::Felt;
+    use crate::{
+        hash::rescue::{add_constants, STATE_WIDTH},
+        Felt,
+    };
 
     #[inline(always)]
     pub fn add_constants_and_apply_sbox(
@@ -80,8 +81,7 @@ pub mod optimized {
 
 #[cfg(not(any(target_feature = "avx2", target_feature = "sve")))]
 pub mod optimized {
-    use crate::hash::rescue::STATE_WIDTH;
-    use crate::Felt;
+    use crate::{hash::rescue::STATE_WIDTH, Felt};
 
     #[inline(always)]
     pub fn add_constants_and_apply_sbox(

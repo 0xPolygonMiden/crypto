@@ -1,7 +1,8 @@
+use core::ops::Range;
+
 use super::{
     CubeExtension, Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField, ONE, ZERO,
 };
-use core::ops::Range;
 
 mod arch;
 pub use arch::optimized::{add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox};

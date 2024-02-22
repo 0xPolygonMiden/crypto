@@ -1,3 +1,5 @@
+use seq_macro::seq;
+
 use super::{
     DefaultMerkleStore as MerkleStore, EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex,
     PartialMerkleTree, RecordingMerkleStore, Rpo256, RpoDigest,
@@ -10,12 +12,10 @@ use crate::{
 };
 
 #[cfg(feature = "std")]
-use super::{Deserializable, Serializable};
-
-#[cfg(feature = "std")]
-use std::error::Error;
-
-use seq_macro::seq;
+use {
+    super::{Deserializable, Serializable},
+    std::error::Error,
+};
 
 // TEST DATA
 // ================================================================================================

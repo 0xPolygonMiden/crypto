@@ -11,11 +11,12 @@
 //! merged, creating a new tree with depth d+1, this process is continued until the property is
 //! reestablished.
 use super::{
-    super::{InnerNodeInfo, MerklePath, Vec},
+    super::{InnerNodeInfo, MerklePath},
     bit::TrueBitPositionIterator,
     leaf_to_corresponding_tree, nodes_in_forest, MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256,
     RpoDigest,
 };
+use crate::utils::collections::*;
 
 // MMR
 // ===============================================================================================

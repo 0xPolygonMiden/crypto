@@ -1,11 +1,12 @@
 use super::{
-    super::{InnerNodeInfo, Rpo256, RpoDigest, Vec},
+    super::{InnerNodeInfo, Rpo256, RpoDigest},
     bit::TrueBitPositionIterator,
     full::high_bitmask,
     leaf_to_corresponding_tree, nodes_in_forest, Mmr, MmrPeaks, PartialMmr,
 };
 use crate::{
     merkle::{int_to_node, InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex},
+    utils::collections::*,
     Felt, Word,
 };
 
@@ -837,8 +838,9 @@ fn test_mmr_add_invalid_odd_leaf() {
 }
 
 mod property_tests {
-    use super::leaf_to_corresponding_tree;
     use proptest::prelude::*;
+
+    use super::leaf_to_corresponding_tree;
 
     proptest! {
         #[test]

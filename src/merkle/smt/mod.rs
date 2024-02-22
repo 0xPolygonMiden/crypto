@@ -1,9 +1,9 @@
+use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
-    Word,
+    utils::collections::*,
+    Felt, Word, EMPTY_WORD,
 };
-
-use super::{EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex, Vec};
 
 mod full;
 pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};

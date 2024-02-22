@@ -1,9 +1,6 @@
 use crate::{
     hash::rpo::Rpo256,
-    utils::{
-        collections::Vec, ByteReader, ByteWriter, Deserializable, DeserializationError,
-        Serializable,
-    },
+    utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable},
     Felt, Word, ZERO,
 };
 

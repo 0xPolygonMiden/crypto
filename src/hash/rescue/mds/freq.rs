@@ -157,8 +157,9 @@ const fn block3(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{apply_mds, Felt, MDS, ZERO};
     use proptest::prelude::*;
+
+    use super::super::{apply_mds, Felt, MDS, ZERO};
 
     const STATE_WIDTH: usize = 12;
 

@@ -1,10 +1,8 @@
-use winter_utils::{Deserializable, Serializable};
-
-use super::*;
+use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
 use crate::{
     merkle::{EmptySubtreeRoots, MerkleStore},
-    utils::collections::Vec,
-    ONE, WORD_SIZE,
+    utils::{collections::*, Deserializable, Serializable},
+    Word, ONE, WORD_SIZE,
 };
 
 // SMT

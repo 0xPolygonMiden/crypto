@@ -126,8 +126,9 @@ impl From<InOrderIndex> for u64 {
 
 #[cfg(test)]
 mod test {
-    use super::InOrderIndex;
     use proptest::prelude::*;
+
+    use super::InOrderIndex;
 
     proptest! {
         #[test]

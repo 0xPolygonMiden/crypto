@@ -1,4 +1,5 @@
-use super::super::{RpoDigest, Vec};
+use super::super::RpoDigest;
+use crate::utils::collections::*;
 
 /// Container for the update data of a [super::PartialMmr]
 #[derive(Debug)]

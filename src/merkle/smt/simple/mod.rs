@@ -1,13 +1,9 @@
-use crate::{
-    merkle::{EmptySubtreeRoots, InnerNodeInfo, MerklePath, ValuePath},
-    EMPTY_WORD,
-};
-
 use super::{
-    InnerNode, LeafIndex, MerkleError, NodeIndex, RpoDigest, SparseMerkleTree, Word, SMT_MAX_DEPTH,
+    super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
+    MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD, SMT_MAX_DEPTH,
     SMT_MIN_DEPTH,
 };
-use crate::utils::collections::{BTreeMap, BTreeSet};
+use crate::utils::collections::*;
 
 #[cfg(test)]
 mod tests;

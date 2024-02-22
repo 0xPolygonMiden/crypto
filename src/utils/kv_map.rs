@@ -1,7 +1,8 @@
 use core::cell::RefCell;
-use winter_utils::{
-    collections::{btree_map::IntoIter, BTreeMap, BTreeSet},
-    Box,
+
+use super::{
+    boxed::*,
+    collections::{btree_map::*, *},
 };
 
 // KEY-VALUE MAP TRAIT

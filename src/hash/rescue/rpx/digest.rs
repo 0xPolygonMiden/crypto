@@ -1,10 +1,13 @@
-use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
-use crate::utils::{
-    bytes_to_hex_string, hex_to_bytes, string::String, ByteReader, ByteWriter, Deserializable,
-    DeserializationError, HexParseError, Serializable,
-};
 use core::{cmp::Ordering, fmt::Display, ops::Deref};
-use winter_utils::Randomizable;
+
+use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
+use crate::{
+    rand::Randomizable,
+    utils::{
+        bytes_to_hex_string, hex_to_bytes, string::*, ByteReader, ByteWriter, Deserializable,
+        DeserializationError, HexParseError, Serializable,
+    },
+};
 
 // DIGEST TRAIT IMPLEMENTATIONS
 // ================================================================================================
@@ -309,9 +312,10 @@ impl Deserializable for RpxDigest {
 
 #[cfg(test)]
 mod tests {
-    use super::{Deserializable, Felt, RpxDigest, Serializable, DIGEST_BYTES, DIGEST_SIZE};
-    use crate::utils::{string::String, SliceReader};
     use rand_utils::rand_value;
+
+    use super::{Deserializable, Felt, RpxDigest, Serializable, DIGEST_BYTES, DIGEST_SIZE};
+    use crate::utils::{string::*, SliceReader};
 
     #[test]
     fn digest_serialization() {

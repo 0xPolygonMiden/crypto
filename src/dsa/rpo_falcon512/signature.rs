@@ -1,10 +1,11 @@
+use core::cell::OnceCell;
+
 use super::{
     ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, NonceBytes, NonceElements,
     Polynomial, PublicKeyBytes, Rpo256, Serializable, SignatureBytes, Word, MODULUS, N,
     SIG_L2_BOUND, ZERO,
 };
-use crate::utils::string::ToString;
-use core::cell::OnceCell;
+use crate::utils::string::*;
 
 // FALCON SIGNATURE
 // ================================================================================================
@@ -195,12 +196,13 @@ fn decode_nonce(nonce: &NonceBytes) -> NonceElements {
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
-    use super::{
-        super::{ffi::*, Felt, KeyPair},
-        *,
-    };
     use libc::c_void;
     use rand_utils::rand_vector;
+
+    use super::{
+        super::{ffi::*, KeyPair},
+        *,
+    };
 
     // Wrappers for unsafe functions
     impl Rpo128Context {

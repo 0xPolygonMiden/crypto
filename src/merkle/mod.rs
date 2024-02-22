@@ -2,7 +2,6 @@
 
 use super::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::collections::{vec, BTreeMap, BTreeSet, KvMap, RecordingMap, Vec},
     Felt, Word, EMPTY_WORD, ZERO,
 };
 
@@ -44,6 +43,9 @@ pub use error::MerkleError;
 
 // HELPER FUNCTIONS
 // ================================================================================================
+
+#[cfg(test)]
+use crate::utils::collections::*;
 
 #[cfg(test)]
 const fn int_to_node(value: u64) -> RpoDigest {

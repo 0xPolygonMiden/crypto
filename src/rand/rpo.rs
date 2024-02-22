@@ -1,12 +1,11 @@
-use super::{Felt, FeltRng, FieldElement, Word, ZERO};
+use super::{Felt, FeltRng, FieldElement, RandomCoin, RandomCoinError, Word, ZERO};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::{
-        collections::Vec, string::ToString, vec, ByteReader, ByteWriter, Deserializable,
+        collections::*, string::*, vec, ByteReader, ByteWriter, Deserializable,
         DeserializationError, Serializable,
     },
 };
-pub use winter_crypto::{RandomCoin, RandomCoinError};
 
 // CONSTANTS
 // ================================================================================================

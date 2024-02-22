@@ -1,5 +1,6 @@
-use super::{LOG_N, MODULUS, PK_LEN};
 use core::fmt;
+
+use super::{LOG_N, MODULUS, PK_LEN};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FalconError {

@@ -1,14 +1,11 @@
+use proptest::prelude::*;
+use rand_utils::rand_value;
+
 use super::{
     super::{apply_inv_sbox, apply_sbox, ALPHA, INV_ALPHA},
     Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ONE, STATE_WIDTH, ZERO,
 };
-use crate::{
-    utils::collections::{BTreeSet, Vec},
-    Word,
-};
-use core::convert::TryInto;
-use proptest::prelude::*;
-use rand_utils::rand_value;
+use crate::{utils::collections::*, Word};
 
 #[test]
 fn test_sbox() {

@@ -1,26 +1,29 @@
 //! Utilities used in this crate which can also be generally useful downstream.
 
-use super::{utils::string::String, Word};
 use core::fmt::{self, Display, Write};
+
+#[cfg(feature = "std")]
+pub use std::{format, vec};
 
 #[cfg(not(feature = "std"))]
 pub use alloc::{format, vec};
 
-#[cfg(feature = "std")]
-pub use std::{format, vec};
+use super::Word;
+use crate::utils::string::*;
 
 mod kv_map;
 
 // RE-EXPORTS
 // ================================================================================================
 pub use winter_utils::{
-    string, uninit_vector, Box, ByteReader, ByteWriter, Deserializable, DeserializationError,
-    Serializable, SliceReader,
+    boxed, string, uninit_vector, Box, ByteReader, ByteWriter, Deserializable,
+    DeserializationError, Serializable, SliceReader,
 };
 
 pub mod collections {
-    pub use super::kv_map::*;
     pub use winter_utils::collections::*;
+
+    pub use super::kv_map::*;
 }
 
 // UTILITY FUNCTIONS
