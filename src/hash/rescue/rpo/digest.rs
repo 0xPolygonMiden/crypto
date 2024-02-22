@@ -322,7 +322,7 @@ impl IntoIterator for RpoDigest {
 #[cfg(test)]
 mod tests {
     use super::{Deserializable, Felt, RpoDigest, Serializable, DIGEST_BYTES, DIGEST_SIZE};
-    use crate::utils::{string::String, SliceReader};
+    use crate::utils::{string::*, SliceReader};
     use rand_utils::rand_value;
 
     #[test]

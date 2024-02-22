@@ -3,9 +3,9 @@ use super::{
         digests_to_words, int_to_node, DefaultMerkleStore as MerkleStore, MerkleTree, NodeIndex,
         PartialMerkleTree,
     },
-    Deserializable, InnerNodeInfo, RpoDigest, Serializable, ValuePath, Vec,
+    Deserializable, InnerNodeInfo, RpoDigest, Serializable, ValuePath,
 };
-use winter_utils::collections::*;
+use crate::utils::collections::*;
 
 // TEST DATA
 // ================================================================================================

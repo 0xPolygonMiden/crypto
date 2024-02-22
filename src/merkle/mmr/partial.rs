@@ -611,10 +611,11 @@ fn forest_to_rightmost_index(forest: usize) -> InOrderIndex {
 #[cfg(test)]
 mod tests {
     use super::{
-        forest_to_rightmost_index, forest_to_root_index, BTreeSet, InOrderIndex, MmrPeaks,
-        PartialMmr, RpoDigest, Vec,
+        forest_to_rightmost_index, forest_to_root_index, InOrderIndex, MmrPeaks, PartialMmr,
+        RpoDigest,
     };
     use crate::merkle::{int_to_node, MerkleStore, Mmr, NodeIndex};
+    use crate::utils::collections::*;
 
     const LEAVES: [RpoDigest; 7] = [
         int_to_node(0),

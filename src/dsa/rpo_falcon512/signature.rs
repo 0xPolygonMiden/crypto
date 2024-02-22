@@ -196,7 +196,7 @@ fn decode_nonce(nonce: &NonceBytes) -> NonceElements {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::{
-        super::{ffi::*, Felt, KeyPair},
+        super::{ffi::*, KeyPair},
         *,
     };
     use libc::c_void;

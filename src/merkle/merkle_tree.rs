@@ -287,8 +287,8 @@ pub fn path_to_text(path: &MerklePath) -> Result<String, fmt::Error> {
 mod tests {
     use super::*;
     use crate::{
-        merkle::{digests_to_words, int_to_leaf, int_to_node, InnerNodeInfo},
-        Felt, Word, WORD_SIZE,
+        merkle::{digests_to_words, int_to_leaf, int_to_node},
+        Felt, WORD_SIZE,
     };
     use core::mem::size_of;
     use proptest::prelude::*;
