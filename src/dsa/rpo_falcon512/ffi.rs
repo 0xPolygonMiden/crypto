@@ -103,7 +103,7 @@ mod tests {
     use rand_utils::{rand_array, rand_value, rand_vector};
 
     use super::*;
-    use crate::dsa::rpo_falcon512::{NONCE_LEN, PK_LEN, SIG_LEN, SK_LEN};
+    use crate::dsa::rpo_falcon512::{PK_LEN, SIG_LEN, SIG_NONCE_LEN, SK_LEN};
 
     #[test]
     fn falcon_ffi() {
@@ -114,7 +114,7 @@ mod tests {
 
             let mut pk = [0u8; PK_LEN];
             let mut sk = [0u8; SK_LEN];
-            let seed: [u8; NONCE_LEN] = rand_array();
+            let seed: [u8; SIG_NONCE_LEN] = rand_array();
 
             assert_eq!(
                 0,
@@ -129,7 +129,7 @@ mod tests {
 
             let mlen: usize = rand_value::<u16>() as usize;
             let msg: Vec<u8> = rand_vector(mlen);
-            let mut detached_sig = [0u8; NONCE_LEN + SIG_LEN];
+            let mut detached_sig = [0u8; SIG_NONCE_LEN + SIG_LEN];
             let mut siglen = 0;
 
             assert_eq!(

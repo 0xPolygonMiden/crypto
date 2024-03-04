@@ -15,7 +15,9 @@ pub enum FalconError {
     SigDecodingMinusZero,
     SigDecodingIncorrectEncodingAlgorithm,
     SigDecodingNotSupportedDegree(u8),
-    SigGenerationFailed,
+    BadEncodingLength,
+    InvalidHeaderFormat,
+    WrongVariant,
 }
 
 impl fmt::Display for FalconError {
@@ -47,7 +49,9 @@ impl fmt::Display for FalconError {
             SigDecodingMinusZero => write!(f, "Failed to decode signature: -0 is forbidden"),
             SigDecodingIncorrectEncodingAlgorithm => write!(f, "Failed to decode signature: not supported encoding algorithm"),
             SigDecodingNotSupportedDegree(log_n) => write!(f, "Failed to decode signature: only supported irreducible polynomial degree is 512, 2^{log_n} was provided"),
-            SigGenerationFailed => write!(f, "Failed to generate a signature"),
+            BadEncodingLength => write!(f, "Failed to decode: length is different from the one expected"),
+            InvalidHeaderFormat => write!(f, "Invalid header format"),
+            WrongVariant => write!(f, "Wrong Falcon DSA variant"),
         }
     }
 }
