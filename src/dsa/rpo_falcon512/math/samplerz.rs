@@ -1,6 +1,6 @@
-use super::vec;
-use rand::{Rng, RngCore};
+use super::{vec, Vec};
 use core::f64::consts::LN_2;
+use rand::{Rng, RngCore};
 
 /// Samples an integer from {0, ..., 18} according to the distribution χ, which is close to
 /// the half-Gaussian distribution on the natural numbers with mean 0 and standard deviation
