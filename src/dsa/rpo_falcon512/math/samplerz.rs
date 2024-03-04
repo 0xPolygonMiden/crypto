@@ -1,4 +1,4 @@
-use super::{vec, Vec};
+use super::*;
 use core::f64::consts::LN_2;
 use rand::{Rng, RngCore};
 

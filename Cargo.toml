@@ -53,7 +53,7 @@ serde = { version = "1.0", features = [
 winter_crypto = { version = "0.8", package = "winter-crypto", default-features = false }
 winter_math = { version = "0.8", package = "winter-math", default-features = false }
 winter_utils = { version = "0.8", package = "winter-utils", default-features = false }
-rand = {version = "0.8.5", features = ["js"] }
+rand = {version = "0.8.5"}
 num-complex = "0.4.4"
 num = "0.4.1"
 sha3 = "0.10.8"
