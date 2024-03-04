@@ -11,6 +11,7 @@ use crate::dsa::rpo_falcon512::{
     signature::hash_to_point,
     SIG_NONCE_LEN, SK_LEN,
 };
+use crate::utils::{collections::Vec, vec};
 use num::Complex;
 use num_complex::Complex64;
 use rand::{thread_rng, Rng, RngCore};

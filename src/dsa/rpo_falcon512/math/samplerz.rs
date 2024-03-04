@@ -1,3 +1,4 @@
+use super::vec;
 use rand::{Rng, RngCore};
 use std::f64::consts::LN_2;
 

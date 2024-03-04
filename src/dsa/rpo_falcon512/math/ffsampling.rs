@@ -1,4 +1,5 @@
-use super::{fft::FastFft, polynomial::Polynomial, samplerz::sampler_z};
+use super::{fft::FastFft, polynomial::Polynomial, samplerz::sampler_z, vec};
+use crate::utils::Box;
 use num::{One, Zero};
 use num_complex::{Complex, Complex64};
 use rand::RngCore;

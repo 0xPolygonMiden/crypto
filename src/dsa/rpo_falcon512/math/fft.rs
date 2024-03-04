@@ -1,10 +1,10 @@
-use super::{field::FalconFelt, polynomial::Polynomial, Inverse};
-use num::{One, Zero};
-use num_complex::Complex64;
-use std::{
+use super::{field::FalconFelt, polynomial::Polynomial, vec, Inverse, Vec};
+use core::{
     f64::consts::PI,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
+use num::{One, Zero};
+use num_complex::Complex64;
 
 /// Implements Cyclotomic FFT without bitreversing the outputs, and using precomputed powers of the
 /// 2n-th primitive root of unity.
