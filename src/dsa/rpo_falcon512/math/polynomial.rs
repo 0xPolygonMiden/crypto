@@ -1,4 +1,4 @@
-use super::{field::FalconFelt, Inverse, Vec};
+use super::{field::FalconFelt, Inverse, Vec, vec};
 use crate::dsa::rpo_falcon512::{MODULUS, N};
 use crate::Felt;
 use num::{One, Zero};
