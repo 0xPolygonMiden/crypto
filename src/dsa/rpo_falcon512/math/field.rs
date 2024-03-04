@@ -2,7 +2,7 @@ use super::{fft::CyclotomicFourier, Inverse};
 use crate::dsa::rpo_falcon512::MODULUS;
 use core::ops::DivAssign;
 use num::{One, Zero};
-use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
+use core::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct FalconFelt(u32);
