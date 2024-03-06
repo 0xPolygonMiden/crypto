@@ -1,0 +1,3 @@
+mkdocs-material==9.4.8
+markdown-include==0.8.1
+mkdocs-open-in-new-tab==1.0.3
