@@ -1,4 +1,4 @@
-use super::{FalconFelt, FastFft, Polynomial, MODULUS, Vec, vec};
+use super::{vec, FalconFelt, FastFft, Polynomial, Vec, MODULUS};
 use crate::dsa::rpo_falcon512::{FalconError, B0, LOG_N, N, PK_LEN, SIG_LEN, SK_LEN};
 use num::Zero;
 

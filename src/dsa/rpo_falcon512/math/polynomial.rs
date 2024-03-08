@@ -1,11 +1,11 @@
-use super::{field::FalconFelt, Inverse, Vec, vec};
+use super::{field::FalconFelt, vec, Inverse, Vec};
 use crate::dsa::rpo_falcon512::{MODULUS, N};
 use crate::Felt;
-use num::{One, Zero};
-use sha3::{digest::*, Shake256};
 use core::default::Default;
 use core::fmt::Debug;
 use core::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
+use num::{One, Zero};
+use sha3::{digest::*, Shake256};
 
 #[derive(Debug, Clone, Default)]
 pub struct Polynomial<F> {
