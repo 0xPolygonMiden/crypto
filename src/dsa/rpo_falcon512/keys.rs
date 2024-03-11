@@ -4,14 +4,12 @@ use super::{
         secret_key_to_bytes, FalconFelt, FastFft, LdlTree, Polynomial,
     },
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, Rpo256,
-    Serializable, Signature, Word, B0, MODULUS, N, SIGMA, SIG_L2_BOUND,
+    Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
 };
 use crate::dsa::rpo_falcon512::{
-    math::{compress_signature, pub_key_to_bytes},
-    signature::hash_to_point,
-    SIG_NONCE_LEN, SK_LEN,
+    math::compress_signature, signature::hash_to_point, SIG_NONCE_LEN, SK_LEN,
 };
-use crate::utils::{collections::*, vec};
+use crate::utils::collections::*;
 use num::Complex;
 use num_complex::Complex64;
 use rand::{thread_rng, Rng, RngCore};
@@ -54,7 +52,7 @@ impl From<PublicKey> for Word {
 /// TODO: ADD DOCS
 #[derive(Debug, Clone)]
 pub struct SecretKey {
-    secret_key: B0,
+    secret_key: ShortLatticeBasis,
     tree: LdlTree,
 }
 
@@ -64,24 +62,25 @@ impl SecretKey {
     // --------------------------------------------------------------------------------------------
 
     /// Generates a secret key from OS-provided randomness.
+    #[cfg(feature = "std")]
     pub fn new() -> Self {
         Self::from_seed(thread_rng().gen())
     }
 
     /// Generates a secret_key from the provided seed.
     pub fn from_seed(seed: [u8; 32]) -> Self {
-        let b0 = ntru_gen(N, seed);
-        Self::from_b0(b0)
+        let basis = ntru_gen(N, seed);
+        Self::from_short_lattice_basis(basis)
     }
 
     /// TODO: add docs
-    fn from_b0(b0: B0) -> SecretKey {
-        let b0_fft = b0.clone().map(|c| c.map(|cc| Complex64::new(*cc as f64, 0.0)).fft());
+    fn from_short_lattice_basis(basis: ShortLatticeBasis) -> SecretKey {
+        let basis_fft = basis.clone().map(|c| c.map(|cc| Complex64::new(*cc as f64, 0.0)).fft());
 
-        let g0_fft = gram(b0_fft);
+        let g0_fft = gram(basis_fft);
         let mut tree = ffldl(g0_fft);
         normalize_tree(&mut tree, SIGMA);
-        Self { secret_key: b0, tree }
+        Self { secret_key: basis, tree }
     }
 
     /// Derives the public key corresponding to this secret key.
@@ -128,7 +127,7 @@ impl SecretKey {
         let t0 = c_over_q_fft.hadamard_mul(&capital_f_fft);
         let t1 = -c_over_q_fft.hadamard_mul(&f_fft);
 
-        let (s2, s2_coef) = loop {
+        let s2_coef = loop {
             let bold_s = loop {
                 let z = ffsampling(&(t0.clone(), t1.clone()), &self.tree, &mut rng);
                 let t0_min_z0 = t0.clone() - z.0;
@@ -159,27 +158,15 @@ impl SecretKey {
                 .try_into()
                 .expect("The number of coefficients should be equal to N");
 
-            if let Some(s) = compress_signature(&s2_coef) {
-                break (s, s2_coef);
+            if compress_signature(&s2_coef).is_some() {
+                break s2_coef;
             }
         };
 
-        let header = 0x30 + 9;
-        let mut sig = vec![header];
-        sig.extend_from_slice(&nonce);
-        sig.extend_from_slice(&s2);
+        let pk = self.pub_key();
+        let s2 = s2_coef.to_vec().into();
 
-        let pk_polynomial = self.pub_key();
-        let sig_polynomial = s2_coef.to_vec().into();
-
-        Ok(Signature {
-            sig: sig
-                .try_into()
-                .expect("Signature compression step guarantees that this does not fail."),
-            pk: pub_key_to_bytes(&pk_polynomial)?,
-            pk_poly: pk_polynomial,
-            sig_poly: sig_polynomial,
-        })
+        Ok(Signature { pk, s2, nonce })
     }
 }
 
@@ -196,8 +183,8 @@ impl Serializable for SecretKey {
 impl Deserializable for SecretKey {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let sk: [u8; SK_LEN] = source.read_array()?;
-        let b0 = secret_key_from_bytes(&sk).map_err(|_| DeserializationError::UnexpectedEOF)?;
-        Ok(SecretKey::from_b0(b0))
+        let basis = secret_key_from_bytes(&sk).map_err(|_| DeserializationError::UnexpectedEOF)?;
+        Ok(SecretKey::from_short_lattice_basis(basis))
     }
 }
 

@@ -121,8 +121,8 @@ fn ntru_solve(
             return None;
         }
         return Some((
-            (Polynomial::new(vec![-v * BigInt::from_u32(MODULUS).unwrap()])),
-            Polynomial::new(vec![u * BigInt::from_u32(MODULUS).unwrap()]),
+            (Polynomial::new(vec![-v * BigInt::from_u32(MODULUS as u32).unwrap()])),
+            Polynomial::new(vec![u * BigInt::from_u32(MODULUS as u32).unwrap()]),
         ));
     }
 

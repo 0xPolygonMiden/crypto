@@ -1,5 +1,8 @@
 use super::{
-    math::{decompress_signature, pub_key_from_bytes, FalconFelt, FastFft, Polynomial},
+    math::{
+        compress_signature, decompress_signature, pub_key_from_bytes, pub_key_to_bytes, FalconFelt,
+        FastFft, Polynomial,
+    },
     ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, NonceBytes, NonceElements,
     PublicKeyBytes, Rpo256, Serializable, SignatureBytes, Word, MODULUS, N, SIG_HEADER_LEN,
     SIG_L2_BOUND, SIG_NONCE_LEN, ZERO,
@@ -44,12 +47,9 @@ use num::Zero;
 /// The total size of the signature (including the extended public key) is 1563 bytes.
 #[derive(Debug, Clone)]
 pub struct Signature {
-    pub(super) pk: PublicKeyBytes,
-    pub(super) sig: SignatureBytes,
-
-    // Cached polynomial decoding for public key and signature
-    pub(super) pk_poly: Polynomial<FalconFelt>,
-    pub(super) sig_poly: Polynomial<FalconFelt>,
+    pub(super) pk: Polynomial<FalconFelt>,
+    pub(super) s2: Polynomial<FalconFelt>,
+    pub(super) nonce: NonceBytes,
 }
 
 impl Signature {
@@ -58,7 +58,7 @@ impl Signature {
 
     /// Returns the public key polynomial h.
     pub fn pub_key_poly(&self) -> &Polynomial<FalconFelt> {
-        &self.pk_poly
+        &self.pk
     }
 
     /// Returns the nonce component of the signature represented as field elements.
@@ -68,14 +68,12 @@ impl Signature {
     pub fn nonce(&self) -> NonceBytes {
         // we assume that the signature was constructed with a valid signature, and thus
         // expect() is OK here.
-        self.sig[SIG_HEADER_LEN..SIG_HEADER_LEN + SIG_NONCE_LEN]
-            .try_into()
-            .expect("invalid signature")
+        self.nonce
     }
 
     // Returns the polynomial representation of the signature in Z_p[x]/(phi).
     pub fn sig_poly(&self) -> &Polynomial<FalconFelt> {
-        &self.sig_poly
+        &self.s2
     }
 
     // HASH-TO-POINT
@@ -99,9 +97,9 @@ impl Signature {
         }
         let c = hash_to_point(message, &self.nonce());
 
-        let s2 = &self.sig_poly;
+        let s2 = &self.s2;
         let s2_ntt = s2.fft();
-        let h_ntt = self.pk_poly.fft();
+        let h_ntt = self.pk.fft();
         let c_ntt = c.fft();
 
         // s1 = c - s2 * pk.h;
@@ -111,7 +109,7 @@ impl Signature {
         let length_squared_s1 = s1.norm_squared();
         let length_squared_s2 = s2.norm_squared();
         let length_squared = length_squared_s1 + length_squared_s2;
-        (length_squared as u64) < SIG_L2_BOUND
+        length_squared < SIG_L2_BOUND
     }
 }
 
@@ -120,20 +118,34 @@ impl Signature {
 
 impl Serializable for Signature {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        target.write_bytes(&self.pk);
-        target.write_bytes(&self.sig);
+        // encode public key
+        let pk = pub_key_to_bytes(&self.pk).expect("for a valid signature this should succed");
+        target.write_bytes(&pk);
+
+        // encode signature
+        let sig_coeff: Vec<i16> = self.s2.coefficients.iter().map(|a| a.balanced_value()).collect();
+        let sk = compress_signature(&sig_coeff).unwrap();
+        let header = vec![0x30 + 9];
+        target.write_bytes(&header);
+        target.write_bytes(&self.nonce);
+        target.write_bytes(&sk);
     }
 }
 
 impl Deserializable for Signature {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        let pk: PublicKeyBytes = source.read_array()?;
-        let sig: SignatureBytes = source.read_array()?;
+        let pk_bytes: PublicKeyBytes = source.read_array()?;
+        let sig_bytes: SignatureBytes = source.read_array()?;
 
-        // make sure public key and signature can be decoded correctly
-        let pk_polynomial = pub_key_from_bytes(&pk)
+        // decode public key
+        let pk = pub_key_from_bytes(&pk_bytes)
             .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?;
-        let sig_polynomial = if let Ok(poly) = decompress_signature(&sig) {
+
+        // decode signature
+        let nonce = (&sig_bytes[SIG_HEADER_LEN..SIG_HEADER_LEN + SIG_NONCE_LEN])
+            .try_into()
+            .expect("should not fail");
+        let s2 = if let Ok(poly) = decompress_signature(&sig_bytes) {
             poly
         } else {
             return Err(DeserializationError::InvalidValue(
@@ -141,12 +153,7 @@ impl Deserializable for Signature {
             ));
         };
 
-        Ok(Self {
-            pk,
-            sig,
-            pk_poly: pk_polynomial,
-            sig_poly: sig_polynomial,
-        })
+        Ok(Self { pk, s2, nonce })
     }
 }
 

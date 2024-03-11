@@ -1,5 +1,7 @@
 use super::{vec, FalconFelt, FastFft, Polynomial, Vec, MODULUS};
-use crate::dsa::rpo_falcon512::{FalconError, B0, LOG_N, N, PK_LEN, SIG_LEN, SK_LEN};
+use crate::dsa::rpo_falcon512::{
+    FalconError, ShortLatticeBasis, LOG_N, N, PK_LEN, SIG_LEN, SK_LEN,
+};
 use num::Zero;
 
 /// Deserializes the given slice of bytes into a public key.
@@ -25,7 +27,7 @@ pub fn pub_key_from_bytes(input: &[u8]) -> Result<Polynomial<FalconFelt>, Falcon
         if acc_len >= 14 {
             acc_len -= 14;
             let w = (acc >> acc_len) & 0x3FFF;
-            if w >= MODULUS {
+            if w >= MODULUS as u32 {
                 return Err(FalconError::PubKeyDecodingInvalidCoefficient(w));
             }
             output[output_idx] = FalconFelt::new((w) as i16);
@@ -67,7 +69,7 @@ pub fn pub_key_to_bytes(h: &Polynomial<FalconFelt>) -> Result<[u8; PK_LEN], Falc
 }
 
 /// Serializes the secret key to a vector of bytes.
-pub fn secret_key_to_bytes(b0: &B0) -> Vec<u8> {
+pub fn secret_key_to_bytes(b0: &ShortLatticeBasis) -> Vec<u8> {
     // header
     let n = b0[0].coefficients.len();
     let l = n.checked_ilog2().unwrap() as u8;
@@ -354,7 +356,7 @@ pub fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, Falc
             return Err(FalconError::SigDecodingMinusZero);
         }
 
-        let felt = if s != 0 { (MODULUS - m) as u16 } else { m as u16 };
+        let felt = if s != 0 { (MODULUS as u32 - m) as u16 } else { m as u16 };
         *c = FalconFelt::new(felt as i16);
     }
 

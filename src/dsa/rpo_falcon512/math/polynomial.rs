@@ -498,7 +498,7 @@ fn vector_karatsuba<
 /// Algorithm 3, "HashToPoint" in the spec (page 31).
 #[allow(dead_code)]
 pub fn hash_to_point_shake256(string: &[u8], n: usize) -> Polynomial<FalconFelt> {
-    const K: u32 = (1u32 << 16) / MODULUS;
+    const K: u32 = (1u32 << 16) / MODULUS as u32;
 
     let mut hasher = Shake256::default();
     hasher.update(string);
@@ -510,8 +510,8 @@ pub fn hash_to_point_shake256(string: &[u8], n: usize) -> Polynomial<FalconFelt>
         reader.read(&mut randomness);
         // Arabic endianness but so be it
         let t = ((randomness[0] as u32) << 8) | (randomness[1] as u32);
-        if t < K * MODULUS {
-            coefficients.push(FalconFelt::new((t % MODULUS) as i16));
+        if t < K * MODULUS as u32 {
+            coefficients.push(FalconFelt::new((t % MODULUS as u32) as i16));
         }
     }
 
@@ -563,12 +563,12 @@ impl From<&Vec<i16>> for Polynomial<FalconFelt> {
 }
 
 impl Polynomial<FalconFelt> {
-    pub fn norm_squared(&self) -> i64 {
+    pub fn norm_squared(&self) -> u64 {
         self.coefficients
             .iter()
             .map(|&i| i.balanced_value() as i64)
-            .map(|i| (i * i))
-            .sum::<i64>()
+            .map(|i| (i * i) as u64)
+            .sum::<u64>()
     }
 
     // PUBLIC ACCESSORS

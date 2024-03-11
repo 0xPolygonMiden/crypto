@@ -18,7 +18,7 @@ pub use signature::Signature;
 // ================================================================================================
 
 // The Falcon modulus.
-const MODULUS: u32 = 12289;
+const MODULUS: i16 = 12289;
 
 // The Falcon parameters for Falcon-512. This is the degree of the polynomial `phi := x^N + 1`
 // defining the ring Z_p[x]/(phi).
@@ -56,4 +56,4 @@ type SignatureBytes = [u8; SIG_HEADER_LEN + SIG_NONCE_LEN + SIG_LEN];
 type PublicKeyBytes = [u8; PK_LEN];
 type NonceBytes = [u8; SIG_NONCE_LEN];
 type NonceElements = [Felt; NONCE_ELEMENTS];
-type B0 = [Polynomial<i16>; 4];
+type ShortLatticeBasis = [Polynomial<i16>; 4];

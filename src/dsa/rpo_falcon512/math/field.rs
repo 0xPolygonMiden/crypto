@@ -1,7 +1,5 @@
-use super::{fft::CyclotomicFourier, Inverse};
-use crate::dsa::rpo_falcon512::MODULUS;
-use core::ops::DivAssign;
-use core::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
+use super::{fft::CyclotomicFourier, Inverse, MODULUS};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use num::{One, Zero};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -12,8 +10,8 @@ impl FalconFelt {
         let gtz_bool = value >= 0;
         let gtz_int = gtz_bool as i16;
         let gtz_sign = gtz_int - ((!gtz_bool) as i16);
-        let reduced = gtz_sign * ((gtz_sign * value) % (MODULUS as i16));
-        let canonical_representative = (reduced + (MODULUS as i16) * (1 - gtz_int)) as u32;
+        let reduced = gtz_sign * (gtz_sign * value) % MODULUS;
+        let canonical_representative = (reduced + MODULUS * (1 - gtz_int)) as u32;
         FalconFelt(canonical_representative)
     }
 
@@ -23,12 +21,12 @@ impl FalconFelt {
 
     pub fn balanced_value(&self) -> i16 {
         let value = self.value();
-        let g = (value > ((MODULUS as i16) / 2)) as i16;
-        value - (MODULUS as i16) * g
+        let g = (value > ((MODULUS) / 2)) as i16;
+        value - (MODULUS) * g
     }
 
     pub const fn multiply(&self, other: Self) -> Self {
-        FalconFelt((self.0 * other.0) % MODULUS)
+        FalconFelt((self.0 * other.0) % MODULUS as u32)
     }
 }
 
@@ -38,8 +36,8 @@ impl Add for FalconFelt {
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn add(self, rhs: Self) -> Self::Output {
         let (s, _) = self.0.overflowing_add(rhs.0);
-        let (d, n) = s.overflowing_sub(MODULUS);
-        let (r, _) = d.overflowing_add(MODULUS * (n as u32));
+        let (d, n) = s.overflowing_sub(MODULUS as u32);
+        let (r, _) = d.overflowing_add(MODULUS as u32 * (n as u32));
         FalconFelt(r)
     }
 }
@@ -69,14 +67,14 @@ impl Neg for FalconFelt {
 
     fn neg(self) -> Self::Output {
         let is_nonzero = self.0 != 0;
-        let r = MODULUS - self.0;
+        let r = MODULUS as u32 - self.0;
         FalconFelt(r * (is_nonzero as u32))
     }
 }
 
 impl Mul for FalconFelt {
     fn mul(self, rhs: Self) -> Self::Output {
-        FalconFelt((self.0 * rhs.0) % MODULUS)
+        FalconFelt((self.0 * rhs.0) % MODULUS as u32)
     }
 
     type Output = Self;
