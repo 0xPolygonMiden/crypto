@@ -1,7 +1,5 @@
-use super::{vec, FalconFelt, FastFft, Polynomial, Vec, MODULUS};
-use crate::dsa::rpo_falcon512::{
-    FalconError, ShortLatticeBasis, LOG_N, N, PK_LEN, SIG_LEN, SK_LEN,
-};
+use super::{vec, FalconFelt, Polynomial, Vec, MODULUS};
+use crate::dsa::rpo_falcon512::{FalconError, LOG_N, N, PK_LEN, SIG_LEN};
 use num::Zero;
 
 /// Deserializes the given slice of bytes into a public key.
@@ -66,104 +64,6 @@ pub fn pub_key_to_bytes(h: &Polynomial<FalconFelt>) -> Result<[u8; PK_LEN], Falc
     }
 
     Ok(buf)
-}
-
-/// Serializes the secret key to a vector of bytes.
-pub fn secret_key_to_bytes(b0: &ShortLatticeBasis) -> Vec<u8> {
-    // header
-    let n = b0[0].coefficients.len();
-    let l = n.checked_ilog2().unwrap() as u8;
-    let header: u8 = (5 << 4) | l;
-
-    let f = &b0[1];
-    let g = &b0[0];
-    let capital_f = &b0[3];
-
-    let mut buffer = Vec::with_capacity(1281);
-    buffer.push(header);
-
-    let f_i8: Vec<i8> = f.coefficients.iter().map(|&a| -a as i8).collect();
-    let f_i8_encoded = encode_i8(&f_i8, 6).unwrap();
-    buffer.extend_from_slice(&f_i8_encoded);
-
-    let g_i8: Vec<i8> = g.coefficients.iter().map(|&a| a as i8).collect();
-    let g_i8_encoded = encode_i8(&g_i8, 6).unwrap();
-    buffer.extend_from_slice(&g_i8_encoded);
-
-    let big_f_i8: Vec<i8> = capital_f.coefficients.iter().map(|&a| -a as i8).collect();
-    let big_f_i8_encoded = encode_i8(&big_f_i8, 8).unwrap();
-    buffer.extend_from_slice(&big_f_i8_encoded);
-    buffer
-}
-
-/// Deserializes a secret key from a slice of bytes.
-pub fn secret_key_from_bytes(byte_vector: &[u8]) -> Result<[Polynomial<i16>; 4], FalconError> {
-    // check length
-    if byte_vector.len() < 2 {
-        return Err(FalconError::BadEncodingLength);
-    }
-
-    // read fields
-    let header = byte_vector[0];
-
-    // check fixed bits in header
-    if (header >> 4) != 5 {
-        return Err(FalconError::InvalidHeaderFormat);
-    }
-
-    // check log n
-    let logn = (header & 15) as usize;
-    let n = 1 << logn;
-
-    // match against const variant generic parameter
-    if n != 512 {
-        return Err(FalconError::WrongVariant);
-    }
-
-    let width_f = field_element_width(0);
-    let width_g = field_element_width(1);
-    let width_big_f = field_element_width(2);
-
-    if byte_vector.len() != SK_LEN {
-        return Err(FalconError::BadEncodingLength);
-    }
-
-    let chunk_size_f = ((n * width_f) + 7) >> 3;
-    let chunk_size_g = ((n * width_g) + 7) >> 3;
-    let chunk_size_big_f = ((n * width_big_f) + 7) >> 3;
-
-    let f = decode_i8(&byte_vector[1..chunk_size_f + 1], width_f).unwrap();
-    let g = decode_i8(&byte_vector[chunk_size_f + 1..(chunk_size_f + chunk_size_g + 1)], width_g)
-        .unwrap();
-    let big_f = decode_i8(
-        &byte_vector[(chunk_size_f + chunk_size_g + 1)
-            ..(chunk_size_f + chunk_size_g + chunk_size_big_f + 1)],
-        width_big_f,
-    )
-    .unwrap();
-
-    let f = Polynomial::new(f.iter().map(|&c| FalconFelt::new(c.into())).collect());
-    let g = Polynomial::new(g.iter().map(|&c| FalconFelt::new(c.into())).collect());
-    let big_f = Polynomial::new(big_f.iter().map(|&c| FalconFelt::new(c.into())).collect());
-
-    // big_g * f - g * big_f = Q (mod X^n + 1)
-    let big_g = g.fft().hadamard_div(&f.fft()).hadamard_mul(&big_f.fft()).ifft();
-
-    Ok([
-        g.map(|f| f.balanced_value()),
-        -f.map(|f| f.balanced_value()),
-        big_g.map(|f| f.balanced_value()),
-        -big_f.map(|f| f.balanced_value()),
-    ])
-}
-
-/// Determines how many bits to use for each field element of a given polynomial.
-fn field_element_width(polynomial_index: usize) -> usize {
-    if polynomial_index == 2 {
-        8
-    } else {
-        6
-    }
 }
 
 /// Encodes a sequence of signed integers such that each integer x satisfies |x| < 2^(bits-1)

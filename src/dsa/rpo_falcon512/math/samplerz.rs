@@ -1,6 +1,6 @@
 use super::*;
 use core::f64::consts::LN_2;
-use rand::{Rng, RngCore};
+use rand::Rng;
 
 /// Samples an integer from {0, ..., 18} according to the distribution χ, which is close to
 /// the half-Gaussian distribution on the natural numbers with mean 0 and standard deviation
@@ -89,7 +89,7 @@ fn ber_exp(x: f64, ccs: f64, random_bytes: [u8; 7]) -> bool {
 
 /// Samples an integer from the Gaussian distribution with given mean (mu) and standard deviation
 /// (sigma).
-pub(crate) fn sampler_z(mu: f64, sigma: f64, sigma_min: f64, rng: &mut dyn RngCore) -> i16 {
+pub(crate) fn sampler_z<R: Rng>(mu: f64, sigma: f64, sigma_min: f64, rng: &mut R) -> i16 {
     const SIGMA_MAX: f64 = 1.8205;
     const INV_2SIGMA_MAX_SQ: f64 = 1f64 / (2f64 * SIGMA_MAX * SIGMA_MAX);
     let isigma = 1f64 / sigma;

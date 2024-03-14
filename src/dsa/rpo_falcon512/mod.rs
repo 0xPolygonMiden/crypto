@@ -17,7 +17,7 @@ pub use signature::Signature;
 // CONSTANTS
 // ================================================================================================
 
-// The Falcon modulus.
+// The Falcon modulus p.
 const MODULUS: i16 = 12289;
 
 // The Falcon parameters for Falcon-512. This is the degree of the polynomial `phi := x^N + 1`
@@ -57,3 +57,36 @@ type PublicKeyBytes = [u8; PK_LEN];
 type NonceBytes = [u8; SIG_NONCE_LEN];
 type NonceElements = [Felt; NONCE_ELEMENTS];
 type ShortLatticeBasis = [Polynomial<i16>; 4];
+
+/// Nonce bytes are converted to field elements by taking consecutive 5 byte chunks
+/// of the nonce and interpreting them as field elements.
+#[derive(Debug, Clone)]
+pub struct Nonce([u8; SIG_NONCE_LEN]);
+
+impl Nonce {
+    pub fn new(nonce_bytes: NonceBytes) -> Self {
+        Self(nonce_bytes)
+    }
+
+    pub fn as_bytes(&self) -> &NonceBytes {
+        &self.0
+    }
+
+    pub fn to_elements(&self) -> NonceElements {
+        decode_nonce(self.as_bytes())
+    }
+}
+
+/// Converts byte representation of the nonce into field element representation.
+pub fn decode_nonce(nonce: &NonceBytes) -> NonceElements {
+    let mut buffer = [0_u8; 8];
+    let mut result = [ZERO; 8];
+    for (i, bytes) in nonce.chunks(5).enumerate() {
+        buffer[..5].copy_from_slice(bytes);
+        // we can safely (without overflow) create a new Felt from u64 value here since this value
+        // contains at most 5 bytes
+        result[i] = Felt::new(u64::from_le_bytes(buffer));
+    }
+
+    result
+}

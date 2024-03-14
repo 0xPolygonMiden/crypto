@@ -5,7 +5,6 @@ use core::default::Default;
 use core::fmt::Debug;
 use core::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 use num::{One, Zero};
-use sha3::{digest::*, Shake256};
 
 #[derive(Debug, Clone, Default)]
 pub struct Polynomial<F> {
@@ -492,30 +491,6 @@ fn vector_karatsuba<
         product[i + n] += h
     }
     product
-}
-
-/// Hash a string to a random polynomial in ZZ[ X ] mod <Phi(X), q>.
-/// Algorithm 3, "HashToPoint" in the spec (page 31).
-#[allow(dead_code)]
-pub fn hash_to_point_shake256(string: &[u8], n: usize) -> Polynomial<FalconFelt> {
-    const K: u32 = (1u32 << 16) / MODULUS as u32;
-
-    let mut hasher = Shake256::default();
-    hasher.update(string);
-    let mut reader = hasher.finalize_xof();
-
-    let mut coefficients: Vec<FalconFelt> = vec![];
-    while coefficients.len() != n {
-        let mut randomness = [0u8; 2];
-        reader.read(&mut randomness);
-        // Arabic endianness but so be it
-        let t = ((randomness[0] as u32) << 8) | (randomness[1] as u32);
-        if t < K * MODULUS as u32 {
-            coefficients.push(FalconFelt::new((t % MODULUS as u32) as i16));
-        }
-    }
-
-    Polynomial { coefficients }
 }
 
 impl From<Polynomial<FalconFelt>> for Polynomial<Felt> {

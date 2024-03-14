@@ -1,14 +1,16 @@
 use super::{
+    keys::HashToPoint,
     math::{
         compress_signature, decompress_signature, pub_key_from_bytes, pub_key_to_bytes, FalconFelt,
         FastFft, Polynomial,
     },
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, NonceBytes, NonceElements,
-    PublicKeyBytes, Rpo256, Serializable, SignatureBytes, Word, MODULUS, N, SIG_HEADER_LEN,
-    SIG_L2_BOUND, SIG_NONCE_LEN, ZERO,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Nonce, PublicKeyBytes,
+    Rpo256, Serializable, SignatureBytes, Word, MODULUS, N, SIG_HEADER_LEN, SIG_L2_BOUND,
+    SIG_NONCE_LEN, ZERO,
 };
 use crate::utils::string::*;
 use num::Zero;
+use sha3::{digest::*, Shake256};
 
 // FALCON SIGNATURE
 // ================================================================================================
@@ -47,28 +49,30 @@ use num::Zero;
 /// The total size of the signature (including the extended public key) is 1563 bytes.
 #[derive(Debug, Clone)]
 pub struct Signature {
-    pub(super) pk: Polynomial<FalconFelt>,
-    pub(super) s2: Polynomial<FalconFelt>,
-    pub(super) nonce: NonceBytes,
+    h: Polynomial<FalconFelt>,
+    s2: Polynomial<FalconFelt>,
+    nonce: Nonce,
+    htp: HashToPoint,
 }
 
 impl Signature {
+    // CONSTRUCTOR
+    // --------------------------------------------------------------------------------------------
+    pub fn new(
+        h: Polynomial<FalconFelt>,
+        s2: Polynomial<FalconFelt>,
+        nonce: Nonce,
+        htp: HashToPoint,
+    ) -> Signature {
+        Self { h, s2, nonce, htp }
+    }
+
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
     /// Returns the public key polynomial h.
-    pub fn pub_key_poly(&self) -> &Polynomial<FalconFelt> {
-        &self.pk
-    }
-
-    /// Returns the nonce component of the signature represented as field elements.
-    ///
-    /// Nonce bytes are converted to field elements by taking consecutive 5 byte chunks
-    /// of the nonce and interpreting them as field elements.
-    pub fn nonce(&self) -> NonceBytes {
-        // we assume that the signature was constructed with a valid signature, and thus
-        // expect() is OK here.
-        self.nonce
+    pub fn pk_poly(&self) -> &Polynomial<FalconFelt> {
+        &self.h
     }
 
     // Returns the polynomial representation of the signature in Z_p[x]/(phi).
@@ -76,35 +80,36 @@ impl Signature {
         &self.s2
     }
 
-    // HASH-TO-POINT
-    // --------------------------------------------------------------------------------------------
+    /// Returns the nonce component of the signature.
+    pub fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
 
-    /// Returns a polynomial in Z_p\[x\]/(phi) representing the hash of the provided message.
-    pub fn hash_to_point(&self, message: Word) -> Polynomial<FalconFelt> {
-        let nonce = &self.nonce();
-        hash_to_point(message, nonce)
+    /// Returns the nonce component of the signature.
+    pub fn hash_to_point(&self) -> HashToPoint {
+        self.htp
     }
 
     // SIGNATURE VERIFICATION
     // --------------------------------------------------------------------------------------------
     /// Returns true if this signature is a valid signature for the specified message generated
-    /// against key pair matching the specified public key commitment.
+    /// against secret key matching the specified public key commitment.
     pub fn verify(&self, message: Word, pubkey_com: Word) -> bool {
-        let h: Polynomial<Felt> = self.pub_key_poly().into();
+        let h: Polynomial<Felt> = self.pk_poly().into();
         let h_digest: Word = Rpo256::hash_elements(&h.coefficients).into();
         if h_digest != pubkey_com {
             return false;
         }
-        let c = hash_to_point(message, &self.nonce());
+        let c = hash_to_point(message, self.nonce(), self.hash_to_point());
 
         let s2 = &self.s2;
-        let s2_ntt = s2.fft();
-        let h_ntt = self.pk.fft();
-        let c_ntt = c.fft();
+        let s2_fft = s2.fft();
+        let h_fft = self.h.fft();
+        let c_fft = c.fft();
 
-        // s1 = c - s2 * pk.h;
-        let s1_ntt = c_ntt - s2_ntt.hadamard_mul(&h_ntt);
-        let s1 = s1_ntt.ifft();
+        // s1 = c - s2 * h;
+        let s1_fft = c_fft - s2_fft.hadamard_mul(&h_fft);
+        let s1 = s1_fft.ifft();
 
         let length_squared_s1 = s1.norm_squared();
         let length_squared_s2 = s2.norm_squared();
@@ -119,16 +124,18 @@ impl Signature {
 impl Serializable for Signature {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         // encode public key
-        let pk = pub_key_to_bytes(&self.pk).expect("for a valid signature this should succed");
-        target.write_bytes(&pk);
+        let pk_bytes = pub_key_to_bytes(&self.h).expect("for a valid signature this should succed");
+        target.write_bytes(&pk_bytes);
 
         // encode signature
         let sig_coeff: Vec<i16> = self.s2.coefficients.iter().map(|a| a.balanced_value()).collect();
-        let sk = compress_signature(&sig_coeff).unwrap();
+        let sk_bytes = compress_signature(&sig_coeff).unwrap();
         let header = vec![0x30 + 9];
+        let htp = vec![self.hash_to_point() as u8];
         target.write_bytes(&header);
-        target.write_bytes(&self.nonce);
-        target.write_bytes(&sk);
+        target.write_bytes(self.nonce.as_bytes());
+        target.write_bytes(&sk_bytes);
+        target.write_bytes(&htp);
     }
 }
 
@@ -136,15 +143,17 @@ impl Deserializable for Signature {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let pk_bytes: PublicKeyBytes = source.read_array()?;
         let sig_bytes: SignatureBytes = source.read_array()?;
+        let htp: [u8; 1] = source.read_array()?;
 
         // decode public key
         let pk = pub_key_from_bytes(&pk_bytes)
             .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?;
 
         // decode signature
-        let nonce = (&sig_bytes[SIG_HEADER_LEN..SIG_HEADER_LEN + SIG_NONCE_LEN])
+        let nonce_bytes = (&sig_bytes[SIG_HEADER_LEN..SIG_HEADER_LEN + SIG_NONCE_LEN])
             .try_into()
             .expect("should not fail");
+        let nonce = Nonce::new(nonce_bytes);
         let s2 = if let Ok(poly) = decompress_signature(&sig_bytes) {
             poly
         } else {
@@ -152,22 +161,36 @@ impl Deserializable for Signature {
                 "Invalid signature encoding".to_string(),
             ));
         };
+        let htp = match htp[0] {
+            0 => HashToPoint::Rpo256,
+            1 => HashToPoint::Shake256,
+            _ => {
+                Err(DeserializationError::InvalidValue("Invalid hash-to-point variant".to_owned()))?
+            }
+        };
 
-        Ok(Self { pk, s2, nonce })
+        Ok(Self::new(pk, s2, nonce, htp))
     }
 }
 
 // HELPER FUNCTIONS
 // ================================================================================================
 
+pub fn hash_to_point(message: Word, nonce: &Nonce, htp: HashToPoint) -> Polynomial<FalconFelt> {
+    match htp {
+        HashToPoint::Rpo256 => hash_to_point_rpo256(message, nonce),
+        HashToPoint::Shake256 => hash_to_point_shake256(message, nonce),
+    }
+}
+
 /// Returns a polynomial in Z_p[x]/(phi) representing the hash of the provided message and
-/// nonce.
-pub fn hash_to_point(message: Word, nonce: &NonceBytes) -> Polynomial<FalconFelt> {
+/// nonce using RPO256.
+pub fn hash_to_point_rpo256(message: Word, nonce: &Nonce) -> Polynomial<FalconFelt> {
     let mut state = [ZERO; Rpo256::STATE_WIDTH];
 
     // absorb the nonce into the state
-    let nonce = decode_nonce(nonce);
-    for (&n, s) in nonce.iter().zip(state[Rpo256::RATE_RANGE].iter_mut()) {
+    let nonce_elements = nonce.to_elements();
+    for (&n, s) in nonce_elements.iter().zip(state[Rpo256::RATE_RANGE].iter_mut()) {
         *s = n;
     }
     Rpo256::apply_permutation(&mut state);
@@ -191,18 +214,30 @@ pub fn hash_to_point(message: Word, nonce: &NonceBytes) -> Polynomial<FalconFelt
     Polynomial::new(res.to_vec())
 }
 
-/// Converts byte representation of the nonce into field element representation.
-pub fn decode_nonce(nonce: &NonceBytes) -> NonceElements {
-    let mut buffer = [0_u8; 8];
-    let mut result = [ZERO; 8];
-    for (i, bytes) in nonce.chunks(5).enumerate() {
-        buffer[..5].copy_from_slice(bytes);
-        // we can safely (without overflow) create a new Felt from u64 value here since this value
-        // contains at most 5 bytes
-        result[i] = Felt::new(u64::from_le_bytes(buffer));
+/// Returns a polynomial in Z_p[x]/(phi) representing the hash of the provided message and
+/// nonce using SHAKE256. This is the hash-to-point algorithm used in the reference implementation.
+pub fn hash_to_point_shake256(message: Word, nonce: &Nonce) -> Polynomial<FalconFelt> {
+    let mut data = vec![];
+    data.extend_from_slice(nonce.as_bytes());
+    let message_bytes = message.to_bytes();
+    data.extend_from_slice(&message_bytes);
+    const K: u32 = (1u32 << 16) / MODULUS as u32;
+
+    let mut hasher = Shake256::default();
+    hasher.update(&data);
+    let mut reader = hasher.finalize_xof();
+
+    let mut coefficients: Vec<FalconFelt> = Vec::with_capacity(N);
+    while coefficients.len() != N {
+        let mut randomness = [0u8; 2];
+        reader.read(&mut randomness);
+        let t = ((randomness[0] as u32) << 8) | (randomness[1] as u32);
+        if t < K * MODULUS as u32 {
+            coefficients.push(FalconFelt::new((t % MODULUS as u32) as i16));
+        }
     }
 
-    result
+    Polynomial { coefficients }
 }
 
 // TESTS
@@ -211,14 +246,16 @@ pub fn decode_nonce(nonce: &NonceBytes) -> NonceElements {
 #[cfg(test)]
 mod tests {
     use super::{super::SecretKey, *};
+    use rand::thread_rng;
 
     #[test]
     fn test_serialization_round_trip() {
         let key = SecretKey::new();
-        let signature = key.sign(Word::default()).unwrap();
+        let mut rng = thread_rng();
+        let signature = key.sign(Word::default(), &mut rng, HashToPoint::Rpo256).unwrap();
         let serialized = signature.to_bytes();
         let deserialized = Signature::read_from_bytes(&serialized).unwrap();
         assert_eq!(signature.sig_poly(), deserialized.sig_poly());
-        assert_eq!(signature.pub_key_poly(), deserialized.pub_key_poly());
+        assert_eq!(signature.pk_poly(), deserialized.pk_poly());
     }
 }

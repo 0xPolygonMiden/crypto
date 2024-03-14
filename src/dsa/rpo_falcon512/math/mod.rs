@@ -3,7 +3,7 @@ use crate::utils::{collections::*, format, string::*, vec};
 use core::ops::MulAssign;
 use num::{BigInt, FromPrimitive, One, Zero};
 use num_complex::Complex64;
-use rand::{rngs::StdRng, RngCore, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 mod fft;
 pub use fft::{CyclotomicFourier, FastFft};
@@ -22,8 +22,8 @@ pub use polynomial::Polynomial;
 
 mod codec;
 pub use codec::{
-    compress_signature, decompress_signature, pub_key_from_bytes, pub_key_to_bytes,
-    secret_key_from_bytes, secret_key_to_bytes,
+    compress_signature, decode_i8, decompress_signature, encode_i8, pub_key_from_bytes,
+    pub_key_to_bytes,
 };
 
 pub trait Inverse: Copy + Zero + MulAssign + One {
@@ -156,7 +156,7 @@ fn ntru_solve(
 
 /// Generates a polynomial of degree at most n-1 whose coefficients are distributed according
 /// to a discrete Gaussian with mu = 0 and sigma = 1.17 * sqrt(Q / (2n)).
-fn gen_poly(n: usize, rng: &mut dyn RngCore) -> Polynomial<i16> {
+fn gen_poly<R: Rng>(n: usize, rng: &mut R) -> Polynomial<i16> {
     let mu = 0.0;
     let sigma_star = 1.43300980528773;
     Polynomial {
