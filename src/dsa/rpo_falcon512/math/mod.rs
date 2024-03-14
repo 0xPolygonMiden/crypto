@@ -21,10 +21,7 @@ mod polynomial;
 pub use polynomial::Polynomial;
 
 mod codec;
-pub use codec::{
-    compress_signature, decode_i8, decompress_signature, encode_i8, pub_key_from_bytes,
-    pub_key_to_bytes,
-};
+pub use codec::{compress_signature, decode_i8, decompress_signature, encode_i8};
 
 pub trait Inverse: Copy + Zero + MulAssign + One {
     /// Gets the inverse of a, or zero if it is zero.

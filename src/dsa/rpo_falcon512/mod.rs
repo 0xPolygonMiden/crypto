@@ -55,7 +55,6 @@ const SIGMA: f64 = 165.7366171829776;
 // ================================================================================================
 
 type SignatureBytes = [u8; SIG_HEADER_LEN + SIG_NONCE_LEN + SIG_LEN];
-type PublicKeyBytes = [u8; PK_LEN];
 type NonceBytes = [u8; SIG_NONCE_LEN];
 type NonceElements = [Felt; NONCE_ELEMENTS];
 type ShortLatticeBasis = [Polynomial<i16>; 4];

@@ -1,11 +1,8 @@
 use super::{
-    math::{
-        compress_signature, decompress_signature, pub_key_from_bytes, pub_key_to_bytes, FalconFelt,
-        FastFft, Polynomial,
-    },
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, HashToPoint, Nonce,
-    PublicKeyBytes, Rpo256, Serializable, SignatureBytes, Word, SIG_HEADER_LEN, SIG_L2_BOUND,
-    SIG_NONCE_LEN,
+    keys::PubKeyPoly,
+    math::{compress_signature, decompress_signature, FalconFelt, FastFft, Polynomial},
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, HashToPoint, Nonce, Rpo256,
+    Serializable, SignatureBytes, Word, SIG_HEADER_LEN, SIG_L2_BOUND, SIG_NONCE_LEN,
 };
 use crate::utils::string::*;
 
@@ -46,7 +43,7 @@ use crate::utils::string::*;
 /// The total size of the signature (including the extended public key) is 1563 bytes.
 #[derive(Debug, Clone)]
 pub struct Signature {
-    h: Polynomial<FalconFelt>,
+    h: PubKeyPoly,
     s2: Polynomial<FalconFelt>,
     nonce: Nonce,
     htp: HashToPoint,
@@ -56,7 +53,7 @@ impl Signature {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     pub fn new(
-        h: Polynomial<FalconFelt>,
+        h: PubKeyPoly,
         s2: Polynomial<FalconFelt>,
         nonce: Nonce,
         htp: HashToPoint,
@@ -122,8 +119,7 @@ impl Signature {
 impl Serializable for Signature {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         // encode public key
-        let pk_bytes = pub_key_to_bytes(&self.h).expect("for a valid signature this should succed");
-        target.write_bytes(&pk_bytes);
+        target.write(&self.h);
 
         // encode signature
         let sig_coeff: Vec<i16> = self.s2.coefficients.iter().map(|a| a.balanced_value()).collect();
@@ -139,13 +135,11 @@ impl Serializable for Signature {
 
 impl Deserializable for Signature {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        let pk_bytes: PublicKeyBytes = source.read_array()?;
+        // decode public key
+        let pk: PubKeyPoly = source.read()?;
+
         let sig_bytes: SignatureBytes = source.read_array()?;
         let htp: [u8; 1] = source.read_array()?;
-
-        // decode public key
-        let pk = pub_key_from_bytes(&pk_bytes)
-            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))?;
 
         // decode signature
         let nonce_bytes = (&sig_bytes[SIG_HEADER_LEN..SIG_HEADER_LEN + SIG_NONCE_LEN])

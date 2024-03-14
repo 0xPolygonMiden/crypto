@@ -4,8 +4,7 @@ use super::{
         FastFft, LdlTree, Polynomial,
     },
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, HashToPoint,
-    Nonce, Rpo256, Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA,
-    SIG_L2_BOUND,
+    Nonce, Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
 };
 use crate::dsa::rpo_falcon512::{math::compress_signature, SIG_NONCE_LEN, SK_LEN};
 use crate::utils::collections::*;
@@ -13,37 +12,8 @@ use num::Complex;
 use num_complex::Complex64;
 use rand::{thread_rng, Rng};
 
-// PUBLIC KEY
-// ================================================================================================
-
-/// A public key for verifying signatures.
-///
-/// The public key is a [Word] (i.e., 4 field elements) that is the hash of the coefficients of
-/// the polynomial representing the raw bytes of the expanded public key.
-///
-/// For Falcon-512, the first byte of the expanded public key is always equal to log2(512) i.e., 9.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct PublicKey(Word);
-
-impl PublicKey {
-    /// Returns a new [PublicKey] which is a commitment to the provided expanded public key.
-    pub fn new(pk: Polynomial<FalconFelt>) -> Self {
-        let pk_felts: Polynomial<Felt> = pk.into();
-        let pk_digest = Rpo256::hash_elements(&pk_felts.coefficients).into();
-        Self(pk_digest)
-    }
-
-    /// Verifies the provided signature against provided message and this public key.
-    pub fn verify(&self, message: Word, signature: &Signature) -> bool {
-        signature.verify(message, self.0)
-    }
-}
-
-impl From<PublicKey> for Word {
-    fn from(key: PublicKey) -> Self {
-        key.0
-    }
-}
+mod public_key;
+pub use public_key::{PubKeyPoly, PublicKey};
 
 // SECRET KEY
 // ================================================================================================
@@ -107,14 +77,14 @@ impl SecretKey {
     }
 
     /// Derives the public key corresponding to this secret key using h = g /f [mod ϕ][mod p].
-    pub fn compute_pub_key_poly(&self) -> Polynomial<FalconFelt> {
+    pub fn compute_pub_key_poly(&self) -> PubKeyPoly {
         let g: Polynomial<FalconFelt> = self.secret_key[0].clone().into();
         let g_fft = g.fft();
         let minus_f: Polynomial<FalconFelt> = self.secret_key[1].clone().into();
         let f = -minus_f;
         let f_fft = f.fft();
         let h_fft = g_fft.hadamard_div(&f_fft);
-        h_fft.ifft()
+        h_fft.ifft().into()
     }
 
     // PUBLIC ACCESSORS
@@ -123,7 +93,7 @@ impl SecretKey {
     /// Returns the public key corresponding to this key pair.
     pub fn public_key(&self) -> PublicKey {
         // TODO: memoize public key commitment as computing it requires quite a bit of hashing.
-        PublicKey::new(self.compute_pub_key_poly())
+        self.compute_pub_key_poly().into()
     }
 
     // SIGNATURE GENERATION
