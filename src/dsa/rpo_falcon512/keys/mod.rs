@@ -3,27 +3,15 @@ use super::{
         decode_i8, encode_i8, ffldl, ffsampling, gram, normalize_tree, ntru_gen, FalconFelt,
         FastFft, LdlTree, Polynomial,
     },
-    ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, Nonce, Rpo256,
-    Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, HashToPoint,
+    Nonce, Rpo256, Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA,
+    SIG_L2_BOUND,
 };
-use crate::dsa::rpo_falcon512::{
-    math::compress_signature, signature::hash_to_point, SIG_NONCE_LEN, SK_LEN,
-};
+use crate::dsa::rpo_falcon512::{math::compress_signature, SIG_NONCE_LEN, SK_LEN};
 use crate::utils::collections::*;
 use num::Complex;
 use num_complex::Complex64;
 use rand::{thread_rng, Rng};
-
-// HASH-TO-POINT
-// ================================================================================================
-
-/// Hash-to-point algorithms.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy)]
-pub enum HashToPoint {
-    Shake256,
-    Rpo256,
-}
 
 // PUBLIC KEY
 // ================================================================================================
@@ -135,7 +123,6 @@ impl SecretKey {
     /// Returns the public key corresponding to this key pair.
     pub fn public_key(&self) -> PublicKey {
         // TODO: memoize public key commitment as computing it requires quite a bit of hashing.
-        // expect() is fine here because we assume that the key pair was constructed correctly.
         PublicKey::new(self.compute_pub_key_poly())
     }
 
@@ -156,21 +143,7 @@ impl SecretKey {
         rng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::new(nonce_bytes);
 
-        self.sign_from_nonce(message, rng, nonce, htp)
-    }
-
-    /// Signs a message with the secret key given a nonce.
-    ///
-    /// # Errors
-    /// Returns an error of signature generation fails.
-    fn sign_from_nonce<R: Rng>(
-        &self,
-        message: Word,
-        rng: &mut R,
-        nonce: Nonce,
-        htp: HashToPoint,
-    ) -> Result<Signature, FalconError> {
-        let c = hash_to_point(message, &nonce, htp);
+        let c = htp.hash(message, &nonce);
         let one_over_q = 1.0 / (MODULUS as f64);
         let c_over_q_fft = c.map(|cc| Complex::new(one_over_q * cc.value() as f64, 0.0)).fft();
 
@@ -223,7 +196,7 @@ impl SecretKey {
     }
 
     /// Serializes the secret key to a vector of bytes.
-    pub fn secret_key_to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let basis = &self.secret_key;
 
         // header
@@ -253,7 +226,7 @@ impl SecretKey {
     }
 
     /// Deserializes a secret key from a slice of bytes.
-    pub fn secret_key_from_bytes(byte_vector: &[u8]) -> Result<Self, FalconError> {
+    pub fn from_bytes(byte_vector: &[u8]) -> Result<Self, FalconError> {
         // check length
         if byte_vector.len() < 2 {
             return Err(FalconError::InvalidEncodingLength);
@@ -330,7 +303,7 @@ impl SecretKey {
 
 impl Serializable for SecretKey {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        let buffer = self.secret_key_to_bytes();
+        let buffer = self.to_bytes();
         target.write_bytes(&buffer);
     }
 }
@@ -338,8 +311,7 @@ impl Serializable for SecretKey {
 impl Deserializable for SecretKey {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let sk: [u8; SK_LEN] = source.read_array()?;
-        let basis =
-            Self::secret_key_from_bytes(&sk).map_err(|_| DeserializationError::UnexpectedEOF)?;
+        let basis = Self::from_bytes(&sk).map_err(|_| DeserializationError::UnexpectedEOF)?;
         Ok(basis)
     }
 }
@@ -365,7 +337,7 @@ mod tests {
     use super::{super::Felt, HashToPoint, SecretKey, Word};
     use rand::thread_rng;
     use rand_utils::{rand_array, rand_vector};
-    use winter_utils::{Deserializable, Serializable};
+    use winter_utils::Deserializable;
 
     #[test]
     fn test_falcon_verification() {

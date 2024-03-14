@@ -5,12 +5,14 @@ use crate::{
 };
 
 mod error;
+mod hash_to_point;
 mod keys;
 mod math;
 mod signature;
 
 use self::math::Polynomial;
 pub use error::FalconError;
+pub use hash_to_point::HashToPoint;
 pub use keys::{PublicKey, SecretKey};
 pub use signature::Signature;
 
@@ -58,35 +60,37 @@ type NonceBytes = [u8; SIG_NONCE_LEN];
 type NonceElements = [Felt; NONCE_ELEMENTS];
 type ShortLatticeBasis = [Polynomial<i16>; 4];
 
-/// Nonce bytes are converted to field elements by taking consecutive 5 byte chunks
-/// of the nonce and interpreting them as field elements.
+// NONCE
+// ================================================================================================
+
+/// Nonce of the Falcon signature.
 #[derive(Debug, Clone)]
 pub struct Nonce([u8; SIG_NONCE_LEN]);
 
 impl Nonce {
-    pub fn new(nonce_bytes: NonceBytes) -> Self {
-        Self(nonce_bytes)
+    /// Returns a new [Nonce] instantiated from the provided bytes.
+    pub fn new(bytes: NonceBytes) -> Self {
+        Self(bytes)
     }
 
     pub fn as_bytes(&self) -> &NonceBytes {
         &self.0
     }
 
+    /// Converts byte representation of the nonce into field element representation.
+    ///
+    /// Nonce bytes are converted to field elements by taking consecutive 5 byte chunks
+    /// of the nonce and interpreting them as field elements.
     pub fn to_elements(&self) -> NonceElements {
-        decode_nonce(self.as_bytes())
-    }
-}
+        let mut buffer = [0_u8; 8];
+        let mut result = [ZERO; 8];
+        for (i, bytes) in self.0.chunks(5).enumerate() {
+            buffer[..5].copy_from_slice(bytes);
+            // we can safely (without overflow) create a new Felt from u64 value here since this value
+            // contains at most 5 bytes
+            result[i] = Felt::new(u64::from_le_bytes(buffer));
+        }
 
-/// Converts byte representation of the nonce into field element representation.
-pub fn decode_nonce(nonce: &NonceBytes) -> NonceElements {
-    let mut buffer = [0_u8; 8];
-    let mut result = [ZERO; 8];
-    for (i, bytes) in nonce.chunks(5).enumerate() {
-        buffer[..5].copy_from_slice(bytes);
-        // we can safely (without overflow) create a new Felt from u64 value here since this value
-        // contains at most 5 bytes
-        result[i] = Felt::new(u64::from_le_bytes(buffer));
+        result
     }
-
-    result
 }

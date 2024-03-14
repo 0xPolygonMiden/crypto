@@ -1,16 +1,13 @@
 use super::{
-    keys::HashToPoint,
     math::{
         compress_signature, decompress_signature, pub_key_from_bytes, pub_key_to_bytes, FalconFelt,
         FastFft, Polynomial,
     },
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Nonce, PublicKeyBytes,
-    Rpo256, Serializable, SignatureBytes, Word, MODULUS, N, SIG_HEADER_LEN, SIG_L2_BOUND,
-    SIG_NONCE_LEN, ZERO,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, HashToPoint, Nonce,
+    PublicKeyBytes, Rpo256, Serializable, SignatureBytes, Word, SIG_HEADER_LEN, SIG_L2_BOUND,
+    SIG_NONCE_LEN,
 };
 use crate::utils::string::*;
-use num::Zero;
-use sha3::{digest::*, Shake256};
 
 // FALCON SIGNATURE
 // ================================================================================================
@@ -85,13 +82,14 @@ impl Signature {
         &self.nonce
     }
 
-    /// Returns the nonce component of the signature.
+    /// Returns the hahs-to-point algorithm used to generate the signature.
     pub fn hash_to_point(&self) -> HashToPoint {
         self.htp
     }
 
     // SIGNATURE VERIFICATION
     // --------------------------------------------------------------------------------------------
+
     /// Returns true if this signature is a valid signature for the specified message generated
     /// against secret key matching the specified public key commitment.
     pub fn verify(&self, message: Word, pubkey_com: Word) -> bool {
@@ -100,10 +98,10 @@ impl Signature {
         if h_digest != pubkey_com {
             return false;
         }
-        let c = hash_to_point(message, self.nonce(), self.hash_to_point());
 
-        let s2 = &self.s2;
-        let s2_fft = s2.fft();
+        let c = self.htp.hash(message, &self.nonce);
+
+        let s2_fft = self.s2.fft();
         let h_fft = self.h.fft();
         let c_fft = c.fft();
 
@@ -112,7 +110,7 @@ impl Signature {
         let s1 = s1_fft.ifft();
 
         let length_squared_s1 = s1.norm_squared();
-        let length_squared_s2 = s2.norm_squared();
+        let length_squared_s2 = self.s2.norm_squared();
         let length_squared = length_squared_s1 + length_squared_s2;
         length_squared < SIG_L2_BOUND
     }
@@ -171,73 +169,6 @@ impl Deserializable for Signature {
 
         Ok(Self::new(pk, s2, nonce, htp))
     }
-}
-
-// HELPER FUNCTIONS
-// ================================================================================================
-
-pub fn hash_to_point(message: Word, nonce: &Nonce, htp: HashToPoint) -> Polynomial<FalconFelt> {
-    match htp {
-        HashToPoint::Rpo256 => hash_to_point_rpo256(message, nonce),
-        HashToPoint::Shake256 => hash_to_point_shake256(message, nonce),
-    }
-}
-
-/// Returns a polynomial in Z_p[x]/(phi) representing the hash of the provided message and
-/// nonce using RPO256.
-pub fn hash_to_point_rpo256(message: Word, nonce: &Nonce) -> Polynomial<FalconFelt> {
-    let mut state = [ZERO; Rpo256::STATE_WIDTH];
-
-    // absorb the nonce into the state
-    let nonce_elements = nonce.to_elements();
-    for (&n, s) in nonce_elements.iter().zip(state[Rpo256::RATE_RANGE].iter_mut()) {
-        *s = n;
-    }
-    Rpo256::apply_permutation(&mut state);
-
-    // absorb message into the state
-    for (&m, s) in message.iter().zip(state[Rpo256::RATE_RANGE].iter_mut()) {
-        *s = m;
-    }
-
-    // squeeze the coefficients of the polynomial
-    let mut i = 0;
-    let mut res = [FalconFelt::zero(); N];
-    for _ in 0..64 {
-        Rpo256::apply_permutation(&mut state);
-        for a in &state[Rpo256::RATE_RANGE] {
-            res[i] = FalconFelt::new((a.as_int() % MODULUS as u64) as i16);
-            i += 1;
-        }
-    }
-
-    Polynomial::new(res.to_vec())
-}
-
-/// Returns a polynomial in Z_p[x]/(phi) representing the hash of the provided message and
-/// nonce using SHAKE256. This is the hash-to-point algorithm used in the reference implementation.
-pub fn hash_to_point_shake256(message: Word, nonce: &Nonce) -> Polynomial<FalconFelt> {
-    let mut data = vec![];
-    data.extend_from_slice(nonce.as_bytes());
-    let message_bytes = message.to_bytes();
-    data.extend_from_slice(&message_bytes);
-    const K: u32 = (1u32 << 16) / MODULUS as u32;
-
-    let mut hasher = Shake256::default();
-    hasher.update(&data);
-    let mut reader = hasher.finalize_xof();
-
-    let mut coefficients: Vec<FalconFelt> = Vec::with_capacity(N);
-    while coefficients.len() != N {
-        let mut randomness = [0u8; 2];
-        reader.read(&mut randomness);
-        let t = ((randomness[0] as u32) << 8) | (randomness[1] as u32);
-        if t < K * MODULUS as u32 {
-            coefficients.push(FalconFelt::new((t % MODULUS as u32) as i16));
-        }
-    }
-
-    Polynomial { coefficients }
 }
 
 // TESTS
