@@ -1,9 +1,10 @@
 use core::ops::Deref;
 
 use super::{
+    error::FalconSerializationError,
     keys::PubKeyPoly,
     math::{FalconFelt, FastFft, Polynomial},
-    ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, HashToPoint,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, HashToPoint,
     Nonce, Rpo256, Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_LEN,
 };
 use crate::utils::string::*;
@@ -230,7 +231,7 @@ impl TryFrom<&[i16; N]> for SignaturePoly {
 impl Serializable for &SignaturePoly {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         let sig_coeff: Vec<i16> = self.0.coefficients.iter().map(|a| a.balanced_value()).collect();
-        let sk_bytes = compress_signature(&sig_coeff).unwrap();
+        let sk_bytes = compress_signature(&sig_coeff);
         target.write_bytes(&sk_bytes);
     }
 }
@@ -247,6 +248,7 @@ impl Deserializable for SignaturePoly {
 // HELPER FUNCTIONS
 // ================================================================================================
 
+/// Checks whether a set of coefficients is a valid one for signature polynomial `s2`.
 fn are_coefficients_valid(x: &[i16]) -> bool {
     if x.len() != N {
         return false;
@@ -274,12 +276,8 @@ fn are_coefficients_valid(x: &[i16]) -> bool {
 /// Algorithm 17 p. 47 of the specification [1].
 ///
 /// [1]: https://falcon-sign.info/falcon.pdf
-fn compress_signature(x: &[i16]) -> Option<Vec<u8>> {
+fn compress_signature(x: &[i16]) -> Vec<u8> {
     let mut buf = vec![0_u8; SIG_LEN];
-
-    if !are_coefficients_valid(x) {
-        return None;
-    }
 
     let mut acc = 0;
     let mut acc_len = 0;
@@ -320,7 +318,7 @@ fn compress_signature(x: &[i16]) -> Option<Vec<u8>> {
         buf[v] = (acc << (8 - acc_len)) as u8;
     }
 
-    Some(buf)
+    buf
 }
 
 /// Takes as input an encoding `input` and returns a list of integers x of length N such that
@@ -330,7 +328,7 @@ fn compress_signature(x: &[i16]) -> Option<Vec<u8>> {
 /// Algorithm 18 p. 48 of the specification [1].
 ///
 /// [1]: https://falcon-sign.info/falcon.pdf
-fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, FalconError> {
+fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, FalconSerializationError> {
     let mut input_idx = 0;
     let mut acc = 0u32;
     let mut acc_len = 0;
@@ -355,11 +353,11 @@ fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, FalconEr
             }
             m += 128;
             if m >= 2048 {
-                return Err(FalconError::SigDecodingTooBigHighBits(m));
+                return Err(FalconSerializationError::SigDecodingTooBigHighBits(m));
             }
         }
         if s != 0 && m == 0 {
-            return Err(FalconError::SigDecodingMinusZero);
+            return Err(FalconSerializationError::SigDecodingMinusZero);
         }
 
         let felt = if s != 0 { (MODULUS as u32 - m) as u16 } else { m as u16 };
@@ -367,7 +365,7 @@ fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, FalconEr
     }
 
     if (acc & ((1 << acc_len) - 1)) != 0 {
-        return Err(FalconError::SigDecodingNonZeroUnusedBitsLastByte);
+        return Err(FalconSerializationError::SigDecodingNonZeroUnusedBitsLastByte);
     }
     Ok(Polynomial::new(coefficients.to_vec()))
 }

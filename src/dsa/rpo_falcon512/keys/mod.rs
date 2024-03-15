@@ -101,6 +101,9 @@ impl SecretKey {
     // --------------------------------------------------------------------------------------------
 
     /// Signs a message with the secret key.
+    /// 
+    /// Takes a randomness generator implementing `Rng` and a hash-to-point algorithm `HashToPoint`
+    /// as parameters. It outputs a signature `Signature`.
     ///
     /// # Errors
     /// Returns an error of signature generation fails.
@@ -164,8 +167,22 @@ impl SecretKey {
         Ok(Signature::new(pk, s2, nonce, htp))
     }
 
-    /// Serializes the secret key to a vector of bytes.
-    pub fn to_bytes(&self) -> Vec<u8> {
+    /// Determines how many bits to use for each field element of a given polynomial of the secret
+    /// key.
+    fn field_element_width(polynomial_index: usize) -> usize {
+        if polynomial_index == 2 {
+            8
+        } else {
+            6
+        }
+    }
+}
+
+// SERIALIZATION / DESERIALIZATION
+// ================================================================================================
+
+impl Serializable for SecretKey {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
         let basis = &self.secret_key;
 
         // header
@@ -191,14 +208,17 @@ impl SecretKey {
         let big_f_i8: Vec<i8> = capital_f.coefficients.iter().map(|&a| -a as i8).collect();
         let big_f_i8_encoded = encode_i8(&big_f_i8, 8).unwrap();
         buffer.extend_from_slice(&big_f_i8_encoded);
-        buffer
+        target.write_bytes(&buffer);
     }
+}
 
-    /// Deserializes a secret key from a slice of bytes.
-    pub fn from_bytes(byte_vector: &[u8]) -> Result<Self, FalconError> {
+impl Deserializable for SecretKey {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let byte_vector: [u8; SK_LEN] = source.read_array()?;
+
         // check length
         if byte_vector.len() < 2 {
-            return Err(FalconError::InvalidEncodingLength);
+            return  Err(DeserializationError::InvalidValue(format!("Invalid encoding length: Failed to decode as length is different from the one expected")));
         }
 
         // read fields
@@ -206,7 +226,7 @@ impl SecretKey {
 
         // check fixed bits in header
         if (header >> 4) != 5 {
-            return Err(FalconError::InvalidHeaderFormat);
+            return Err(DeserializationError::InvalidValue(format!("Invalid header format")));
         }
 
         // check log n
@@ -214,8 +234,10 @@ impl SecretKey {
         let n = 1 << logn;
 
         // match against const variant generic parameter
-        if n != 512 {
-            return Err(FalconError::WrongVariant);
+        if n != N {
+            return Err(DeserializationError::InvalidValue(format!(
+                "Unsupported Falcon DSA variant"
+            )));
         }
 
         let width_f = Self::field_element_width(0);
@@ -223,7 +245,7 @@ impl SecretKey {
         let width_big_f = Self::field_element_width(2);
 
         if byte_vector.len() != SK_LEN {
-            return Err(FalconError::InvalidEncodingLength);
+            return Err(DeserializationError::InvalidValue(format!("Invalid encoding length: Failed to decode as length is different from the one expected")));
         }
 
         let chunk_size_f = ((n * width_f) + 7) >> 3;
@@ -255,34 +277,6 @@ impl SecretKey {
         ];
         Ok(Self::from_short_lattice_basis(basis))
     }
-
-    /// Determines how many bits to use for each field element of a given polynomial of the secret
-    /// key.
-    fn field_element_width(polynomial_index: usize) -> usize {
-        if polynomial_index == 2 {
-            8
-        } else {
-            6
-        }
-    }
-}
-
-// SERIALIZATION / DESERIALIZATION
-// ================================================================================================
-
-impl Serializable for SecretKey {
-    fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        let buffer = self.to_bytes();
-        target.write_bytes(&buffer);
-    }
-}
-
-impl Deserializable for SecretKey {
-    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        let sk: [u8; SK_LEN] = source.read_array()?;
-        let basis = Self::from_bytes(&sk).map_err(|_| DeserializationError::UnexpectedEOF)?;
-        Ok(basis)
-    }
 }
 
 // HELPER
@@ -306,7 +300,7 @@ mod tests {
     use super::{super::Felt, HashToPoint, SecretKey, Word};
     use rand::thread_rng;
     use rand_utils::{rand_array, rand_vector};
-    use winter_utils::Deserializable;
+    use winter_utils::{Deserializable, Serializable};
 
     #[test]
     fn test_falcon_verification() {
@@ -315,8 +309,9 @@ mod tests {
         let pk = sk.public_key();
 
         // test secret key serialization/deserialization
-        let sk_bytes = sk.to_bytes();
-        let sk = SecretKey::read_from_bytes(&sk_bytes).unwrap();
+        let mut buffer = vec![];
+        sk.write_into(&mut buffer);
+        let sk = SecretKey::read_from_bytes(&buffer).unwrap();
 
         // sign a random message
         let message: Word = rand_vector::<Felt>(4).try_into().expect("Should not fail.");
