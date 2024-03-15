@@ -12,7 +12,7 @@ use num::Zero;
 // FALCON SIGNATURE
 // ================================================================================================
 
-/// An RPO Falcon512 signature over a message.
+/// A Falcon512 signature over a message.
 ///
 /// The signature is a pair of polynomials (s1, s2) in (Z_p\[x\]/(phi))^2, where:
 /// - p := 12289
@@ -27,9 +27,15 @@ use num::Zero;
 ///
 /// where |.| is the norm.
 ///
-/// [Signature] also includes the extended public key which is serialized as:
+/// [Signature] includes the hash-to-point algorithm used during signature generation.
+/// The following hash-to-point algorithms are currently supported:
+/// 1. Shake256. This is the hash-to-point algorithm used in the reference implementation.
+/// 2. Rpo256. This is the hash-to-point algorithm used in Miden VM.
+///
+/// [Signature] also includes the polynomial h encoding the extended public key which is serialized
+/// as:
 /// 1. 1 byte representing the log2(512) i.e., 9.
-/// 2. 896 bytes for the public key. This is decoded into the `h` polynomial above.
+/// 2. 896 bytes for the public key itself.
 ///
 /// The actual signature is serialized as:
 /// 1. A header byte specifying the algorithm used to encode the coefficients of the `s2` polynomial
@@ -43,7 +49,7 @@ use num::Zero;
 /// 2. 40 bytes for the nonce.
 /// 3. 625 bytes encoding the `s2` polynomial above.
 ///
-/// The total size of the signature (including the extended public key) is 1563 bytes.
+/// The total size of the signature (including the extended public key) is 1564 bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Signature {
     header: SignatureHeader,
