@@ -136,26 +136,18 @@ impl Serializable for Signature {
 impl Deserializable for Signature {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         // decode public key
-        let pk: PubKeyPoly = source.read()?;
+        let h: PubKeyPoly = source.read()?;
 
         // decode hash-to-point algorithm
         let htp = source.read()?;
 
         // decode signature
-        let header = source.read_u8()?;
-        let (encoding, log_n) = (header >> 4, header & 0b00001111);
-        if encoding != 0b0011 {
-            // TODO return error
-        }
-
-        if log_n as usize != LOG_N {
-            // TODO: return error
-        }
+        let header: SignatureHeader = source.read()?;
 
         let nonce = source.read()?;
         let s2 = source.read()?;
 
-        Ok(Self::new(pk, s2, nonce, htp))
+        Ok(Self { header, s2, nonce, h, htp })
     }
 }
 
