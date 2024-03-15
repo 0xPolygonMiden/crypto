@@ -13,7 +13,7 @@ mod signature;
 use self::math::Polynomial;
 pub use error::FalconError;
 pub use hash_to_point::HashToPoint;
-pub use keys::{PublicKey, SecretKey};
+pub use keys::{KeyPair, PublicKey, SecretKey};
 pub use signature::Signature;
 
 // CONSTANTS

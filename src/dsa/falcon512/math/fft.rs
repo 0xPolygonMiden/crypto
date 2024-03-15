@@ -1,4 +1,4 @@
-use super::{field::FalconFelt, polynomial::Polynomial, vec, Inverse, Vec};
+use super::{field::FalconFelt, polynomial::Polynomial, vec, Inverse};
 use core::{
     f64::consts::PI,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},

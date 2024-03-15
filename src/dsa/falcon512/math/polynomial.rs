@@ -1,5 +1,5 @@
-use super::{field::FalconFelt, vec, Inverse, Vec};
-use crate::dsa::rpo_falcon512::{MODULUS, N};
+use super::{field::FalconFelt, vec, Inverse};
+use crate::dsa::falcon512::{MODULUS, N};
 use crate::Felt;
 use core::default::Default;
 use core::fmt::Debug;

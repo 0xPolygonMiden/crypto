@@ -1,20 +1,19 @@
 use super::{
-    math::{
-        decode_i8, encode_i8, ffldl, ffsampling, gram, normalize_tree, ntru_gen, FalconFelt,
-        FastFft, LdlTree, Polynomial,
+    super::{
+        math::{
+            decode_i8, encode_i8, ffldl, ffsampling, gram, normalize_tree, ntru_gen, FalconFelt,
+            FastFft, LdlTree, Polynomial,
+        },
+        signature::SignaturePoly,
+        ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, HashToPoint,
+        Nonce, Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
     },
-    signature::SignaturePoly,
-    ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, HashToPoint,
-    Nonce, Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
+    to_complex_fft, PubKeyPoly, PublicKey,
 };
-use crate::dsa::rpo_falcon512::{SIG_NONCE_LEN, SK_LEN};
+use crate::dsa::falcon512::{SIG_NONCE_LEN, SK_LEN};
 use crate::utils::collections::*;
 use num::Complex;
-use num_complex::Complex64;
 use rand::{thread_rng, Rng};
-
-mod public_key;
-pub use public_key::{PubKeyPoly, PublicKey};
 
 // SECRET KEY
 // ================================================================================================
@@ -91,17 +90,27 @@ impl SecretKey {
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns the public key corresponding to this key pair.
+    /// Returns the polynomials of the short lattice basis of this secret key.
+    pub fn short_lattice_basis(&self) -> &ShortLatticeBasis {
+        &self.secret_key
+    }
+
+    /// Returns the public key corresponding to this secret key.
     pub fn public_key(&self) -> PublicKey {
         // TODO: memoize public key commitment as computing it requires quite a bit of hashing.
         self.compute_pub_key_poly().into()
+    }
+
+    /// Returns the LDL tree associated to this secret key.
+    pub fn tree(&self) -> &LdlTree {
+        &self.tree
     }
 
     // SIGNATURE GENERATION
     // --------------------------------------------------------------------------------------------
 
     /// Signs a message with the secret key.
-    /// 
+    ///
     /// Takes a randomness generator implementing `Rng` and a hash-to-point algorithm `HashToPoint`
     /// as parameters. It outputs a signature `Signature`.
     ///
@@ -168,7 +177,7 @@ impl SecretKey {
     }
 
     /// Determines how many bits to use for each field element of a given polynomial of the secret
-    /// key.
+    /// key during decoding.
     fn field_element_width(polynomial_index: usize) -> usize {
         if polynomial_index == 2 {
             8
@@ -218,7 +227,7 @@ impl Deserializable for SecretKey {
 
         // check length
         if byte_vector.len() < 2 {
-            return  Err(DeserializationError::InvalidValue(format!("Invalid encoding length: Failed to decode as length is different from the one expected")));
+            return  Err(DeserializationError::InvalidValue("Invalid encoding length: Failed to decode as length is different from the one expected".to_string()));
         }
 
         // read fields
@@ -226,7 +235,7 @@ impl Deserializable for SecretKey {
 
         // check fixed bits in header
         if (header >> 4) != 5 {
-            return Err(DeserializationError::InvalidValue(format!("Invalid header format")));
+            return Err(DeserializationError::InvalidValue("Invalid header format".to_string()));
         }
 
         // check log n
@@ -235,9 +244,9 @@ impl Deserializable for SecretKey {
 
         // match against const variant generic parameter
         if n != N {
-            return Err(DeserializationError::InvalidValue(format!(
-                "Unsupported Falcon DSA variant"
-            )));
+            return Err(DeserializationError::InvalidValue(
+                "Unsupported Falcon DSA variant".to_string(),
+            ));
         }
 
         let width_f = Self::field_element_width(0);
@@ -245,7 +254,7 @@ impl Deserializable for SecretKey {
         let width_big_f = Self::field_element_width(2);
 
         if byte_vector.len() != SK_LEN {
-            return Err(DeserializationError::InvalidValue(format!("Invalid encoding length: Failed to decode as length is different from the one expected")));
+            return Err(DeserializationError::InvalidValue("Invalid encoding length: Failed to decode as length is different from the one expected".to_string()));
         }
 
         let chunk_size_f = ((n * width_f) + 7) >> 3;
@@ -276,85 +285,5 @@ impl Deserializable for SecretKey {
             -big_f.map(|f| f.balanced_value()),
         ];
         Ok(Self::from_short_lattice_basis(basis))
-    }
-}
-
-// HELPER
-// ================================================================================================
-
-/// Computes the complex FFT of the secret key polynomials.
-fn to_complex_fft(basis: &[Polynomial<i16>; 4]) -> [Polynomial<Complex<f64>>; 4] {
-    let [g, f, big_g, big_f] = basis.clone();
-    let g_fft = g.map(|cc| Complex64::new(*cc as f64, 0.0)).fft();
-    let minus_f_fft = f.map(|cc| -Complex64::new(*cc as f64, 0.0)).fft();
-    let big_g_fft = big_g.map(|cc| Complex64::new(*cc as f64, 0.0)).fft();
-    let minus_big_f_fft = big_f.map(|cc| -Complex64::new(*cc as f64, 0.0)).fft();
-    [g_fft, minus_f_fft, big_g_fft, minus_big_f_fft]
-}
-
-// TESTS
-// ================================================================================================
-
-#[cfg(test)]
-mod tests {
-    use super::{super::Felt, HashToPoint, SecretKey, Word};
-    use rand::thread_rng;
-    use rand_utils::{rand_array, rand_vector};
-    use winter_utils::{Deserializable, Serializable};
-
-    #[test]
-    fn test_falcon_verification() {
-        // generate random keys
-        let sk = SecretKey::new();
-        let pk = sk.public_key();
-
-        // test secret key serialization/deserialization
-        let mut buffer = vec![];
-        sk.write_into(&mut buffer);
-        let sk = SecretKey::read_from_bytes(&buffer).unwrap();
-
-        // sign a random message
-        let message: Word = rand_vector::<Felt>(4).try_into().expect("Should not fail.");
-        let mut rng = thread_rng();
-        let signature = sk.sign(message, &mut rng, HashToPoint::Rpo256);
-
-        // make sure the signature verifies correctly
-        assert!(pk.verify(message, signature.as_ref().unwrap()));
-
-        // a signature should not verify against a wrong message
-        let message2: Word = rand_vector::<Felt>(4).try_into().expect("Should not fail.");
-        assert!(!pk.verify(message2, signature.as_ref().unwrap()));
-
-        // a signature should not verify against a wrong public key
-        let sk2 = SecretKey::new();
-        assert!(!sk2.public_key().verify(message, signature.as_ref().unwrap()))
-    }
-
-    #[test]
-    fn test_falcon_verification_from_seed() {
-        // generate keys from a random seed
-        let seed: [u8; 32] = rand_array();
-        let sk = SecretKey::from_seed(seed);
-        let pk = sk.public_key();
-
-        // test secret key serialization/deserialization
-        let sk_bytes = sk.to_bytes();
-        let sk = SecretKey::read_from_bytes(&sk_bytes).unwrap();
-
-        // sign a random message
-        let message: Word = rand_vector::<Felt>(4).try_into().expect("Should not fail.");
-        let mut rng = thread_rng();
-        let signature = sk.sign(message, &mut rng, HashToPoint::Rpo256);
-
-        // make sure the signature verifies correctly
-        assert!(pk.verify(message, signature.as_ref().unwrap()));
-
-        // a signature should not verify against a wrong message
-        let message2: Word = rand_vector::<Felt>(4).try_into().expect("Should not fail.");
-        assert!(!pk.verify(message2, signature.as_ref().unwrap()));
-
-        // a signature should not verify against a wrong public key
-        let keys2 = SecretKey::new();
-        assert!(!keys2.public_key().verify(message, signature.as_ref().unwrap()))
     }
 }

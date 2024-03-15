@@ -4,8 +4,8 @@ use super::{
     error::FalconSerializationError,
     keys::PubKeyPoly,
     math::{FalconFelt, FastFft, Polynomial},
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, HashToPoint,
-    Nonce, Rpo256, Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_LEN,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, HashToPoint, Nonce, Rpo256,
+    Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_LEN,
 };
 use crate::utils::string::*;
 use num::Zero;
@@ -353,11 +353,11 @@ fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, FalconSe
             }
             m += 128;
             if m >= 2048 {
-                return Err(FalconSerializationError::SigDecodingTooBigHighBits(m));
+                return Err(FalconSerializationError::TooBigHighBits(m));
             }
         }
         if s != 0 && m == 0 {
-            return Err(FalconSerializationError::SigDecodingMinusZero);
+            return Err(FalconSerializationError::MinusZero);
         }
 
         let felt = if s != 0 { (MODULUS as u32 - m) as u16 } else { m as u16 };
@@ -365,7 +365,7 @@ fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, FalconSe
     }
 
     if (acc & ((1 << acc_len) - 1)) != 0 {
-        return Err(FalconSerializationError::SigDecodingNonZeroUnusedBitsLastByte);
+        return Err(FalconSerializationError::NonZeroUnusedBitsLastByte);
     }
     Ok(Polynomial::new(coefficients.to_vec()))
 }
