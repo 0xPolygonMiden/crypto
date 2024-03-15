@@ -89,7 +89,7 @@ impl Nonce {
     }
 }
 
-impl Serializable for Nonce {
+impl Serializable for &Nonce {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_bytes(&self.0)
     }

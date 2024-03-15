@@ -163,7 +163,7 @@ impl Default for SignatureHeader {
     }
 }
 
-impl Serializable for SignatureHeader {
+impl Serializable for &SignatureHeader {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_u8(self.0)
     }
@@ -221,7 +221,7 @@ impl TryFrom<&[i16; N]> for SignaturePoly {
     }
 }
 
-impl Serializable for SignaturePoly {
+impl Serializable for &SignaturePoly {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         let sig_coeff: Vec<i16> = self.0.coefficients.iter().map(|a| a.balanced_value()).collect();
         let sk_bytes = compress_signature(&sig_coeff).unwrap();

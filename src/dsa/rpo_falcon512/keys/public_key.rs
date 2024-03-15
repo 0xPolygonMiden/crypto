@@ -66,7 +66,7 @@ impl From<Polynomial<FalconFelt>> for PubKeyPoly {
     }
 }
 
-impl Serializable for PubKeyPoly {
+impl Serializable for &PubKeyPoly {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         let mut buf = [0_u8; PK_LEN];
         buf[0] = 9;
