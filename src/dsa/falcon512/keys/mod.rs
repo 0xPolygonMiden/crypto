@@ -14,6 +14,10 @@ pub use public_key::{PubKeyPoly, PublicKey};
 mod secret_key;
 pub use secret_key::SecretKey;
 
+// KEY PAIR
+// ================================================================================================
+
+/// A key pair is composed of a [SecretKey] and its associated [PubKeyPoly].
 pub struct KeyPair {
     secret_key: SecretKey,
     public_key: PubKeyPoly,
