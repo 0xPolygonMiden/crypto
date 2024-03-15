@@ -27,9 +27,6 @@ const MODULUS: i16 = 12289;
 const N: usize = 512;
 const LOG_N: usize = 9;
 
-/// Length of signature header.
-const SIG_HEADER_LEN: usize = 1;
-
 /// Length of nonce used for key-pair generation.
 const SIG_NONCE_LEN: usize = 40;
 
@@ -54,7 +51,6 @@ const SIGMA: f64 = 165.7366171829776;
 // TYPE ALIASES
 // ================================================================================================
 
-type SignatureBytes = [u8; SIG_HEADER_LEN + SIG_NONCE_LEN + SIG_LEN];
 type NonceBytes = [u8; SIG_NONCE_LEN];
 type NonceElements = [Felt; NONCE_ELEMENTS];
 type ShortLatticeBasis = [Polynomial<i16>; 4];
@@ -63,7 +59,7 @@ type ShortLatticeBasis = [Polynomial<i16>; 4];
 // ================================================================================================
 
 /// Nonce of the Falcon signature.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Nonce([u8; SIG_NONCE_LEN]);
 
 impl Nonce {
@@ -91,5 +87,18 @@ impl Nonce {
         }
 
         result
+    }
+}
+
+impl Serializable for Nonce {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write_bytes(&self.0)
+    }
+}
+
+impl Deserializable for Nonce {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let bytes = source.read()?;
+        Ok(Self(bytes))
     }
 }

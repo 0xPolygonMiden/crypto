@@ -160,9 +160,9 @@ impl SecretKey {
         };
 
         let pk = self.compute_pub_key_poly();
-        let s2 = s2_coef.to_vec().into();
+        let s2: Polynomial<FalconFelt> = s2_coef.to_vec().into();
 
-        Ok(Signature::new(pk, s2, nonce, htp))
+        Ok(Signature::new(pk, s2.into(), nonce, htp))
     }
 
     /// Serializes the secret key to a vector of bytes.

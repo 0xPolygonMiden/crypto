@@ -1,4 +1,7 @@
-use super::{math::FalconFelt, Nonce, Polynomial, Rpo256, Serializable, Word, MODULUS, N, ZERO};
+use super::{
+    math::FalconFelt, ByteReader, ByteWriter, Deserializable, DeserializationError, Nonce,
+    Polynomial, Rpo256, Serializable, Word, MODULUS, N, ZERO,
+};
 use num::Zero;
 use sha3::{digest::*, Shake256};
 
@@ -7,10 +10,10 @@ use sha3::{digest::*, Shake256};
 
 /// Hash-to-point algorithms.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HashToPoint {
-    Shake256,
-    Rpo256,
+    Shake256 = 0,
+    Rpo256 = 1,
 }
 
 impl HashToPoint {
@@ -18,6 +21,24 @@ impl HashToPoint {
         match self {
             HashToPoint::Rpo256 => hash_to_point_rpo256(message, nonce),
             HashToPoint::Shake256 => hash_to_point_shake256(message, nonce),
+        }
+    }
+}
+
+impl Serializable for HashToPoint {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write_u8(*self as u8)
+    }
+}
+
+impl Deserializable for HashToPoint {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        match source.read_u8()? {
+            0 => Ok(Self::Rpo256),
+            1 => Ok(HashToPoint::Shake256),
+            _ => {
+                Err(DeserializationError::InvalidValue("Invalid hash-to-point variant".to_owned()))
+            }
         }
     }
 }

@@ -1,10 +1,13 @@
+use core::ops::Deref;
+
 use super::{
     keys::PubKeyPoly,
-    math::{compress_signature, decompress_signature, FalconFelt, FastFft, Polynomial},
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, HashToPoint, Nonce, Rpo256,
-    Serializable, SignatureBytes, Word, SIG_HEADER_LEN, SIG_L2_BOUND, SIG_NONCE_LEN,
+    math::{compress_signature, FalconFelt, FastFft, Polynomial},
+    ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, HashToPoint,
+    Nonce, Rpo256, Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_LEN,
 };
 use crate::utils::string::*;
+use num::Zero;
 
 // FALCON SIGNATURE
 // ================================================================================================
@@ -41,24 +44,26 @@ use crate::utils::string::*;
 /// 3. 625 bytes encoding the `s2` polynomial above.
 ///
 /// The total size of the signature (including the extended public key) is 1563 bytes.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Signature {
-    h: PubKeyPoly,
-    s2: Polynomial<FalconFelt>,
+    header: SignatureHeader,
+    s2: SignaturePoly,
     nonce: Nonce,
+    h: PubKeyPoly,
     htp: HashToPoint,
 }
 
 impl Signature {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    pub fn new(
-        h: PubKeyPoly,
-        s2: Polynomial<FalconFelt>,
-        nonce: Nonce,
-        htp: HashToPoint,
-    ) -> Signature {
-        Self { h, s2, nonce, htp }
+    pub fn new(h: PubKeyPoly, s2: SignaturePoly, nonce: Nonce, htp: HashToPoint) -> Signature {
+        Self {
+            header: SignatureHeader::default(),
+            s2,
+            nonce,
+            h,
+            htp,
+        }
     }
 
     // PUBLIC ACCESSORS
@@ -113,23 +118,18 @@ impl Signature {
     }
 }
 
-// SERIALIZATION / DESERIALIZATION
-// ================================================================================================
-
 impl Serializable for Signature {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         // encode public key
         target.write(&self.h);
 
+        // encode hash-to-point algorithm
+        target.write(self.htp);
+
         // encode signature
-        let sig_coeff: Vec<i16> = self.s2.coefficients.iter().map(|a| a.balanced_value()).collect();
-        let sk_bytes = compress_signature(&sig_coeff).unwrap();
-        let header = vec![0x30 + 9];
-        let htp = vec![self.hash_to_point() as u8];
-        target.write_bytes(&header);
-        target.write_bytes(self.nonce.as_bytes());
-        target.write_bytes(&sk_bytes);
-        target.write_bytes(&htp);
+        target.write_u8(0x30 + LOG_N as u8); // header
+        target.write(&self.nonce);
+        target.write(&self.s2);
     }
 }
 
@@ -138,31 +138,153 @@ impl Deserializable for Signature {
         // decode public key
         let pk: PubKeyPoly = source.read()?;
 
-        let sig_bytes: SignatureBytes = source.read_array()?;
-        let htp: [u8; 1] = source.read_array()?;
+        // decode hash-to-point algorithm
+        let htp = source.read()?;
 
         // decode signature
-        let nonce_bytes = (&sig_bytes[SIG_HEADER_LEN..SIG_HEADER_LEN + SIG_NONCE_LEN])
-            .try_into()
-            .expect("should not fail");
-        let nonce = Nonce::new(nonce_bytes);
-        let s2 = if let Ok(poly) = decompress_signature(&sig_bytes) {
-            poly
-        } else {
-            return Err(DeserializationError::InvalidValue(
-                "Invalid signature encoding".to_string(),
-            ));
-        };
-        let htp = match htp[0] {
-            0 => HashToPoint::Rpo256,
-            1 => HashToPoint::Shake256,
-            _ => {
-                Err(DeserializationError::InvalidValue("Invalid hash-to-point variant".to_owned()))?
-            }
-        };
+        let header = source.read_u8()?;
+        let (encoding, log_n) = (header >> 4, header & 0b00001111);
+        if encoding != 0b0011 {
+            // TODO return error
+        }
+
+        if log_n as usize != LOG_N {
+            // TODO: return error
+        }
+
+        let nonce = source.read()?;
+        let s2 = source.read()?;
 
         Ok(Self::new(pk, s2, nonce, htp))
     }
+}
+
+// SIGNATURE HEADER
+// ================================================================================================
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignatureHeader(u8);
+
+impl Default for SignatureHeader {
+    /// TODO: add docs
+    fn default() -> Self {
+        Self(0b0011_0000 + LOG_N as u8)
+    }
+}
+
+impl Serializable for SignatureHeader {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write_u8(self.0)
+    }
+}
+
+impl Deserializable for SignatureHeader {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let header = source.read_u8()?;
+        let (encoding, log_n) = (header >> 4, header & 0b00001111);
+        if encoding != 0b0011 {
+            return Err(DeserializationError::InvalidValue(
+                "Failed to decode signature: not supported encoding algorithm".to_string(),
+            ));
+        }
+
+        if log_n as usize != LOG_N {
+            return Err(DeserializationError::InvalidValue(
+                format!("Failed to decode signature: only supported irreducible polynomial degree is 512, 2^{log_n} was provided")
+            ));
+        }
+
+        Ok(Self(header))
+    }
+}
+
+// SIGNATURE POLY
+// ================================================================================================
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignaturePoly(Polynomial<FalconFelt>);
+
+impl Deref for SignaturePoly {
+    type Target = Polynomial<FalconFelt>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Polynomial<FalconFelt>> for SignaturePoly {
+    fn from(pk_poly: Polynomial<FalconFelt>) -> Self {
+        Self(pk_poly)
+    }
+}
+
+impl Serializable for SignaturePoly {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        let sig_coeff: Vec<i16> = self.0.coefficients.iter().map(|a| a.balanced_value()).collect();
+        let sk_bytes = compress_signature(&sig_coeff).unwrap();
+        target.write_bytes(&sk_bytes);
+    }
+}
+
+impl Deserializable for SignaturePoly {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let bytes = source.read_array::<SIG_LEN>()?;
+        decompress_signature(&bytes)
+            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))
+            .map(SignaturePoly::from)
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+
+/// Takes as input an encoding `input` and returns a list of integers x of length N such that
+/// `inputs` encodes x. If such a list does not exist, the encoding is invalid and we output
+/// an error.
+///
+/// Algorithm 18 p. 48 of the specification [1].
+///
+/// [1]: https://falcon-sign.info/falcon.pdf
+fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, FalconError> {
+    let mut input_idx = 0;
+    let mut acc = 0u32;
+    let mut acc_len = 0;
+    let mut coefficients = [FalconFelt::zero(); N];
+
+    for c in coefficients.iter_mut() {
+        acc = (acc << 8) | (input[input_idx] as u32);
+        input_idx += 1;
+        let b = acc >> acc_len;
+        let s = b & 128;
+        let mut m = b & 127;
+
+        loop {
+            if acc_len == 0 {
+                acc = (acc << 8) | (input[input_idx] as u32);
+                input_idx += 1;
+                acc_len = 8;
+            }
+            acc_len -= 1;
+            if ((acc >> acc_len) & 1) != 0 {
+                break;
+            }
+            m += 128;
+            if m >= 2048 {
+                return Err(FalconError::SigDecodingTooBigHighBits(m));
+            }
+        }
+        if s != 0 && m == 0 {
+            return Err(FalconError::SigDecodingMinusZero);
+        }
+
+        let felt = if s != 0 { (MODULUS as u32 - m) as u16 } else { m as u16 };
+        *c = FalconFelt::new(felt as i16);
+    }
+
+    if (acc & ((1 << acc_len) - 1)) != 0 {
+        return Err(FalconError::SigDecodingNonZeroUnusedBitsLastByte);
+    }
+    Ok(Polynomial::new(coefficients.to_vec()))
 }
 
 // TESTS

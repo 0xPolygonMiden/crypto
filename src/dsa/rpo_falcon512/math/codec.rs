@@ -1,6 +1,5 @@
-use super::{vec, FalconFelt, Polynomial, Vec, MODULUS};
-use crate::dsa::rpo_falcon512::{FalconError, N, SIG_LEN};
-use num::Zero;
+use super::{vec, Vec};
+use crate::dsa::rpo_falcon512::{N, SIG_LEN};
 
 /// Encodes a sequence of signed integers such that each integer x satisfies |x| < 2^(bits-1)
 /// for a given parameter bits. bits can take either the value 6 or 8.
@@ -142,62 +141,4 @@ pub fn compress_signature(x: &[i16]) -> Option<Vec<u8>> {
     }
 
     Some(buf)
-}
-
-/// Takes as input an encoding `input` and returns a list of integers x of length N such that
-/// `inputs` encodes x. If such a list does not exist, the encoding is invalid and we output
-/// an error.
-///
-/// Algorithm 18 p. 48 of the specification [1].
-///
-/// [1]: https://falcon-sign.info/falcon.pdf
-pub fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, FalconError> {
-    let (encoding, log_n) = (input[0] >> 4, input[0] & 0b00001111);
-    if encoding != 0b0011 {
-        return Err(FalconError::SigDecodingIncorrectEncodingAlgorithm);
-    }
-    if log_n != 0b1001 {
-        return Err(FalconError::SigDecodingNotSupportedDegree(log_n));
-    }
-
-    let input = &input[41..];
-    let mut input_idx = 0;
-    let mut acc = 0u32;
-    let mut acc_len = 0;
-    let mut coefficients = [FalconFelt::zero(); N];
-
-    for c in coefficients.iter_mut() {
-        acc = (acc << 8) | (input[input_idx] as u32);
-        input_idx += 1;
-        let b = acc >> acc_len;
-        let s = b & 128;
-        let mut m = b & 127;
-
-        loop {
-            if acc_len == 0 {
-                acc = (acc << 8) | (input[input_idx] as u32);
-                input_idx += 1;
-                acc_len = 8;
-            }
-            acc_len -= 1;
-            if ((acc >> acc_len) & 1) != 0 {
-                break;
-            }
-            m += 128;
-            if m >= 2048 {
-                return Err(FalconError::SigDecodingTooBigHighBits(m));
-            }
-        }
-        if s != 0 && m == 0 {
-            return Err(FalconError::SigDecodingMinusZero);
-        }
-
-        let felt = if s != 0 { (MODULUS as u32 - m) as u16 } else { m as u16 };
-        *c = FalconFelt::new(felt as i16);
-    }
-
-    if (acc & ((1 << acc_len) - 1)) != 0 {
-        return Err(FalconError::SigDecodingNonZeroUnusedBitsLastByte);
-    }
-    Ok(Polynomial::new(coefficients.to_vec()))
 }
