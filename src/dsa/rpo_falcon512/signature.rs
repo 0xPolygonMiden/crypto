@@ -2,7 +2,7 @@ use core::ops::Deref;
 
 use super::{
     keys::PubKeyPoly,
-    math::{compress_signature, FalconFelt, FastFft, Polynomial},
+    math::{FalconFelt, FastFft, Polynomial},
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, HashToPoint,
     Nonce, Rpo256, Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_LEN,
 };
@@ -218,6 +218,18 @@ impl From<Polynomial<FalconFelt>> for SignaturePoly {
     }
 }
 
+impl TryFrom<&[i16; N]> for SignaturePoly {
+    type Error = ();
+
+    fn try_from(coefficients: &[i16; N]) -> Result<Self, Self::Error> {
+        if are_coefficients_valid(coefficients) {
+            Ok(Self(coefficients.to_vec().into()))
+        } else {
+            Err(())
+        }
+    }
+}
+
 impl Serializable for SignaturePoly {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         let sig_coeff: Vec<i16> = self.0.coefficients.iter().map(|a| a.balanced_value()).collect();
@@ -237,6 +249,82 @@ impl Deserializable for SignaturePoly {
 
 // HELPER FUNCTIONS
 // ================================================================================================
+
+fn are_coefficients_valid(x: &[i16]) -> bool {
+    if x.len() != N {
+        return false;
+    }
+
+    for &c in x {
+        if !(-2047..=2047).contains(&c) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Takes as input a list of integers x and returns a bytestring that encodes/compress' it.
+/// If this is not possible, it returns False.
+///
+/// For each coefficient of x:
+/// - the sign is encoded on 1 bit
+/// - the 7 lower bits are encoded naively (binary)
+/// - the high bits are encoded in unary encoding
+///
+/// This method can fail, in which case it returns None.
+///
+/// Algorithm 17 p. 47 of the specification [1].
+///
+/// [1]: https://falcon-sign.info/falcon.pdf
+fn compress_signature(x: &[i16]) -> Option<Vec<u8>> {
+    let mut buf = vec![0_u8; SIG_LEN];
+
+    if !are_coefficients_valid(x) {
+        return None;
+    }
+
+    let mut acc = 0;
+    let mut acc_len = 0;
+    let mut v = 0;
+    let mut t;
+    let mut w;
+
+    for &c in x {
+        acc <<= 1;
+        t = c;
+
+        if t < 0 {
+            t = -t;
+            acc |= 1;
+        }
+        w = t as u16;
+
+        acc <<= 7;
+        let mask = 127_u32;
+        acc |= (w as u32) & mask;
+        w >>= 7;
+
+        acc_len += 8;
+
+        acc <<= w + 1;
+        acc |= 1;
+        acc_len += w + 1;
+
+        while acc_len >= 8 {
+            acc_len -= 8;
+
+            buf[v] = (acc >> acc_len) as u8;
+            v += 1;
+        }
+    }
+
+    if acc_len > 0 {
+        buf[v] = (acc << (8 - acc_len)) as u8;
+    }
+
+    Some(buf)
+}
 
 /// Takes as input an encoding `input` and returns a list of integers x of length N such that
 /// `inputs` encodes x. If such a list does not exist, the encoding is invalid and we output

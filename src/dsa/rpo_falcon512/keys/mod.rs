@@ -3,10 +3,11 @@ use super::{
         decode_i8, encode_i8, ffldl, ffsampling, gram, normalize_tree, ntru_gen, FalconFelt,
         FastFft, LdlTree, Polynomial,
     },
+    signature::SignaturePoly,
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, HashToPoint,
     Nonce, Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
 };
-use crate::dsa::rpo_falcon512::{math::compress_signature, SIG_NONCE_LEN, SK_LEN};
+use crate::dsa::rpo_falcon512::{SIG_NONCE_LEN, SK_LEN};
 use crate::utils::collections::*;
 use num::Complex;
 use num_complex::Complex64;
@@ -122,7 +123,7 @@ impl SecretKey {
         let t0 = c_over_q_fft.hadamard_mul(&minus_big_f_fft);
         let t1 = -c_over_q_fft.hadamard_mul(&minus_f_fft);
 
-        let s2_coef = loop {
+        let s2 = loop {
             let bold_s = loop {
                 let z = ffsampling(&(t0.clone(), t1.clone()), &self.tree, rng);
                 let t0_min_z0 = t0.clone() - z.0;
@@ -154,15 +155,13 @@ impl SecretKey {
                 .try_into()
                 .expect("The number of coefficients should be equal to N");
 
-            if compress_signature(&s2_coef).is_some() {
-                break s2_coef;
+            if let Ok(s2) = SignaturePoly::try_from(&s2_coef) {
+                break s2;
             }
         };
 
         let pk = self.compute_pub_key_poly();
-        let s2: Polynomial<FalconFelt> = s2_coef.to_vec().into();
-
-        Ok(Signature::new(pk, s2.into(), nonce, htp))
+        Ok(Signature::new(pk, s2, nonce, htp))
     }
 
     /// Serializes the secret key to a vector of bytes.

@@ -1,5 +1,5 @@
 use super::{vec, Vec};
-use crate::dsa::rpo_falcon512::{N, SIG_LEN};
+use crate::dsa::rpo_falcon512::N;
 
 /// Encodes a sequence of signed integers such that each integer x satisfies |x| < 2^(bits-1)
 /// for a given parameter bits. bits can take either the value 6 or 8.
@@ -74,71 +74,4 @@ pub fn decode_i8(buf: &[u8], bits: usize) -> Option<Vec<i8>> {
     } else {
         None
     }
-}
-
-/// Takes as input a list of integers x and returns a bytestring that encodes/compress' it.
-/// If this is not possible, it returns False.
-///
-/// For each coefficient of x:
-/// - the sign is encoded on 1 bit
-/// - the 7 lower bits are encoded naively (binary)
-/// - the high bits are encoded in unary encoding
-///
-/// This method can fail, in which case it returns None.
-///
-/// Algorithm 17 p. 47 of the specification [1].
-///
-/// [1]: https://falcon-sign.info/falcon.pdf
-pub fn compress_signature(x: &[i16]) -> Option<Vec<u8>> {
-    let mut buf = vec![0_u8; SIG_LEN];
-    if x.len() != N {
-        return None;
-    }
-
-    for &c in x {
-        if !(-2047..=2047).contains(&c) {
-            return None;
-        }
-    }
-
-    let mut acc = 0;
-    let mut acc_len = 0;
-    let mut v = 0;
-    let mut t;
-    let mut w;
-
-    for &c in x {
-        acc <<= 1;
-        t = c;
-
-        if t < 0 {
-            t = -t;
-            acc |= 1;
-        }
-        w = t as u16;
-
-        acc <<= 7;
-        let mask = 127_u32;
-        acc |= (w as u32) & mask;
-        w >>= 7;
-
-        acc_len += 8;
-
-        acc <<= w + 1;
-        acc |= 1;
-        acc_len += w + 1;
-
-        while acc_len >= 8 {
-            acc_len -= 8;
-
-            buf[v] = (acc >> acc_len) as u8;
-            v += 1;
-        }
-    }
-
-    if acc_len > 0 {
-        buf[v] = (acc << (8 - acc_len)) as u8;
-    }
-
-    Some(buf)
 }
