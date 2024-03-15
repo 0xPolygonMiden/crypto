@@ -127,7 +127,7 @@ impl Serializable for Signature {
         target.write(self.htp);
 
         // encode signature
-        target.write_u8(0x30 + LOG_N as u8); // header
+        target.write(&self.header);
         target.write(&self.nonce);
         target.write(&self.s2);
     }
@@ -142,8 +142,7 @@ impl Deserializable for Signature {
         let htp = source.read()?;
 
         // decode signature
-        let header: SignatureHeader = source.read()?;
-
+        let header = source.read()?;
         let nonce = source.read()?;
         let s2 = source.read()?;
 
