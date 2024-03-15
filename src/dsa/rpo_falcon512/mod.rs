@@ -51,8 +51,6 @@ const SIGMA: f64 = 165.7366171829776;
 // TYPE ALIASES
 // ================================================================================================
 
-type NonceBytes = [u8; SIG_NONCE_LEN];
-type NonceElements = [Felt; NONCE_ELEMENTS];
 type ShortLatticeBasis = [Polynomial<i16>; 4];
 
 // NONCE
@@ -64,11 +62,12 @@ pub struct Nonce([u8; SIG_NONCE_LEN]);
 
 impl Nonce {
     /// Returns a new [Nonce] instantiated from the provided bytes.
-    pub fn new(bytes: NonceBytes) -> Self {
+    pub fn new(bytes: [u8; SIG_NONCE_LEN]) -> Self {
         Self(bytes)
     }
 
-    pub fn as_bytes(&self) -> &NonceBytes {
+    /// Returns the underlying bytes of this nonce.
+    pub fn as_bytes(&self) -> &[u8; SIG_NONCE_LEN] {
         &self.0
     }
 
@@ -76,13 +75,13 @@ impl Nonce {
     ///
     /// Nonce bytes are converted to field elements by taking consecutive 5 byte chunks
     /// of the nonce and interpreting them as field elements.
-    pub fn to_elements(&self) -> NonceElements {
+    pub fn to_elements(&self) -> [Felt; NONCE_ELEMENTS] {
         let mut buffer = [0_u8; 8];
         let mut result = [ZERO; 8];
         for (i, bytes) in self.0.chunks(5).enumerate() {
             buffer[..5].copy_from_slice(bytes);
-            // we can safely (without overflow) create a new Felt from u64 value here since this value
-            // contains at most 5 bytes
+            // we can safely (without overflow) create a new Felt from u64 value here since this
+            // value contains at most 5 bytes
             result[i] = Felt::new(u64::from_le_bytes(buffer));
         }
 
