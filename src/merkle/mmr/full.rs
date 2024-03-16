@@ -16,7 +16,7 @@ use super::{
     leaf_to_corresponding_tree, nodes_in_forest, MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256,
     RpoDigest,
 };
-use crate::utils::collections::*;
+use alloc::vec::Vec;
 
 // MMR
 // ===============================================================================================

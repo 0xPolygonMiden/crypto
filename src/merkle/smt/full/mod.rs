@@ -2,7 +2,7 @@ use super::{
     EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
     NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
-use crate::utils::collections::*;
+use alloc::collections::{BTreeMap, BTreeSet};
 
 mod error;
 pub use error::{SmtLeafError, SmtProofError};

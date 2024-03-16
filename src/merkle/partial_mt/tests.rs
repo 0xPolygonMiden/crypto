@@ -5,7 +5,7 @@ use super::{
     },
     Deserializable, InnerNodeInfo, RpoDigest, Serializable, ValuePath,
 };
-use crate::utils::collections::*;
+use alloc::{collections::BTreeMap, vec::Vec};
 
 // TEST DATA
 // ================================================================================================

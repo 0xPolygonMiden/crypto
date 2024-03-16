@@ -1,5 +1,5 @@
 use super::{super::ZERO, Felt, MmrError, MmrProof, Rpo256, RpoDigest, Word};
-use crate::utils::collections::*;
+use alloc::vec::Vec;
 
 // MMR PEAKS
 // ================================================================================================

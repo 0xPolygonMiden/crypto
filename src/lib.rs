@@ -1,8 +1,10 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 
-#[cfg(not(feature = "std"))]
-#[cfg_attr(test, macro_use)]
+#[macro_use]
 extern crate alloc;
+
+#[cfg(feature = "std")]
+extern crate std;
 
 pub mod dsa;
 pub mod hash;

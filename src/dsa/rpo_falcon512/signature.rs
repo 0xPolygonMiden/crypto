@@ -1,3 +1,4 @@
+use alloc::string::ToString;
 use core::cell::OnceCell;
 
 use super::{
@@ -5,7 +6,6 @@ use super::{
     Polynomial, PublicKeyBytes, Rpo256, Serializable, SignatureBytes, Word, MODULUS, N,
     SIG_L2_BOUND, ZERO,
 };
-use crate::utils::string::*;
 
 // FALCON SIGNATURE
 // ================================================================================================
@@ -196,7 +196,7 @@ fn decode_nonce(nonce: &NonceBytes) -> NonceElements {
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
-    use libc::c_void;
+    use core::ffi::c_void;
     use rand_utils::rand_vector;
 
     use super::{
@@ -236,7 +236,10 @@ mod tests {
     fn test_hash_to_point() {
         // Create a random message and transform it into a u8 vector
         let msg_felts: Word = rand_vector::<Felt>(4).try_into().unwrap();
-        let msg_bytes = msg_felts.iter().flat_map(|e| e.as_int().to_le_bytes()).collect::<Vec<_>>();
+        let msg_bytes = msg_felts
+            .iter()
+            .flat_map(|e| e.as_int().to_le_bytes())
+            .collect::<alloc::vec::Vec<_>>();
 
         // Create a nonce i.e. a [u8; 40] array and pack into a [Felt; 8] array.
         let nonce: [u8; 40] = rand_vector::<u8>(40).try_into().unwrap();

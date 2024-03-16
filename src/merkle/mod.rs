@@ -45,9 +45,6 @@ pub use error::MerkleError;
 // ================================================================================================
 
 #[cfg(test)]
-use crate::utils::collections::*;
-
-#[cfg(test)]
 const fn int_to_node(value: u64) -> RpoDigest {
     RpoDigest::new([Felt::new(value), ZERO, ZERO, ZERO])
 }
@@ -58,6 +55,6 @@ const fn int_to_leaf(value: u64) -> Word {
 }
 
 #[cfg(test)]
-fn digests_to_words(digests: &[RpoDigest]) -> Vec<Word> {
+fn digests_to_words(digests: &[RpoDigest]) -> alloc::vec::Vec<Word> {
     digests.iter().map(|d| d.into()).collect()
 }

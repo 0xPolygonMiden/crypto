@@ -1,7 +1,6 @@
 use super::{MerklePath, RpoDigest, SmtLeaf, SmtProofError, Word, SMT_DEPTH};
-use crate::utils::{
-    string::*, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
-};
+use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+use alloc::string::ToString;
 
 /// A proof which can be used to assert membership (or non-membership) of key-value pairs in a
 /// [`super::Smt`].
