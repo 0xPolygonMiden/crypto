@@ -1,9 +1,8 @@
-use core::cell::RefCell;
-
-use super::{
-    boxed::*,
-    collections::{btree_map::*, *},
+use alloc::{
+    boxed::Box,
+    collections::{BTreeMap, BTreeSet},
 };
+use core::cell::RefCell;
 
 // KEY-VALUE MAP TRAIT
 // ================================================================================================
@@ -202,7 +201,7 @@ impl<K: Clone + Ord, V: Clone> FromIterator<(K, V)> for RecordingMap<K, V> {
 
 impl<K: Clone + Ord, V: Clone> IntoIterator for RecordingMap<K, V> {
     type Item = (K, V);
-    type IntoIter = IntoIter<K, V>;
+    type IntoIter = alloc::collections::btree_map::IntoIter<K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.data.into_iter()

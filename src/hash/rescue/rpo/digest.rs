@@ -1,10 +1,11 @@
+use alloc::string::String;
 use core::{cmp::Ordering, fmt::Display, ops::Deref};
 
 use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
 use crate::{
     rand::Randomizable,
     utils::{
-        bytes_to_hex_string, hex_to_bytes, string::*, ByteReader, ByteWriter, Deserializable,
+        bytes_to_hex_string, hex_to_bytes, ByteReader, ByteWriter, Deserializable,
         DeserializationError, HexParseError, Serializable,
     },
 };
@@ -323,10 +324,11 @@ impl IntoIterator for RpoDigest {
 
 #[cfg(test)]
 mod tests {
+    use alloc::string::String;
     use rand_utils::rand_value;
 
     use super::{Deserializable, Felt, RpoDigest, Serializable, DIGEST_BYTES, DIGEST_SIZE};
-    use crate::utils::{string::*, SliceReader};
+    use crate::utils::SliceReader;
 
     #[test]
     fn digest_serialization() {

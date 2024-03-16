@@ -14,6 +14,7 @@ use crate::{
 #[cfg(feature = "std")]
 use {
     super::{Deserializable, Serializable},
+    alloc::boxed::Box,
     std::error::Error,
 };
 

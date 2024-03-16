@@ -2,7 +2,7 @@ use proptest::prelude::*;
 use rand_utils::rand_vector;
 
 use super::*;
-use crate::utils::collections::*;
+use alloc::vec::Vec;
 
 #[test]
 fn blake3_hash_elements() {

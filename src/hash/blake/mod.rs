@@ -1,3 +1,4 @@
+use alloc::string::String;
 use core::{
     mem::{size_of, transmute, transmute_copy},
     ops::Deref,
@@ -6,7 +7,7 @@ use core::{
 
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
 use crate::utils::{
-    bytes_to_hex_string, hex_to_bytes, string::*, ByteReader, ByteWriter, Deserializable,
+    bytes_to_hex_string, hex_to_bytes, ByteReader, ByteWriter, Deserializable,
     DeserializationError, HexParseError, Serializable,
 };
 

@@ -1,3 +1,8 @@
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    string::String,
+    vec::Vec,
+};
 use core::fmt;
 
 use super::{
@@ -5,8 +10,7 @@ use super::{
     EMPTY_WORD,
 };
 use crate::utils::{
-    collections::*, format, string::*, vec, word_to_hex, ByteReader, ByteWriter, Deserializable,
-    DeserializationError, Serializable,
+    word_to_hex, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
 };
 
 #[cfg(test)]

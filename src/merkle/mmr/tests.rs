@@ -6,9 +6,9 @@ use super::{
 };
 use crate::{
     merkle::{int_to_node, InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex},
-    utils::collections::*,
     Felt, Word,
 };
+use alloc::vec::Vec;
 
 #[test]
 fn test_position_equal_or_higher_than_leafs_is_never_contained() {

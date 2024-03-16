@@ -1,9 +1,10 @@
+use alloc::{string::String, vec::Vec};
 use core::{fmt, ops::Deref, slice};
 
 use winter_math::log2;
 
 use super::{InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Word};
-use crate::utils::{collections::*, string::*, uninit_vector, word_to_hex};
+use crate::utils::{uninit_vector, word_to_hex};
 
 // MERKLE TREE
 // ================================================================================================

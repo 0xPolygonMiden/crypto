@@ -1,4 +1,4 @@
-use libc::c_int;
+use core::ffi::c_int;
 
 // C IMPLEMENTATION INTERFACE
 // ================================================================================================
@@ -77,8 +77,11 @@ extern "C" {
     #[cfg(test)]
     pub fn rpo128_absorb(
         sc: *mut Rpo128Context,
-        data: *const ::std::os::raw::c_void,
-        len: libc::size_t,
+        data: *const core::ffi::c_void,
+        // TODO: When #![feature(c_size_t)] stabilizes, switch this to `core::ffi::size_t` to be
+        // more accurate. Currently, however, all Rust targets as of this writing are such that
+        // `core::ffi::size_t` and `usize` are the same size.
+        len: usize,
     );
 
     #[cfg(test)]
@@ -96,6 +99,7 @@ pub struct Rpo128Context {
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
+    use alloc::vec::Vec;
     use rand_utils::{rand_array, rand_value, rand_vector};
 
     use super::*;

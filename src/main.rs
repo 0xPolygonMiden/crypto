@@ -74,7 +74,7 @@ pub fn insertion(tree: &mut Smt, size: u64) -> Result<(), MerkleError> {
     println!(
         "An average insertion time measured by 20 inserts into a SMT with {} key-value pairs is {:.3} milliseconds\n",
         size,
-        // calculate the average by dividing by 20 and convert to milliseconds by multiplying by 
+        // calculate the average by dividing by 20 and convert to milliseconds by multiplying by
         // 1000. As a result, we can only multiply by 50
         insertion_times.iter().sum::<f32>() * 50f32,
     );

@@ -1,3 +1,4 @@
+use alloc::{collections::BTreeMap, vec::Vec};
 use core::borrow::Borrow;
 
 use super::{
@@ -5,7 +6,8 @@ use super::{
     PartialMerkleTree, RootPath, Rpo256, RpoDigest, SimpleSmt, Smt, ValuePath,
 };
 use crate::utils::{
-    collections::*, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
+    collections::{KvMap, RecordingMap},
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
 };
 
 #[cfg(test)]

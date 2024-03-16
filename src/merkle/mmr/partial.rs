@@ -1,10 +1,11 @@
 use super::{MmrDelta, MmrProof, Rpo256, RpoDigest};
-use crate::{
-    merkle::{
-        mmr::{leaf_to_corresponding_tree, nodes_in_forest},
-        InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks,
-    },
-    utils::{collections::*, vec},
+use crate::merkle::{
+    mmr::{leaf_to_corresponding_tree, nodes_in_forest},
+    InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks,
+};
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    vec::Vec,
 };
 
 // TYPE ALIASES
@@ -616,10 +617,8 @@ mod tests {
         forest_to_rightmost_index, forest_to_root_index, InOrderIndex, MmrPeaks, PartialMmr,
         RpoDigest,
     };
-    use crate::{
-        merkle::{int_to_node, MerkleStore, Mmr, NodeIndex},
-        utils::collections::*,
-    };
+    use crate::merkle::{int_to_node, MerkleStore, Mmr, NodeIndex};
+    use alloc::{collections::BTreeSet, vec::Vec};
 
     const LEAVES: [RpoDigest; 7] = [
         int_to_node(0),

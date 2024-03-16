@@ -1,8 +1,9 @@
+use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use super::{InnerNodeInfo, MerkleError, NodeIndex, Rpo256, RpoDigest};
 use crate::{
-    utils::{collections::*, ByteReader, Deserializable, DeserializationError, Serializable},
+    utils::{ByteReader, Deserializable, DeserializationError, Serializable},
     Word,
 };
 
@@ -128,7 +129,7 @@ impl FromIterator<RpoDigest> for MerklePath {
 
 impl IntoIterator for MerklePath {
     type Item = RpoDigest;
-    type IntoIter = vec::IntoIter<RpoDigest>;
+    type IntoIter = alloc::vec::IntoIter<RpoDigest>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.into_iter()

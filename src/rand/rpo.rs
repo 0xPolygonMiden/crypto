@@ -1,11 +1,9 @@
 use super::{Felt, FeltRng, FieldElement, RandomCoin, RandomCoinError, Word, ZERO};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
-    utils::{
-        collections::*, string::*, vec, ByteReader, ByteWriter, Deserializable,
-        DeserializationError, Serializable,
-    },
+    utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable},
 };
+use alloc::{string::ToString, vec::Vec};
 
 // CONSTANTS
 // ================================================================================================

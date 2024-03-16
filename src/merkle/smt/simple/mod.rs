@@ -3,7 +3,7 @@ use super::{
     MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD, SMT_MAX_DEPTH,
     SMT_MIN_DEPTH,
 };
-use crate::utils::collections::*;
+use alloc::collections::{BTreeMap, BTreeSet};
 
 #[cfg(test)]
 mod tests;

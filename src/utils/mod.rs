@@ -1,15 +1,9 @@
 //! Utilities used in this crate which can also be generally useful downstream.
 
+use alloc::string::String;
 use core::fmt::{self, Display, Write};
 
-#[cfg(feature = "std")]
-pub use std::{format, vec};
-
-#[cfg(not(feature = "std"))]
-pub use alloc::{format, vec};
-
 use super::Word;
-use crate::utils::string::*;
 
 mod kv_map;
 
@@ -21,8 +15,6 @@ pub use winter_utils::{
 };
 
 pub mod collections {
-    pub use winter_utils::collections::*;
-
     pub use super::kv_map::*;
 }
 
@@ -102,12 +94,11 @@ pub fn hex_to_bytes<const N: usize>(value: &str) -> Result<[u8; N], HexParseErro
     });
 
     let mut decoded = [0u8; N];
-    #[allow(clippy::needless_range_loop)]
-    for pos in 0..N {
+    for byte in decoded.iter_mut() {
         // These `unwrap` calls are okay because the length was checked above
         let high: u8 = data.next().unwrap()?;
         let low: u8 = data.next().unwrap()?;
-        decoded[pos] = (high << 4) + low;
+        *byte = (high << 4) + low;
     }
 
     Ok(decoded)

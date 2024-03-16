@@ -1,8 +1,11 @@
-#[cfg(feature = "std")]
-use super::{ffi, NonceBytes, NONCE_LEN, PK_LEN, SIG_LEN, SK_LEN};
 use super::{
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Polynomial,
     PublicKeyBytes, Rpo256, SecretKeyBytes, Serializable, Signature, Word,
+};
+#[cfg(feature = "std")]
+use {
+    super::{ffi, NonceBytes, NONCE_LEN, PK_LEN, SIG_LEN, SK_LEN},
+    alloc::vec::Vec,
 };
 
 // PUBLIC KEY
