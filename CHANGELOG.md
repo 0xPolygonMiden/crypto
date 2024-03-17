@@ -1,4 +1,9 @@
+# 0.8.2 (2024-03-17)
+
+* Updated `no-std` approach to be in sync with winterfell v0.8.3 release (#290).
+
 ## 0.8.1 (2024-02-21)
+
 * Fixed clippy warnings (#280)
 
 ## 0.8.0 (2024-02-14)

@@ -1,12 +1,12 @@
 [package]
 name = "miden-crypto"
-version = "0.8.1"
+version = "0.8.2"
 description = "Miden Cryptographic primitives"
 authors = ["miden contributors"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
-documentation = "https://docs.rs/miden-crypto/0.8.1"
+documentation = "https://docs.rs/miden-crypto/0.8.2"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
