@@ -1,4 +1,9 @@
 # Miden Crypto
+<a href="https://github.com/0xPolygonMiden/miden-crypto/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+<a href="https://github.com/0xPolygonMiden/crypto/actions/workflows/ci.yml"><img src="https://github.com/0xPolygonMiden/crypto/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+<img src="https://img.shields.io/badge/rustc-1.75+-lightgray.svg">
+<a href="https://crates.io/crates/miden-crypto"><img src="https://img.shields.io/crates/v/miden-crypto"></a>
+
 This crate contains cryptographic primitives used in Polygon Miden.
 
 ## Hash
