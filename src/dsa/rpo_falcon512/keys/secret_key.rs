@@ -8,12 +8,14 @@ use super::{
         ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Nonce,
         Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
     },
-    to_complex_fft, PubKeyPoly, PublicKey,
+    PubKeyPoly, PublicKey,
 };
 use crate::dsa::rpo_falcon512::{hash_to_point::hash_to_point_rpo256, SIG_NONCE_LEN, SK_LEN};
 use alloc::{string::ToString, vec::Vec};
 use num::{Complex, Zero};
 use rand::{thread_rng, Rng};
+
+use num_complex::Complex64;
 
 // SECRET KEY
 // ================================================================================================
@@ -76,17 +78,6 @@ impl SecretKey {
         Self { secret_key: basis, tree }
     }
 
-    /// Derives the public key corresponding to this secret key using h = g /f [mod ϕ][mod p].
-    pub fn compute_pub_key_poly(&self) -> PubKeyPoly {
-        let g: Polynomial<FalconFelt> = self.secret_key[0].clone().into();
-        let g_fft = g.fft();
-        let minus_f: Polynomial<FalconFelt> = self.secret_key[1].clone().into();
-        let f = -minus_f;
-        let f_fft = f.fft();
-        let h_fft = g_fft.hadamard_div(&f_fft);
-        h_fft.ifft().into()
-    }
-
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
@@ -97,7 +88,6 @@ impl SecretKey {
 
     /// Returns the public key corresponding to this secret key.
     pub fn public_key(&self) -> PublicKey {
-        // TODO: memoize public key commitment as computing it requires quite a bit of hashing.
         self.compute_pub_key_poly().into()
     }
 
@@ -126,6 +116,20 @@ impl SecretKey {
         Ok(Signature::new(nonce, s1, s2))
     }
 
+    // HELPER METHODS
+    // --------------------------------------------------------------------------------------------
+
+    /// Derives the public key corresponding to this secret key using h = g /f [mod ϕ][mod p].
+    fn compute_pub_key_poly(&self) -> PubKeyPoly {
+        let g: Polynomial<FalconFelt> = self.secret_key[0].clone().into();
+        let g_fft = g.fft();
+        let minus_f: Polynomial<FalconFelt> = self.secret_key[1].clone().into();
+        let f = -minus_f;
+        let f_fft = f.fft();
+        let h_fft = g_fft.hadamard_div(&f_fft);
+        h_fft.ifft().into()
+    }
+
     /// Signs a message polynomial with the secret key.
     ///
     /// Takes a randomness generator implementing `Rng` and message polynomial representing `c`
@@ -133,7 +137,7 @@ impl SecretKey {
     ///
     /// # Errors
     /// Returns an error of signature generation fails.
-    pub fn sign_helper<R: Rng>(
+    fn sign_helper<R: Rng>(
         &self,
         c: Polynomial<FalconFelt>,
         rng: &mut R,
@@ -195,16 +199,6 @@ impl SecretKey {
             }
         };
         Ok(s)
-    }
-
-    /// Determines how many bits to use for each field element of a given polynomial of the secret
-    /// key during decoding.
-    fn field_element_width(polynomial_index: usize) -> usize {
-        if polynomial_index == 2 {
-            8
-        } else {
-            6
-        }
     }
 }
 
@@ -270,9 +264,9 @@ impl Deserializable for SecretKey {
             ));
         }
 
-        let width_f = Self::field_element_width(0);
-        let width_g = Self::field_element_width(1);
-        let width_big_f = Self::field_element_width(2);
+        let width_f = field_element_width(0);
+        let width_g = field_element_width(1);
+        let width_big_f = field_element_width(2);
 
         if byte_vector.len() != SK_LEN {
             return Err(DeserializationError::InvalidValue("Invalid encoding length: Failed to decode as length is different from the one expected".to_string()));
@@ -306,5 +300,28 @@ impl Deserializable for SecretKey {
             -big_f.map(|f| f.balanced_value()),
         ];
         Ok(Self::from_short_lattice_basis(basis))
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+
+/// Computes the complex FFT of the secret key polynomials.
+fn to_complex_fft(basis: &[Polynomial<i16>; 4]) -> [Polynomial<Complex<f64>>; 4] {
+    let [g, f, big_g, big_f] = basis.clone();
+    let g_fft = g.map(|cc| Complex64::new(*cc as f64, 0.0)).fft();
+    let minus_f_fft = f.map(|cc| -Complex64::new(*cc as f64, 0.0)).fft();
+    let big_g_fft = big_g.map(|cc| Complex64::new(*cc as f64, 0.0)).fft();
+    let minus_big_f_fft = big_f.map(|cc| -Complex64::new(*cc as f64, 0.0)).fft();
+    [g_fft, minus_f_fft, big_g_fft, minus_big_f_fft]
+}
+
+/// Determines how many bits to use for each field element of a given polynomial of the secret
+/// key during decoding.
+fn field_element_width(polynomial_index: usize) -> usize {
+    if polynomial_index == 2 {
+        8
+    } else {
+        6
     }
 }

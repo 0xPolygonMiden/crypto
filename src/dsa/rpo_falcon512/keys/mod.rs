@@ -1,29 +1,14 @@
 use super::{
-    math::{FalconFelt, FastFft, Polynomial},
+    math::{FalconFelt, Polynomial},
     ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Serializable, Signature,
     Word, MODULUS,
 };
-use num::Complex;
-use num_complex::Complex64;
 
 mod public_key;
 pub use public_key::{PubKeyPoly, PublicKey};
 
 mod secret_key;
 pub use secret_key::SecretKey;
-
-// HELPER
-// ================================================================================================
-
-/// Computes the complex FFT of the secret key polynomials.
-fn to_complex_fft(basis: &[Polynomial<i16>; 4]) -> [Polynomial<Complex<f64>>; 4] {
-    let [g, f, big_g, big_f] = basis.clone();
-    let g_fft = g.map(|cc| Complex64::new(*cc as f64, 0.0)).fft();
-    let minus_f_fft = f.map(|cc| -Complex64::new(*cc as f64, 0.0)).fft();
-    let big_g_fft = big_g.map(|cc| Complex64::new(*cc as f64, 0.0)).fft();
-    let minus_big_f_fft = big_f.map(|cc| -Complex64::new(*cc as f64, 0.0)).fft();
-    [g_fft, minus_f_fft, big_g_fft, minus_big_f_fft]
-}
 
 // TESTS
 // ================================================================================================

@@ -87,35 +87,7 @@ impl Signature {
         let c = hash_to_point_rpo256(message, &self.nonce);
         let s1 = self.s1.clone();
         let s2 = self.s2.clone();
-        Self::verify_helper(c, s1, s2, pubkey_com)
-    }
-
-    /// Takes the hash-to-point polynomial `c` of a message and the signature polynomials over
-    /// the message `(s1, s2)` and returns `true` is the signature is a valid signature for
-    /// the given parameters, otherwise it returns `false`.
-    pub fn verify_helper(
-        c: Polynomial<FalconFelt>,
-        s1: SignaturePoly,
-        s2: SignaturePoly,
-        pubkey_com: Word,
-    ) -> bool {
-        let s1_fft = s1.fft();
-        let s2_fft = s2.fft();
-        let c_fft = c.fft();
-
-        // h = s2^(-1) * (c - s1)
-        let h_fft = (c_fft - s1_fft).hadamard_div(&s2_fft);
-        let h = h_fft.ifft();
-
-        let length_squared_s1 = s1.norm_squared();
-        let length_squared_s2 = s2.norm_squared();
-        let length_squared = length_squared_s1 + length_squared_s2;
-        let is_short = length_squared < SIG_L2_BOUND;
-
-        let h: Polynomial<Felt> = h.into();
-        let h_digest: Word = Rpo256::hash_elements(&h.coefficients).into();
-
-        h_digest == pubkey_com && is_short
+        verify_helper(c, s1, s2, pubkey_com)
     }
 }
 
@@ -229,6 +201,34 @@ impl Deserializable for SignaturePoly {
 
 // HELPER FUNCTIONS
 // ================================================================================================
+
+/// Takes the hash-to-point polynomial `c` of a message and the signature polynomials over
+/// the message `(s1, s2)` and returns `true` is the signature is a valid signature for
+/// the given parameters, otherwise it returns `false`.
+fn verify_helper(
+    c: Polynomial<FalconFelt>,
+    s1: SignaturePoly,
+    s2: SignaturePoly,
+    pubkey_com: Word,
+) -> bool {
+    let s1_fft = s1.fft();
+    let s2_fft = s2.fft();
+    let c_fft = c.fft();
+
+    // h = s2^(-1) * (c - s1)
+    let h_fft = (c_fft - s1_fft).hadamard_div(&s2_fft);
+    let h = h_fft.ifft();
+
+    let length_squared_s1 = s1.norm_squared();
+    let length_squared_s2 = s2.norm_squared();
+    let length_squared = length_squared_s1 + length_squared_s2;
+    let is_short = length_squared < SIG_L2_BOUND;
+
+    let h: Polynomial<Felt> = h.into();
+    let h_digest: Word = Rpo256::hash_elements(&h.coefficients).into();
+
+    h_digest == pubkey_com && is_short
+}
 
 /// Checks whether a set of coefficients is a valid one for a signature polynomial.
 fn are_coefficients_valid(x: &[i16]) -> bool {
