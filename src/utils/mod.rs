@@ -11,7 +11,7 @@ mod kv_map;
 // ================================================================================================
 
 pub use winter_utils::{
-    uninit_vector, Box, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
+    uninit_vector, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
     SliceReader,
 };
 
