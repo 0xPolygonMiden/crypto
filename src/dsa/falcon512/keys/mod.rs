@@ -1,8 +1,9 @@
 use super::{
+    hash_to_point::hash_to_point_rpo256,
     math::{ffsampling, FalconFelt, FastFft, Polynomial},
     signature::SignaturePoly,
-    ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, HashToPoint,
-    Nonce, Serializable, Signature, Word, MODULUS, N, SIG_L2_BOUND, SIG_NONCE_LEN,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Felt, Nonce,
+    Serializable, Signature, Word, MODULUS, N, SIG_L2_BOUND, SIG_NONCE_LEN,
 };
 use num::Complex;
 use num_complex::Complex64;
@@ -51,17 +52,12 @@ impl KeyPair {
     ///
     /// # Errors
     /// Returns an error of signature generation fails.
-    pub fn sign<R: Rng>(
-        &self,
-        message: Word,
-        rng: &mut R,
-        htp: HashToPoint,
-    ) -> Result<Signature, FalconError> {
+    pub fn sign<R: Rng>(&self, message: Word, rng: &mut R) -> Result<Signature, FalconError> {
         let mut nonce_bytes = [0u8; SIG_NONCE_LEN];
         rng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::new(nonce_bytes);
 
-        let c = htp.hash(message, &nonce);
+        let c = hash_to_point_rpo256(message, &nonce);
         let one_over_q = 1.0 / (MODULUS as f64);
         let c_over_q_fft = c.map(|cc| Complex::new(one_over_q * cc.value() as f64, 0.0)).fft();
 
@@ -108,7 +104,7 @@ impl KeyPair {
             }
         };
         let pk = self.public_key.clone();
-        Ok(Signature::new(pk, s2, nonce, htp))
+        Ok(Signature::new(pk, s2, nonce))
     }
 }
 
@@ -132,7 +128,7 @@ fn to_complex_fft(basis: &[Polynomial<i16>; 4]) -> [Polynomial<Complex<f64>>; 4]
 mod tests {
     use crate::dsa::falcon512::{keys::KeyPair, PublicKey};
 
-    use super::{super::HashToPoint, Felt, SecretKey, Word};
+    use super::{Felt, SecretKey, Word};
     use rand::thread_rng;
     use rand_utils::{rand_array, rand_vector};
     use winter_utils::{Deserializable, Serializable};
@@ -151,7 +147,7 @@ mod tests {
         // sign a random message
         let message: Word = rand_vector::<Felt>(4).try_into().expect("Should not fail.");
         let mut rng = thread_rng();
-        let signature = sk.sign(message, &mut rng, HashToPoint::Rpo256);
+        let signature = sk.sign(message, &mut rng);
 
         // make sure the signature verifies correctly
         assert!(pk.verify(message, signature.as_ref().unwrap()));
@@ -179,7 +175,7 @@ mod tests {
         // sign a random message
         let message: Word = rand_vector::<Felt>(4).try_into().expect("Should not fail.");
         let mut rng = thread_rng();
-        let signature = sk.sign(message, &mut rng, HashToPoint::Rpo256);
+        let signature = sk.sign(message, &mut rng);
 
         // make sure the signature verifies correctly
         assert!(pk.verify(message, signature.as_ref().unwrap()));
@@ -201,7 +197,7 @@ mod tests {
         // sign a random message
         let message: Word = rand_vector::<Felt>(4).try_into().expect("Should not fail.");
         let mut rng = thread_rng();
-        let signature = key_pair.sign(message, &mut rng, HashToPoint::Rpo256);
+        let signature = key_pair.sign(message, &mut rng);
 
         // make sure the signature verifies correctly
         let pk: PublicKey = key_pair.public_key.into();
@@ -225,7 +221,7 @@ mod tests {
         // sign a random message
         let message: Word = rand_vector::<Felt>(4).try_into().expect("Should not fail.");
         let mut rng = thread_rng();
-        let signature = key_pair.sign(message, &mut rng, HashToPoint::Rpo256);
+        let signature = key_pair.sign(message, &mut rng);
 
         // make sure the signature verifies correctly
         let pk: PublicKey = key_pair.public_key.into();

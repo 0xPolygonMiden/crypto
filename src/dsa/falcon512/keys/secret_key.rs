@@ -5,12 +5,12 @@ use super::{
             FastFft, LdlTree, Polynomial,
         },
         signature::SignaturePoly,
-        ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, HashToPoint,
-        Nonce, Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
+        ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Nonce,
+        Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
     },
     to_complex_fft, PubKeyPoly, PublicKey,
 };
-use crate::dsa::falcon512::{SIG_NONCE_LEN, SK_LEN};
+use crate::dsa::falcon512::{hash_to_point::hash_to_point_rpo256, SIG_NONCE_LEN, SK_LEN};
 use crate::utils::collections::*;
 use num::Complex;
 use rand::{thread_rng, Rng};
@@ -111,22 +111,34 @@ impl SecretKey {
 
     /// Signs a message with the secret key.
     ///
-    /// Takes a randomness generator implementing `Rng` and a hash-to-point algorithm `HashToPoint`
-    /// as parameters. It outputs a signature `Signature`.
+    /// Takes a randomness generator implementing `Rng` and outputs a signature `Signature`.
     ///
     /// # Errors
     /// Returns an error of signature generation fails.
-    pub fn sign<R: Rng>(
-        &self,
-        message: Word,
-        rng: &mut R,
-        htp: HashToPoint,
-    ) -> Result<Signature, FalconError> {
+    pub fn sign<R: Rng>(&self, message: Word, rng: &mut R) -> Result<Signature, FalconError> {
         let mut nonce_bytes = [0u8; SIG_NONCE_LEN];
         rng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::new(nonce_bytes);
 
-        let c = htp.hash(message, &nonce);
+        let c = hash_to_point_rpo256(message, &nonce);
+        let (_s1, s2) = self.sign_helper(c, rng)?;
+
+        let pk = self.compute_pub_key_poly();
+        Ok(Signature::new(pk, s2, nonce))
+    }
+
+    /// Signs a message polynomial with the secret key.
+    ///
+    /// Takes a randomness generator implementing `Rng` and message polynomial representing `c`
+    /// the hash-to-point of the message to be signed. It outputs a signature `Signature`.
+    ///
+    /// # Errors
+    /// Returns an error of signature generation fails.
+    pub fn sign_helper<R: Rng>(
+        &self,
+        c: Polynomial<FalconFelt>,
+        rng: &mut R,
+    ) -> Result<(SignaturePoly, SignaturePoly), FalconError> {
         let one_over_q = 1.0 / (MODULUS as f64);
         let c_over_q_fft = c.map(|cc| Complex::new(one_over_q * cc.value() as f64, 0.0)).fft();
 
@@ -135,7 +147,7 @@ impl SecretKey {
         let t0 = c_over_q_fft.hadamard_mul(&minus_big_f_fft);
         let t1 = -c_over_q_fft.hadamard_mul(&minus_f_fft);
 
-        let s2 = loop {
+        let s = loop {
             let bold_s = loop {
                 let z = ffsampling(&(t0.clone(), t1.clone()), &self.tree, rng);
                 let t0_min_z0 = t0.clone() - z.0;
@@ -158,7 +170,15 @@ impl SecretKey {
 
                 break [s0, s1];
             };
+            let s1 = bold_s[0].ifft();
             let s2 = bold_s[1].ifft();
+            let s1_coef: [i16; N] = s1
+                .coefficients
+                .iter()
+                .map(|a| a.re.round() as i16)
+                .collect::<Vec<i16>>()
+                .try_into()
+                .expect("The number of coefficients should be equal to N");
             let s2_coef: [i16; N] = s2
                 .coefficients
                 .iter()
@@ -167,13 +187,13 @@ impl SecretKey {
                 .try_into()
                 .expect("The number of coefficients should be equal to N");
 
-            if let Ok(s2) = SignaturePoly::try_from(&s2_coef) {
-                break s2;
+            if let Ok(s1) = SignaturePoly::try_from(&s1_coef) {
+                if let Ok(s2) = SignaturePoly::try_from(&s2_coef) {
+                    break (s1, s2);
+                }
             }
         };
-
-        let pk = self.compute_pub_key_poly();
-        Ok(Signature::new(pk, s2, nonce, htp))
+        Ok(s)
     }
 
     /// Determines how many bits to use for each field element of a given polynomial of the secret

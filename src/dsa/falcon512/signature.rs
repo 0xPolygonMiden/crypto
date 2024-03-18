@@ -2,9 +2,10 @@ use core::ops::Deref;
 
 use super::{
     error::FalconSerializationError,
+    hash_to_point::hash_to_point_rpo256,
     keys::PubKeyPoly,
     math::{FalconFelt, FastFft, Polynomial},
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, HashToPoint, Nonce, Rpo256,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Nonce, Rpo256,
     Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_LEN,
 };
 use crate::utils::string::*;
@@ -13,7 +14,7 @@ use num::Zero;
 // FALCON SIGNATURE
 // ================================================================================================
 
-/// A Falcon512 signature over a message.
+/// An RPO Falcon512 signature over a message.
 ///
 /// The signature is a pair of polynomials (s1, s2) in (Z_p\[x\]/(phi))^2, where:
 /// - p := 12289
@@ -28,12 +29,7 @@ use num::Zero;
 ///
 /// where |.| is the norm.
 ///
-/// [Signature] includes the hash-to-point algorithm used during signature generation.
-/// The following hash-to-point algorithms are currently supported:
-/// 1. Shake256. This is the hash-to-point algorithm used in the reference implementation.
-/// 2. Rpo256. This is the hash-to-point algorithm used in Miden VM.
-///
-/// [Signature] also includes the polynomial h encoding the extended public key which is serialized
+/// [Signature] includes the polynomial h encoding the extended public key which is serialized
 /// as:
 /// 1. 1 byte representing the log2(512) i.e., 9.
 /// 2. 896 bytes for the public key itself.
@@ -57,19 +53,17 @@ pub struct Signature {
     s2: SignaturePoly,
     nonce: Nonce,
     h: PubKeyPoly,
-    htp: HashToPoint,
 }
 
 impl Signature {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    pub fn new(h: PubKeyPoly, s2: SignaturePoly, nonce: Nonce, htp: HashToPoint) -> Signature {
+    pub fn new(h: PubKeyPoly, s2: SignaturePoly, nonce: Nonce) -> Signature {
         Self {
             header: SignatureHeader::default(),
             s2,
             nonce,
             h,
-            htp,
         }
     }
 
@@ -91,16 +85,11 @@ impl Signature {
         &self.nonce
     }
 
-    /// Returns the hahs-to-point algorithm used to generate the signature.
-    pub fn hash_to_point(&self) -> HashToPoint {
-        self.htp
-    }
-
     // SIGNATURE VERIFICATION
     // --------------------------------------------------------------------------------------------
 
     /// Returns true if this signature is a valid signature for the specified message generated
-    /// against secret key matching the specified public key commitment.
+    /// against the secret key matching the specified public key commitment.
     pub fn verify(&self, message: Word, pubkey_com: Word) -> bool {
         let h: Polynomial<Felt> = self.pk_poly().into();
         let h_digest: Word = Rpo256::hash_elements(&h.coefficients).into();
@@ -108,10 +97,18 @@ impl Signature {
             return false;
         }
 
-        let c = self.htp.hash(message, &self.nonce);
+        let c = hash_to_point_rpo256(message, &self.nonce);
+        let s2 = self.s2.clone();
+        let h = self.h.clone();
+        Self::verify_helper(c, s2, h)
+    }
 
-        let s2_fft = self.s2.fft();
-        let h_fft = self.h.fft();
+    /// Takes the hash-to-point polynomial `c` of a message, `s2` the signature polynomial over
+    /// the message and the public key polynomial associated to the secret key used in generating
+    /// the signature.
+    pub fn verify_helper(c: Polynomial<FalconFelt>, s2: SignaturePoly, h: PubKeyPoly) -> bool {
+        let s2_fft = s2.fft();
+        let h_fft = h.fft();
         let c_fft = c.fft();
 
         // s1 = c - s2 * h;
@@ -119,7 +116,7 @@ impl Signature {
         let s1 = s1_fft.ifft();
 
         let length_squared_s1 = s1.norm_squared();
-        let length_squared_s2 = self.s2.norm_squared();
+        let length_squared_s2 = s2.norm_squared();
         let length_squared = length_squared_s1 + length_squared_s2;
         length_squared < SIG_L2_BOUND
     }
@@ -129,9 +126,6 @@ impl Serializable for Signature {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         // encode public key
         target.write(&self.h);
-
-        // encode hash-to-point algorithm
-        target.write(self.htp);
 
         // encode signature
         target.write(&self.header);
@@ -145,15 +139,12 @@ impl Deserializable for Signature {
         // decode public key
         let h: PubKeyPoly = source.read()?;
 
-        // decode hash-to-point algorithm
-        let htp = source.read()?;
-
         // decode signature
         let header = source.read()?;
         let nonce = source.read()?;
         let s2 = source.read()?;
 
-        Ok(Self { header, s2, nonce, h, htp })
+        Ok(Self { header, s2, nonce, h })
     }
 }
 
@@ -382,7 +373,7 @@ mod tests {
     fn test_serialization_round_trip() {
         let key = SecretKey::new();
         let mut rng = thread_rng();
-        let signature = key.sign(Word::default(), &mut rng, HashToPoint::Rpo256).unwrap();
+        let signature = key.sign(Word::default(), &mut rng).unwrap();
         let serialized = signature.to_bytes();
         let deserialized = Signature::read_from_bytes(&serialized).unwrap();
         assert_eq!(signature.sig_poly(), deserialized.sig_poly());
