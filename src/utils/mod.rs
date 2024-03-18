@@ -1,6 +1,7 @@
 //! Utilities used in this crate which can also be generally useful downstream.
 
 use alloc::string::String;
+pub use alloc::{format, vec};
 use core::fmt::{self, Display, Write};
 
 use super::Word;
@@ -16,6 +17,10 @@ pub use winter_utils::{
 
 pub mod collections {
     pub use super::kv_map::*;
+    pub use alloc::{
+        collections::{btree_map, BTreeMap, BTreeSet},
+        vec::{self, Vec},
+    };
 }
 
 // UTILITY FUNCTIONS
