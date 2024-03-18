@@ -9,6 +9,10 @@ mod kv_map;
 
 // RE-EXPORTS
 // ================================================================================================
+
+#[deprecated(since = "0.8.3", note = "You should prefer to import from `alloc::*`")]
+pub use alloc::{format, vec};
+
 pub use winter_utils::{
     boxed, string, uninit_vector, Box, ByteReader, ByteWriter, Deserializable,
     DeserializationError, Serializable, SliceReader,

@@ -1,3 +1,7 @@
+# 0.8.4 (2024-03-17)
+
+* Re-added unintentionally removed re-exported liballoc macros (`vec` and `format` macros).
+
 # 0.8.3 (2024-03-17)
 
 * Re-added unintentionally removed re-exported liballoc macros (#292).
