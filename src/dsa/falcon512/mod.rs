@@ -12,7 +12,7 @@ mod signature;
 
 use self::math::Polynomial;
 pub use error::FalconError;
-pub use keys::{KeyPair, PublicKey, SecretKey};
+pub use keys::{PublicKey, SecretKey};
 pub use signature::Signature;
 
 // CONSTANTS

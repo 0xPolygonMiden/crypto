@@ -12,7 +12,7 @@ use super::{
 };
 use crate::dsa::falcon512::{hash_to_point::hash_to_point_rpo256, SIG_NONCE_LEN, SK_LEN};
 use crate::utils::collections::*;
-use num::Complex;
+use num::{Complex, Zero};
 use rand::{thread_rng, Rng};
 
 // SECRET KEY
@@ -121,10 +121,9 @@ impl SecretKey {
         let nonce = Nonce::new(nonce_bytes);
 
         let c = hash_to_point_rpo256(message, &nonce);
-        let (_s1, s2) = self.sign_helper(c, rng)?;
+        let (s1, s2) = self.sign_helper(c, rng)?;
 
-        let pk = self.compute_pub_key_poly();
-        Ok(Signature::new(pk, s2, nonce))
+        Ok(Signature::new(nonce, s1, s2))
     }
 
     /// Signs a message polynomial with the secret key.
@@ -168,7 +167,7 @@ impl SecretKey {
                     continue;
                 }
 
-                break [s0, s1];
+                break [-s0, s1];
             };
             let s1 = bold_s[0].ifft();
             let s2 = bold_s[1].ifft();
@@ -189,7 +188,9 @@ impl SecretKey {
 
             if let Ok(s1) = SignaturePoly::try_from(&s1_coef) {
                 if let Ok(s2) = SignaturePoly::try_from(&s2_coef) {
-                    break (s1, s2);
+                    if s2.fft().coefficients.iter().all(|&c| c != FalconFelt::zero()) {
+                        break (s1, s2);
+                    }
                 }
             }
         };

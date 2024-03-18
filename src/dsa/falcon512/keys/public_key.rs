@@ -1,11 +1,9 @@
-use core::ops::Deref;
-
 use super::{
-    super::{LOG_N, N, PK_LEN},
+    super::{Rpo256, LOG_N, N, PK_LEN},
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconFelt, Felt, Polynomial,
     Serializable, Signature, Word, MODULUS,
 };
-use crate::hash::rpo::Rpo256;
+use core::ops::Deref;
 use num::Zero;
 
 // PUBLIC KEY
@@ -50,7 +48,7 @@ impl From<PublicKey> for Word {
 // ================================================================================================
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PubKeyPoly(Polynomial<FalconFelt>);
+pub struct PubKeyPoly(pub Polynomial<FalconFelt>);
 
 impl Deref for PubKeyPoly {
     type Target = Polynomial<FalconFelt>;

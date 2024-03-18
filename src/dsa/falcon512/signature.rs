@@ -3,7 +3,6 @@ use core::ops::Deref;
 use super::{
     error::FalconSerializationError,
     hash_to_point::hash_to_point_rpo256,
-    keys::PubKeyPoly,
     math::{FalconFelt, FastFft, Polynomial},
     ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Nonce, Rpo256,
     Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_LEN,
@@ -16,25 +15,23 @@ use num::Zero;
 
 /// An RPO Falcon512 signature over a message.
 ///
-/// The signature is a pair of polynomials (s1, s2) in (Z_p\[x\]/(phi))^2, where:
+/// The signature is a pair of polynomials (s1, s2) in (Z_p\[x\]/(phi))^2 and a nonce `r`,
+/// where:
 /// - p := 12289
 /// - phi := x^512 + 1
-/// - s1 = c - s2 * h
-/// - h is a polynomial representing the public key and c is a polynomial that is the hash-to-point
-///   of the message being signed.
 ///
 /// The signature  verifies if and only if:
-/// 1. s1 = c - s2 * h
+/// 1. h = s2^(-1) * (c - s1)
 /// 2. |s1|^2 + |s2|^2 <= SIG_L2_BOUND
 ///
-/// where |.| is the norm.
+/// where |.| is the norm and:
+/// - pk = Rpo256::hash(h)
+/// - c = HashToPoint(r || message)
 ///
-/// [Signature] includes the polynomial h encoding the extended public key which is serialized
-/// as:
-/// 1. 1 byte representing the log2(512) i.e., 9.
-/// 2. 896 bytes for the public key itself.
+/// Here h is a polynomial representing the public key and pk is its digest. c is a polynomial that
+/// is the hash-to-point of the message being signed.
 ///
-/// The actual signature is serialized as:
+/// The signature is serialized as:
 /// 1. A header byte specifying the algorithm used to encode the coefficients of the `s2` polynomial
 ///    together with the degree of the irreducible polynomial phi.
 ///    The general format of this byte is 0b0cc1nnnn where:
@@ -44,40 +41,36 @@ use num::Zero;
 ///    The current implementation works always with cc equal to 0b01 and nnnn equal to 0b1001 and
 ///    thus the header byte is always equal to 0b00111001.
 /// 2. 40 bytes for the nonce.
-/// 3. 625 bytes encoding the `s2` polynomial above.
+/// 3. 625 bytes encoding the `s1` polynomial above.
+/// 4. 625 bytes encoding the `s2` polynomial above.
 ///
 /// The total size of the signature (including the extended public key) is 1564 bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Signature {
     header: SignatureHeader,
-    s2: SignaturePoly,
     nonce: Nonce,
-    h: PubKeyPoly,
+    s1: SignaturePoly,
+    s2: SignaturePoly,
 }
 
 impl Signature {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    pub fn new(h: PubKeyPoly, s2: SignaturePoly, nonce: Nonce) -> Signature {
+    pub fn new(nonce: Nonce, s1: SignaturePoly, s2: SignaturePoly) -> Signature {
         Self {
             header: SignatureHeader::default(),
-            s2,
             nonce,
-            h,
+            s1,
+            s2,
         }
     }
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
-    /// Returns the public key polynomial h.
-    pub fn pk_poly(&self) -> &Polynomial<FalconFelt> {
-        &self.h
-    }
-
     // Returns the polynomial representation of the signature in Z_p[x]/(phi).
-    pub fn sig_poly(&self) -> &Polynomial<FalconFelt> {
-        &self.s2
+    pub fn sig_poly(&self) -> (&Polynomial<FalconFelt>, &Polynomial<FalconFelt>) {
+        (&self.s1, &self.s2)
     }
 
     /// Returns the nonce component of the signature.
@@ -91,60 +84,58 @@ impl Signature {
     /// Returns true if this signature is a valid signature for the specified message generated
     /// against the secret key matching the specified public key commitment.
     pub fn verify(&self, message: Word, pubkey_com: Word) -> bool {
-        let h: Polynomial<Felt> = self.pk_poly().into();
-        let h_digest: Word = Rpo256::hash_elements(&h.coefficients).into();
-        if h_digest != pubkey_com {
-            return false;
-        }
-
         let c = hash_to_point_rpo256(message, &self.nonce);
+        let s1 = self.s1.clone();
         let s2 = self.s2.clone();
-        let h = self.h.clone();
-        Self::verify_helper(c, s2, h)
+        Self::verify_helper(c, s1, s2, pubkey_com)
     }
 
-    /// Takes the hash-to-point polynomial `c` of a message, `s2` the signature polynomial over
-    /// the message and the public key polynomial associated to the secret key used in generating
-    /// the signature.
-    pub fn verify_helper(c: Polynomial<FalconFelt>, s2: SignaturePoly, h: PubKeyPoly) -> bool {
+    /// Takes the hash-to-point polynomial `c` of a message and the signature polynomials over
+    /// the message `(s1, s2)` and returns `true` is the signature is a valid signature for
+    /// the given parameters, otherwise it returns `false`.
+    pub fn verify_helper(
+        c: Polynomial<FalconFelt>,
+        s1: SignaturePoly,
+        s2: SignaturePoly,
+        pubkey_com: Word,
+    ) -> bool {
+        let s1_fft = s1.fft();
         let s2_fft = s2.fft();
-        let h_fft = h.fft();
         let c_fft = c.fft();
 
-        // s1 = c - s2 * h;
-        let s1_fft = c_fft - s2_fft.hadamard_mul(&h_fft);
-        let s1 = s1_fft.ifft();
+        // h = s2^(-1) * (c - s1)
+        let h_fft = (c_fft - s1_fft).hadamard_div(&s2_fft);
+        let h = h_fft.ifft();
 
         let length_squared_s1 = s1.norm_squared();
         let length_squared_s2 = s2.norm_squared();
         let length_squared = length_squared_s1 + length_squared_s2;
-        length_squared < SIG_L2_BOUND
+        let is_short = length_squared < SIG_L2_BOUND;
+
+        let h: Polynomial<Felt> = h.into();
+        let h_digest: Word = Rpo256::hash_elements(&h.coefficients).into();
+
+        h_digest == pubkey_com && is_short
     }
 }
 
 impl Serializable for Signature {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        // encode public key
-        target.write(&self.h);
-
-        // encode signature
         target.write(&self.header);
         target.write(&self.nonce);
+        target.write(&self.s1);
         target.write(&self.s2);
     }
 }
 
 impl Deserializable for Signature {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        // decode public key
-        let h: PubKeyPoly = source.read()?;
-
-        // decode signature
         let header = source.read()?;
         let nonce = source.read()?;
+        let s1 = source.read()?;
         let s2 = source.read()?;
 
-        Ok(Self { header, s2, nonce, h })
+        Ok(Self { header, nonce, s1, s2 })
     }
 }
 
@@ -191,7 +182,7 @@ impl Deserializable for SignatureHeader {
 // ================================================================================================
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SignaturePoly(Polynomial<FalconFelt>);
+pub struct SignaturePoly(pub Polynomial<FalconFelt>);
 
 impl Deref for SignaturePoly {
     type Target = Polynomial<FalconFelt>;
@@ -239,7 +230,7 @@ impl Deserializable for SignaturePoly {
 // HELPER FUNCTIONS
 // ================================================================================================
 
-/// Checks whether a set of coefficients is a valid one for signature polynomial `s2`.
+/// Checks whether a set of coefficients is a valid one for a signature polynomial.
 fn are_coefficients_valid(x: &[i16]) -> bool {
     if x.len() != N {
         return false;
@@ -377,6 +368,5 @@ mod tests {
         let serialized = signature.to_bytes();
         let deserialized = Signature::read_from_bytes(&serialized).unwrap();
         assert_eq!(signature.sig_poly(), deserialized.sig_poly());
-        assert_eq!(signature.pk_poly(), deserialized.pk_poly());
     }
 }
