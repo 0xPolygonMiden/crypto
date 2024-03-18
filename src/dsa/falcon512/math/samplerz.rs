@@ -112,6 +112,7 @@ pub(crate) fn sampler_z<R: Rng>(mu: f64, sigma: f64, sigma_min: f64, rng: &mut R
 
 #[cfg(test)]
 mod test {
+    use alloc::vec::Vec;
     use rand::RngCore;
     use std::{thread::sleep, time::Duration};
 

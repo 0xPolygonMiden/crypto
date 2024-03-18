@@ -1,6 +1,7 @@
-use super::{field::FalconFelt, vec, Inverse};
+use super::{field::FalconFelt, Inverse};
 use crate::dsa::falcon512::{MODULUS, N};
 use crate::Felt;
+use alloc::vec::Vec;
 use core::default::Default;
 use core::fmt::Debug;
 use core::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};

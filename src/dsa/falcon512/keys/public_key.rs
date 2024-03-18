@@ -3,6 +3,7 @@ use super::{
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconFelt, Felt, Polynomial,
     Serializable, Signature, Word, MODULUS,
 };
+use alloc::string::ToString;
 use core::ops::Deref;
 use num::Zero;
 

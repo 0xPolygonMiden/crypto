@@ -1,3 +1,4 @@
+use alloc::{string::ToString, vec::Vec};
 use core::ops::Deref;
 
 use super::{
@@ -7,7 +8,6 @@ use super::{
     ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Nonce, Rpo256,
     Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_LEN,
 };
-use crate::utils::string::*;
 use num::Zero;
 
 // FALCON SIGNATURE

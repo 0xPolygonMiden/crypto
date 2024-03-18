@@ -1,5 +1,5 @@
 use super::MODULUS;
-use crate::utils::{collections::*, format, string::*, vec};
+use alloc::{string::String, vec::Vec};
 use core::ops::MulAssign;
 use num::{BigInt, FromPrimitive, One, Zero};
 use num_complex::Complex64;
