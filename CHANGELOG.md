@@ -1,3 +1,7 @@
+# 0.8.3 (2024-03-17)
+
+* Re-added unintentionally removed re-exported liballoc macros (#292).
+
 # 0.8.2 (2024-03-17)
 
 * Updated `no-std` approach to be in sync with winterfell v0.8.3 release (#290).
