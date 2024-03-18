@@ -10,7 +10,7 @@ use super::{
     },
     to_complex_fft, PubKeyPoly, PublicKey,
 };
-use crate::dsa::falcon512::{hash_to_point::hash_to_point_rpo256, SIG_NONCE_LEN, SK_LEN};
+use crate::dsa::rpo_falcon512::{hash_to_point::hash_to_point_rpo256, SIG_NONCE_LEN, SK_LEN};
 use alloc::{string::ToString, vec::Vec};
 use num::{Complex, Zero};
 use rand::{thread_rng, Rng};

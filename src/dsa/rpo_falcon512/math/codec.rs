@@ -1,4 +1,4 @@
-use crate::dsa::falcon512::N;
+use crate::dsa::rpo_falcon512::N;
 use alloc::vec::Vec;
 
 /// Encodes a sequence of signed integers such that each integer x satisfies |x| < 2^(bits-1)
