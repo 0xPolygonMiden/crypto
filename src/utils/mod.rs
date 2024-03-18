@@ -16,6 +16,7 @@ pub use winter_utils::{
 
 pub mod collections {
     pub use super::kv_map::*;
+    pub use winter_utils::collections::*;
 }
 
 // UTILITY FUNCTIONS
