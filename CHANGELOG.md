@@ -1,5 +1,6 @@
 ## 0.9.0 (TBD)
 
+* [BREAKING] Removed deprecated re-exports from liballoc/libstd.
 
 # 0.8.4 (2024-03-17)
 
