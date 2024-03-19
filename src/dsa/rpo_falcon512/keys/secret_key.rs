@@ -18,8 +18,6 @@ use num::{Complex, Zero};
 use num_complex::Complex64;
 use rand::{rngs::OsRng, Rng, RngCore};
 
-//#[cfg(all(feature = "std", feature = "std_rng"))]
-
 // CONSTANTS
 // ================================================================================================
 
@@ -66,7 +64,6 @@ impl SecretKey {
     pub fn new() -> Self {
         let mut seed: [u8; 32] = [0; 32];
         OsRng.fill_bytes(&mut seed);
-        //let rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
         Self::with_rng(&mut OsRng)
     }
 

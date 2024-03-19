@@ -358,15 +358,15 @@ fn decompress_signature(input: &[u8]) -> Result<Polynomial<FalconFelt>, FalconSe
 // TESTS
 // ================================================================================================
 
-#[cfg(all(test, feature = "std", feature = "std_rng"))]
+#[cfg(test)]
 mod tests {
     use super::{super::SecretKey, *};
-    use rand::thread_rng;
+    use rand::rngs::OsRng;
 
     #[test]
     fn test_serialization_round_trip() {
         let key = SecretKey::new();
-        let mut rng = thread_rng();
+        let mut rng = OsRng;
         let signature = key.sign(Word::default(), &mut rng);
         let serialized = signature.to_bytes();
         let deserialized = Signature::read_from_bytes(&serialized).unwrap();
