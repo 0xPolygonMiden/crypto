@@ -21,10 +21,13 @@ pub use signature::Signature;
 // The Falcon modulus p.
 const MODULUS: i16 = 12289;
 
+// Number of bits needed to encode an element in the Falcon field.
+const FALCON_ENCODING_BITS: u32 = 14;
+
 // The Falcon parameters for Falcon-512. This is the degree of the polynomial `phi := x^N + 1`
 // defining the ring Z_p[x]/(phi).
 const N: usize = 512;
-const LOG_N: usize = 9;
+const LOG_N: u8 = 9;
 
 /// Length of nonce used for key-pair generation.
 const SIG_NONCE_LEN: usize = 40;
@@ -39,7 +42,7 @@ pub const PK_LEN: usize = 897;
 pub const SK_LEN: usize = 1281;
 
 /// Signature length as a u8 vector.
-const SIG_LEN: usize = 625;
+const SIG_POLY_BYTE_LEN: usize = 625;
 
 /// Bound on the squared-norm of the signature.
 const SIG_L2_BOUND: u64 = 34034726;

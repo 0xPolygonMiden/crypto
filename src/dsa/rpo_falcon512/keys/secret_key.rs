@@ -1,21 +1,30 @@
 use super::{
     super::{
         math::{
-            decode_i8, encode_i8, ffldl, ffsampling, gram, normalize_tree, ntru_gen, FalconFelt,
-            FastFft, LdlTree, Polynomial,
+            decode_i8, encode_i8, ffldl, ffsampling, gram, normalize_tree, FalconFelt, FastFft,
+            LdlTree, Polynomial,
         },
         signature::SignaturePoly,
-        ByteReader, ByteWriter, Deserializable, DeserializationError, FalconError, Nonce,
-        Serializable, ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
+        ByteReader, ByteWriter, Deserializable, DeserializationError, Nonce, Serializable,
+        ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
     },
     PubKeyPoly, PublicKey,
 };
-use crate::dsa::rpo_falcon512::{hash_to_point::hash_to_point_rpo256, SIG_NONCE_LEN, SK_LEN};
+use crate::dsa::rpo_falcon512::{
+    hash_to_point::hash_to_point_rpo256, math::ntru_gen, SIG_NONCE_LEN, SK_LEN,
+};
 use alloc::{string::ToString, vec::Vec};
 use num::{Complex, Zero};
-use rand::{thread_rng, Rng};
-
 use num_complex::Complex64;
+use rand::{rngs::OsRng, Rng, RngCore};
+
+//#[cfg(all(feature = "std", feature = "std_rng"))]
+
+// CONSTANTS
+// ================================================================================================
+
+const WIDTH_BIG_POLY_COEFFICIENT: usize = 8;
+const WIDTH_SMALL_POLY_COEFFICIENT: usize = 6;
 
 // SECRET KEY
 // ================================================================================================
@@ -54,14 +63,16 @@ impl SecretKey {
     // --------------------------------------------------------------------------------------------
 
     /// Generates a secret key from OS-provided randomness.
-    #[cfg(feature = "std")]
     pub fn new() -> Self {
-        Self::from_seed(thread_rng().gen())
+        let mut seed: [u8; 32] = [0; 32];
+        OsRng.fill_bytes(&mut seed);
+        //let rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
+        Self::with_rng(&mut OsRng)
     }
 
-    /// Generates a secret_key from the provided seed.
-    pub fn from_seed(seed: [u8; 32]) -> Self {
-        let basis = ntru_gen(N, seed);
+    /// Generates a secret_key using the provided random number generator `Rng`.
+    pub fn with_rng<R: Rng>(rng: &mut R) -> Self {
+        let basis = ntru_gen(N, rng);
         Self::from_short_lattice_basis(basis)
     }
 
@@ -105,15 +116,15 @@ impl SecretKey {
     ///
     /// # Errors
     /// Returns an error of signature generation fails.
-    pub fn sign<R: Rng>(&self, message: Word, rng: &mut R) -> Result<Signature, FalconError> {
+    pub fn sign<R: Rng>(&self, message: Word, rng: &mut R) -> Signature {
         let mut nonce_bytes = [0u8; SIG_NONCE_LEN];
         rng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::new(nonce_bytes);
 
         let c = hash_to_point_rpo256(message, &nonce);
-        let (s1, s2) = self.sign_helper(c, rng)?;
+        let (s1, s2) = self.sign_helper(c, rng);
 
-        Ok(Signature::new(nonce, s1, s2))
+        Signature::new(nonce, s1, s2)
     }
 
     // HELPER METHODS
@@ -133,15 +144,13 @@ impl SecretKey {
     /// Signs a message polynomial with the secret key.
     ///
     /// Takes a randomness generator implementing `Rng` and message polynomial representing `c`
-    /// the hash-to-point of the message to be signed. It outputs a signature `Signature`.
-    ///
-    /// # Errors
-    /// Returns an error of signature generation fails.
+    /// the hash-to-point of the message to be signed. It outputs a tuple of signature polynomials
+    /// `(s1, s2)`.
     fn sign_helper<R: Rng>(
         &self,
         c: Polynomial<FalconFelt>,
         rng: &mut R,
-    ) -> Result<(SignaturePoly, SignaturePoly), FalconError> {
+    ) -> (SignaturePoly, SignaturePoly) {
         let one_over_q = 1.0 / (MODULUS as f64);
         let c_over_q_fft = c.map(|cc| Complex::new(one_over_q * cc.value() as f64, 0.0)).fft();
 
@@ -150,7 +159,7 @@ impl SecretKey {
         let t0 = c_over_q_fft.hadamard_mul(&minus_big_f_fft);
         let t1 = -c_over_q_fft.hadamard_mul(&minus_f_fft);
 
-        let s = loop {
+        loop {
             let bold_s = loop {
                 let z = ffsampling(&(t0.clone(), t1.clone()), &self.tree, rng);
                 let t0_min_z0 = t0.clone() - z.0;
@@ -193,12 +202,11 @@ impl SecretKey {
             if let Ok(s1) = SignaturePoly::try_from(&s1_coef) {
                 if let Ok(s2) = SignaturePoly::try_from(&s2_coef) {
                     if s2.fft().coefficients.iter().all(|&c| c != FalconFelt::zero()) {
-                        break (s1, s2);
+                        return (s1, s2);
                     }
                 }
             }
-        };
-        Ok(s)
+        }
     }
 }
 
@@ -222,15 +230,15 @@ impl Serializable for SecretKey {
         buffer.push(header);
 
         let f_i8: Vec<i8> = f.coefficients.iter().map(|&a| -a as i8).collect();
-        let f_i8_encoded = encode_i8(&f_i8, 6).unwrap();
+        let f_i8_encoded = encode_i8(&f_i8, WIDTH_SMALL_POLY_COEFFICIENT).unwrap();
         buffer.extend_from_slice(&f_i8_encoded);
 
         let g_i8: Vec<i8> = g.coefficients.iter().map(|&a| a as i8).collect();
-        let g_i8_encoded = encode_i8(&g_i8, 6).unwrap();
+        let g_i8_encoded = encode_i8(&g_i8, WIDTH_SMALL_POLY_COEFFICIENT).unwrap();
         buffer.extend_from_slice(&g_i8_encoded);
 
         let big_f_i8: Vec<i8> = capital_f.coefficients.iter().map(|&a| -a as i8).collect();
-        let big_f_i8_encoded = encode_i8(&big_f_i8, 8).unwrap();
+        let big_f_i8_encoded = encode_i8(&big_f_i8, WIDTH_BIG_POLY_COEFFICIENT).unwrap();
         buffer.extend_from_slice(&big_f_i8_encoded);
         target.write_bytes(&buffer);
     }
@@ -264,26 +272,24 @@ impl Deserializable for SecretKey {
             ));
         }
 
-        let width_f = field_element_width(0);
-        let width_g = field_element_width(1);
-        let width_big_f = field_element_width(2);
-
         if byte_vector.len() != SK_LEN {
             return Err(DeserializationError::InvalidValue("Invalid encoding length: Failed to decode as length is different from the one expected".to_string()));
         }
 
-        let chunk_size_f = ((n * width_f) + 7) >> 3;
-        let chunk_size_g = ((n * width_g) + 7) >> 3;
-        let chunk_size_big_f = ((n * width_big_f) + 7) >> 3;
+        let chunk_size_f = ((n * WIDTH_SMALL_POLY_COEFFICIENT) + 7) >> 3;
+        let chunk_size_g = ((n * WIDTH_SMALL_POLY_COEFFICIENT) + 7) >> 3;
+        let chunk_size_big_f = ((n * WIDTH_BIG_POLY_COEFFICIENT) + 7) >> 3;
 
-        let f = decode_i8(&byte_vector[1..chunk_size_f + 1], width_f).unwrap();
-        let g =
-            decode_i8(&byte_vector[chunk_size_f + 1..(chunk_size_f + chunk_size_g + 1)], width_g)
-                .unwrap();
+        let f = decode_i8(&byte_vector[1..chunk_size_f + 1], WIDTH_SMALL_POLY_COEFFICIENT).unwrap();
+        let g = decode_i8(
+            &byte_vector[chunk_size_f + 1..(chunk_size_f + chunk_size_g + 1)],
+            WIDTH_SMALL_POLY_COEFFICIENT,
+        )
+        .unwrap();
         let big_f = decode_i8(
             &byte_vector[(chunk_size_f + chunk_size_g + 1)
                 ..(chunk_size_f + chunk_size_g + chunk_size_big_f + 1)],
-            width_big_f,
+            WIDTH_BIG_POLY_COEFFICIENT,
         )
         .unwrap();
 
@@ -314,14 +320,4 @@ fn to_complex_fft(basis: &[Polynomial<i16>; 4]) -> [Polynomial<Complex<f64>>; 4]
     let big_g_fft = big_g.map(|cc| Complex64::new(*cc as f64, 0.0)).fft();
     let minus_big_f_fft = big_f.map(|cc| -Complex64::new(*cc as f64, 0.0)).fft();
     [g_fft, minus_f_fft, big_g_fft, minus_big_f_fft]
-}
-
-/// Determines how many bits to use for each field element of a given polynomial of the secret
-/// key during decoding.
-fn field_element_width(polynomial_index: usize) -> usize {
-    if polynomial_index == 2 {
-        8
-    } else {
-        6
-    }
 }

@@ -3,7 +3,7 @@ use alloc::{string::String, vec::Vec};
 use core::ops::MulAssign;
 use num::{BigInt, FromPrimitive, One, Zero};
 use num_complex::Complex64;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::Rng;
 
 mod fft;
 pub use fft::{CyclotomicFourier, FastFft};
@@ -73,11 +73,10 @@ impl Inverse for f64 {
 /// Algorithm 5 (NTRUgen) of the documentation [1, p.34].
 ///
 /// [1]: https://falcon-sign.info/falcon.pdf
-pub(crate) fn ntru_gen(n: usize, seed: [u8; 32]) -> [Polynomial<i16>; 4] {
-    let mut rng: StdRng = SeedableRng::from_seed(seed);
+pub(crate) fn ntru_gen<R: Rng>(n: usize, rng: &mut R) -> [Polynomial<i16>; 4] {
     loop {
-        let f = gen_poly(n, &mut rng);
-        let g = gen_poly(n, &mut rng);
+        let f = gen_poly(n, rng);
+        let g = gen_poly(n, rng);
         let f_ntt = f.map(|&i| FalconFelt::new(i)).fft();
         if f_ntt.coefficients.iter().any(|e| e.is_zero()) {
             continue;

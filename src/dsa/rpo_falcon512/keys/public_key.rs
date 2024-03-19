@@ -1,3 +1,5 @@
+use crate::dsa::rpo_falcon512::FALCON_ENCODING_BITS;
+
 use super::{
     super::{Rpo256, LOG_N, N, PK_LEN},
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconFelt, Felt, Polynomial,
@@ -13,9 +15,8 @@ use num::Zero;
 /// A public key for verifying signatures.
 ///
 /// The public key is a [Word] (i.e., 4 field elements) that is the hash of the coefficients of
-/// the polynomial representing the raw bytes of the expanded public key.
-///
-/// For Falcon-512, the first byte of the expanded public key is always equal to log2(512) i.e., 9.
+/// the polynomial representing the raw bytes of the expanded public key. The hash is computed
+/// using Rpo256.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PublicKey(Word);
 
@@ -68,16 +69,16 @@ impl From<Polynomial<FalconFelt>> for PubKeyPoly {
 impl Serializable for &PubKeyPoly {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         let mut buf = [0_u8; PK_LEN];
-        buf[0] = 9;
+        buf[0] = LOG_N;
 
         let mut acc = 0_u32;
-        let mut acc_len = 0;
+        let mut acc_len: u32 = 0;
 
         let mut input_pos = 1;
         for c in self.0.coefficients.iter() {
             let c = c.value();
-            acc = (acc << 14) | c as u32;
-            acc_len += 14;
+            acc = (acc << FALCON_ENCODING_BITS) | c as u32;
+            acc_len += FALCON_ENCODING_BITS;
             while acc_len >= 8 {
                 acc_len -= 8;
                 buf[input_pos] = (acc >> acc_len) as u8;
@@ -96,7 +97,7 @@ impl Deserializable for PubKeyPoly {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let buf = source.read_array::<PK_LEN>()?;
 
-        if buf[0] != LOG_N as u8 {
+        if buf[0] != LOG_N {
             return Err(DeserializationError::InvalidValue(format!(
                 "Failed to decode public key: expected the first byte to be {LOG_N} but was {}",
                 buf[0]
@@ -113,13 +114,13 @@ impl Deserializable for PubKeyPoly {
             acc = (acc << 8) | (byte as u32);
             acc_len += 8;
 
-            if acc_len >= 14 {
-                acc_len -= 14;
+            if acc_len >= FALCON_ENCODING_BITS {
+                acc_len -= FALCON_ENCODING_BITS;
                 let w = (acc >> acc_len) & 0x3FFF;
                 if w >= MODULUS as u32 {
                     return Err(DeserializationError::InvalidValue(format!("Failed to decode public key: coefficient {w} is greater than or equal to the field modulus {MODULUS}")));
                 }
-                output[output_idx] = FalconFelt::new((w) as i16);
+                output[output_idx] = FalconFelt::new(w as i16);
                 output_idx += 1;
             }
         }

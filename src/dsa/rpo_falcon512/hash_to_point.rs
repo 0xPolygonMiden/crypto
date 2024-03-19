@@ -38,6 +38,7 @@ pub fn hash_to_point_rpo256(message: Word, nonce: &Nonce) -> Polynomial<FalconFe
 
 /// Returns a polynomial in Z_p[x]/(phi) representing the hash of the provided message and
 /// nonce using SHAKE256. This is the hash-to-point algorithm used in the reference implementation.
+#[allow(dead_code)]
 pub fn hash_to_point_shake256(message: &[u8], nonce: &Nonce) -> Polynomial<FalconFelt> {
     use sha3::{
         digest::{ExtendableOutput, Update, XofReader},
