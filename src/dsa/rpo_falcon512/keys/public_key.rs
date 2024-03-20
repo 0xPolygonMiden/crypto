@@ -3,7 +3,7 @@ use crate::dsa::rpo_falcon512::FALCON_ENCODING_BITS;
 use super::{
     super::{Rpo256, LOG_N, N, PK_LEN},
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconFelt, Felt, Polynomial,
-    Serializable, Signature, Word, MODULUS,
+    Serializable, Signature, Word,
 };
 use alloc::string::ToString;
 use core::ops::Deref;
@@ -117,12 +117,13 @@ impl Deserializable for PubKeyPoly {
             if acc_len >= FALCON_ENCODING_BITS {
                 acc_len -= FALCON_ENCODING_BITS;
                 let w = (acc >> acc_len) & 0x3FFF;
-                if let Ok(value) = w.try_into() {
-                    output[output_idx] = FalconFelt::new(value);
-                    output_idx += 1;
-                } else {
-                    return Err(DeserializationError::InvalidValue(format!("Failed to decode public key: coefficient {w} is greater than or equal to the field modulus {MODULUS}")));
-                }
+                let element = w.try_into().map_err(|err| {
+                    DeserializationError::InvalidValue(format!(
+                        "Failed to decode public key: {err}"
+                    ))
+                })?;
+                output[output_idx] = element;
+                output_idx += 1;
             }
         }
 

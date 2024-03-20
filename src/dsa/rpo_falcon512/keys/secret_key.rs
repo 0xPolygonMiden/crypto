@@ -176,6 +176,7 @@ impl SecretKey {
 
                 break [-s0, s1];
             };
+
             let s1 = bold_s[0].ifft();
             let s2 = bold_s[1].ifft();
             let s1_coef: [i16; N] = s1

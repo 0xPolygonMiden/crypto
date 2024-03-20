@@ -33,32 +33,29 @@ harness = false
 
 [features]
 default = ["std"]
-executable = ["dep:clap", "dep:rand_utils", "std"]
-serde = ["dep:serde", "serde?/alloc", "winter_math/serde"]
+executable = ["dep:clap", "dep:rand-utils", "std"]
+serde = ["dep:serde", "serde?/alloc", "winter-math/serde"]
 std = [
     "blake3/std",
     "dep:cc",
-    "winter_crypto/std",
-    "winter_math/std",
-    "winter_utils/std",
+    "winter-crypto/std",
+    "winter-math/std",
+    "winter-utils/std",
     "rand/std",
 ]
 
 [dependencies]
 blake3 = { version = "1.5", default-features = false }
-clap = { version = "4.5", features = ["derive"], optional = true }
-getrandom = { version = "0.2", features = ["js"] }
+clap = { version = "4.5", optional = true, features = ["derive"] }
 num = { version = "0.4", default-features = false, features = ["alloc"] }
 num-complex = { version = "0.4.4", default-features = false }
-rand = { version = "0.8", default-features = false, features = ["getrandom"] }
-rand_utils = { version = "0.8", package = "winter-rand-utils", optional = true }
-serde = { version = "1.0", features = [
-    "derive",
-], default-features = false, optional = true }
+rand = { version = "0.8", default-features = false }
+rand-utils = { version = "0.8", package = "winter-rand-utils", optional = true }
+serde = { version = "1.0", default-features = false, optional = true, features = ["derive"] }
 sha3 = { version = "0.10", default-features = false }
-winter_crypto = { version = "0.8", package = "winter-crypto", default-features = false }
-winter_math = { version = "0.8", package = "winter-math", default-features = false }
-winter_utils = { version = "0.8", package = "winter-utils", default-features = false }
+winter-crypto = { version = "0.8", default-features = false }
+winter-math = { version = "0.8", default-features = false }
+winter-utils = { version = "0.8", default-features = false }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -68,5 +65,5 @@ rand_utils = { version = "0.8", package = "winter-rand-utils" }
 seq-macro = { version = "0.3" }
 
 [build-dependencies]
-cc = { version = "1.0", features = ["parallel"], optional = true }
+cc = { version = "1.0", optional = true, features = ["parallel"] }
 glob = "0.3"

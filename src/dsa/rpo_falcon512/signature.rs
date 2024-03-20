@@ -86,10 +86,9 @@ impl Signature {
     /// against the secret key matching the specified public key commitment.
     pub fn verify(&self, message: Word, pubkey_com: Word) -> bool {
         let c = hash_to_point_rpo256(message, &self.nonce);
-        let s1 = self.s1.clone();
-        let s2 = self.s2.clone();
-        let s1_fft = s1.fft();
-        let s2_fft = s2.fft();
+
+        let s1_fft = self.s1.fft();
+        let s2_fft = self.s2.fft();
         let c_fft = c.fft();
 
         // recover the public key polynomial using h = s2^(-1) * (c - s1)
@@ -100,7 +99,7 @@ impl Signature {
         let h_felt: Polynomial<Felt> = h.clone().into();
         let h_digest: Word = Rpo256::hash_elements(&h_felt.coefficients).into();
 
-        h_digest == pubkey_com && verify_helper(c, s2, h.into())
+        h_digest == pubkey_com && verify_helper(&c, &self.s2, &h.into())
     }
 }
 
@@ -301,7 +300,7 @@ impl Deserializable for SignaturePoly {
                 "Failed to decode signature: Non-zero unused bits in the last byte".to_string(),
             ));
         }
-        Ok(SignaturePoly::from(Polynomial::new(coefficients.to_vec())))
+        Ok(Polynomial::new(coefficients.to_vec()).into())
     }
 }
 
@@ -311,7 +310,7 @@ impl Deserializable for SignaturePoly {
 /// Takes the hash-to-point polynomial `c` of a message, the signature polynomial over
 /// the message `s2` and a public key polynomial and returns `true` is the signature is a valid
 /// signature for the given parameters, otherwise it returns `false`.
-fn verify_helper(c: Polynomial<FalconFelt>, s2: SignaturePoly, h: PubKeyPoly) -> bool {
+fn verify_helper(c: &Polynomial<FalconFelt>, s2: &SignaturePoly, h: &PubKeyPoly) -> bool {
     let h_fft = h.fft();
     let s2_fft = s2.fft();
     let c_fft = c.fft();

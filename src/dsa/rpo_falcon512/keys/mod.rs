@@ -1,7 +1,7 @@
 use super::{
     math::{FalconFelt, Polynomial},
     ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Serializable, Signature,
-    Word, MODULUS,
+    Word,
 };
 
 mod public_key;

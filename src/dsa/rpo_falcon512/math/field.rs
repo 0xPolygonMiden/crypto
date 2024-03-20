@@ -1,5 +1,5 @@
 use super::{fft::CyclotomicFourier, Inverse, MODULUS};
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use num::{One, Zero};
 
@@ -162,11 +162,11 @@ impl CyclotomicFourier for FalconFelt {
 impl TryFrom<u32> for FalconFelt {
     type Error = String;
 
-    fn try_from(x: u32) -> Result<Self, Self::Error> {
-        if let Ok(value) = x.try_into() {
-            Ok(FalconFelt::new(value))
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if value >= MODULUS as u32 {
+            Err(format!("value {value} is greater than or equal to the field modulus {MODULUS}"))
         } else {
-            Err("Value outside valid range for a field element".to_string())
+            Ok(FalconFelt::new(value as i16))
         }
     }
 }
