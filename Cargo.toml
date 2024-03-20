@@ -38,16 +38,17 @@ serde = ["dep:serde", "serde?/alloc", "winter-math/serde"]
 std = [
     "blake3/std",
     "dep:cc",
+    "rand/std",
     "winter-crypto/std",
     "winter-math/std",
     "winter-utils/std",
-    "rand/std",
 ]
 
 [dependencies]
 blake3 = { version = "1.5", default-features = false }
 clap = { version = "4.5", optional = true, features = ["derive"] }
-num = { version = "0.4", default-features = false, features = ["alloc"] }
+getrandom = { version = "0.2", features = ["js"] }
+num = { version = "0.4", default-features = false, features = ["alloc", "libm"] }
 num-complex = { version = "0.4.4", default-features = false }
 rand = { version = "0.8", default-features = false }
 rand-utils = { version = "0.8", package = "winter-rand-utils", optional = true }

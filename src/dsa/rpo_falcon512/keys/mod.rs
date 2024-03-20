@@ -13,7 +13,7 @@ pub use secret_key::SecretKey;
 // TESTS
 // ================================================================================================
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::{Felt, SecretKey, Word};
     use rand::rngs::OsRng;

@@ -345,7 +345,7 @@ fn are_coefficients_valid(x: &[i16]) -> bool {
 // TESTS
 // ================================================================================================
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::{super::SecretKey, *};
     use rand::rngs::OsRng;

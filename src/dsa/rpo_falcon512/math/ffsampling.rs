@@ -4,6 +4,9 @@ use num::{One, Zero};
 use num_complex::{Complex, Complex64};
 use rand::Rng;
 
+#[cfg(not(feature = "std"))]
+use num::Float;
+
 const SIGMIN: f64 = 1.2778336969128337;
 
 /// Computes the Gram matrix. The argument must be a 2x2 matrix

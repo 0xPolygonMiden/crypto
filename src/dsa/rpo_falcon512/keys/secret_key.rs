@@ -13,7 +13,13 @@ use crate::dsa::rpo_falcon512::{
 use alloc::{string::ToString, vec::Vec};
 use num::{Complex, Zero};
 use num_complex::Complex64;
-use rand::{rngs::OsRng, Rng, RngCore};
+use rand::Rng;
+
+#[cfg(feature = "std")]
+use rand::{rngs::OsRng, RngCore};
+
+#[cfg(not(feature = "std"))]
+use num::Float;
 
 // CONSTANTS
 // ================================================================================================
@@ -58,6 +64,7 @@ impl SecretKey {
     // --------------------------------------------------------------------------------------------
 
     /// Generates a secret key from OS-provided randomness.
+    #[cfg(feature = "std")]
     pub fn new() -> Self {
         let mut seed: [u8; 32] = [0; 32];
         OsRng.fill_bytes(&mut seed);

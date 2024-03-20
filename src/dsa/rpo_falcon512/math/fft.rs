@@ -7,6 +7,9 @@ use core::{
 use num::{One, Zero};
 use num_complex::Complex64;
 
+#[cfg(not(feature = "std"))]
+use num::Float;
+
 /// Implements Cyclotomic FFT without bitreversing the outputs, and using precomputed powers of the
 /// 2n-th primitive root of unity.
 pub trait FastFft: Sized + Clone {
