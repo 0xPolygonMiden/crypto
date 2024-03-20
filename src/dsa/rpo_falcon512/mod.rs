@@ -4,14 +4,12 @@ use crate::{
     Felt, Word, ZERO,
 };
 
-mod error;
 mod hash_to_point;
 mod keys;
 mod math;
 mod signature;
 
 use self::math::Polynomial;
-pub use error::FalconError;
 pub use keys::{PublicKey, SecretKey};
 pub use signature::Signature;
 

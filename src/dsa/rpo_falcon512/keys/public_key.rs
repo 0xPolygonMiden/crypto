@@ -117,11 +117,12 @@ impl Deserializable for PubKeyPoly {
             if acc_len >= FALCON_ENCODING_BITS {
                 acc_len -= FALCON_ENCODING_BITS;
                 let w = (acc >> acc_len) & 0x3FFF;
-                if w >= MODULUS as u32 {
+                if let Ok(value) = w.try_into() {
+                    output[output_idx] = FalconFelt::new(value);
+                    output_idx += 1;
+                } else {
                     return Err(DeserializationError::InvalidValue(format!("Failed to decode public key: coefficient {w} is greater than or equal to the field modulus {MODULUS}")));
                 }
-                output[output_idx] = FalconFelt::new(w as i16);
-                output_idx += 1;
             }
         }
 

@@ -26,9 +26,6 @@ use self::samplerz::sampler_z;
 mod polynomial;
 pub use polynomial::Polynomial;
 
-mod codec;
-pub use codec::{decode_i8, encode_i8};
-
 pub trait Inverse: Copy + Zero + MulAssign + One {
     /// Gets the inverse of a, or zero if it is zero.
     fn inverse_or_zero(self) -> Self;

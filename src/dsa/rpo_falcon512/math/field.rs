@@ -1,4 +1,5 @@
 use super::{fft::CyclotomicFourier, Inverse, MODULUS};
+use alloc::string::{String, ToString};
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use num::{One, Zero};
 
@@ -155,5 +156,17 @@ impl CyclotomicFourier for FalconFelt {
             a *= a;
         }
         a
+    }
+}
+
+impl TryFrom<u32> for FalconFelt {
+    type Error = String;
+
+    fn try_from(x: u32) -> Result<Self, Self::Error> {
+        if let Ok(value) = x.try_into() {
+            Ok(FalconFelt::new(value))
+        } else {
+            Err("Value outside valid range for a field element".to_string())
+        }
     }
 }
