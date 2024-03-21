@@ -39,6 +39,7 @@ std = [
     "blake3/std",
     "dep:cc",
     "rand/std",
+    "rand/std_rng",
     "winter-crypto/std",
     "winter-math/std",
     "winter-utils/std",

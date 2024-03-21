@@ -15,8 +15,8 @@ use num::Zero;
 
 /// An RPO Falcon512 signature over a message.
 ///
-/// The signature is a pair of polynomials (s1, s2) in (Z_p\[x\]/(phi))^2 and a nonce `r`,
-/// where:
+/// The signature is a pair of polynomials (s1, s2) in (Z_p\[x\]/(phi))^2 a nonce `r`, and a public
+/// key polynomial `h` where:
 /// - p := 12289
 /// - phi := x^512 + 1
 ///
@@ -26,11 +26,15 @@ use num::Zero;
 ///
 /// where |.| is the norm and:
 /// - c = HashToPoint(r || message)
-/// - h = s2^(-1) * (c - s1)
 /// - pk = Rpo256::hash(h)
 ///
 /// Here h is a polynomial representing the public key and pk is its digest using the Rpo256 hash
 /// function. c is a polynomial that is the hash-to-point of the message being signed.
+///
+/// The polynomial h is serialized as:
+///
+/// 1. 1 byte representing the log2(512) i.e., 9.
+/// 2. 896 bytes for the public key itself.
 ///
 /// The signature is serialized as:
 /// 1. A header byte specifying the algorithm used to encode the coefficients of the `s2` polynomial
@@ -42,36 +46,40 @@ use num::Zero;
 ///    The current implementation works always with cc equal to 0b01 and nnnn equal to 0b1001 and
 ///    thus the header byte is always equal to 0b00111001.
 /// 2. 40 bytes for the nonce.
-/// 3. 625 bytes encoding the `s1` polynomial above.
 /// 4. 625 bytes encoding the `s2` polynomial above.
 ///
-/// The total size of the signature is 1291 bytes.
+/// The total size of the signature is (including the extended public key) is 1563 bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Signature {
     header: SignatureHeader,
     nonce: Nonce,
-    s1: SignaturePoly,
     s2: SignaturePoly,
+    h: PubKeyPoly,
 }
 
 impl Signature {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    pub fn new(nonce: Nonce, s1: SignaturePoly, s2: SignaturePoly) -> Signature {
+    pub fn new(nonce: Nonce, h: PubKeyPoly, s2: SignaturePoly) -> Signature {
         Self {
             header: SignatureHeader::default(),
             nonce,
-            s1,
             s2,
+            h,
         }
     }
 
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
+    /// Returns the public key polynomial h.
+    pub fn pk_poly(&self) -> &PubKeyPoly {
+        &self.h
+    }
+
     // Returns the polynomial representation of the signature in Z_p[x]/(phi).
-    pub fn sig_poly(&self) -> (&Polynomial<FalconFelt>, &Polynomial<FalconFelt>) {
-        (&self.s1, &self.s2)
+    pub fn sig_poly(&self) -> &Polynomial<FalconFelt> {
+        &self.s2
     }
 
     /// Returns the nonce component of the signature.
@@ -85,21 +93,15 @@ impl Signature {
     /// Returns true if this signature is a valid signature for the specified message generated
     /// against the secret key matching the specified public key commitment.
     pub fn verify(&self, message: Word, pubkey_com: Word) -> bool {
-        let c = hash_to_point_rpo256(message, &self.nonce);
-
-        let s1_fft = self.s1.fft();
-        let s2_fft = self.s2.fft();
-        let c_fft = c.fft();
-
-        // recover the public key polynomial using h = s2^(-1) * (c - s1)
-        let h_fft = (c_fft - s1_fft).hadamard_div(&s2_fft);
-        let h = h_fft.ifft();
-
         // compute the hash of the public key polynomial
-        let h_felt: Polynomial<Felt> = h.clone().into();
+        let h_felt: Polynomial<Felt> = (&**self.pk_poly()).into();
         let h_digest: Word = Rpo256::hash_elements(&h_felt.coefficients).into();
+        if h_digest != pubkey_com {
+            return false;
+        }
 
-        h_digest == pubkey_com && verify_helper(&c, &self.s2, &h.into())
+        let c = hash_to_point_rpo256(message, &self.nonce);
+        h_digest == pubkey_com && verify_helper(&c, &self.s2, self.pk_poly())
     }
 }
 
@@ -107,8 +109,8 @@ impl Serializable for Signature {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write(&self.header);
         target.write(&self.nonce);
-        target.write(&self.s1);
         target.write(&self.s2);
+        target.write(&self.h);
     }
 }
 
@@ -116,10 +118,10 @@ impl Deserializable for Signature {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let header = source.read()?;
         let nonce = source.read()?;
-        let s1 = source.read()?;
         let s2 = source.read()?;
+        let h = source.read()?;
 
-        Ok(Self { header, nonce, s1, s2 })
+        Ok(Self { header, nonce, s2, h })
     }
 }
 
