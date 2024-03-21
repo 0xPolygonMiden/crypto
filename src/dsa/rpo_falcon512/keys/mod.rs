@@ -45,7 +45,7 @@ mod tests {
         assert!(!pk.verify(message2, &signature));
 
         // a signature should not verify against a wrong public key
-        let sk2 = SecretKey::new();
+        let sk2 = SecretKey::with_rng(&mut rng);
         assert!(!sk2.public_key().verify(message, &signature))
     }
 }
