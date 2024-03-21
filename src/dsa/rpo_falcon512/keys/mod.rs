@@ -13,16 +13,19 @@ pub use secret_key::SecretKey;
 // TESTS
 // ================================================================================================
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(test)]
 mod tests {
-    use super::{Felt, SecretKey, Word};
-    use rand::rngs::OsRng;
+    use crate::{dsa::rpo_falcon512::SecretKey, rand::RpoRandomCoin, Word, ONE, ZERO};
+    use winter_math::FieldElement;
     use winter_utils::{Deserializable, Serializable};
 
     #[test]
     fn test_falcon_verification() {
+        let seed = [ZERO; 4];
+        let mut rng = RpoRandomCoin::new(seed);
+
         // generate random keys
-        let sk = SecretKey::new();
+        let sk = SecretKey::with_rng(&mut rng);
         let pk = sk.public_key();
 
         // test secret key serialization/deserialization
@@ -31,17 +34,14 @@ mod tests {
         let sk = SecretKey::read_from_bytes(&buffer).unwrap();
 
         // sign a random message
-        let message: Word =
-            rand_utils::rand_vector::<Felt>(4).try_into().expect("Should not fail.");
-        let mut rng = OsRng;
+        let message: Word = [ONE; 4];
         let signature = sk.sign(message, &mut rng);
 
         // make sure the signature verifies correctly
         assert!(pk.verify(message, &signature));
 
         // a signature should not verify against a wrong message
-        let message2: Word =
-            rand_utils::rand_vector::<Felt>(4).try_into().expect("Should not fail.");
+        let message2: Word = [ONE.double(); 4];
         assert!(!pk.verify(message2, &signature));
 
         // a signature should not verify against a wrong public key

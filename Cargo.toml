@@ -52,6 +52,7 @@ getrandom = { version = "0.2", features = ["js"] }
 num = { version = "0.4", default-features = false, features = ["alloc", "libm"] }
 num-complex = { version = "0.4.4", default-features = false }
 rand = { version = "0.8", default-features = false }
+rand_core = { version = "0.6", default-features = false }
 rand-utils = { version = "0.8", package = "winter-rand-utils", optional = true }
 serde = { version = "1.0", default-features = false, optional = true, features = ["derive"] }
 sha3 = { version = "0.10", default-features = false }

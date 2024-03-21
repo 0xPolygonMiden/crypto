@@ -134,15 +134,15 @@ pub struct SignatureHeader(u8);
 impl Default for SignatureHeader {
     /// According to section 3.11.3 in the specification [1],  the signature header has the format
     /// `0 c c 1 n n n n` where:
-    /// 
+    ///
     /// 1. `c c` signifies the encoding method. `0 1` denotes using the compression encoding method
     /// and `1 0` denotes encoding using the uncompressed method.
     /// 2. `n n n n` encodes `LOG_N`.
-    /// 
+    ///
     /// For RPO Falcon 512 we use compression encoding and N = 512. Moreover, to differentiate the
     /// RPO Falcon variant from the reference variant using SHAKE256, we flip the first bit in the
     /// header. Thus, for RPO Falcon 512 the header is `1 0 1 1 1 0 0 1`
-    /// 
+    ///
     /// [1]: https://falcon-sign.info/falcon.pdf
     fn default() -> Self {
         Self(0b1011_1001)

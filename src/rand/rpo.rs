@@ -4,6 +4,8 @@ use crate::{
     utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable},
 };
 use alloc::{string::ToString, vec::Vec};
+use rand::RngCore;
+use rand_core::impls;
 
 // CONSTANTS
 // ================================================================================================
@@ -180,6 +182,28 @@ impl FeltRng for RpoRandomCoin {
             *o = self.draw_basefield();
         }
         output
+    }
+}
+
+// RNGCORE IMPLEMENTATION
+// ------------------------------------------------------------------------------------------------
+
+impl RngCore for RpoRandomCoin {
+    fn next_u32(&mut self) -> u32 {
+        self.draw_basefield().as_int() as u32
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        impls::next_u64_via_u32(self)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        impls::fill_bytes_via_next(self, dest)
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+        self.fill_bytes(dest);
+        Ok(())
     }
 }
 
