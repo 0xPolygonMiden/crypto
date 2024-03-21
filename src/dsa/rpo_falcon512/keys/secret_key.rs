@@ -15,6 +15,9 @@ use num::Complex;
 use num_complex::Complex64;
 use rand::Rng;
 
+#[cfg(not(feature = "std"))]
+use num::Float;
+
 // CONSTANTS
 // ================================================================================================
 

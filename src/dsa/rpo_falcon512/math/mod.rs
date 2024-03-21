@@ -11,6 +11,9 @@ use num::{BigInt, FromPrimitive, One, Zero};
 use num_complex::Complex64;
 use rand::Rng;
 
+#[cfg(not(feature = "std"))]
+use num::Float;
+
 mod fft;
 pub use fft::{CyclotomicFourier, FastFft};
 
