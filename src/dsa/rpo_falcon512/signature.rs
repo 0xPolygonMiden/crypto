@@ -132,9 +132,20 @@ impl Deserializable for Signature {
 pub struct SignatureHeader(u8);
 
 impl Default for SignatureHeader {
-    /// TODO: add docs
+    /// According to section 3.11.3 in the specification [1],  the signature header has the format
+    /// `0 c c 1 n n n n` where:
+    /// 
+    /// 1. `c c` signifies the encoding method. `0 1` denotes using the compression encoding method
+    /// and `1 0` denotes encoding using the uncompressed method.
+    /// 2. `n n n n` encodes `LOG_N`.
+    /// 
+    /// For RPO Falcon 512 we use compression encoding and N = 512. Moreover, to differentiate the
+    /// RPO Falcon variant from the reference variant using SHAKE256, we flip the first bit in the
+    /// header. Thus, for RPO Falcon 512 the header is `1 0 1 1 1 0 0 1`
+    /// 
+    /// [1]: https://falcon-sign.info/falcon.pdf
     fn default() -> Self {
-        Self(0b0011_0000 + LOG_N)
+        Self(0b1011_1001)
     }
 }
 
@@ -148,7 +159,7 @@ impl Deserializable for SignatureHeader {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let header = source.read_u8()?;
         let (encoding, log_n) = (header >> 4, header & 0b00001111);
-        if encoding != 0b0011 {
+        if encoding != 0b1011 {
             return Err(DeserializationError::InvalidValue(
                 "Failed to decode signature: not supported encoding algorithm".to_string(),
             ));
