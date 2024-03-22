@@ -364,7 +364,7 @@ mod tests {
         let mut rng = RpoRandomCoin::new(seed);
 
         let sk = SecretKey::with_rng(&mut rng);
-        let signature = sk.sign(Word::default(), &mut rng);
+        let signature = sk.sign_with_rng(Word::default(), &mut rng);
         let serialized = signature.to_bytes();
         let deserialized = Signature::read_from_bytes(&serialized).unwrap();
         assert_eq!(signature.sig_poly(), deserialized.sig_poly());

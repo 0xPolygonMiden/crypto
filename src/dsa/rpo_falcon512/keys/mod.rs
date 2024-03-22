@@ -35,7 +35,7 @@ mod tests {
 
         // sign a random message
         let message: Word = [ONE; 4];
-        let signature = sk.sign(message, &mut rng);
+        let signature = sk.sign_with_rng(message, &mut rng);
 
         // make sure the signature verifies correctly
         assert!(pk.verify(message, &signature));

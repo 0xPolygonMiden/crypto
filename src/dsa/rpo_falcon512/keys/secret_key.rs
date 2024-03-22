@@ -109,13 +109,17 @@ impl SecretKey {
     // SIGNATURE GENERATION
     // --------------------------------------------------------------------------------------------
 
-    /// Signs a message with the secret key.
-    ///
-    /// Takes a randomness generator implementing `Rng` and outputs a signature `Signature`.
-    ///
-    /// # Errors
-    /// Returns an error of signature generation fails.
-    pub fn sign<R: Rng>(&self, message: Word, rng: &mut R) -> Signature {
+    /// Signs a message with this secret key.
+    #[cfg(feature = "std")]
+    pub fn sign(&self, message: Word) -> Signature {
+        use rand::{rngs::StdRng, SeedableRng};
+
+        let mut rng = StdRng::from_entropy();
+        self.sign_with_rng(message, &mut rng)
+    }
+
+    /// Signs a message with the secret key relying on the provided randomness generator.
+    pub fn sign_with_rng<R: Rng>(&self, message: Word, rng: &mut R) -> Signature {
         let mut nonce_bytes = [0u8; SIG_NONCE_LEN];
         rng.fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::new(nonce_bytes);
