@@ -65,15 +65,15 @@ On platforms with [SVE](https://en.wikipedia.org/wiki/AArch64#Scalable_Vector_Ex
 
 ## Testing
 
-You can use cargo defaults to test the library:
+The best way to test the library is using our `Makefile.toml` and [cargo-make](https://github.com/sagiegurari/cargo-make), this will enable you to use our pre-defined optimized testing commands:
 
 ```shell
-cargo test
+cargo make test-all
 ```
 
-However, some of the functions are heavy and might take a while for the tests to complete. In order to test in release mode, we have to replicate the test conditions of the development mode so all debug assertions can be verified.
+As an example some of the functions are heavy and might take a while for the tests to complete if using simply `cargo test`. In order to test in release and optimized mode, we have to replicate the test conditions of the development mode so all debug assertions can be verified.
 
-We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation.
+We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation (which we have set as a default in our [Makefile.toml](Makefile.toml).
 
 ```shell
 RUSTFLAGS="-C debug-assertions -C overflow-checks -C debuginfo=2" cargo test --release
