@@ -14,3 +14,15 @@ cmake-build-*
 
 # VS Code
 .vscode/
+
+# Docs ignore
+.code
+.idea
+site/
+venv/
+env/
+*.out
+node_modules/
+*DS_Store
+*.iml
+
