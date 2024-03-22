@@ -70,3 +70,16 @@ args = ["doc", "--verbose", "--all-features", "--keep-going", "--release"]
 description = "Build using no-std"
 command = "cargo"
 args = ["build", "--no-default-features", "--target", "wasm32-unknown-unknown", "--workspace", "--exclude", "miden-mock"]
+
+[tasks.build-avx2]
+description = "Build using AVX2 acceleration"
+env = {  "RUSTFLAGS" = "-C target-feature=+avx2" }
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.build-sve]
+description = "Build with SVE acceleration"
+env = { "RUSTFLAGS" = "-C target-feature=+sve" }
+command = "cargo"
+args = ["build", "--release"]
+
