@@ -73,7 +73,7 @@ cargo make test-all
 
 As an example some of the functions are heavy and might take a while for the tests to complete if using simply `cargo test`. In order to test in release and optimized mode, we have to replicate the test conditions of the development mode so all debug assertions can be verified.
 
-We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation (which we have set as a default in our [Makefile.toml](Makefile.toml).
+We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation (which we have set as a default in our [Makefile.toml](Makefile.toml):
 
 ```shell
 RUSTFLAGS="-C debug-assertions -C overflow-checks -C debuginfo=2" cargo test --release
