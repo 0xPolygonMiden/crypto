@@ -63,11 +63,9 @@ impl SecretKey {
     /// Generates a secret key from OS-provided randomness.
     #[cfg(feature = "std")]
     pub fn new() -> Self {
-        use rand::{rngs::StdRng, RngCore, SeedableRng};
+        use rand::{rngs::StdRng, SeedableRng};
 
-        let mut seed: [u8; 32] = [0; 32];
         let mut rng = StdRng::from_entropy();
-        rng.fill_bytes(&mut seed);
         Self::with_rng(&mut rng)
     }
 

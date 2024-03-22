@@ -32,19 +32,13 @@ use num::Zero;
 /// function. c is a polynomial that is the hash-to-point of the message being signed.
 ///
 /// The polynomial h is serialized as:
-///
 /// 1. 1 byte representing the log2(512) i.e., 9.
 /// 2. 896 bytes for the public key itself.
 ///
 /// The signature is serialized as:
 /// 1. A header byte specifying the algorithm used to encode the coefficients of the `s2` polynomial
-///    together with the degree of the irreducible polynomial phi.
-///    The general format of this byte is 0b0cc1nnnn where:
-///     a. cc is either 01 when the compressed encoding algorithm is used and 10 when the
-///     uncompressed algorithm is used.
-///     b. nnnn is log2(N) where N is the degree of the irreducible polynomial phi.
-///    The current implementation works always with cc equal to 0b01 and nnnn equal to 0b1001 and
-///    thus the header byte is always equal to 0b00111001.
+///    together with the degree of the irreducible polynomial phi. For RPO Falcon512, the header
+///    byte is set to `10111001` (see more in [SignatureHeader]).
 /// 2. 40 bytes for the nonce.
 /// 4. 625 bytes encoding the `s2` polynomial above.
 ///
@@ -133,15 +127,15 @@ pub struct SignatureHeader(u8);
 
 impl Default for SignatureHeader {
     /// According to section 3.11.3 in the specification [1],  the signature header has the format
-    /// `0 c c 1 n n n n` where:
+    /// `0cc1nnnn` where:
     ///
-    /// 1. `c c` signifies the encoding method. `0 1` denotes using the compression encoding method
-    /// and `1 0` denotes encoding using the uncompressed method.
-    /// 2. `n n n n` encodes `LOG_N`.
+    /// 1. `cc` signifies the encoding method. `01` denotes using the compression encoding method
+    ///    and `10` denotes encoding using the uncompressed method.
+    /// 2. `nnnn` encodes `LOG_N`.
     ///
     /// For RPO Falcon 512 we use compression encoding and N = 512. Moreover, to differentiate the
     /// RPO Falcon variant from the reference variant using SHAKE256, we flip the first bit in the
-    /// header. Thus, for RPO Falcon 512 the header is `1 0 1 1 1 0 0 1`
+    /// header. Thus, for RPO Falcon 512 the header is `10111001`
     ///
     /// [1]: https://falcon-sign.info/falcon.pdf
     fn default() -> Self {
@@ -358,16 +352,18 @@ fn are_coefficients_valid(x: &[i16]) -> bool {
 // TESTS
 // ================================================================================================
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(test)]
 mod tests {
     use super::{super::SecretKey, *};
-    use rand::rngs::OsRng;
+    use crate::{rand::RpoRandomCoin, ZERO};
 
     #[test]
     fn test_serialization_round_trip() {
-        let key = SecretKey::new();
-        let mut rng = OsRng;
-        let signature = key.sign(Word::default(), &mut rng);
+        let seed = [ZERO; 4];
+        let mut rng = RpoRandomCoin::new(seed);
+
+        let sk = SecretKey::with_rng(&mut rng);
+        let signature = sk.sign(Word::default(), &mut rng);
         let serialized = signature.to_bytes();
         let deserialized = Signature::read_from_bytes(&serialized).unwrap();
         assert_eq!(signature.sig_poly(), deserialized.sig_poly());
