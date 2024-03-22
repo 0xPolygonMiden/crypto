@@ -63,6 +63,14 @@ On platforms with [SVE](https://en.wikipedia.org/wiki/AArch64#Scalable_Vector_Ex
  RUSTFLAGS="-C target-feature=+sve" cargo build --release
 ```
 
+## Building
+
+Miden crypto depends on the [PQClean](https://github.com/PQClean/PQClean) repo that provides clean implementations of post-quantum schemes. Hence it is needed for users wanting to build Miden crypto to use the following commands to enable and update `git submodules` enabling correct functionality:
+```shell
+git submodule init
+git submodule update
+```
+
 ## Testing
 
 You can use cargo defaults to test the library:
