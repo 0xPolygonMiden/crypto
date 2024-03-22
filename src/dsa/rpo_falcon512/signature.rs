@@ -38,7 +38,8 @@ use num::Zero;
 /// The signature is serialized as:
 /// 1. A header byte specifying the algorithm used to encode the coefficients of the `s2` polynomial
 ///    together with the degree of the irreducible polynomial phi. For RPO Falcon512, the header
-///    byte is set to `10111001` (see more in [SignatureHeader]).
+///    byte is set to `10111001` which differentiates it from the standardized instantiation of
+///    the Falcon signature.
 /// 2. 40 bytes for the nonce.
 /// 4. 625 bytes encoding the `s2` polynomial above.
 ///
