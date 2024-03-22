@@ -1,0 +1,72 @@
+# Cargo Makefile
+
+# linting
+[tasks.format]
+toolchain = "nightly"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.format-check]
+toolchain = "nightly"
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.clippy-default]
+command = "cargo"
+args = ["clippy","--workspace", "--all-targets", "--", "-D", "clippy::all", "-D", "warnings"]
+
+[tasks.clippy-all-features]
+command = "cargo"
+args = ["clippy","--workspace", "--all-targets", "--all-features", "--", "-D", "clippy::all", "-D", "warnings"]
+
+[tasks.clippy]
+dependencies = [
+  "clippy-default",
+  "clippy-all-features"
+]
+
+[tasks.fix]
+description = "Runs Fix"
+command = "cargo"
+toolchain = "nightly"
+args = ["fix", "--allow-staged", "--allow-dirty", "--all-targets", "--all-features"]
+
+[tasks.lint]
+description = "Runs all linting tasks (Clippy, fixing, formatting)"
+run_task = { name = ["format", "format-check", "clippy", "docs"] }
+
+# testing
+[tasks.test]
+disabled = true
+
+[tasks.test-default-serde]
+description = "Run tests with default features and serde"
+env = { "RUSTFLAGS" = "-C debug-assertions -C overflow-checks -C debuginfo=2" }
+workspace = false
+command = "cargo"
+args = ["test", "--release", "--features", "default,serde"]
+
+[tasks.test-no-default-features]
+description = "Run tests with no-default-features"
+env = { "RUSTFLAGS" = "-C debug-assertions -C overflow-checks -C debuginfo=2" }
+workspace = false
+command = "cargo"
+args = ["test", "--release", "--no-default-features"]
+
+[tasks.test-all]
+description = "Run all tests"
+workspace = false
+env = { "RUSTFLAGS" = "-C debug-assertions -C overflow-checks -C debuginfo=2" }
+run_task = { name = ["test-default-serde", "test-no-default-features"], parallel = true }
+
+# documenting
+[tasks.doc]
+env = { "RUSTDOCFLAGS" = "-D warnings" }
+command = "cargo"
+args = ["doc", "--verbose", "--all-features", "--keep-going", "--release"]
+
+# building
+[tasks.build-no-std]
+description = "Build using no-std"
+command = "cargo"
+args = ["build", "--no-default-features", "--target", "wasm32-unknown-unknown", "--workspace", "--exclude", "miden-mock"]

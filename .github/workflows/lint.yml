@@ -1,0 +1,66 @@
+# Runs linting related jobs.
+
+name: lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  version:
+    name: check rust version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          profile: minimal
+          override: true
+      - name: check rust versions
+        run: ./scripts/check-rust-version.sh
+
+  rustfmt:
+    name: rustfmt ${{matrix.toolchain}} on ${{matrix.os}}
+    runs-on: ${{matrix.os}}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [nightly]
+        os: [ubuntu]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install minimal Rust with rustfmt
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{matrix.toolchain}}
+          components: rustfmt
+          override: true
+      - uses: davidB/rust-cargo-make@v1
+      - name: cargo make - format-check
+        run: cargo make format-check
+
+  clippy:
+    name: clippy ${{matrix.toolchain}} on ${{matrix.os}}
+    runs-on: ${{matrix.os}}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable]
+        os: [ubuntu]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install minimal Rust with clippy
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{matrix.toolchain}}
+          components: clippy
+          override: true
+      - uses: davidB/rust-cargo-make@v1
+      - name: cargo make - clippy
+        run: cargo make clippy
