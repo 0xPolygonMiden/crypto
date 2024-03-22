@@ -54,13 +54,13 @@ To compile with `no_std`, disable default features via `--no-default-features` f
 ### AVX2 acceleration
 On platforms with [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions) support, RPO and RPX hash function can be accelerated by using the vector processing unit. To enable AVX2 acceleration, the code needs to be compiled with the `avx2` target feature enabled. For example:
 ```shell
-RUSTFLAGS="-C target-feature=+avx2" cargo build --release
+cargo make build-avx2
 ```
 
 ### SVE acceleration
 On platforms with [SVE](https://en.wikipedia.org/wiki/AArch64#Scalable_Vector_Extension_(SVE)) support, RPO and RPX hash function can be accelerated by using the vector processing unit. To enable SVE acceleration, the code needs to be compiled with the `sve` target feature enabled. For example:
 ```shell
- RUSTFLAGS="-C target-feature=+sve" cargo build --release
+cargo make build-sve
 ```
 
 ## Testing
