@@ -76,7 +76,7 @@ impl<F: Zero + PartialEq + Clone> Polynomial<F> {
 }
 
 /// The following implementations are specific to cyclotomic polynomial rings,
-/// i.e., F[ X ] / <X^n + 1>, and are used extensively in Falcon.
+/// i.e., F\[ X \] / <X^n + 1>, and are used extensively in Falcon.
 impl<
         F: One
             + Zero
@@ -103,7 +103,7 @@ impl<
     }
 
     /// Computes the field norm of the polynomial as an element of the cyclotomic ring
-    ///  F[ X ] / <X^n + 1 > relative to one of half the size, i.e., F[ X ] / <X^(n/2) + 1> .
+    ///  F\[ X \] / <X^n + 1 > relative to one of half the size, i.e., F\[ X \] / <X^(n/2) + 1> .
     ///
     /// Corresponds to formula 3.25 in the spec [1, p.30].
     ///
@@ -134,7 +134,7 @@ impl<
         Self::new(coefficients)
     }
 
-    /// Computes the galois adjoint of the polynomial in the cyclotomic ring F[ X ] / < X^n + 1 > ,
+    /// Computes the galois adjoint of the polynomial in the cyclotomic ring F\[ X \] / < X^n + 1 > ,
     /// which corresponds to f(x^2).
     pub fn galois_adjoint(&self) -> Self {
         Self::new(
