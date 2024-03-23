@@ -356,12 +356,13 @@ fn are_coefficients_valid(x: &[i16]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{super::SecretKey, *};
-    use crate::{rand::RpoRandomCoin, ZERO};
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha20Rng;
 
     #[test]
     fn test_serialization_round_trip() {
-        let seed = [ZERO; 4];
-        let mut rng = RpoRandomCoin::new(seed);
+        let seed = [0_u8; 32];
+        let mut rng = ChaCha20Rng::from_seed(seed);
 
         let sk = SecretKey::with_rng(&mut rng);
         let signature = sk.sign_with_rng(Word::default(), &mut rng);
