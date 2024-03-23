@@ -65,6 +65,14 @@ On platforms with [SVE](https://en.wikipedia.org/wiki/AArch64#Scalable_Vector_Ex
 cargo make build-sve
 ```
 
+## Building
+
+Miden crypto depends on the [PQClean](https://github.com/PQClean/PQClean) repo that provides clean implementations of post-quantum schemes. Hence it is needed for users wanting to build Miden crypto to use the following commands to enable and update `git submodules` enabling correct functionality:
+```shell
+git submodule init
+git submodule update
+```
+
 ## Testing
 
 The best way to test the library is using our `Makefile.toml` and [cargo-make](https://github.com/sagiegurari/cargo-make), this will enable you to use our pre-defined optimized testing commands:
