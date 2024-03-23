@@ -1,0 +1,86 @@
+# Cargo Makefile
+
+# -- linting --------------------------------------------------------------------------------------
+[tasks.format]
+toolchain = "nightly"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.format-check]
+toolchain = "nightly"
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.clippy-default]
+command = "cargo"
+args = ["clippy","--workspace", "--all-targets", "--", "-D", "clippy::all", "-D", "warnings"]
+
+[tasks.clippy-all-features]
+command = "cargo"
+args = ["clippy","--workspace", "--all-targets", "--all-features", "--", "-D", "clippy::all", "-D", "warnings"]
+
+[tasks.clippy]
+dependencies = [
+  "clippy-default",
+  "clippy-all-features"
+]
+
+[tasks.fix]
+description = "Runs Fix"
+command = "cargo"
+toolchain = "nightly"
+args = ["fix", "--allow-staged", "--allow-dirty", "--all-targets", "--all-features"]
+
+[tasks.lint]
+description = "Runs all linting tasks (Clippy, fixing, formatting)"
+run_task = { name = ["format", "format-check", "clippy", "docs"] }
+
+# --- docs ----------------------------------------------------------------------------------------
+[tasks.doc]
+env = { "RUSTDOCFLAGS" = "-D warnings" }
+command = "cargo"
+args = ["doc", "--all-features", "--keep-going", "--release"]
+
+# --- testing -------------------------------------------------------------------------------------
+[tasks.test]
+description = "Run tests with default features"
+env = { "RUSTFLAGS" = "-C debug-assertions -C overflow-checks -C debuginfo=2" }
+workspace = false
+command = "cargo"
+args = ["test", "--release"]
+
+[tasks.test-no-default-features]
+description = "Run tests with no-default-features"
+env = { "RUSTFLAGS" = "-C debug-assertions -C overflow-checks -C debuginfo=2" }
+workspace = false
+command = "cargo"
+args = ["test", "--release", "--no-default-features"]
+
+[tasks.test-all]
+description = "Run all tests"
+workspace = false
+run_task = { name = ["test", "test-no-default-features"], parallel = true }
+
+# --- building ------------------------------------------------------------------------------------
+[tasks.build]
+description = "Build in release mode"
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.build-no-std]
+description = "Build using no-std"
+command = "cargo"
+args = ["build", "--release", "--no-default-features", "--target", "wasm32-unknown-unknown"]
+
+[tasks.build-avx2]
+description = "Build using AVX2 acceleration"
+env = {  "RUSTFLAGS" = "-C target-feature=+avx2" }
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.build-sve]
+description = "Build with SVE acceleration"
+env = { "RUSTFLAGS" = "-C target-feature=+sve" }
+command = "cargo"
+args = ["build", "--release"]
+

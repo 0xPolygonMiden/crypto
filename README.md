@@ -1,8 +1,10 @@
 # Miden Crypto
-<a href="https://github.com/0xPolygonMiden/miden-crypto/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-<a href="https://github.com/0xPolygonMiden/crypto/actions/workflows/ci.yml"><img src="https://github.com/0xPolygonMiden/crypto/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-<img src="https://img.shields.io/badge/rustc-1.75+-lightgray.svg">
-<a href="https://crates.io/crates/miden-crypto"><img src="https://img.shields.io/crates/v/miden-crypto"></a>
+
+[![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/0xPolygonMiden/crypto/blob/main/LICENSE)
+[![test](https://github.com/0xPolygonMiden/crypto/actions/workflows/test.yml/badge.svg)](https://github.com/0xPolygonMiden/crypto/actions/workflows/test.yml)
+[![no-std](https://github.com/0xPolygonMiden/crypto/actions/workflows/no-std.yml/badge.svg)](https://github.com/0xPolygonMiden/crypto/actions/workflows/no-std.yml)
+[![RUST_VERSION](https://img.shields.io/badge/rustc-1.75+-lightgray.svg)]()
+[![CRATE](https://img.shields.io/crates/v/miden-crypto)](https://crates.io/crates/miden-crypto)
 
 This crate contains cryptographic primitives used in Polygon Miden.
 
@@ -54,26 +56,26 @@ To compile with `no_std`, disable default features via `--no-default-features` f
 ### AVX2 acceleration
 On platforms with [AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions) support, RPO and RPX hash function can be accelerated by using the vector processing unit. To enable AVX2 acceleration, the code needs to be compiled with the `avx2` target feature enabled. For example:
 ```shell
-RUSTFLAGS="-C target-feature=+avx2" cargo build --release
+cargo make build-avx2
 ```
 
 ### SVE acceleration
 On platforms with [SVE](https://en.wikipedia.org/wiki/AArch64#Scalable_Vector_Extension_(SVE)) support, RPO and RPX hash function can be accelerated by using the vector processing unit. To enable SVE acceleration, the code needs to be compiled with the `sve` target feature enabled. For example:
 ```shell
- RUSTFLAGS="-C target-feature=+sve" cargo build --release
+cargo make build-sve
 ```
 
 ## Testing
 
-You can use cargo defaults to test the library:
+The best way to test the library is using our `Makefile.toml` and [cargo-make](https://github.com/sagiegurari/cargo-make), this will enable you to use our pre-defined optimized testing commands:
 
 ```shell
-cargo test
+cargo make test-all
 ```
 
-However, some of the functions are heavy and might take a while for the tests to complete. In order to test in release mode, we have to replicate the test conditions of the development mode so all debug assertions can be verified.
+For example, some of the functions are heavy and might take a while for the tests to complete if using simply `cargo test`. In order to test in release and optimized mode, we have to replicate the test conditions of the development mode so all debug assertions can be verified.
 
-We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation.
+We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation (which we have set as a default in our [Makefile.toml](Makefile.toml)):
 
 ```shell
 RUSTFLAGS="-C debug-assertions -C overflow-checks -C debuginfo=2" cargo test --release
