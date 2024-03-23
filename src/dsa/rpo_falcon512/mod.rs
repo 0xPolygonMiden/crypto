@@ -9,9 +9,9 @@ mod keys;
 mod math;
 mod signature;
 
-use self::math::Polynomial;
-pub use keys::{PublicKey, SecretKey};
-pub use signature::Signature;
+pub use self::keys::{PubKeyPoly, PublicKey, SecretKey};
+pub use self::math::Polynomial;
+pub use self::signature::{Signature, SignatureHeader, SignaturePoly};
 
 // CONSTANTS
 // ================================================================================================

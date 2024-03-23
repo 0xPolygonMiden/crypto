@@ -15,14 +15,16 @@ pub use secret_key::SecretKey;
 
 #[cfg(test)]
 mod tests {
-    use crate::{dsa::rpo_falcon512::SecretKey, rand::RpoRandomCoin, Word, ONE, ZERO};
+    use crate::{dsa::rpo_falcon512::SecretKey, Word, ONE};
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha20Rng;
     use winter_math::FieldElement;
     use winter_utils::{Deserializable, Serializable};
 
     #[test]
     fn test_falcon_verification() {
-        let seed = [ZERO; 4];
-        let mut rng = RpoRandomCoin::new(seed);
+        let seed = [0_u8; 32];
+        let mut rng = ChaCha20Rng::from_seed(seed);
 
         // generate random keys
         let sk = SecretKey::with_rng(&mut rng);
