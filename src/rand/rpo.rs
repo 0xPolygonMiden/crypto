@@ -1,10 +1,9 @@
-use super::{Felt, FeltRng, FieldElement, RandomCoin, RandomCoinError, Word, ZERO};
+use super::{Felt, FeltRng, FieldElement, RandomCoin, RandomCoinError, RngCore, Word, ZERO};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable},
 };
 use alloc::{string::ToString, vec::Vec};
-use rand::RngCore;
 use rand_core::impls;
 
 // CONSTANTS
@@ -22,9 +21,9 @@ const HALF_RATE_WIDTH: usize = (Rpo256::RATE_RANGE.end - Rpo256::RATE_RANGE.star
 ///
 /// The simplification is related to the following facts:
 /// 1. A call to the reseed method implies one and only one call to the permutation function.
-///  This is possible because in our case we never reseed with more than 4 field elements.
+///    This is possible because in our case we never reseed with more than 4 field elements.
 /// 2. As a result of the previous point, we don't make use of an input buffer to accumulate seed
-///  material.
+///    material.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RpoRandomCoin {
     state: [Felt; STATE_WIDTH],
@@ -61,6 +60,11 @@ impl RpoRandomCoin {
     /// Returns components of this random coin.
     pub fn into_parts(self) -> ([Felt; STATE_WIDTH], usize) {
         (self.state, self.current)
+    }
+
+    /// Fills `dest` with random data.
+    pub fn fill_bytes(&mut self, dest: &mut [u8]) {
+        <Self as RngCore>::fill_bytes(self, dest)
     }
 
     fn draw_basefield(&mut self) -> Felt {

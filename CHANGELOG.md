@@ -2,6 +2,7 @@
 
 * [BREAKING] Removed deprecated re-exports from liballoc/libstd (#290).
 * [BREAKING] Refactored RpoFalcon512 signature to work with pure Rust (#285).
+* Added `RngCore` as supertrait for `FeltRng` (#299).
 
 # 0.8.4 (2024-03-17)
 
