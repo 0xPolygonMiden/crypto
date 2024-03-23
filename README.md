@@ -1,8 +1,9 @@
 # Miden Crypto
-<a href="https://github.com/0xPolygonMiden/miden-crypto/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-<a href="https://github.com/0xPolygonMiden/crypto/actions/workflows/ci.yml"><img src="https://github.com/0xPolygonMiden/crypto/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-<img src="https://img.shields.io/badge/rustc-1.75+-lightgray.svg">
-<a href="https://crates.io/crates/miden-crypto"><img src="https://img.shields.io/crates/v/miden-crypto"></a>
+
+[![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/0xPolygonMiden/crypto/blob/main/LICENSE)
+[![RUST_VERSION](https://img.shields.io/badge/rustc-1.75+-lightgray.svg)]()
+[![CRATE](https://img.shields.io/crates/v/miden-crypto)](https://crates.io/crates/miden-crypto)
+[![test](https://github.com/0xPolygonMiden/crypto/actions/workflows/test.yml/badge.svg)](https://github.com/0xPolygonMiden/crypto/actions/workflows/test.yml)
 
 This crate contains cryptographic primitives used in Polygon Miden.
 
@@ -71,9 +72,9 @@ The best way to test the library is using our `Makefile.toml` and [cargo-make](h
 cargo make test-all
 ```
 
-As an example some of the functions are heavy and might take a while for the tests to complete if using simply `cargo test`. In order to test in release and optimized mode, we have to replicate the test conditions of the development mode so all debug assertions can be verified.
+For example, some of the functions are heavy and might take a while for the tests to complete if using simply `cargo test`. In order to test in release and optimized mode, we have to replicate the test conditions of the development mode so all debug assertions can be verified.
 
-We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation (which we have set as a default in our [Makefile.toml](Makefile.toml):
+We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/reference/profiles.html) for the compilation (which we have set as a default in our [Makefile.toml](Makefile.toml)):
 
 ```shell
 RUSTFLAGS="-C debug-assertions -C overflow-checks -C debuginfo=2" cargo test --release

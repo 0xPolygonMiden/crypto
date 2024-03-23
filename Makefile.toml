@@ -1,6 +1,6 @@
 # Cargo Makefile
 
-# linting
+# -- linting --------------------------------------------------------------------------------------
 [tasks.format]
 toolchain = "nightly"
 command = "cargo"
@@ -35,16 +35,19 @@ args = ["fix", "--allow-staged", "--allow-dirty", "--all-targets", "--all-featur
 description = "Runs all linting tasks (Clippy, fixing, formatting)"
 run_task = { name = ["format", "format-check", "clippy", "docs"] }
 
-# testing
-[tasks.test]
-disabled = true
+# --- docs ----------------------------------------------------------------------------------------
+[tasks.doc]
+env = { "RUSTDOCFLAGS" = "-D warnings" }
+command = "cargo"
+args = ["doc", "--all-features", "--keep-going", "--release"]
 
-[tasks.test-default-serde]
-description = "Run tests with default features and serde"
+# --- testing -------------------------------------------------------------------------------------
+[tasks.test]
+description = "Run tests with default features"
 env = { "RUSTFLAGS" = "-C debug-assertions -C overflow-checks -C debuginfo=2" }
 workspace = false
 command = "cargo"
-args = ["test", "--release", "--features", "default,serde"]
+args = ["test", "--release"]
 
 [tasks.test-no-default-features]
 description = "Run tests with no-default-features"
@@ -56,20 +59,18 @@ args = ["test", "--release", "--no-default-features"]
 [tasks.test-all]
 description = "Run all tests"
 workspace = false
-env = { "RUSTFLAGS" = "-C debug-assertions -C overflow-checks -C debuginfo=2" }
-run_task = { name = ["test-default-serde", "test-no-default-features"], parallel = true }
+run_task = { name = ["test", "test-no-default-features"], parallel = true }
 
-# documenting
-[tasks.doc]
-env = { "RUSTDOCFLAGS" = "-D warnings" }
+# --- building ------------------------------------------------------------------------------------
+[tasks.build]
+description = "Build in release mode"
 command = "cargo"
-args = ["doc", "--verbose", "--all-features", "--keep-going", "--release"]
+args = ["build", "--release"]
 
-# building
 [tasks.build-no-std]
 description = "Build using no-std"
 command = "cargo"
-args = ["build", "--no-default-features", "--target", "wasm32-unknown-unknown", "--workspace", "--exclude", "miden-mock"]
+args = ["build", "--release", "--no-default-features", "--target", "wasm32-unknown-unknown"]
 
 [tasks.build-avx2]
 description = "Build using AVX2 acceleration"
