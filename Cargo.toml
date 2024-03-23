@@ -60,12 +60,12 @@ winter-math = { version = "0.8", default-features = false }
 winter-utils = { version = "0.8", default-features = false }
 
 [dev-dependencies]
-rand_chacha = { version = "0.3", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 getrandom = { version = "0.2", features = ["js"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 proptest = "1.4"
-rand_utils = { version = "0.8", package = "winter-rand-utils" }
+rand_chacha = { version = "0.3", default-features = false }
+rand-utils = { version = "0.8", package = "winter-rand-utils" }
 seq-macro = { version = "0.3" }
 
 [build-dependencies]
