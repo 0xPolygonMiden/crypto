@@ -189,7 +189,6 @@ fn test_insert() {
     assert_eq!(expected_tree.root(), tree.root);
     assert_eq!(old_leaf, *VALUES8[key]);
     assert_eq!(tree.num_leaves(), 7);
-
 }
 
 #[test]
