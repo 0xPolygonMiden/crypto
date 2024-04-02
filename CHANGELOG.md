@@ -1,3 +1,7 @@
+## 0.9.1 (2024-04-02)
+
+* Added `num_leaves()` method to `SimpleSmt` (#302).
+
 ## 0.9.0 (2024-03-24)
 
 * [BREAKING] Removed deprecated re-exports from liballoc/libstd (#290).
