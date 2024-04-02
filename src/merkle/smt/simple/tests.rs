@@ -50,6 +50,8 @@ fn build_sparse_tree() {
     let mut smt = SimpleSmt::<DEPTH>::new().unwrap();
     let mut values = ZERO_VALUES8.to_vec();
 
+    assert_eq!(smt.num_leaves(), 0);
+
     // insert single value
     let key = 6;
     let new_node = int_to_leaf(7);
@@ -62,6 +64,7 @@ fn build_sparse_tree() {
         smt.open(&LeafIndex::<3>::new(6).unwrap()).path
     );
     assert_eq!(old_value, EMPTY_WORD);
+    assert_eq!(smt.num_leaves(), 1);
 
     // insert second value at distinct leaf branch
     let key = 2;
@@ -75,6 +78,7 @@ fn build_sparse_tree() {
         smt.open(&LeafIndex::<3>::new(2).unwrap()).path
     );
     assert_eq!(old_value, EMPTY_WORD);
+    assert_eq!(smt.num_leaves(), 2);
 }
 
 /// Tests that [`SimpleSmt::with_contiguous_leaves`] works as expected
@@ -146,10 +150,11 @@ fn test_inner_node_iterator() -> Result<(), MerkleError> {
 }
 
 #[test]
-fn update_leaf() {
+fn test_insert() {
     const DEPTH: u8 = 3;
     let mut tree =
         SimpleSmt::<DEPTH>::with_leaves(KEYS8.into_iter().zip(digests_to_words(&VALUES8))).unwrap();
+    assert_eq!(tree.num_leaves(), 8);
 
     // update one value
     let key = 3;
@@ -161,6 +166,7 @@ fn update_leaf() {
     let old_leaf = tree.insert(LeafIndex::<DEPTH>::new(key as u64).unwrap(), new_node);
     assert_eq!(expected_tree.root(), tree.root);
     assert_eq!(old_leaf, *VALUES8[key]);
+    assert_eq!(tree.num_leaves(), 8);
 
     // update another value
     let key = 6;
@@ -171,6 +177,18 @@ fn update_leaf() {
     let old_leaf = tree.insert(LeafIndex::<DEPTH>::new(key as u64).unwrap(), new_node);
     assert_eq!(expected_tree.root(), tree.root);
     assert_eq!(old_leaf, *VALUES8[key]);
+    assert_eq!(tree.num_leaves(), 8);
+
+    // set a leaf to empty value
+    let key = 5;
+    let new_node = EMPTY_WORD;
+    expected_values[key] = new_node;
+    let expected_tree = MerkleTree::new(expected_values.clone()).unwrap();
+
+    let old_leaf = tree.insert(LeafIndex::<DEPTH>::new(key as u64).unwrap(), new_node);
+    assert_eq!(expected_tree.root(), tree.root);
+    assert_eq!(old_leaf, *VALUES8[key]);
+    assert_eq!(tree.num_leaves(), 7);
 }
 
 #[test]

@@ -122,6 +122,11 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         <Self as SparseMerkleTree<DEPTH>>::root(self)
     }
 
+    /// Returns the number of non-empty leaves in this tree.
+    pub fn num_leaves(&self) -> usize {
+        self.leaves.len()
+    }
+
     /// Returns the leaf at the specified index.
     pub fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Word {
         <Self as SparseMerkleTree<DEPTH>>::get_leaf(self, key)
@@ -150,11 +155,6 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// path to the leaf, as well as the leaf itself.
     pub fn open(&self, key: &LeafIndex<DEPTH>) -> ValuePath {
         <Self as SparseMerkleTree<DEPTH>>::open(self, key)
-    }
-
-    /// Returns a count of non-empty leaves.
-    pub fn leaf_count(&self) -> usize {
-        self.leaves.len()
     }
 
     // ITERATORS
@@ -281,17 +281,18 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     }
 
     fn insert_value(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Option<Word> {
-        self.leaves.insert(key.value(), value)
+        if value == Self::EMPTY_VALUE {
+            self.leaves.remove(&key.value())
+        } else {
+            self.leaves.insert(key.value(), value)
+        }
     }
 
     fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Word {
-        // the lookup in empty_hashes could fail only if empty_hashes were not built correctly
-        // by the constructor as we check the depth of the lookup above.
         let leaf_pos = key.value();
-
         match self.leaves.get(&leaf_pos) {
             Some(word) => *word,
-            None => Word::from(*EmptySubtreeRoots::entry(DEPTH, DEPTH)),
+            None => Self::EMPTY_VALUE,
         }
     }
 
