@@ -152,6 +152,11 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         <Self as SparseMerkleTree<DEPTH>>::open(self, key)
     }
 
+    /// Returns a count of non-empty leaves.
+    pub fn leaf_count(&self) -> usize {
+        self.leaves.len()
+    }
+
     // ITERATORS
     // --------------------------------------------------------------------------------------------
 
