@@ -6,7 +6,7 @@ authors = ["miden contributors"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
-documentation = "https://docs.rs/miden-crypto/0.9.0"
+documentation = "https://docs.rs/miden-crypto/0.9.1"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
@@ -49,7 +49,7 @@ std = [
 blake3 = { version = "1.5", default-features = false }
 clap = { version = "4.5", optional = true, features = ["derive"] }
 num = { version = "0.4", default-features = false, features = ["alloc", "libm"] }
-num-complex = { version = "0.4.4", default-features = false }
+num-complex = { version = "0.4", default-features = false }
 rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false }
 rand-utils = { version = "0.8", package = "winter-rand-utils", optional = true }
