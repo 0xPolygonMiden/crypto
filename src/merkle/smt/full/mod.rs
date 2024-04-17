@@ -2,7 +2,11 @@ use super::{
     EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
     NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    string::ToString,
+    vec::Vec,
+};
 
 mod error;
 pub use error::{SmtLeafError, SmtProofError};
@@ -12,6 +16,7 @@ pub use leaf::SmtLeaf;
 
 mod proof;
 pub use proof::SmtProof;
+use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 #[cfg(test)]
 mod tests;
@@ -293,4 +298,61 @@ impl From<&RpoDigest> for LeafIndex<SMT_DEPTH> {
     fn from(value: &RpoDigest) -> Self {
         Word::from(value).into()
     }
+}
+
+// SERIALIZATION
+// ================================================================================================
+
+impl Serializable for Smt {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        // Write the number of filled leaves for this Smt
+        target.write_usize(self.entries().count());
+
+        // Write each (key, value) pair
+        for (key, value) in self.entries() {
+            target.write(key);
+            target.write(value);
+        }
+    }
+}
+
+impl Deserializable for Smt {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        // Read the number of filled leaves for this Smt
+        let num_filled_leaves = source.read_usize()?;
+        let mut entries = Vec::with_capacity(num_filled_leaves);
+
+        for _ in 0..num_filled_leaves {
+            let key = source.read()?;
+            let value = source.read()?;
+            entries.push((key, value));
+        }
+
+        Self::with_entries(entries)
+            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))
+    }
+}
+
+#[test]
+fn test_smt_serialization_deserialization() {
+    // Smt for default types (empty map)
+    let smt_default = Smt::default();
+    let bytes = smt_default.to_bytes();
+    assert_eq!(smt_default, Smt::read_from_bytes(&bytes).unwrap());
+
+    // Smt with values
+    let smt_leaves_2: [(RpoDigest, Word); 2] = [
+        (
+            RpoDigest::new([Felt::new(101), Felt::new(102), Felt::new(103), Felt::new(104)]),
+            [Felt::new(1_u64), Felt::new(2_u64), Felt::new(3_u64), Felt::new(4_u64)],
+        ),
+        (
+            RpoDigest::new([Felt::new(105), Felt::new(106), Felt::new(107), Felt::new(108)]),
+            [Felt::new(5_u64), Felt::new(6_u64), Felt::new(7_u64), Felt::new(8_u64)],
+        ),
+    ];
+    let smt = Smt::with_entries(smt_leaves_2).unwrap();
+
+    let bytes = smt.to_bytes();
+    assert_eq!(smt, Smt::read_from_bytes(&bytes).unwrap());
 }
