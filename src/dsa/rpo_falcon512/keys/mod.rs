@@ -23,10 +23,11 @@ mod tests {
 
     #[test]
     fn test_falcon_verification() {
-        let mut rng = ChaCha20Rng::from_entropy();
+        let seed = [0_u8; 32];
+        let mut rng = ChaCha20Rng::from_seed(seed);
 
         // generate random keys
-        let sk = SecretKey::new();
+        let sk = SecretKey::with_rng(&mut rng);
         let pk = sk.public_key();
 
         // test secret key serialization/deserialization
