@@ -96,10 +96,10 @@ pub(crate) fn ntru_gen<R: Rng>(n: usize, rng: &mut R) -> [Polynomial<i16>; 4] {
             ntru_solve(&f.map(|&i| i.into()), &g.map(|&i| i.into()))
         {
             return [
-                f,
                 g,
-                capital_f.map(|i| i.try_into().unwrap()),
+                -f,
                 capital_g.map(|i| i.try_into().unwrap()),
+                -capital_f.map(|i| i.try_into().unwrap()),
             ];
         }
     }
