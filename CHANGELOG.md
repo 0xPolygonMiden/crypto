@@ -1,3 +1,8 @@
+## 0.9.2 (2024-04-21)
+
+* Implemented serialization for the `Smt` struct (#304).
+* Fixed a bug in Falcon signature generation (#305).
+
 ## 0.9.1 (2024-04-02)
 
 * Added `num_leaves()` method to `SimpleSmt` (#302).
