@@ -210,14 +210,14 @@ impl Serializable for SecretKey {
         let l = n.checked_ilog2().unwrap() as u8;
         let header: u8 = (5 << 4) | l;
 
-        let f = &basis[1];
+        let neg_f = &basis[1];
         let g = &basis[0];
-        let capital_f = &basis[3];
+        let neg_big_f = &basis[3];
 
         let mut buffer = Vec::with_capacity(1281);
         buffer.push(header);
 
-        let f_i8: Vec<i8> = f.coefficients.iter().map(|&a| -a as i8).collect();
+        let f_i8: Vec<i8> = neg_f.coefficients.iter().map(|&a| -a as i8).collect();
         let f_i8_encoded = encode_i8(&f_i8, WIDTH_SMALL_POLY_COEFFICIENT).unwrap();
         buffer.extend_from_slice(&f_i8_encoded);
 
@@ -225,7 +225,7 @@ impl Serializable for SecretKey {
         let g_i8_encoded = encode_i8(&g_i8, WIDTH_SMALL_POLY_COEFFICIENT).unwrap();
         buffer.extend_from_slice(&g_i8_encoded);
 
-        let big_f_i8: Vec<i8> = capital_f.coefficients.iter().map(|&a| -a as i8).collect();
+        let big_f_i8: Vec<i8> = neg_big_f.coefficients.iter().map(|&a| -a as i8).collect();
         let big_f_i8_encoded = encode_i8(&big_f_i8, WIDTH_BIG_POLY_COEFFICIENT).unwrap();
         buffer.extend_from_slice(&big_f_i8_encoded);
         target.write_bytes(&buffer);

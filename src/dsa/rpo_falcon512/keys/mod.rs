@@ -33,7 +33,8 @@ mod tests {
         // test secret key serialization/deserialization
         let mut buffer = vec![];
         sk.write_into(&mut buffer);
-        let sk = SecretKey::read_from_bytes(&buffer).unwrap();
+        let sk_deserialized = SecretKey::read_from_bytes(&buffer).unwrap();
+        assert_eq!(sk.short_lattice_basis(), sk_deserialized.short_lattice_basis());
 
         // sign a random message
         let message: Word = [ONE; 4];
