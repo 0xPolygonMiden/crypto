@@ -7,7 +7,9 @@ pub use winter_utils::Randomizable;
 use crate::{Felt, FieldElement, Word, ZERO};
 
 mod rpo;
+mod rpx;
 pub use rpo::RpoRandomCoin;
+pub use rpx::RpxRandomCoin;
 
 /// Pseudo-random element generator.
 ///
