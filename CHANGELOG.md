@@ -1,3 +1,7 @@
+## 0.9.3 (2024-04-24)
+
+* Added `RpxRandomCoin` struct (#307).
+
 ## 0.9.2 (2024-04-21)
 
 * Implemented serialization for the `Smt` struct (#304).
