@@ -9,6 +9,9 @@ mod keys;
 mod math;
 mod signature;
 
+#[cfg(test)]
+mod tests;
+
 pub use self::keys::{PubKeyPoly, PublicKey, SecretKey};
 pub use self::math::Polynomial;
 pub use self::signature::{Signature, SignatureHeader, SignaturePoly};
@@ -47,6 +50,10 @@ const SIG_L2_BOUND: u64 = 34034726;
 
 /// Standard deviation of the Gaussian over the lattice.
 const SIGMA: f64 = 165.7366171829776;
+
+/// Length of the seed for the ChaCha20-based PRNG.
+#[cfg(test)]
+pub(crate) const CHACHA_SEED_LEN: usize = 56;
 
 // TYPE ALIASES
 // ================================================================================================
