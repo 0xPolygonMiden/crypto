@@ -280,12 +280,12 @@ impl SecretKey {
                 .expect("The number of coefficients should be equal to N");
 
             if let Ok(s2) = SignaturePoly::try_from(&s2_coef) {
-                return Some(s2);
+                Some(s2)
             } else {
-                return None;
+                None
             }
         } else {
-            return None;
+            None
         }
     }
 }

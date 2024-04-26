@@ -90,7 +90,7 @@ fn test_signature_gen_reference_impl() {
         // we compare the encoded signature including the nonce
         let sig_bytes = signature.to_bytes();
         let expected_sig_bytes = EXPECTED_SIG[i];
-        let hex_expected_sig_bytes = hex::decode(&expected_sig_bytes).unwrap();
+        let hex_expected_sig_bytes = hex::decode(expected_sig_bytes).unwrap();
 
         // we remove the headers when comparing as RPO_FALCON512 uses a different header format.
         // we also remove the public key from the RPO_FALCON512 signature as this is not part of
@@ -220,12 +220,12 @@ impl ChaCha {
             self.qround(3, 4, 9, 14);
         }
 
-        for i in 0..16 {
-            self.state[i] = self.state[i].wrapping_add(state[i]);
+        for (i, s) in self.state.iter_mut().enumerate().take(16) {
+            *s = (*s).wrapping_add(state[i]);
         }
 
         self.ctr += 1;
-        return self.state.clone();
+        self.state.clone()
     }
 
     fn block_update(&mut self) -> Vec<u32> {
@@ -254,7 +254,7 @@ impl ChaCha {
     }
 
     fn roll(x: u32, n: usize) -> u32 {
-        ((x << n) & 0xffffffff) ^ (x >> (32 - n))
+        (x << n) ^ (x >> (32 - n))
     }
 }
 

@@ -76,7 +76,7 @@ fn approx_exp(x: f64, ccs: f64) -> u64 {
 
 /// A random bool that is true with probability ≈ ccs · exp(-x).
 fn ber_exp<R: Rng>(x: f64, ccs: f64, rng: &mut R) -> bool {
-    const LN2: f64 = std::f64::consts::LN_2;
+    const LN2: f64 = core::f64::consts::LN_2;
     const ILN2: f64 = 1.0 / LN2;
     let s = f64::floor(x * ILN2);
     let r = x - s * LN2;
