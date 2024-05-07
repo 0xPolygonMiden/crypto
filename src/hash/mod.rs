@@ -6,11 +6,11 @@ pub mod blake;
 
 mod rescue;
 pub mod rpo {
-    pub use super::rescue::{Rpo256, RpoDigest};
+    pub use super::rescue::{Rpo256, RpoDigest, RpoDigestError};
 }
 
 pub mod rpx {
-    pub use super::rescue::{Rpx256, RpxDigest};
+    pub use super::rescue::{Rpx256, RpxDigest, RpxDigestError};
 }
 
 // RE-EXPORTS
