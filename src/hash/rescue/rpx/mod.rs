@@ -9,7 +9,7 @@ use super::{
 };
 
 mod digest;
-pub use digest::RpxDigest;
+pub use digest::{RpxDigest, RpxDigestError};
 
 pub type CubicExtElement = CubeExtension<Felt>;
 

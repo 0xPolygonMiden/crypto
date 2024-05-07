@@ -8,7 +8,7 @@ use super::{
 };
 
 mod digest;
-pub use digest::RpoDigest;
+pub use digest::{RpoDigest, RpoDigestError};
 
 #[cfg(test)]
 mod tests;
