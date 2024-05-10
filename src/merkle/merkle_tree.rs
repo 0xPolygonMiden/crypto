@@ -1,8 +1,6 @@
 use alloc::{string::String, vec::Vec};
 use core::{fmt, ops::Deref, slice};
 
-use winter_math::log2;
-
 use super::{InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, Word};
 use crate::utils::{uninit_vector, word_to_hex};
 
@@ -70,7 +68,7 @@ impl MerkleTree {
     ///
     /// Merkle tree of depth 1 has two leaves, depth 2 has four leaves etc.
     pub fn depth(&self) -> u8 {
-        log2(self.nodes.len() / 2) as u8
+        (self.nodes.len() / 2).ilog2() as u8
     }
 
     /// Returns a node at the specified depth and index value.
