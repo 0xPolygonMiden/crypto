@@ -172,7 +172,7 @@ impl Hasher for Rpx256 {
             state[CAPACITY_RANGE.start] = Felt::from(6_u8);
         }
 
-        // apply the RPX permutation and return the first four elements of the state
+        // apply the RPX permutation and return the first four elements of the rate
         Self::apply_permutation(&mut state);
         RpxDigest::new(state[DIGEST_RANGE].try_into().unwrap())
     }

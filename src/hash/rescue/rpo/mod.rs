@@ -19,7 +19,8 @@ mod tests;
 /// Implementation of the Rescue Prime Optimized hash function with 256-bit output.
 ///
 /// The hash function is implemented according to the Rescue Prime Optimized
-/// [specifications](https://eprint.iacr.org/2022/1577)
+/// [specifications](https://eprint.iacr.org/2022/1577) while the padding rule follows the one
+/// described [here](https://eprint.iacr.org/2023/1045).
 ///
 /// The parameters used to instantiate the function are:
 /// * Field: 64-bit prime field with modulus p = 2^64 - 2^32 + 1.
@@ -153,24 +154,20 @@ impl Hasher for Rpo256 {
         // initialize the state as follows:
         // - seed is copied into the first 4 elements of the rate portion of the state.
         // - if the value fits into a single field element, copy it into the fifth rate element and
-        //   set the sixth rate element to 1.
-        // - if the value doesn't fit into a single field element, split it into two field elements,
-        //   copy them into rate elements 5 and 6, and set the seventh rate element to 1.
-        // - set the first capacity element to 1
+        //   set the first capacity element to 5.
+        // - if the value doesn't fit into a single field element, split it into two field
+        //   elements, copy them into rate elements 5 and 6 and set the first capacity element to 6.
         let mut state = [ZERO; STATE_WIDTH];
         state[INPUT1_RANGE].copy_from_slice(seed.as_elements());
         state[INPUT2_RANGE.start] = Felt::new(value);
         if value < Felt::MODULUS {
-            state[INPUT2_RANGE.start + 1] = ONE;
+            state[CAPACITY_RANGE.start] = Felt::from(5_u8);
         } else {
             state[INPUT2_RANGE.start + 1] = Felt::new(value / Felt::MODULUS);
-            state[INPUT2_RANGE.start + 2] = ONE;
+            state[CAPACITY_RANGE.start] = Felt::from(6_u8);
         }
 
-        // common padding for both cases
-        state[CAPACITY_RANGE.start] = ONE;
-
-        // apply the RPO permutation and return the first four elements of the state
+        // apply the RPO permutation and return the first four elements of the rate
         Self::apply_permutation(&mut state);
         RpoDigest::new(state[DIGEST_RANGE].try_into().unwrap())
     }
@@ -184,11 +181,9 @@ impl ElementHasher for Rpo256 {
         let elements = E::slice_as_base_elements(elements);
 
         // initialize state to all zeros, except for the first element of the capacity part, which
-        // is set to 1 if the number of elements is not a multiple of RATE_WIDTH.
+        // is set to `elements.len() % RATE_WIDTH`.
         let mut state = [ZERO; STATE_WIDTH];
-        if elements.len() % RATE_WIDTH != 0 {
-            state[CAPACITY_RANGE.start] = ONE;
-        }
+        state[CAPACITY_RANGE.start] = Self::BaseField::from((elements.len() % RATE_WIDTH) as u8);
 
         // absorb elements into the state one by one until the rate portion of the state is filled
         // up; then apply the Rescue permutation and start absorbing again; repeat until all
@@ -205,11 +200,8 @@ impl ElementHasher for Rpo256 {
 
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
         // the number of elements is not a multiple of RATE_WIDTH), apply the RPO permutation after
-        // padding by appending a 1 followed by as many 0 as necessary to make the input length a
-        // multiple of the RATE_WIDTH.
+        // padding by as many 0 as necessary to make the input length a multiple of the RATE_WIDTH.
         if i > 0 {
-            state[RATE_RANGE.start + i] = ONE;
-            i += 1;
             while i != RATE_WIDTH {
                 state[RATE_RANGE.start + i] = ZERO;
                 i += 1;
