@@ -58,13 +58,13 @@ impl Display for HexParseError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             HexParseError::InvalidLength { expected, actual } => {
-                write!(f, "Hex encoded RpoDigest must have length 66, including the 0x prefix. expected {expected} got {actual}")
+                write!(f, "Expected hex data to have length {expected}, including the 0x prefix. Got {actual}")
             }
             HexParseError::MissingPrefix => {
-                write!(f, "Hex encoded RpoDigest must start with 0x prefix")
+                write!(f, "Hex encoded data must start with 0x prefix")
             }
             HexParseError::InvalidChar => {
-                write!(f, "Hex encoded RpoDigest must contain characters [a-zA-Z0-9]")
+                write!(f, "Hex encoded data must contain characters [a-zA-Z0-9]")
             }
             HexParseError::OutOfRange => {
                 write!(f, "Hex encoded values of an RpoDigest must be inside the field modulus")
