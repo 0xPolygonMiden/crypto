@@ -11,6 +11,9 @@ use super::{
 mod digest;
 pub use digest::{RpxDigest, RpxDigestError};
 
+#[cfg(test)]
+mod tests;
+
 pub type CubicExtElement = CubeExtension<Felt>;
 
 // HASHER IMPLEMENTATION
@@ -55,7 +58,7 @@ pub type CubicExtElement = CubeExtension<Felt>;
 ///
 /// Thus, if the underlying data consists of valid field elements, it might make more sense
 /// to deserialize them into field elements and then hash them using
-/// [hash_elements()](Rpx256::hash_elements) function rather then hashing the serialized bytes
+/// [hash_elements()](Rpx256::hash_elements) function rather than hashing the serialized bytes
 /// using [hash()](Rpx256::hash) function.
 ///
 /// ## Domain separation
@@ -101,9 +104,16 @@ impl Hasher for Rpx256 {
         // every time the rate range is filled, a permutation is performed. if the final value of
         // `i` is not zero, then the chunks count wasn't enough to fill the state range, and an
         // additional permutation must be performed.
+        let mut current_element = 0_usize;
+        // handle the case of an empty `bytes`
+        let last_element = if num_field_elem == 0 {
+            current_element
+        } else {
+            num_field_elem - 1
+        };
         let i = bytes.chunks(BINARY_CHUNK_SIZE).fold(0, |i, chunk| {
             // copy the chunk into the buffer
-            if i != num_field_elem - 1 {
+            if current_element != last_element {
                 buf[..BINARY_CHUNK_SIZE].copy_from_slice(chunk);
             } else {
                 // on the last iteration, we pad `buf` with a 1 followed by as many 0's as are
@@ -112,6 +122,7 @@ impl Hasher for Rpx256 {
                 buf[..chunk.len()].copy_from_slice(chunk);
                 buf[chunk.len()] = 1;
             }
+            current_element += 1;
 
             // set the current rate element to the input. since we take at most 7 bytes, we are
             // guaranteed that the inputs data will fit into a single field element.
