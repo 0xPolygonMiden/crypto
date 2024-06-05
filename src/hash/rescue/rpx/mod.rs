@@ -55,6 +55,17 @@ pub type CubicExtElement = CubeExtension<Felt>;
 /// to deserialize them into field elements and then hash them using
 /// [hash_elements()](Rpx256::hash_elements) function rather then hashing the serialized bytes
 /// using [hash()](Rpx256::hash) function.
+///
+/// ## Domain separation
+/// [merge_in_domain()](Rpx256::merge_in_domain) hashes two digests into one digest with some domain
+/// identifier and the current implementation sets the second capacity element to the value of
+/// this domain identifier. Using a similar argument to the one formulated for domain separation
+/// in Appendix C of the [specifications](https://eprint.iacr.org/2023/1045), one sees that doing
+/// so degrades only pre-image resistance, from its initial bound of c.log_2(p), by as much as
+/// the log_2 of the size of the domain identifier space. Since pre-image resistance becomes
+/// the bottleneck for the security bound of the sponge in overwrite-mode only when it is
+/// lower than 2^128, we see that the target 128-bit security level is maintained as long as
+/// the size of the domain identifier space, including for padding, is less than 2^128.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rpx256();
 
