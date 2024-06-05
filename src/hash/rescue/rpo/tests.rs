@@ -3,9 +3,9 @@ use rand_utils::rand_value;
 
 use super::{
     super::{apply_inv_sbox, apply_sbox, ALPHA, INV_ALPHA},
-    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ONE, STATE_WIDTH, ZERO,
+    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, STATE_WIDTH, ZERO,
 };
-use crate::Word;
+use crate::{Word, ONE};
 use alloc::{collections::BTreeSet, vec::Vec};
 
 #[test]
