@@ -1,3 +1,8 @@
+## 0.10.0 (TBD)
+
+* Added more `RpoDigest` and `RpxDigest` conversions (#311).
+* Migrated to Winterfell v0.9.0 (#315)
+
 ## 0.9.3 (2024-04-24)
 
 * Added `RpxRandomCoin` struct (#307).

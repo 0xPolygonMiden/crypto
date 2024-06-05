@@ -11,10 +11,10 @@ mod mds;
 use mds::{apply_mds, MDS};
 
 mod rpo;
-pub use rpo::{Rpo256, RpoDigest};
+pub use rpo::{Rpo256, RpoDigest, RpoDigestError};
 
 mod rpx;
-pub use rpx::{Rpx256, RpxDigest};
+pub use rpx::{Rpx256, RpxDigest, RpxDigestError};
 
 #[cfg(test)]
 mod tests;

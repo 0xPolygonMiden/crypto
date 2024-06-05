@@ -287,8 +287,7 @@ fn test_empty_leaf_hash() {
 #[test]
 fn test_smt_get_value() {
     let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
-    let key_2: RpoDigest =
-        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), 2_u32.into()]);
+    let key_2: RpoDigest = RpoDigest::from([2_u32, 2_u32, 2_u32, 2_u32]);
 
     let value_1 = [ONE; WORD_SIZE];
     let value_2 = [2_u32.into(); WORD_SIZE];
@@ -302,8 +301,7 @@ fn test_smt_get_value() {
     assert_eq!(value_2, returned_value_2);
 
     // Check that a key with no inserted value returns the empty word
-    let key_no_value =
-        RpoDigest::from([42_u32.into(), 42_u32.into(), 42_u32.into(), 42_u32.into()]);
+    let key_no_value = RpoDigest::from([42_u32, 42_u32, 42_u32, 42_u32]);
 
     assert_eq!(EMPTY_WORD, smt.get_value(&key_no_value));
 }
@@ -312,8 +310,7 @@ fn test_smt_get_value() {
 #[test]
 fn test_smt_entries() {
     let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
-    let key_2: RpoDigest =
-        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), 2_u32.into()]);
+    let key_2: RpoDigest = RpoDigest::from([2_u32, 2_u32, 2_u32, 2_u32]);
 
     let value_1 = [ONE; WORD_SIZE];
     let value_2 = [2_u32.into(); WORD_SIZE];
@@ -347,7 +344,7 @@ fn test_empty_smt_leaf_serialization() {
 #[test]
 fn test_single_smt_leaf_serialization() {
     let single_leaf = SmtLeaf::new_single(
-        RpoDigest::from([10_u32.into(), 11_u32.into(), 12_u32.into(), 13_u32.into()]),
+        RpoDigest::from([10_u32, 11_u32, 12_u32, 13_u32]),
         [1_u32.into(), 2_u32.into(), 3_u32.into(), 4_u32.into()],
     );
 
@@ -363,11 +360,11 @@ fn test_single_smt_leaf_serialization() {
 fn test_multiple_smt_leaf_serialization_success() {
     let multiple_leaf = SmtLeaf::new_multiple(vec![
         (
-            RpoDigest::from([10_u32.into(), 11_u32.into(), 12_u32.into(), 13_u32.into()]),
+            RpoDigest::from([10_u32, 11_u32, 12_u32, 13_u32]),
             [1_u32.into(), 2_u32.into(), 3_u32.into(), 4_u32.into()],
         ),
         (
-            RpoDigest::from([100_u32.into(), 101_u32.into(), 102_u32.into(), 13_u32.into()]),
+            RpoDigest::from([100_u32, 101_u32, 102_u32, 13_u32]),
             [11_u32.into(), 12_u32.into(), 13_u32.into(), 14_u32.into()],
         ),
     ])

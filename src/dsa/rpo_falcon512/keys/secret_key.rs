@@ -217,15 +217,27 @@ impl Serializable for SecretKey {
         let mut buffer = Vec::with_capacity(1281);
         buffer.push(header);
 
-        let f_i8: Vec<i8> = neg_f.coefficients.iter().map(|&a| -a as i8).collect();
+        let f_i8: Vec<i8> = neg_f
+            .coefficients
+            .iter()
+            .map(|&a| FalconFelt::new(-a).balanced_value() as i8)
+            .collect();
         let f_i8_encoded = encode_i8(&f_i8, WIDTH_SMALL_POLY_COEFFICIENT).unwrap();
         buffer.extend_from_slice(&f_i8_encoded);
 
-        let g_i8: Vec<i8> = g.coefficients.iter().map(|&a| a as i8).collect();
+        let g_i8: Vec<i8> = g
+            .coefficients
+            .iter()
+            .map(|&a| FalconFelt::new(a).balanced_value() as i8)
+            .collect();
         let g_i8_encoded = encode_i8(&g_i8, WIDTH_SMALL_POLY_COEFFICIENT).unwrap();
         buffer.extend_from_slice(&g_i8_encoded);
 
-        let big_f_i8: Vec<i8> = neg_big_f.coefficients.iter().map(|&a| -a as i8).collect();
+        let big_f_i8: Vec<i8> = neg_big_f
+            .coefficients
+            .iter()
+            .map(|&a| FalconFelt::new(-a).balanced_value() as i8)
+            .collect();
         let big_f_i8_encoded = encode_i8(&big_f_i8, WIDTH_BIG_POLY_COEFFICIENT).unwrap();
         buffer.extend_from_slice(&big_f_i8_encoded);
         target.write_bytes(&buffer);
