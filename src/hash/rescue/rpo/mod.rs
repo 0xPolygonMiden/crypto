@@ -57,8 +57,8 @@ mod tests;
 /// ## Domain separation
 /// [merge_in_domain()](Rpo256::merge_in_domain) hashes two digests into one digest with some domain
 /// identifier and the current implementation sets the second capacity element to the value of
-/// this domain identifier. Using a similar argument as the one formulated for domain separation
-/// of the RPX hash function in Appendix C of [specifications](https://eprint.iacr.org/2023/1045),
+/// this domain identifier. Using a similar argument to the one formulated for domain separation of
+/// the RPX hash function in Appendix C of its [specification](https://eprint.iacr.org/2023/1045),
 /// one sees that doing so degrades only pre-image resistance, from its initial bound of c.log_2(p),
 /// by as much as the log_2 of the size of the domain identifier space. Since pre-image resistance
 /// becomes the bottleneck for the security bound of the sponge in overwrite-mode only when it is
