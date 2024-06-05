@@ -55,7 +55,7 @@ pub type CubicExtElement = CubeExtension<Felt>;
 /// to deserialize them into field elements and then hash them using
 /// [hash_elements()](Rpx256::hash_elements) function rather then hashing the serialized bytes
 /// using [hash()](Rpx256::hash) function.
-/// 
+///
 /// ## Domain separation
 /// [merge_in_domain()](Rpx256::merge_in_domain) hashes two digests into one digest with some domain
 /// identifier and the current implementation sets the second capacity element to the value of
