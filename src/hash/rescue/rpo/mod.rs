@@ -1,11 +1,10 @@
-use core::ops::Range;
-
 use super::{
     add_constants, add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox, apply_inv_sbox,
     apply_mds, apply_sbox, Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField, ARK1,
     ARK2, BINARY_CHUNK_SIZE, CAPACITY_RANGE, DIGEST_BYTES, DIGEST_RANGE, DIGEST_SIZE, INPUT1_RANGE,
     INPUT2_RANGE, MDS, NUM_ROUNDS, RATE_RANGE, RATE_WIDTH, STATE_WIDTH, ZERO,
 };
+use core::ops::Range;
 
 mod digest;
 pub use digest::{RpoDigest, RpoDigestError};
@@ -98,16 +97,16 @@ impl Hasher for Rpo256 {
         // every time the rate range is filled, a permutation is performed. if the final value of
         // `rate_pos` is not zero, then the chunks count wasn't enough to fill the state range,
         // and an additional permutation must be performed.
-        let mut current_element = 0_usize;
+        let mut current_chunk_idx = 0_usize;
         // handle the case of an empty `bytes`
-        let last_element = if num_field_elem == 0 {
-            current_element
+        let last_chunk_idx = if num_field_elem == 0 {
+            current_chunk_idx
         } else {
             num_field_elem - 1
         };
         let rate_pos = bytes.chunks(BINARY_CHUNK_SIZE).fold(0, |rate_pos, chunk| {
             // copy the chunk into the buffer
-            if current_element != last_element {
+            if current_chunk_idx != last_chunk_idx {
                 buf[..BINARY_CHUNK_SIZE].copy_from_slice(chunk);
             } else {
                 // on the last iteration, we pad `buf` with a 1 followed by as many 0's as are
@@ -116,7 +115,7 @@ impl Hasher for Rpo256 {
                 buf[..chunk.len()].copy_from_slice(chunk);
                 buf[chunk.len()] = 1;
             }
-            current_element += 1;
+            current_chunk_idx += 1;
 
             // set the current rate element to the input. since we take at most 7 bytes, we are
             // guaranteed that the inputs data will fit into a single field element.

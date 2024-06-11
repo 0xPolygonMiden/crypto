@@ -7,7 +7,10 @@ use super::{
     super::{apply_inv_sbox, apply_sbox, ALPHA, INV_ALPHA},
     Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, STATE_WIDTH, ZERO,
 };
-use crate::{Word, ONE};
+use crate::{
+    hash::rescue::{BINARY_CHUNK_SIZE, CAPACITY_RANGE, RATE_WIDTH},
+    Word, ONE,
+};
 
 #[test]
 fn test_sbox() {
@@ -124,6 +127,27 @@ fn hash_padding() {
     let r1 = Rpo256::hash(&[1_u8, 2, 3, 4, 5, 6, 7, 0, 0]);
     let r2 = Rpo256::hash(&[1_u8, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0]);
     assert_ne!(r1, r2);
+}
+
+#[test]
+fn hash_padding_no_extra_permutation_call() {
+    use crate::hash::rescue::DIGEST_RANGE;
+
+    // Implementation
+    let num_bytes = BINARY_CHUNK_SIZE * RATE_WIDTH;
+    let mut buffer = vec![0_u8; num_bytes];
+    *buffer.last_mut().unwrap() = 97;
+    let r1 = Rpo256::hash(&buffer);
+
+    // Expected
+    let final_chunk = [0_u8, 0, 0, 0, 0, 0, 97, 1];
+    let mut state = [ZERO; STATE_WIDTH];
+    // padding when hashing bytes
+    state[CAPACITY_RANGE.start] = Felt::from(RATE_WIDTH as u8);
+    *state.last_mut().unwrap() = Felt::new(u64::from_le_bytes(final_chunk));
+    Rpo256::apply_permutation(&mut state);
+
+    assert_eq!(&r1[0..4], &state[DIGEST_RANGE]);
 }
 
 #[test]
