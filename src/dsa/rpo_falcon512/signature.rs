@@ -43,7 +43,7 @@ use num::Zero;
 /// 2. 40 bytes for the nonce.
 /// 4. 625 bytes encoding the `s2` polynomial above.
 ///
-/// The total size of the signature is (including the extended public key) is 1563 bytes.
+/// The total size of the signature (including the extended public key) is 1563 bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Signature {
     header: SignatureHeader,
