@@ -118,26 +118,106 @@ impl Randomizable for RpxDigest {
 // CONVERSIONS: FROM RPX DIGEST
 // ================================================================================================
 
-impl From<&RpxDigest> for [Felt; DIGEST_SIZE] {
-    fn from(value: &RpxDigest) -> Self {
-        value.0
+#[derive(Copy, Clone, Debug)]
+pub enum RpxDigestError {
+    InvalidInteger,
+}
+
+impl TryFrom<&RpxDigest> for [bool; DIGEST_SIZE] {
+    type Error = RpxDigestError;
+
+    fn try_from(value: &RpxDigest) -> Result<Self, Self::Error> {
+        (*value).try_into()
     }
 }
 
-impl From<RpxDigest> for [Felt; DIGEST_SIZE] {
-    fn from(value: RpxDigest) -> Self {
-        value.0
+impl TryFrom<RpxDigest> for [bool; DIGEST_SIZE] {
+    type Error = RpxDigestError;
+
+    fn try_from(value: RpxDigest) -> Result<Self, Self::Error> {
+        fn to_bool(v: u64) -> Option<bool> {
+            if v <= 1 {
+                Some(v == 1)
+            } else {
+                None
+            }
+        }
+
+        Ok([
+            to_bool(value.0[0].as_int()).ok_or(RpxDigestError::InvalidInteger)?,
+            to_bool(value.0[1].as_int()).ok_or(RpxDigestError::InvalidInteger)?,
+            to_bool(value.0[2].as_int()).ok_or(RpxDigestError::InvalidInteger)?,
+            to_bool(value.0[3].as_int()).ok_or(RpxDigestError::InvalidInteger)?,
+        ])
+    }
+}
+
+impl TryFrom<&RpxDigest> for [u8; DIGEST_SIZE] {
+    type Error = RpxDigestError;
+
+    fn try_from(value: &RpxDigest) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<RpxDigest> for [u8; DIGEST_SIZE] {
+    type Error = RpxDigestError;
+
+    fn try_from(value: RpxDigest) -> Result<Self, Self::Error> {
+        Ok([
+            value.0[0].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[1].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[2].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[3].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+        ])
+    }
+}
+
+impl TryFrom<&RpxDigest> for [u16; DIGEST_SIZE] {
+    type Error = RpxDigestError;
+
+    fn try_from(value: &RpxDigest) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<RpxDigest> for [u16; DIGEST_SIZE] {
+    type Error = RpxDigestError;
+
+    fn try_from(value: RpxDigest) -> Result<Self, Self::Error> {
+        Ok([
+            value.0[0].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[1].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[2].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[3].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+        ])
+    }
+}
+
+impl TryFrom<&RpxDigest> for [u32; DIGEST_SIZE] {
+    type Error = RpxDigestError;
+
+    fn try_from(value: &RpxDigest) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<RpxDigest> for [u32; DIGEST_SIZE] {
+    type Error = RpxDigestError;
+
+    fn try_from(value: RpxDigest) -> Result<Self, Self::Error> {
+        Ok([
+            value.0[0].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[1].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[2].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[3].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+        ])
     }
 }
 
 impl From<&RpxDigest> for [u64; DIGEST_SIZE] {
     fn from(value: &RpxDigest) -> Self {
-        [
-            value.0[0].as_int(),
-            value.0[1].as_int(),
-            value.0[2].as_int(),
-            value.0[3].as_int(),
-        ]
+        (*value).into()
     }
 }
 
@@ -149,6 +229,18 @@ impl From<RpxDigest> for [u64; DIGEST_SIZE] {
             value.0[2].as_int(),
             value.0[3].as_int(),
         ]
+    }
+}
+
+impl From<&RpxDigest> for [Felt; DIGEST_SIZE] {
+    fn from(value: &RpxDigest) -> Self {
+        value.0
+    }
+}
+
+impl From<RpxDigest> for [Felt; DIGEST_SIZE] {
+    fn from(value: RpxDigest) -> Self {
+        value.0
     }
 }
 
@@ -164,13 +256,6 @@ impl From<RpxDigest> for [u8; DIGEST_BYTES] {
     }
 }
 
-impl From<RpxDigest> for String {
-    /// The returned string starts with `0x`.
-    fn from(value: RpxDigest) -> Self {
-        value.to_hex()
-    }
-}
-
 impl From<&RpxDigest> for String {
     /// The returned string starts with `0x`.
     fn from(value: &RpxDigest) -> Self {
@@ -178,13 +263,83 @@ impl From<&RpxDigest> for String {
     }
 }
 
+impl From<RpxDigest> for String {
+    /// The returned string starts with `0x`.
+    fn from(value: RpxDigest) -> Self {
+        value.to_hex()
+    }
+}
+
 // CONVERSIONS: TO RPX DIGEST
 // ================================================================================================
 
-#[derive(Copy, Clone, Debug)]
-pub enum RpxDigestError {
-    /// The provided u64 integer does not fit in the field's moduli.
-    InvalidInteger,
+impl From<&[bool; DIGEST_SIZE]> for RpxDigest {
+    fn from(value: &[bool; DIGEST_SIZE]) -> Self {
+        (*value).into()
+    }
+}
+
+impl From<[bool; DIGEST_SIZE]> for RpxDigest {
+    fn from(value: [bool; DIGEST_SIZE]) -> Self {
+        [value[0] as u32, value[1] as u32, value[2] as u32, value[3] as u32].into()
+    }
+}
+
+impl From<&[u8; DIGEST_SIZE]> for RpxDigest {
+    fn from(value: &[u8; DIGEST_SIZE]) -> Self {
+        (*value).into()
+    }
+}
+
+impl From<[u8; DIGEST_SIZE]> for RpxDigest {
+    fn from(value: [u8; DIGEST_SIZE]) -> Self {
+        Self([value[0].into(), value[1].into(), value[2].into(), value[3].into()])
+    }
+}
+
+impl From<&[u16; DIGEST_SIZE]> for RpxDigest {
+    fn from(value: &[u16; DIGEST_SIZE]) -> Self {
+        (*value).into()
+    }
+}
+
+impl From<[u16; DIGEST_SIZE]> for RpxDigest {
+    fn from(value: [u16; DIGEST_SIZE]) -> Self {
+        Self([value[0].into(), value[1].into(), value[2].into(), value[3].into()])
+    }
+}
+
+impl From<&[u32; DIGEST_SIZE]> for RpxDigest {
+    fn from(value: &[u32; DIGEST_SIZE]) -> Self {
+        (*value).into()
+    }
+}
+
+impl From<[u32; DIGEST_SIZE]> for RpxDigest {
+    fn from(value: [u32; DIGEST_SIZE]) -> Self {
+        Self([value[0].into(), value[1].into(), value[2].into(), value[3].into()])
+    }
+}
+
+impl TryFrom<&[u64; DIGEST_SIZE]> for RpxDigest {
+    type Error = RpxDigestError;
+
+    fn try_from(value: &[u64; DIGEST_SIZE]) -> Result<Self, RpxDigestError> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<[u64; DIGEST_SIZE]> for RpxDigest {
+    type Error = RpxDigestError;
+
+    fn try_from(value: [u64; DIGEST_SIZE]) -> Result<Self, RpxDigestError> {
+        Ok(Self([
+            value[0].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value[1].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value[2].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value[3].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+        ]))
+    }
 }
 
 impl From<&[Felt; DIGEST_SIZE]> for RpxDigest {
@@ -196,6 +351,14 @@ impl From<&[Felt; DIGEST_SIZE]> for RpxDigest {
 impl From<[Felt; DIGEST_SIZE]> for RpxDigest {
     fn from(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
+    }
+}
+
+impl TryFrom<&[u8; DIGEST_BYTES]> for RpxDigest {
+    type Error = HexParseError;
+
+    fn try_from(value: &[u8; DIGEST_BYTES]) -> Result<Self, Self::Error> {
+        (*value).try_into()
     }
 }
 
@@ -218,39 +381,10 @@ impl TryFrom<[u8; DIGEST_BYTES]> for RpxDigest {
     }
 }
 
-impl TryFrom<&[u8; DIGEST_BYTES]> for RpxDigest {
-    type Error = HexParseError;
-
-    fn try_from(value: &[u8; DIGEST_BYTES]) -> Result<Self, Self::Error> {
-        (*value).try_into()
-    }
-}
-
 impl TryFrom<&[u8]> for RpxDigest {
     type Error = HexParseError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        (*value).try_into()
-    }
-}
-
-impl TryFrom<[u64; DIGEST_SIZE]> for RpxDigest {
-    type Error = RpxDigestError;
-
-    fn try_from(value: [u64; DIGEST_SIZE]) -> Result<Self, RpxDigestError> {
-        Ok(Self([
-            value[0].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value[1].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value[2].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value[3].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-        ]))
-    }
-}
-
-impl TryFrom<&[u64; DIGEST_SIZE]> for RpxDigest {
-    type Error = RpxDigestError;
-
-    fn try_from(value: &[u64; DIGEST_SIZE]) -> Result<Self, RpxDigestError> {
         (*value).try_into()
     }
 }
@@ -260,16 +394,7 @@ impl TryFrom<&str> for RpxDigest {
 
     /// Expects the string to start with `0x`.
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        hex_to_bytes(value).and_then(|v| v.try_into())
-    }
-}
-
-impl TryFrom<String> for RpxDigest {
-    type Error = HexParseError;
-
-    /// Expects the string to start with `0x`.
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        value.as_str().try_into()
+        hex_to_bytes::<DIGEST_BYTES>(value).and_then(RpxDigest::try_from)
     }
 }
 
@@ -278,6 +403,15 @@ impl TryFrom<&String> for RpxDigest {
 
     /// Expects the string to start with `0x`.
     fn try_from(value: &String) -> Result<Self, Self::Error> {
+        value.as_str().try_into()
+    }
+}
+
+impl TryFrom<String> for RpxDigest {
+    type Error = HexParseError;
+
+    /// Expects the string to start with `0x`.
+    fn try_from(value: String) -> Result<Self, Self::Error> {
         value.as_str().try_into()
     }
 }
@@ -305,6 +439,17 @@ impl Deserializable for RpxDigest {
         }
 
         Ok(Self(inner))
+    }
+}
+
+// ITERATORS
+// ================================================================================================
+impl IntoIterator for RpxDigest {
+    type Item = Felt;
+    type IntoIter = <[Felt; 4] as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -338,7 +483,6 @@ mod tests {
         assert_eq!(d1, d2);
     }
 
-    #[cfg(feature = "std")]
     #[test]
     fn digest_encoding() {
         let digest = RpxDigest([
@@ -363,27 +507,33 @@ mod tests {
             Felt::new(rand_value()),
         ]);
 
-        let v: [Felt; DIGEST_SIZE] = digest.into();
+        // BY VALUE
+        // ----------------------------------------------------------------------------------------
+        let v: [bool; DIGEST_SIZE] = [true, false, true, true];
         let v2: RpxDigest = v.into();
-        assert_eq!(digest, v2);
+        assert_eq!(v, <[bool; DIGEST_SIZE]>::try_from(v2).unwrap());
 
-        let v: [Felt; DIGEST_SIZE] = (&digest).into();
+        let v: [u8; DIGEST_SIZE] = [0_u8, 1_u8, 2_u8, 3_u8];
         let v2: RpxDigest = v.into();
-        assert_eq!(digest, v2);
+        assert_eq!(v, <[u8; DIGEST_SIZE]>::try_from(v2).unwrap());
+
+        let v: [u16; DIGEST_SIZE] = [0_u16, 1_u16, 2_u16, 3_u16];
+        let v2: RpxDigest = v.into();
+        assert_eq!(v, <[u16; DIGEST_SIZE]>::try_from(v2).unwrap());
+
+        let v: [u32; DIGEST_SIZE] = [0_u32, 1_u32, 2_u32, 3_u32];
+        let v2: RpxDigest = v.into();
+        assert_eq!(v, <[u32; DIGEST_SIZE]>::try_from(v2).unwrap());
 
         let v: [u64; DIGEST_SIZE] = digest.into();
         let v2: RpxDigest = v.try_into().unwrap();
         assert_eq!(digest, v2);
 
-        let v: [u64; DIGEST_SIZE] = (&digest).into();
-        let v2: RpxDigest = v.try_into().unwrap();
+        let v: [Felt; DIGEST_SIZE] = digest.into();
+        let v2: RpxDigest = v.into();
         assert_eq!(digest, v2);
 
         let v: [u8; DIGEST_BYTES] = digest.into();
-        let v2: RpxDigest = v.try_into().unwrap();
-        assert_eq!(digest, v2);
-
-        let v: [u8; DIGEST_BYTES] = (&digest).into();
         let v2: RpxDigest = v.try_into().unwrap();
         assert_eq!(digest, v2);
 
@@ -391,15 +541,37 @@ mod tests {
         let v2: RpxDigest = v.try_into().unwrap();
         assert_eq!(digest, v2);
 
-        let v: String = (&digest).into();
-        let v2: RpxDigest = v.try_into().unwrap();
-        assert_eq!(digest, v2);
+        // BY REF
+        // ----------------------------------------------------------------------------------------
+        let v: [bool; DIGEST_SIZE] = [true, false, true, true];
+        let v2: RpxDigest = (&v).into();
+        assert_eq!(v, <[bool; DIGEST_SIZE]>::try_from(&v2).unwrap());
 
-        let v: [u8; DIGEST_BYTES] = digest.into();
+        let v: [u8; DIGEST_SIZE] = [0_u8, 1_u8, 2_u8, 3_u8];
+        let v2: RpxDigest = (&v).into();
+        assert_eq!(v, <[u8; DIGEST_SIZE]>::try_from(&v2).unwrap());
+
+        let v: [u16; DIGEST_SIZE] = [0_u16, 1_u16, 2_u16, 3_u16];
+        let v2: RpxDigest = (&v).into();
+        assert_eq!(v, <[u16; DIGEST_SIZE]>::try_from(&v2).unwrap());
+
+        let v: [u32; DIGEST_SIZE] = [0_u32, 1_u32, 2_u32, 3_u32];
+        let v2: RpxDigest = (&v).into();
+        assert_eq!(v, <[u32; DIGEST_SIZE]>::try_from(&v2).unwrap());
+
+        let v: [u64; DIGEST_SIZE] = (&digest).into();
         let v2: RpxDigest = (&v).try_into().unwrap();
         assert_eq!(digest, v2);
 
+        let v: [Felt; DIGEST_SIZE] = (&digest).into();
+        let v2: RpxDigest = (&v).into();
+        assert_eq!(digest, v2);
+
         let v: [u8; DIGEST_BYTES] = (&digest).into();
+        let v2: RpxDigest = (&v).try_into().unwrap();
+        assert_eq!(digest, v2);
+
+        let v: String = (&digest).into();
         let v2: RpxDigest = (&v).try_into().unwrap();
         assert_eq!(digest, v2);
     }

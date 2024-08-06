@@ -8,7 +8,7 @@ use super::{
 };
 
 mod digest;
-pub use digest::RpoDigest;
+pub use digest::{RpoDigest, RpoDigestError};
 
 #[cfg(test)]
 mod tests;
@@ -22,9 +22,10 @@ mod tests;
 /// [specifications](https://eprint.iacr.org/2022/1577)
 ///
 /// The parameters used to instantiate the function are:
-/// * Field: 64-bit prime field with modulus 2^64 - 2^32 + 1.
+/// * Field: 64-bit prime field with modulus p = 2^64 - 2^32 + 1.
 /// * State width: 12 field elements.
-/// * Capacity size: 4 field elements.
+/// * Rate size: r = 8 field elements.
+/// * Capacity size: c = 4 field elements.
 /// * Number of founds: 7.
 /// * S-Box degree: 7.
 ///
@@ -52,6 +53,17 @@ mod tests;
 /// to deserialize them into field elements and then hash them using
 /// [hash_elements()](Rpo256::hash_elements) function rather then hashing the serialized bytes
 /// using [hash()](Rpo256::hash) function.
+///
+/// ## Domain separation
+/// [merge_in_domain()](Rpo256::merge_in_domain) hashes two digests into one digest with some domain
+/// identifier and the current implementation sets the second capacity element to the value of
+/// this domain identifier. Using a similar argument to the one formulated for domain separation of
+/// the RPX hash function in Appendix C of its [specification](https://eprint.iacr.org/2023/1045),
+/// one sees that doing so degrades only pre-image resistance, from its initial bound of c.log_2(p),
+/// by as much as the log_2 of the size of the domain identifier space. Since pre-image resistance
+/// becomes the bottleneck for the security bound of the sponge in overwrite-mode only when it is
+/// lower than 2^128, we see that the target 128-bit security level is maintained as long as
+/// the size of the domain identifier space, including for padding, is less than 2^128.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rpo256();
 

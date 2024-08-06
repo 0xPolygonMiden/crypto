@@ -126,11 +126,10 @@ impl<K: Ord + Clone, V: Clone> KvMap<K, V> for RecordingMap<K, V> {
     ///
     /// If the key is part of the initial data set, the key access is recorded.
     fn get(&self, key: &K) -> Option<&V> {
-        self.data.get(key).map(|value| {
+        self.data.get(key).inspect(|&value| {
             if !self.updates.contains(key) {
                 self.trace.borrow_mut().insert(key.clone(), value.clone());
             }
-            value
         })
     }
 
@@ -155,11 +154,10 @@ impl<K: Ord + Clone, V: Clone> KvMap<K, V> for RecordingMap<K, V> {
     /// returned.
     fn insert(&mut self, key: K, value: V) -> Option<V> {
         let new_update = self.updates.insert(key.clone());
-        self.data.insert(key.clone(), value).map(|old_value| {
+        self.data.insert(key.clone(), value).inspect(|old_value| {
             if new_update {
                 self.trace.borrow_mut().insert(key, old_value.clone());
             }
-            old_value
         })
     }
 
@@ -167,12 +165,11 @@ impl<K: Ord + Clone, V: Clone> KvMap<K, V> for RecordingMap<K, V> {
     ///
     /// If the key exists in the data set, the old value is returned.
     fn remove(&mut self, key: &K) -> Option<V> {
-        self.data.remove(key).map(|old_value| {
+        self.data.remove(key).inspect(|old_value| {
             let new_update = self.updates.insert(key.clone());
             if new_update {
                 self.trace.borrow_mut().insert(key.clone(), old_value.clone());
             }
-            old_value
         })
     }
 

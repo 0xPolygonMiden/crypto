@@ -1,3 +1,9 @@
+## 0.10.0 (2024-08-06)
+
+* Added more `RpoDigest` and `RpxDigest` conversions (#311).
+* [BREAKING] Migrated to Winterfell v0.9 (#315).
+* Fixed encoding of Falcon secret key (#319).
+
 ## 0.9.3 (2024-04-24)
 
 * Added `RpxRandomCoin` struct (#307).
