@@ -263,6 +263,28 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         leaf.hash()
     }
 
+    fn construct_prospective_leaf(
+        &self,
+        mut existing_leaf: SmtLeaf,
+        key: &RpoDigest,
+        value: &Word,
+    ) -> SmtLeaf {
+        debug_assert_eq!(existing_leaf.index(), Self::key_to_leaf_index(key));
+
+        match existing_leaf {
+            SmtLeaf::Empty(_) => SmtLeaf::new_single(*key, *value),
+            _ => {
+                if *value != EMPTY_WORD {
+                    existing_leaf.insert(*key, *value);
+                } else {
+                    existing_leaf.remove(*key);
+                }
+
+                existing_leaf
+            },
+        }
+    }
+
     fn key_to_leaf_index(key: &RpoDigest) -> LeafIndex<SMT_DEPTH> {
         let most_significant_felt = key[3];
         LeafIndex::new_max_depth(most_significant_felt.as_int())

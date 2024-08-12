@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
 use crate::{
-    merkle::{EmptySubtreeRoots, MerkleStore},
+    merkle::{smt::SparseMerkleTree, EmptySubtreeRoots, MerkleStore},
     utils::{Deserializable, Serializable},
     Word, ONE, WORD_SIZE,
 };
@@ -255,6 +255,119 @@ fn test_smt_removal() {
         assert_eq!(old_value_1, value_1);
 
         assert_eq!(smt.get_leaf(&key_1), SmtLeaf::new_empty(key_1.into()));
+    }
+}
+
+/// This tests that we can correctly calculate prospective leaves -- that is, we can construct
+/// correct [`SmtLeaf`] values for a theoretical insertion on a Merkle tree without mutating or
+/// cloning the tree.
+#[test]
+fn test_prospective_hash() {
+    let mut smt = Smt::default();
+
+    let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), Felt::new(raw)]);
+    // Sort key_3 before key_1, to test non-append insertion.
+    let key_3: RpoDigest =
+        RpoDigest::from([0_u32.into(), 0_u32.into(), 0_u32.into(), Felt::new(raw)]);
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
+    let value_3: [Felt; 4] = [3_u32.into(); WORD_SIZE];
+
+    // insert key-value 1
+    {
+        let prospective =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_1), &key_1, &value_1).hash();
+        smt.insert(key_1, value_1);
+
+        let leaf = smt.get_leaf(&key_1);
+        assert_eq!(
+            prospective,
+            leaf.hash(),
+            "prospective hash for leaf {leaf:?} did not match actual hash",
+        );
+    }
+
+    // insert key-value 2
+    {
+        let prospective =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_2), &key_2, &value_2).hash();
+        smt.insert(key_2, value_2);
+
+        let leaf = smt.get_leaf(&key_2);
+        assert_eq!(
+            prospective,
+            leaf.hash(),
+            "prospective hash for leaf {leaf:?} did not match actual hash",
+        );
+    }
+
+    // insert key-value 3
+    {
+        let prospective =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_3), &key_3, &value_3).hash();
+        smt.insert(key_3, value_3);
+
+        let leaf = smt.get_leaf(&key_3);
+        assert_eq!(
+            prospective,
+            leaf.hash(),
+            "prospective hash for leaf {leaf:?} did not match actual hash",
+        );
+    }
+
+    // remove key 3
+    {
+        let old_leaf = smt.get_leaf(&key_3);
+        let old_value_3 = smt.insert(key_3, EMPTY_WORD);
+        assert_eq!(old_value_3, value_3);
+        let prospective_leaf =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_3), &key_3, &old_value_3);
+
+        assert_eq!(
+            old_leaf.hash(),
+            prospective_leaf.hash(),
+            "removing and prospectively re-adding a leaf didn't yield the original leaf:\
+            \n  original leaf:    {old_leaf:?}\
+            \n  prospective leaf: {prospective_leaf:?}",
+        );
+    }
+
+    // remove key 2
+    {
+        let old_leaf = smt.get_leaf(&key_2);
+        let old_value_2 = smt.insert(key_2, EMPTY_WORD);
+        assert_eq!(old_value_2, value_2);
+        let prospective_leaf =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_2), &key_2, &old_value_2);
+
+        assert_eq!(
+            old_leaf.hash(),
+            prospective_leaf.hash(),
+            "removing and prospectively re-adding a leaf didn't yield the original leaf:\
+            \n  original leaf:    {old_leaf:?}\
+            \n  prospective leaf: {prospective_leaf:?}",
+        );
+    }
+
+    // remove key 1
+    {
+        let old_leaf = smt.get_leaf(&key_1);
+        let old_value_1 = smt.insert(key_1, EMPTY_WORD);
+        assert_eq!(old_value_1, value_1);
+        let prospective_leaf =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_1), &key_1, &old_value_1);
+        assert_eq!(
+            old_leaf.hash(),
+            prospective_leaf.hash(),
+            "removing and prospectively re-adding a leaf didn't yield the original leaf:\
+            \n  original leaf:    {old_leaf:?}\
+            \n  prospective leaf: {prospective_leaf:?}",
+        );
     }
 }
 

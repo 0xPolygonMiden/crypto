@@ -302,6 +302,15 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
         leaf.into()
     }
 
+    fn construct_prospective_leaf(
+        &self,
+        _existing_leaf: Word,
+        _key: &LeafIndex<DEPTH>,
+        value: &Word,
+    ) -> Word {
+        *value
+    }
+
     fn key_to_leaf_index(key: &LeafIndex<DEPTH>) -> LeafIndex<DEPTH> {
         *key
     }

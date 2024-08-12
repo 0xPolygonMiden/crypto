@@ -167,6 +167,24 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Returns the hash of a leaf
     fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest;
 
+    /// Returns what a leaf would look like if a key-value pair were inserted into the tree, without
+    /// mutating the tree itself. The existing leaf can be empty.
+    ///
+    /// To get a prospective leaf based on the current state of the tree, use `self.get_leaf(key)`
+    /// as the argument for `existing_leaf`. The return value from this function can be chained back
+    /// into this function as the first argument to continue making prospective changes.
+    ///
+    /// # Invariants
+    /// Because this method is for a prospective key-value insertion into a specific leaf,
+    /// `existing_leaf` must have the same leaf index as `key` (as determined by
+    /// [`SparseMerkleTree::key_to_leaf_index()`]), or the result will be meaningless.
+    fn construct_prospective_leaf(
+        &self,
+        existing_leaf: Self::Leaf,
+        key: &Self::Key,
+        value: &Self::Value,
+    ) -> Self::Leaf;
+
     /// Maps a key to a leaf index
     fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
 
