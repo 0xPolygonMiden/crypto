@@ -83,4 +83,3 @@ description = "Build with SVE acceleration"
 env = { "RUSTFLAGS" = "-C target-feature=+sve" }
 command = "cargo"
 args = ["build", "--release"]
-
