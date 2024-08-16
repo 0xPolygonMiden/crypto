@@ -1,34 +1,28 @@
-# Runs testing related jobs
+# Runs test related jobs.
 
 name: test
 
 on:
   push:
-    branches:
-      - main
+    branches: [main, next]
   pull_request:
     types: [opened, reopened, synchronize]
 
 jobs:
   test:
-    name: test ${{matrix.toolchain}} on ${{matrix.os}} with ${{matrix.features}}
+    name: test ${{matrix.toolchain}} on ${{matrix.os}} with ${{matrix.args}}
     runs-on: ${{matrix.os}}-latest
     strategy:
       fail-fast: false
       matrix:
         toolchain: [stable, nightly]
         os: [ubuntu]
-        features: ["test", "test-no-default-features"]
+        args: [default, no-default]
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Install rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{matrix.toolchain}}
-          override: true
-      - uses: davidB/rust-cargo-make@v1
-      - name: cargo make - test
-        run: cargo make ${{matrix.features}}
+      - uses: actions/checkout@main
+      - uses: taiki-e/install-action@nextest
+      - name: Perform tests
+        run: |
+          rustup update --no-self-update ${{matrix.toolchain}}
+          make test-${{matrix.args}}
