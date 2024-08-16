@@ -33,22 +33,22 @@ impl fmt::Display for MerkleError {
             DuplicateValuesForKey(key) => write!(f, "multiple values provided for key {key}"),
             InvalidIndex { depth, value } => {
                 write!(f, "the index value {value} is not valid for the depth {depth}")
-            }
+            },
             InvalidDepth { expected, provided } => {
                 write!(f, "the provided depth {provided} is not valid for {expected}")
-            }
+            },
             InvalidSubtreeDepth { subtree_depth, tree_depth } => {
                 write!(f, "tried inserting a subtree of depth {subtree_depth} into a tree of depth {tree_depth}")
-            }
+            },
             InvalidPath(_path) => write!(f, "the provided path is not valid"),
             InvalidNumEntries(max) => write!(f, "number of entries exceeded the maximum: {max}"),
             NodeNotInSet(index) => write!(f, "the node with index ({index}) is not in the set"),
             NodeNotInStore(hash, index) => {
                 write!(f, "the node {hash:?} with index ({index}) is not in the store")
-            }
+            },
             NumLeavesNotPowerOfTwo(leaves) => {
                 write!(f, "the leaves count {leaves} is not a power of 2")
-            }
+            },
             RootNotInStore(root) => write!(f, "the root {:?} is not in the store", root),
             SmtLeaf(smt_leaf_error) => write!(f, "smt leaf error: {smt_leaf_error}"),
         }

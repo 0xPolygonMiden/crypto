@@ -1,11 +1,12 @@
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    vec::Vec,
+};
+
 use super::{MmrDelta, MmrProof, Rpo256, RpoDigest};
 use crate::merkle::{
     mmr::{leaf_to_corresponding_tree, nodes_in_forest},
     InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks,
-};
-use alloc::{
-    collections::{BTreeMap, BTreeSet},
-    vec::Vec,
 };
 
 // TYPE ALIASES
@@ -613,12 +614,13 @@ fn forest_to_rightmost_index(forest: usize) -> InOrderIndex {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{collections::BTreeSet, vec::Vec};
+
     use super::{
         forest_to_rightmost_index, forest_to_root_index, InOrderIndex, MmrPeaks, PartialMmr,
         RpoDigest,
     };
     use crate::merkle::{int_to_node, MerkleStore, Mmr, NodeIndex};
-    use alloc::{collections::BTreeSet, vec::Vec};
 
     const LEAVES: [RpoDigest; 7] = [
         int_to_node(0),

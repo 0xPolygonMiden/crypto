@@ -1,5 +1,6 @@
-use super::{super::ZERO, Felt, MmrError, MmrProof, Rpo256, RpoDigest, Word};
 use alloc::vec::Vec;
+
+use super::{super::ZERO, Felt, MmrError, MmrProof, Rpo256, RpoDigest, Word};
 
 // MMR PEAKS
 // ================================================================================================
@@ -18,12 +19,12 @@ pub struct MmrPeaks {
     ///
     /// Examples:
     ///
-    ///    - With 5 leaves, the binary `0b101`. The number of set bits is equal the number
-    ///      of peaks, in this case there are 2 peaks. The 0-indexed least-significant position of
-    ///      the bit determines the number of elements of a tree, so the rightmost tree has `2**0`
+    ///    - With 5 leaves, the binary `0b101`. The number of set bits is equal the number of
+    ///      peaks, in this case there are 2 peaks. The 0-indexed least-significant position of the
+    ///      bit determines the number of elements of a tree, so the rightmost tree has `2**0`
     ///      elements and the left most has `2**2`.
-    ///    - With 12 leaves, the binary is `0b1100`, this case also has 2 peaks, the
-    ///      leftmost tree has `2**3=8` elements, and the right most has `2**2=4` elements.
+    ///    - With 12 leaves, the binary is `0b1100`, this case also has 2 peaks, the leftmost tree
+    ///      has `2**3=8` elements, and the right most has `2**2=4` elements.
     num_leaves: usize,
 
     /// All the peaks of every tree in the MMR forest. The peaks are always ordered by number of
@@ -94,16 +95,15 @@ impl MmrPeaks {
     /// - Flatten the vector of Words into a vector of Felts.
     /// - Pad the peaks with ZERO to an even number of words, this removes the need to handle RPO
     ///   padding.
-    /// - Pad the peaks to a minimum length of 16 words, which reduces the constant cost of
-    ///   hashing.
+    /// - Pad the peaks to a minimum length of 16 words, which reduces the constant cost of hashing.
     pub fn flatten_and_pad_peaks(&self) -> Vec<Felt> {
         let num_peaks = self.peaks.len();
 
         // To achieve the padding rules above we calculate the length of the final vector.
         // This is calculated as the number of field elements. Each peak is 4 field elements.
         // The length is calculated as follows:
-        // - If there are less than 16 peaks, the data is padded to 16 peaks and as such requires
-        //   64 field elements.
+        // - If there are less than 16 peaks, the data is padded to 16 peaks and as such requires 64
+        //   field elements.
         // - If there are more than 16 peaks and the number of peaks is odd, the data is padded to
         //   an even number of peaks and as such requires `(num_peaks + 1) * 4` field elements.
         // - If there are more than 16 peaks and the number of peaks is even, the data is not padded

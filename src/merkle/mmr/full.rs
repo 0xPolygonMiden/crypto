@@ -10,13 +10,14 @@
 //! depths, i.e. as part of adding adding a new element to the forest the trees with same depth are
 //! merged, creating a new tree with depth d+1, this process is continued until the property is
 //! reestablished.
+use alloc::vec::Vec;
+
 use super::{
     super::{InnerNodeInfo, MerklePath},
     bit::TrueBitPositionIterator,
     leaf_to_corresponding_tree, nodes_in_forest, MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256,
     RpoDigest,
 };
-use alloc::vec::Vec;
 
 // MMR
 // ===============================================================================================
@@ -377,7 +378,8 @@ impl<'a> Iterator for MmrNodes<'a> {
             // the next parent position is one above the position of the pair
             let parent = self.last_right << 1;
 
-            // the left node has been paired and the current parent yielded, removed it from the forest
+            // the left node has been paired and the current parent yielded, removed it from the
+            // forest
             self.forest ^= self.last_right;
             if self.forest & parent == 0 {
                 // this iteration yielded the left parent node

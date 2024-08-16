@@ -1,10 +1,11 @@
+use alloc::vec::Vec;
+
 use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
 use crate::{
     merkle::{EmptySubtreeRoots, MerkleStore},
     utils::{Deserializable, Serializable},
     Word, ONE, WORD_SIZE,
 };
-use alloc::vec::Vec;
 
 // SMT
 // --------------------------------------------------------------------------------------------

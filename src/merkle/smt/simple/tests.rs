@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use super::{
     super::{MerkleError, RpoDigest, SimpleSmt},
     NodeIndex,
@@ -10,7 +12,6 @@ use crate::{
     },
     Word, EMPTY_WORD,
 };
-use alloc::vec::Vec;
 
 // TEST DATA
 // ================================================================================================
