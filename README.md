@@ -4,8 +4,7 @@
 [![test](https://github.com/0xPolygonMiden/crypto/actions/workflows/test.yml/badge.svg)](https://github.com/0xPolygonMiden/crypto/actions/workflows/test.yml)
 [![build](https://github.com/0xPolygonMiden/crypto/actions/workflows/build.yml/badge.svg)](https://github.com/0xPolygonMiden/crypto/actions/workflows/build.yml)
 [![RUST_VERSION](https://img.shields.io/badge/rustc-1.80+-lightgray.svg)](https://www.rust-lang.org/tools/install)
-[![GitHub Release](https://img.shields.io/github/release/0xPolygonMiden/miden-crypto)](https://github.com/0xPolygonMiden/miden-crypto/releases/)
-[![CRATE](https://img.shields.io/crates/v/miden-crypto)](https://crates.io/crates/miden-crypto)
+[![GitHub Release](https://img.shields.io/github/release/0xPolygonMiden/crypto)](https://github.com/0xPolygonMiden/crypto/releases/)
 
 This crate contains cryptographic primitives used in Polygon Miden.
 
