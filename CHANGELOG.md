@@ -1,3 +1,8 @@
+## 0.11.0 (TBD)
+
+- [BREAKING]: renamed `Mmr::open()` into `Mmr::open_at()` and `Mmr::peaks()` into `Mmr::peaks_at()` (#234).
+- Added `Mmr::open()` and `Mmr::peaks()` which rely on `Mmr::open_at()` and `Mmr::peaks()` respectively (#234).
+
 ## 0.10.0 (2024-08-06)
 
 * Added more `RpoDigest` and `RpxDigest` conversions (#311).
