@@ -69,7 +69,7 @@ build: ## By default we should build in release mode
 
 .PHONY: build-no-std
 build-no-std: ## Build without the standard library
-	cargo build --no-default-features --target wasm32-unknown-unknown
+	cargo build --release --no-default-features --target wasm32-unknown-unknown
 
 .PHONY: build-avx2
 build-avx2: ## Build with avx2 support

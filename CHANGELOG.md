@@ -1,9 +1,12 @@
+## 0.11.0 (release date)
+
+- Standardised CI and Makefile across Miden repos (#323).
+
 ## 0.10.0 (2024-08-06)
 
 - Added more `RpoDigest` and `RpxDigest` conversions (#311).
 - [BREAKING] Migrated to Winterfell v0.9 (#315).
 - Fixed encoding of Falcon secret key (#319).
-- Standardised CI and Makefile across Miden repos (#323).
 
 ## 0.9.3 (2024-04-24)
 
