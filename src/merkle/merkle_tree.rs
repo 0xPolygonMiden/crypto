@@ -158,7 +158,7 @@ impl MerkleTree {
 
         // Safety: the length of nodes is guaranteed to contain pairs of words; hence, pairs of
         // digests. we explicitly bind the lifetime here so we add an extra layer of guarantee that
-        // `self.nodes` will be moved only if `pairs` is moved as well. also, the algorithm is
+        // `self.nodes` will be moved only if `pairs` are moved as well. also, the algorithm is
         // logically guaranteed to not overlap write positions as the write index is always half
         // the index from which we read the digest input.
         let ptr = self.nodes.as_ptr() as *const [RpoDigest; 2];
