@@ -73,7 +73,7 @@ where
         rev
     }
 
-    /// Computes the first n powers of the 2nth root of unity, and put them in bit-reversed order.
+    /// Computes the first n powers of the 2nd root of unity, and put them in bit-reversed order.
     #[allow(dead_code)]
     fn bitreversed_powers(n: usize) -> Vec<Self> {
         let psi = Self::primitive_root_of_unity(2 * n);
@@ -169,7 +169,7 @@ where
     ///    order 2n. You can use
     ///    `Self::bitreversed_powers(Self::inverse_or_zero(psi), n)` for
     ///    this purpose, but this trait implementation is not const. For
-    ///    the performance benefit you want a precompiled array, which you
+    ///    the performance benefit you want is a precompiled array, which you
     ///    can get if you can get by implementing the same methods and marking
     ///    them "const".
     fn ifft(a: &mut [Self], psi_inv_rev: &[Self], ninv: Self) {
