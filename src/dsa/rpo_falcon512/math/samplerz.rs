@@ -121,7 +121,7 @@ mod test {
 
     use super::{approx_exp, ber_exp, sampler_z};
 
-    /// RNG used only for testing purposes, whereby the produced
+    /// RNG is used only for testing purposes, whereby the produced
     /// string of random bytes is equal to the one it is initialized
     /// with. Whatever you do, do not use this RNG in production.
     struct UnsafeBufferRng {
