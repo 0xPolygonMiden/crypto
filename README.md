@@ -4,7 +4,7 @@
 [![test](https://github.com/0xPolygonMiden/crypto/actions/workflows/test.yml/badge.svg)](https://github.com/0xPolygonMiden/crypto/actions/workflows/test.yml)
 [![build](https://github.com/0xPolygonMiden/crypto/actions/workflows/build.yml/badge.svg)](https://github.com/0xPolygonMiden/crypto/actions/workflows/build.yml)
 [![RUST_VERSION](https://img.shields.io/badge/rustc-1.80+-lightgray.svg)](https://www.rust-lang.org/tools/install)
-[![GitHub Release](https://img.shields.io/github/release/0xPolygonMiden/crypto)](https://github.com/0xPolygonMiden/crypto/releases/)
+[![CRATE](https://img.shields.io/crates/v/miden-crypto)](https://crates.io/crates/miden-crypto)
 
 This crate contains cryptographic primitives used in Polygon Miden.
 
@@ -47,6 +47,14 @@ For the above signatures, key generation, signing, and signature verification ar
 - `FeltRng`: a trait for generating random field elements and random 4 field elements.
 - `RpoRandomCoin`: a struct implementing `FeltRng` as well as the [`RandomCoin`](https://github.com/facebook/winterfell/blob/main/crypto/src/random/mod.rs) trait using RPO hash function.
 - `RpxRandomCoin`: a struct implementing `FeltRng` as well as the [`RandomCoin`](https://github.com/facebook/winterfell/blob/main/crypto/src/random/mod.rs) trait using RPX hash function.
+
+## Make commands
+
+We use `make` to automate building, testing, and other processes. In most cases, `make` commands are wrappers around `cargo` commands with specific arguments. You can view the list of available commands in the [Makefile](Makefile), or run the following command:
+
+```shell
+make
+```
 
 ## Crate features
 
