@@ -12,48 +12,48 @@ DEBUG_OVERFLOW_INFO=RUSTFLAGS="-C debug-assertions -C overflow-checks -C debugin
 # -- linting --------------------------------------------------------------------------------------
 
 .PHONY: clippy
-clippy: ## Runs Clippy with configs
+clippy: ## Run Clippy with configs
 	$(WARNINGS) cargo +nightly clippy --workspace --all-targets --all-features
 
 
 .PHONY: fix
-fix: ## Runs Fix with configs
+fix: ## Run Fix with configs
 	cargo +nightly fix --allow-staged --allow-dirty --all-targets --all-features
 
 
 .PHONY: format
-format: ## Runs Format using nightly toolchain
+format: ## Run Format using nightly toolchain
 	cargo +nightly fmt --all
 
 
 .PHONY: format-check
-format-check: ## Runs Format using nightly toolchain but only in check mode
+format-check: ## Run Format using nightly toolchain but only in check mode
 	cargo +nightly fmt --all --check
 
 
 .PHONY: lint
-lint: format fix clippy ## Runs all linting tasks at once (Clippy, fixing, formatting)
+lint: format fix clippy ## Run all linting tasks at once (Clippy, fixing, formatting)
 
 # --- docs ----------------------------------------------------------------------------------------
 
 .PHONY: doc
-doc: ## Generates & checks documentation
+doc: ## Generate and check documentation
 	$(WARNINGS) cargo doc --all-features --keep-going --release
 
 # --- testing -------------------------------------------------------------------------------------
 
 .PHONY: test-default
-test-default: ## Run default tests
+test-default: ## Run tests with default features
 	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile default --release --all-features
 
 
-.PHONY: test-no-default
-test-no-default: ## Run tests with `no-default-features`
+.PHONY: test-no-std
+test-no-std: ## Run tests with `no-default-features` (std)
 	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile default --release --no-default-features
 
 
 .PHONY: test
-test: test-default test-no-default ## Run all tests
+test: test-default test-no-std ## Run all tests
 
 # --- checking ------------------------------------------------------------------------------------
 
@@ -64,7 +64,7 @@ check: ## Check all targets and features for errors without code generation
 # --- building ------------------------------------------------------------------------------------
 
 .PHONY: build
-build: ## By default we should build in release mode
+build: ## Build with default features enabled
 	cargo build --release
 
 .PHONY: build-no-std
