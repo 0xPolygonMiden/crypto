@@ -690,18 +690,18 @@ mod tests {
         // build an MMR with 10 nodes (2 peaks) and a partial MMR based on it
         let mut mmr = Mmr::default();
         (0..10).for_each(|i| mmr.add(int_to_node(i)));
-        let mut partial_mmr: PartialMmr = mmr.peaks(mmr.forest()).unwrap().into();
+        let mut partial_mmr: PartialMmr = mmr.peaks().into();
 
         // add authentication path for position 1 and 8
         {
             let node = mmr.get(1).unwrap();
-            let proof = mmr.open(1, mmr.forest()).unwrap();
+            let proof = mmr.open(1).unwrap();
             partial_mmr.track(1, node, &proof.merkle_path).unwrap();
         }
 
         {
             let node = mmr.get(8).unwrap();
-            let proof = mmr.open(8, mmr.forest()).unwrap();
+            let proof = mmr.open(8).unwrap();
             partial_mmr.track(8, node, &proof.merkle_path).unwrap();
         }
 
@@ -714,7 +714,7 @@ mod tests {
         validate_apply_delta(&mmr, &mut partial_mmr);
         {
             let node = mmr.get(12).unwrap();
-            let proof = mmr.open(12, mmr.forest()).unwrap();
+            let proof = mmr.open(12).unwrap();
             partial_mmr.track(12, node, &proof.merkle_path).unwrap();
             assert!(partial_mmr.track_latest);
         }
@@ -739,7 +739,7 @@ mod tests {
         let nodes_delta = partial.apply(delta).unwrap();
 
         // new peaks were computed correctly
-        assert_eq!(mmr.peaks(mmr.forest()).unwrap(), partial.peaks());
+        assert_eq!(mmr.peaks(), partial.peaks());
 
         let mut expected_nodes = nodes_before;
         for (key, value) in nodes_delta {
@@ -755,7 +755,7 @@ mod tests {
             let index_value: u64 = index.into();
             let pos = index_value / 2;
             let proof1 = partial.open(pos as usize).unwrap().unwrap();
-            let proof2 = mmr.open(pos as usize, mmr.forest()).unwrap();
+            let proof2 = mmr.open(pos as usize).unwrap();
             assert_eq!(proof1, proof2);
         }
     }
@@ -764,16 +764,16 @@ mod tests {
     fn test_partial_mmr_inner_nodes_iterator() {
         // build the MMR
         let mmr: Mmr = LEAVES.into();
-        let first_peak = mmr.peaks(mmr.forest).unwrap().peaks()[0];
+        let first_peak = mmr.peaks().peaks()[0];
 
         // -- test single tree ----------------------------
 
         // get path and node for position 1
         let node1 = mmr.get(1).unwrap();
-        let proof1 = mmr.open(1, mmr.forest()).unwrap();
+        let proof1 = mmr.open(1).unwrap();
 
         // create partial MMR and add authentication path to node at position 1
-        let mut partial_mmr: PartialMmr = mmr.peaks(mmr.forest()).unwrap().into();
+        let mut partial_mmr: PartialMmr = mmr.peaks().into();
         partial_mmr.track(1, node1, &proof1.merkle_path).unwrap();
 
         // empty iterator should have no nodes
@@ -791,13 +791,13 @@ mod tests {
         // -- test no duplicates --------------------------
 
         // build the partial MMR
-        let mut partial_mmr: PartialMmr = mmr.peaks(mmr.forest()).unwrap().into();
+        let mut partial_mmr: PartialMmr = mmr.peaks().into();
 
         let node0 = mmr.get(0).unwrap();
-        let proof0 = mmr.open(0, mmr.forest()).unwrap();
+        let proof0 = mmr.open(0).unwrap();
 
         let node2 = mmr.get(2).unwrap();
-        let proof2 = mmr.open(2, mmr.forest()).unwrap();
+        let proof2 = mmr.open(2).unwrap();
 
         partial_mmr.track(0, node0, &proof0.merkle_path).unwrap();
         partial_mmr.track(1, node1, &proof1.merkle_path).unwrap();
@@ -828,10 +828,10 @@ mod tests {
         // -- test multiple trees -------------------------
 
         // build the partial MMR
-        let mut partial_mmr: PartialMmr = mmr.peaks(mmr.forest()).unwrap().into();
+        let mut partial_mmr: PartialMmr = mmr.peaks().into();
 
         let node5 = mmr.get(5).unwrap();
-        let proof5 = mmr.open(5, mmr.forest()).unwrap();
+        let proof5 = mmr.open(5).unwrap();
 
         partial_mmr.track(1, node1, &proof1.merkle_path).unwrap();
         partial_mmr.track(5, node5, &proof5.merkle_path).unwrap();
@@ -843,7 +843,7 @@ mod tests {
         let index1 = NodeIndex::new(2, 1).unwrap();
         let index5 = NodeIndex::new(1, 1).unwrap();
 
-        let second_peak = mmr.peaks(mmr.forest).unwrap().peaks()[1];
+        let second_peak = mmr.peaks().peaks()[1];
 
         let path1 = store.get_path(first_peak, index1).unwrap().path;
         let path5 = store.get_path(second_peak, index5).unwrap().path;
@@ -862,8 +862,7 @@ mod tests {
             mmr.add(el);
             partial_mmr.add(el, false);
 
-            let mmr_peaks = mmr.peaks(mmr.forest()).unwrap();
-            assert_eq!(mmr_peaks, partial_mmr.peaks());
+            assert_eq!(mmr.peaks(), partial_mmr.peaks());
             assert_eq!(mmr.forest(), partial_mmr.forest());
         }
     }
@@ -879,12 +878,11 @@ mod tests {
             mmr.add(el);
             partial_mmr.add(el, true);
 
-            let mmr_peaks = mmr.peaks(mmr.forest()).unwrap();
-            assert_eq!(mmr_peaks, partial_mmr.peaks());
+            assert_eq!(mmr.peaks(), partial_mmr.peaks());
             assert_eq!(mmr.forest(), partial_mmr.forest());
 
             for pos in 0..i {
-                let mmr_proof = mmr.open(pos as usize, mmr.forest()).unwrap();
+                let mmr_proof = mmr.open(pos as usize).unwrap();
                 let partialmmr_proof = partial_mmr.open(pos as usize).unwrap().unwrap();
                 assert_eq!(mmr_proof, partialmmr_proof);
             }
@@ -896,8 +894,8 @@ mod tests {
         let mut mmr = Mmr::from((0..7).map(int_to_node));
 
         // derive a partial Mmr from it which tracks authentication path to leaf 5
-        let mut partial_mmr = PartialMmr::from_peaks(mmr.peaks(mmr.forest()).unwrap());
-        let path_to_5 = mmr.open(5, mmr.forest()).unwrap().merkle_path;
+        let mut partial_mmr = PartialMmr::from_peaks(mmr.peaks());
+        let path_to_5 = mmr.open(5).unwrap().merkle_path;
         let leaf_at_5 = mmr.get(5).unwrap();
         partial_mmr.track(5, leaf_at_5, &path_to_5).unwrap();
 
@@ -907,6 +905,6 @@ mod tests {
         partial_mmr.add(leaf_at_7, false);
 
         // the openings should be the same
-        assert_eq!(mmr.open(5, mmr.forest()).unwrap(), partial_mmr.open(5).unwrap().unwrap());
+        assert_eq!(mmr.open(5).unwrap(), partial_mmr.open(5).unwrap().unwrap());
     }
 }
