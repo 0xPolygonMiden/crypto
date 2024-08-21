@@ -289,6 +289,10 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
         }
     }
 
+    fn get_value(&self, key: &LeafIndex<DEPTH>) -> Word {
+        self.get_leaf(key)
+    }
+
     fn get_leaf(&self, key: &LeafIndex<DEPTH>) -> Word {
         let leaf_pos = key.value();
         match self.leaves.get(&leaf_pos) {

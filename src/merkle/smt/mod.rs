@@ -161,6 +161,10 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Inserts a leaf node, and returns the value at the key if already exists
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
 
+    /// Returns the value at the specified key. Recall that by definition, any key that hasn't been
+    /// updated is associated with [`Self::EMPTY_VALUE`].
+    fn get_value(&self, key: &Self::Key) -> Self::Value;
+
     /// Returns the leaf at the specified index.
     fn get_leaf(&self, key: &Self::Key) -> Self::Leaf;
 

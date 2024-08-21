@@ -121,12 +121,7 @@ impl Smt {
 
     /// Returns the value associated with `key`
     pub fn get_value(&self, key: &RpoDigest) -> Word {
-        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
-
-        match self.leaves.get(&leaf_pos) {
-            Some(leaf) => leaf.get_value(key).unwrap_or_default(),
-            None => EMPTY_WORD,
-        }
+        <Self as SparseMerkleTree<SMT_DEPTH>>::get_value(self, key)
     }
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
@@ -247,6 +242,15 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
             self.perform_insert(key, value)
         } else {
             self.perform_remove(key)
+        }
+    }
+
+    fn get_value(&self, key: &Self::Key) -> Self::Value {
+        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
+
+        match self.leaves.get(&leaf_pos) {
+            Some(leaf) => leaf.get_value(key).unwrap_or_default(),
+            None => EMPTY_WORD,
         }
     }
 
