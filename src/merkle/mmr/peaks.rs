@@ -19,12 +19,12 @@ pub struct MmrPeaks {
     ///
     /// Examples:
     ///
-    /// - With 5 leaves, the binary `0b101`. The number of set bits is equal the number of
-    ///   peaks, in this case there are 2 peaks. The 0-indexed least-significant position of the
-    ///   bit determines the number of elements of a tree, so the rightmost tree has `2**0`
-    ///   elements and the left most has `2**2`.
-    /// - With 12 leaves, the binary is `0b1100`, this case also has 2 peaks, the leftmost tree
-    ///   has `2**3=8` elements, and the right most has `2**2=4` elements.
+    /// - With 5 leaves, the binary `0b101`. The number of set bits is equal the number of peaks,
+    ///   in this case there are 2 peaks. The 0-indexed least-significant position of the bit
+    ///   determines the number of elements of a tree, so the rightmost tree has `2**0` elements
+    ///   and the left most has `2**2`.
+    /// - With 12 leaves, the binary is `0b1100`, this case also has 2 peaks, the leftmost tree has
+    ///   `2**3=8` elements, and the right most has `2**2=4` elements.
     num_leaves: usize,
 
     /// All the peaks of every tree in the MMR forest. The peaks are always ordered by number of
