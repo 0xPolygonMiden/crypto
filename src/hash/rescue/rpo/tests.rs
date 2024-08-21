@@ -59,8 +59,7 @@ fn merge_vs_merge_in_domain() {
     ];
     let merge_result = Rpo256::merge(&digests);
 
-    // ------------- merge with domain = 0
-    // ----------------------------------------------------------
+    // ------------- merge with domain = 0 -------------
 
     // set domain to ZERO. This should not change the result.
     let domain = ZERO;
@@ -68,8 +67,7 @@ fn merge_vs_merge_in_domain() {
     let merge_in_domain_result = Rpo256::merge_in_domain(&digests, domain);
     assert_eq!(merge_result, merge_in_domain_result);
 
-    // ------------- merge with domain = 1
-    // ----------------------------------------------------------
+    // ------------- merge with domain = 1 -------------
 
     // set domain to ONE. This should change the result.
     let domain = ONE;
