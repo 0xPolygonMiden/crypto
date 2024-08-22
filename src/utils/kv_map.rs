@@ -62,8 +62,8 @@ impl<K: Ord + Clone, V: Clone> KvMap<K, V> for BTreeMap<K, V> {
 /// The [RecordingMap] is composed of three parts:
 /// - `data`: which contains the current set of key-value pairs in the map.
 /// - `updates`: which tracks keys for which values have been changed since the map was
-///    instantiated. updates include both insertions, removals and updates of values under existing
-///    keys.
+///   instantiated. updates include both insertions, removals and updates of values under existing
+///   keys.
 /// - `trace`: which contains the key-value pairs from the original data which have been accesses
 ///   since the map was instantiated.
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
@@ -325,7 +325,8 @@ mod tests {
         let mut map = RecordingMap::new(ITEMS.to_vec());
         assert!(map.iter().all(|(x, y)| ITEMS.contains(&(*x, *y))));
 
-        // when inserting entry with key that already exists the iterator should return the new value
+        // when inserting entry with key that already exists the iterator should return the new
+        // value
         let new_value = 5;
         map.insert(4, new_value);
         assert_eq!(map.iter().count(), ITEMS.len());

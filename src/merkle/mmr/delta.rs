@@ -1,5 +1,6 @@
-use super::super::RpoDigest;
 use alloc::vec::Vec;
+
+use super::super::RpoDigest;
 
 /// Container for the update data of a [super::PartialMmr]
 #[derive(Debug)]

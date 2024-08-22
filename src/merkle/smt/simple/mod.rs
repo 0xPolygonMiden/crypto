@@ -1,9 +1,10 @@
+use alloc::collections::{BTreeMap, BTreeSet};
+
 use super::{
     super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
     MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD, SMT_MAX_DEPTH,
     SMT_MIN_DEPTH,
 };
-use alloc::collections::{BTreeMap, BTreeSet};
 
 #[cfg(test)]
 mod tests;

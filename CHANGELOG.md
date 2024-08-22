@@ -2,88 +2,89 @@
 
 - [BREAKING]: renamed `Mmr::open()` into `Mmr::open_at()` and `Mmr::peaks()` into `Mmr::peaks_at()` (#234).
 - Added `Mmr::open()` and `Mmr::peaks()` which rely on `Mmr::open_at()` and `Mmr::peaks()` respectively (#234).
+- Standardised CI and Makefile across Miden repos (#323).
 
 ## 0.10.0 (2024-08-06)
 
-* Added more `RpoDigest` and `RpxDigest` conversions (#311).
-* [BREAKING] Migrated to Winterfell v0.9 (#315).
-* Fixed encoding of Falcon secret key (#319).
+- Added more `RpoDigest` and `RpxDigest` conversions (#311).
+- [BREAKING] Migrated to Winterfell v0.9 (#315).
+- Fixed encoding of Falcon secret key (#319).
 
 ## 0.9.3 (2024-04-24)
 
-* Added `RpxRandomCoin` struct (#307).
+- Added `RpxRandomCoin` struct (#307).
 
 ## 0.9.2 (2024-04-21)
 
-* Implemented serialization for the `Smt` struct (#304).
-* Fixed a bug in Falcon signature generation (#305).
+- Implemented serialization for the `Smt` struct (#304).
+- Fixed a bug in Falcon signature generation (#305).
 
 ## 0.9.1 (2024-04-02)
 
-* Added `num_leaves()` method to `SimpleSmt` (#302).
+- Added `num_leaves()` method to `SimpleSmt` (#302).
 
 ## 0.9.0 (2024-03-24)
 
-* [BREAKING] Removed deprecated re-exports from liballoc/libstd (#290).
-* [BREAKING] Refactored RpoFalcon512 signature to work with pure Rust (#285).
-* [BREAKING] Added `RngCore` as supertrait for `FeltRng` (#299).
+- [BREAKING] Removed deprecated re-exports from liballoc/libstd (#290).
+- [BREAKING] Refactored RpoFalcon512 signature to work with pure Rust (#285).
+- [BREAKING] Added `RngCore` as supertrait for `FeltRng` (#299).
 
 # 0.8.4 (2024-03-17)
 
-* Re-added unintentionally removed re-exported liballoc macros (`vec` and `format` macros).
+- Re-added unintentionally removed re-exported liballoc macros (`vec` and `format` macros).
 
 # 0.8.3 (2024-03-17)
 
-* Re-added unintentionally removed re-exported liballoc macros (#292).
+- Re-added unintentionally removed re-exported liballoc macros (#292).
 
 # 0.8.2 (2024-03-17)
 
-* Updated `no-std` approach to be in sync with winterfell v0.8.3 release (#290).
+- Updated `no-std` approach to be in sync with winterfell v0.8.3 release (#290).
 
 ## 0.8.1 (2024-02-21)
 
-* Fixed clippy warnings (#280)
+- Fixed clippy warnings (#280)
 
 ## 0.8.0 (2024-02-14)
 
-* Implemented the `PartialMmr` data structure (#195).
-* Implemented RPX hash function (#201).
-* Added `FeltRng` and `RpoRandomCoin` (#237).
-* Accelerated RPO/RPX hash functions using AVX512 instructions (#234).
-* Added `inner_nodes()` method to `PartialMmr` (#238).
-* Improved `PartialMmr::apply_delta()` (#242).
-* Refactored `SimpleSmt` struct (#245).
-* Replaced `TieredSmt` struct with `Smt` struct (#254, #277).
-* Updated Winterfell dependency to v0.8 (#275).
+- Implemented the `PartialMmr` data structure (#195).
+- Implemented RPX hash function (#201).
+- Added `FeltRng` and `RpoRandomCoin` (#237).
+- Accelerated RPO/RPX hash functions using AVX512 instructions (#234).
+- Added `inner_nodes()` method to `PartialMmr` (#238).
+- Improved `PartialMmr::apply_delta()` (#242).
+- Refactored `SimpleSmt` struct (#245).
+- Replaced `TieredSmt` struct with `Smt` struct (#254, #277).
+- Updated Winterfell dependency to v0.8 (#275).
 
 ## 0.7.1 (2023-10-10)
 
-* Fixed RPO Falcon signature build on Windows.
+- Fixed RPO Falcon signature build on Windows.
 
 ## 0.7.0 (2023-10-05)
 
-* Replaced `MerklePathSet` with `PartialMerkleTree` (#165).
-* Implemented clearing of nodes in `TieredSmt` (#173).
-* Added ability to generate inclusion proofs for `TieredSmt` (#174).
-* Implemented Falcon DSA (#179).
-* Added conditional `serde`` support for various structs (#180).
-* Implemented benchmarking for `TieredSmt` (#182).
-* Added more leaf traversal methods for `MerkleStore` (#185).
-* Added SVE acceleration for RPO hash function (#189).
+- Replaced `MerklePathSet` with `PartialMerkleTree` (#165).
+- Implemented clearing of nodes in `TieredSmt` (#173).
+- Added ability to generate inclusion proofs for `TieredSmt` (#174).
+- Implemented Falcon DSA (#179).
+- Added conditional `serde`` support for various structs (#180).
+- Implemented benchmarking for `TieredSmt` (#182).
+- Added more leaf traversal methods for `MerkleStore` (#185).
+- Added SVE acceleration for RPO hash function (#189).
 
 ## 0.6.0 (2023-06-25)
 
-* [BREAKING] Added support for recording capabilities for `MerkleStore` (#162).
-* [BREAKING] Refactored Merkle struct APIs to use `RpoDigest` instead of `Word` (#157).
-* Added initial implementation of `PartialMerkleTree` (#156).
+- [BREAKING] Added support for recording capabilities for `MerkleStore` (#162).
+- [BREAKING] Refactored Merkle struct APIs to use `RpoDigest` instead of `Word` (#157).
+- Added initial implementation of `PartialMerkleTree` (#156).
 
 ## 0.5.0 (2023-05-26)
 
-* Implemented `TieredSmt` (#152, #153).
-* Implemented ability to extract a subset of a `MerkleStore` (#151).
-* Cleaned up `SimpleSmt` interface (#149).
-* Decoupled hashing and padding of peaks in `Mmr` (#148).
-* Added `inner_nodes()` to `MerkleStore` (#146).
+- Implemented `TieredSmt` (#152, #153).
+- Implemented ability to extract a subset of a `MerkleStore` (#151).
+- Cleaned up `SimpleSmt` interface (#149).
+- Decoupled hashing and padding of peaks in `Mmr` (#148).
+- Added `inner_nodes()` to `MerkleStore` (#146).
 
 ## 0.4.0 (2023-04-21)
 
@@ -131,6 +132,6 @@
 
 - Initial release on crates.io containing the cryptographic primitives used in Miden VM and the Miden Rollup.
 - Hash module with the BLAKE3 and Rescue Prime Optimized hash functions.
-    - BLAKE3 is implemented with 256-bit, 192-bit, or 160-bit output.
-    - RPO is implemented with 256-bit output.
+  - BLAKE3 is implemented with 256-bit, 192-bit, or 160-bit output.
+  - RPO is implemented with 256-bit output.
 - Merkle module, with a set of data structures related to Merkle trees, implemented using the RPO hash function.
