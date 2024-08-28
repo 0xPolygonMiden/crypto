@@ -1,3 +1,5 @@
+use alloc::{collections::BTreeMap, vec::Vec};
+
 use super::{
     super::{
         digests_to_words, int_to_node, DefaultMerkleStore as MerkleStore, MerkleTree, NodeIndex,
@@ -5,7 +7,6 @@ use super::{
     },
     Deserializable, InnerNodeInfo, RpoDigest, Serializable, ValuePath,
 };
-use alloc::{collections::BTreeMap, vec::Vec};
 
 // TEST DATA
 // ================================================================================================
@@ -294,7 +295,8 @@ fn leaves() {
     assert!(expected_leaves.eq(pmt.leaves()));
 }
 
-/// Checks that nodes of the PMT returned by `inner_nodes()` function are equal to the expected ones.
+/// Checks that nodes of the PMT returned by `inner_nodes()` function are equal to the expected
+/// ones.
 #[test]
 fn test_inner_node_iterator() {
     let mt = MerkleTree::new(digests_to_words(&VALUES8)).unwrap();

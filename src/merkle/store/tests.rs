@@ -1,4 +1,10 @@
 use seq_macro::seq;
+#[cfg(feature = "std")]
+use {
+    super::{Deserializable, Serializable},
+    alloc::boxed::Box,
+    std::error::Error,
+};
 
 use super::{
     DefaultMerkleStore as MerkleStore, EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex,
@@ -9,13 +15,6 @@ use crate::{
         digests_to_words, int_to_leaf, int_to_node, LeafIndex, MerkleTree, SimpleSmt, SMT_MAX_DEPTH,
     },
     Felt, Word, ONE, WORD_SIZE, ZERO,
-};
-
-#[cfg(feature = "std")]
-use {
-    super::{Deserializable, Serializable},
-    alloc::boxed::Box,
-    std::error::Error,
 };
 
 // TEST DATA

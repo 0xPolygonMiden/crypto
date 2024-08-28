@@ -1,9 +1,10 @@
+use alloc::vec::Vec;
+
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
     Felt, Word, EMPTY_WORD,
 };
-use alloc::vec::Vec;
 
 mod full;
 pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};

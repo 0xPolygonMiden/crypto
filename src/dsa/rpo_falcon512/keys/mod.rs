@@ -15,11 +15,12 @@ pub use secret_key::SecretKey;
 
 #[cfg(test)]
 mod tests {
-    use crate::{dsa::rpo_falcon512::SecretKey, Word, ONE};
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
     use winter_math::FieldElement;
     use winter_utils::{Deserializable, Serializable};
+
+    use crate::{dsa::rpo_falcon512::SecretKey, Word, ONE};
 
     #[test]
     fn test_falcon_verification() {

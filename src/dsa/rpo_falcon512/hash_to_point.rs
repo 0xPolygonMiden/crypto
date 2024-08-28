@@ -1,6 +1,8 @@
-use super::{math::FalconFelt, Nonce, Polynomial, Rpo256, Word, MODULUS, N, ZERO};
 use alloc::vec::Vec;
+
 use num::Zero;
+
+use super::{math::FalconFelt, Nonce, Polynomial, Rpo256, Word, MODULUS, N, ZERO};
 
 // HASH-TO-POINT FUNCTIONS
 // ================================================================================================

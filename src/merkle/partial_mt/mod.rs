@@ -214,7 +214,7 @@ impl PartialMerkleTree {
     /// # Errors
     /// Returns an error if:
     /// - the specified index has depth set to 0 or the depth is greater than the depth of this
-    /// Merkle tree.
+    ///   Merkle tree.
     /// - the specified index is not contained in the nodes map.
     pub fn get_path(&self, mut index: NodeIndex) -> Result<MerklePath, MerkleError> {
         if index.is_root() {

@@ -1,3 +1,11 @@
+use alloc::{string::ToString, vec::Vec};
+
+use num::Complex;
+#[cfg(not(feature = "std"))]
+use num::Float;
+use num_complex::Complex64;
+use rand::Rng;
+
 use super::{
     super::{
         math::{ffldl, ffsampling, gram, normalize_tree, FalconFelt, FastFft, LdlTree, Polynomial},
@@ -10,13 +18,6 @@ use super::{
 use crate::dsa::rpo_falcon512::{
     hash_to_point::hash_to_point_rpo256, math::ntru_gen, SIG_NONCE_LEN, SK_LEN,
 };
-use alloc::{string::ToString, vec::Vec};
-use num::Complex;
-use num_complex::Complex64;
-use rand::Rng;
-
-#[cfg(not(feature = "std"))]
-use num::Float;
 
 // CONSTANTS
 // ================================================================================================

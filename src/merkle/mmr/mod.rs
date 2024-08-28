@@ -10,8 +10,6 @@ mod proof;
 #[cfg(test)]
 mod tests;
 
-use super::{Felt, Rpo256, RpoDigest, Word};
-
 // REEXPORTS
 // ================================================================================================
 pub use delta::MmrDelta;
@@ -21,6 +19,8 @@ pub use inorder::InOrderIndex;
 pub use partial::PartialMmr;
 pub use peaks::MmrPeaks;
 pub use proof::MmrProof;
+
+use super::{Felt, Rpo256, RpoDigest, Word};
 
 // UTILITIES
 // ===============================================================================================
@@ -42,8 +42,8 @@ const fn leaf_to_corresponding_tree(pos: usize, forest: usize) -> Option<u32> {
         // - this means the first tree owns from `0` up to the `2^k_0` first positions, where `k_0`
         //   is the highest true bit position, the second tree from `2^k_0 + 1` up to `2^k_1` where
         //   `k_1` is the second highest bit, so on.
-        // - this means the highest bits work as a category marker, and the position is owned by
-        //   the first tree which doesn't share a high bit with the position
+        // - this means the highest bits work as a category marker, and the position is owned by the
+        //   first tree which doesn't share a high bit with the position
         let before = forest & pos;
         let after = forest ^ before;
         let tree = after.ilog2();
