@@ -6,7 +6,7 @@ use alloc::{
 
 use super::{
     EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
-    NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
+    MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
 
 mod error;
@@ -165,6 +165,47 @@ impl Smt {
     /// updating the root itself.
     pub fn insert(&mut self, key: RpoDigest, value: Word) -> Word {
         <Self as SparseMerkleTree<SMT_DEPTH>>::insert(self, key, value)
+    }
+
+    /// Computes what changes are necessary to insert the specified key-value pairs into this Merkle
+    /// tree, allowing for validation before applying those changes.
+    ///
+    /// This method returns a [`MutationSet`], which contains all the information for inserting
+    /// `kv_pairs` into this Merkle tree already calculated, including the new root hash, which can
+    /// be queried with [`MutationSet::root()`]. Once a mutation set is returned,
+    /// [`Smt::apply_mutations()`] can be called in order to commit these changes to the Merkle
+    /// tree, or [`drop()`] to discard them.
+    ///
+    /// # Example
+    /// ```
+    /// # use miden_crypto::{hash::rpo::RpoDigest, Felt, Word};
+    /// # use miden_crypto::merkle::{Smt, EmptySubtreeRoots, SMT_DEPTH};
+    /// let mut smt = Smt::new();
+    /// let pair = (RpoDigest::default(), Word::default());
+    /// let mutations = smt.compute_mutations(vec![pair]);
+    /// assert_eq!(mutations.root(), *EmptySubtreeRoots::entry(SMT_DEPTH, 0));
+    /// smt.apply_mutations(mutations);
+    /// assert_eq!(smt.root(), *EmptySubtreeRoots::entry(SMT_DEPTH, 0));
+    /// ```
+    pub fn compute_mutations(
+        &self,
+        kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
+    }
+
+    /// Apply the prospective mutations computed with [`Smt::compute_mutations()`] to this tree.
+    ///
+    /// # Errors
+    /// If `mutations` was computed on a tree with a different root than this one, returns
+    /// [`MerkleError::ConflictingRoots`] with a two-item [`Vec`]. The first item is the root hash
+    /// the `mutations` were computed against, and the second item is the actual current root of
+    /// this tree.
+    pub fn apply_mutations(
+        &mut self,
+        mutations: MutationSet<SMT_DEPTH, RpoDigest, Word>,
+    ) -> Result<(), MerkleError> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::apply_mutations(self, mutations)
     }
 
     // HELPERS

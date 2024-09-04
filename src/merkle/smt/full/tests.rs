@@ -371,6 +371,82 @@ fn test_prospective_hash() {
     }
 }
 
+/// This tests that we can perform prospective changes correctly.
+#[test]
+fn test_prospective_insertion() {
+    let mut smt = Smt::default();
+
+    let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), Felt::new(raw)]);
+    // Sort key_3 before key_1, to test non-append insertion.
+    let key_3: RpoDigest =
+        RpoDigest::from([0_u32.into(), 0_u32.into(), 0_u32.into(), Felt::new(raw)]);
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
+    let value_3: [Felt; 4] = [3_u32.into(); WORD_SIZE];
+
+    let root_empty = smt.root();
+
+    let root_1 = {
+        smt.insert(key_1, value_1);
+        smt.root()
+    };
+
+    let root_2 = {
+        smt.insert(key_2, value_2);
+        smt.root()
+    };
+
+    let root_3 = {
+        smt.insert(key_3, value_3);
+        smt.root()
+    };
+
+    // Test incremental updates.
+
+    let mut smt = Smt::default();
+
+    let mutations = smt.compute_mutations(vec![(key_1, value_1)]);
+    assert_eq!(mutations.root(), root_1, "prospective root 1 did not match actual root 1");
+    smt.apply_mutations(mutations).unwrap();
+    assert_eq!(smt.root(), root_1, "mutations before and after apply did not match");
+
+    let mutations = smt.compute_mutations(vec![(key_2, value_2)]);
+    assert_eq!(mutations.root(), root_2, "prospective root 2 did not match actual root 2");
+    let mutations =
+        smt.compute_mutations(vec![(key_3, EMPTY_WORD), (key_2, value_2), (key_3, value_3)]);
+    assert_eq!(mutations.root(), root_3, "mutations before and after apply did not match");
+    smt.apply_mutations(mutations).unwrap();
+
+    // Edge case: multiple values at the same key, where a later pair restores the original value.
+    let mutations = smt.compute_mutations(vec![(key_3, EMPTY_WORD), (key_3, value_3)]);
+    assert_eq!(mutations.root(), root_3);
+    smt.apply_mutations(mutations).unwrap();
+    assert_eq!(smt.root(), root_3);
+
+    // Test batch updates, and that the order doesn't matter.
+    let pairs =
+        vec![(key_3, value_2), (key_2, EMPTY_WORD), (key_1, EMPTY_WORD), (key_3, EMPTY_WORD)];
+    let mutations = smt.compute_mutations(pairs);
+    assert_eq!(
+        mutations.root(),
+        root_empty,
+        "prospective root for batch removal did not match actual root",
+    );
+    smt.apply_mutations(mutations).unwrap();
+    assert_eq!(smt.root(), root_empty, "mutations before and after apply did not match");
+
+    let pairs = vec![(key_3, value_3), (key_1, value_1), (key_2, value_2)];
+    let mutations = smt.compute_mutations(pairs);
+    assert_eq!(mutations.root(), root_3);
+    smt.apply_mutations(mutations).unwrap();
+    assert_eq!(smt.root(), root_3);
+}
+
 /// Tests that 2 key-value pairs stored in the same leaf have the same path
 #[test]
 fn test_smt_path_to_keys_in_same_leaf_are_equal() {

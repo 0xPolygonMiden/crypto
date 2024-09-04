@@ -2,8 +2,8 @@ use alloc::collections::{BTreeMap, BTreeSet};
 
 use super::{
     super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
-    MerklePath, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD, SMT_MAX_DEPTH,
-    SMT_MIN_DEPTH,
+    MerklePath, MutationSet, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
+    SMT_MAX_DEPTH, SMT_MIN_DEPTH,
 };
 
 #[cfg(test)]
@@ -186,6 +186,48 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// updating the root itself.
     pub fn insert(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Word {
         <Self as SparseMerkleTree<DEPTH>>::insert(self, key, value)
+    }
+
+    /// Computes what changes are necessary to insert the specified key-value pairs into this
+    /// Merkle tree, allowing for validation before applying those changes.
+    ///
+    /// This method returns a [`MutationSet`], which contains all the information for inserting
+    /// `kv_pairs` into this Merkle tree already calculated, including the new root hash, which can
+    /// be queried with [`MutationSet::root()`]. Once a mutation set is returned,
+    /// [`SimpleSmt::apply_mutations()`] can be called in order to commit these changes to the
+    /// Merkle tree, or [`drop()`] to discard them.
+
+    /// # Example
+    /// ```
+    /// # use miden_crypto::{hash::rpo::RpoDigest, Felt, Word};
+    /// # use miden_crypto::merkle::{LeafIndex, SimpleSmt, EmptySubtreeRoots, SMT_DEPTH};
+    /// let mut smt: SimpleSmt<3> = SimpleSmt::new().unwrap();
+    /// let pair = (LeafIndex::default(), Word::default());
+    /// let mutations = smt.compute_mutations(vec![pair]);
+    /// assert_eq!(mutations.root(), *EmptySubtreeRoots::entry(3, 0));
+    /// smt.apply_mutations(mutations);
+    /// assert_eq!(smt.root(), *EmptySubtreeRoots::entry(3, 0));
+    /// ```
+    pub fn compute_mutations(
+        &self,
+        kv_pairs: impl IntoIterator<Item = (LeafIndex<DEPTH>, Word)>,
+    ) -> MutationSet<DEPTH, LeafIndex<DEPTH>, Word> {
+        <Self as SparseMerkleTree<DEPTH>>::compute_mutations(self, kv_pairs)
+    }
+
+    /// Apply the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to this
+    /// tree.
+    ///
+    /// # Errors
+    /// If `mutations` was computed on a tree with a different root than this one, returns
+    /// [`MerkleError::ConflictingRoots`] with a two-item [`alloc::vec::Vec`]. The first item is the
+    /// root hash the `mutations` were computed against, and the second item is the actual
+    /// current root of this tree.
+    pub fn apply_mutations(
+        &mut self,
+        mutations: MutationSet<DEPTH, LeafIndex<DEPTH>, Word>,
+    ) -> Result<(), MerkleError> {
+        <Self as SparseMerkleTree<DEPTH>>::apply_mutations(self, mutations)
     }
 
     /// Inserts a subtree at the specified index. The depth at which the subtree is inserted is
