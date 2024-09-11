@@ -1138,7 +1138,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 [[package]]
 name = "winter-crypto"
 version = "0.9.0"
-source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-update-degree-checks#3c163baa1de175a5a8873de9a34d15f88fe6e0fd"
+source = "git+https://github.com/facebook/winterfell?branch=logup-gkr#b5f64cc281b8b95ff76c86c97412b783b2573877"
 dependencies = [
  "blake3",
  "sha3",
@@ -1149,7 +1149,7 @@ dependencies = [
 [[package]]
 name = "winter-math"
 version = "0.9.0"
-source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-update-degree-checks#3c163baa1de175a5a8873de9a34d15f88fe6e0fd"
+source = "git+https://github.com/facebook/winterfell?branch=logup-gkr#b5f64cc281b8b95ff76c86c97412b783b2573877"
 dependencies = [
  "serde",
  "winter-utils",
@@ -1158,7 +1158,7 @@ dependencies = [
 [[package]]
 name = "winter-rand-utils"
 version = "0.9.0"
-source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-update-degree-checks#3c163baa1de175a5a8873de9a34d15f88fe6e0fd"
+source = "git+https://github.com/facebook/winterfell?branch=logup-gkr#b5f64cc281b8b95ff76c86c97412b783b2573877"
 dependencies = [
  "rand",
  "winter-utils",
@@ -1166,8 +1166,8 @@ dependencies = [
 
 [[package]]
 name = "winter-utils"
-version = "0.9.0"
-source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-update-degree-checks#3c163baa1de175a5a8873de9a34d15f88fe6e0fd"
+version = "0.9.1"
+source = "git+https://github.com/facebook/winterfell?branch=logup-gkr#b5f64cc281b8b95ff76c86c97412b783b2573877"
 
 [[package]]
 name = "zerocopy"

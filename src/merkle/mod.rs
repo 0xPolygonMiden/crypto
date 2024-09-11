@@ -16,6 +16,7 @@ pub use index::NodeIndex;
 
 mod merkle_tree;
 pub use merkle_tree::{path_to_text, tree_to_text, MerkleTree};
+pub use winter_crypto::MerkleTree as MerkleTreeVC;
 
 mod path;
 pub use path::{MerklePath, RootPath, ValuePath};
