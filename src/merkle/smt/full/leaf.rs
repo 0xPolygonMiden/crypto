@@ -350,7 +350,7 @@ impl Deserializable for SmtLeaf {
 // ================================================================================================
 
 /// Converts a key-value tuple to an iterator of `Felt`s
-fn kv_to_elements((key, value): (RpoDigest, Word)) -> impl Iterator<Item = Felt> {
+pub(crate) fn kv_to_elements((key, value): (RpoDigest, Word)) -> impl Iterator<Item = Felt> {
     let key_elements = key.into_iter();
     let value_elements = value.into_iter();
 
@@ -359,7 +359,7 @@ fn kv_to_elements((key, value): (RpoDigest, Word)) -> impl Iterator<Item = Felt>
 
 /// Compares two keys, compared element-by-element using their integer representations starting with
 /// the most significant element.
-fn cmp_keys(key_1: RpoDigest, key_2: RpoDigest) -> Ordering {
+pub(crate) fn cmp_keys(key_1: RpoDigest, key_2: RpoDigest) -> Ordering {
     for (v1, v2) in key_1.iter().zip(key_2.iter()).rev() {
         let v1 = v1.as_int();
         let v2 = v2.as_int();
