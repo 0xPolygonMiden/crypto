@@ -74,7 +74,7 @@ where
         rev
     }
 
-    /// Computes the first n powers of the 2nth root of unity, and put them in bit-reversed order.
+    /// Computes the first n powers of the 2nd root of unity, and put them in bit-reversed order.
     #[allow(dead_code)]
     fn bitreversed_powers(n: usize) -> Vec<Self> {
         let psi = Self::primitive_root_of_unity(2 * n);
@@ -88,7 +88,7 @@ where
         array
     }
 
-    /// Computes the first n powers of the 2nth root of unity, invert them, and put them in
+    /// Computes the first n powers of the 2nd root of unity, invert them, and put them in
     /// bit-reversed order.
     #[allow(dead_code)]
     fn bitreversed_powers_inverse(n: usize) -> Vec<Self> {
