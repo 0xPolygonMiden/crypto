@@ -308,11 +308,10 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     }
 
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
-        self.inner_nodes.get(&index).cloned().unwrap_or_else(|| {
-            let node = EmptySubtreeRoots::entry(DEPTH, index.depth() + 1);
-
-            InnerNode { left: *node, right: *node }
-        })
+        self.inner_nodes
+            .get(&index)
+            .cloned()
+            .unwrap_or_else(|| EmptySubtreeRoots::get_inner_node(DEPTH, index.depth()))
     }
 
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {

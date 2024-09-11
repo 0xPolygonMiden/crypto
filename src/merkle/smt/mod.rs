@@ -199,10 +199,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
                     .get(&node_index)
                     .map(|mutation| match mutation {
                         Addition(node) => node.clone(),
-                        Removal => {
-                            let &child = EmptySubtreeRoots::entry(DEPTH, node_depth + 1);
-                            InnerNode { left: child, right: child }
-                        },
+                        Removal => EmptySubtreeRoots::get_inner_node(DEPTH, node_depth),
                     })
                     .unwrap_or_else(|| self.get_inner_node(node_index));
 
