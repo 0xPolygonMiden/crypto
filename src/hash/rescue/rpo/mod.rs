@@ -64,6 +64,9 @@ mod tests;
 /// becomes the bottleneck for the security bound of the sponge in overwrite-mode only when it is
 /// lower than 2^128, we see that the target 128-bit security level is maintained as long as
 /// the size of the domain identifier space, including for padding, is less than 2^128.
+///
+/// ## Hashing of empty lists
+/// The current implementation hashes empty lists to the zero digest [0, 0, 0, 0].
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rpo256();
 

@@ -184,6 +184,24 @@ fn hash_elements() {
 }
 
 #[test]
+fn hash_empty() {
+    let elements: Vec<Felt> = vec![];
+
+    let zero_digest = RpoDigest::default();
+    let h_result = Rpo256::hash_elements(&elements);
+    assert_eq!(zero_digest, h_result);
+}
+
+#[test]
+fn hash_empty_bytes() {
+    let bytes: Vec<u8> = vec![];
+
+    let zero_digest = RpoDigest::default();
+    let h_result = Rpo256::hash(&bytes);
+    assert_eq!(zero_digest, h_result);
+}
+
+#[test]
 fn hash_test_vectors() {
     let elements = [
         ZERO,

@@ -130,6 +130,24 @@ fn hash_elements() {
 }
 
 #[test]
+fn hash_empty() {
+    let elements: Vec<Felt> = vec![];
+
+    let zero_digest = RpxDigest::default();
+    let h_result = Rpx256::hash_elements(&elements);
+    assert_eq!(zero_digest, h_result);
+}
+
+#[test]
+fn hash_empty_bytes() {
+    let bytes: Vec<u8> = vec![];
+
+    let zero_digest = RpxDigest::default();
+    let h_result = Rpx256::hash(&bytes);
+    assert_eq!(zero_digest, h_result);
+}
+
+#[test]
 fn sponge_bytes_with_remainder_length_wont_panic() {
     // this test targets to assert that no panic will happen with the edge case of having an inputs
     // with length that is not divisible by the used binary chunk size. 113 is a non-negligible
