@@ -4,6 +4,7 @@
 - Added `Mmr::open()` and `Mmr::peaks()` which rely on `Mmr::open_at()` and `Mmr::peaks()` respectively (#234).
 - Standardised CI and Makefile across Miden repos (#323).
 - Added `Smt::compute_mutations()` and `Smt::apply_mutations()` for validation-checked insertions (#327).
+- Changed padding rule for RPO/RPX hash functions (#318).
 
 ## 0.10.0 (2024-08-06)
 
