@@ -1,10 +1,11 @@
+use core::ops::Range;
+
 use super::{
     add_constants, add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox, apply_inv_sbox,
     apply_mds, apply_sbox, Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField, ARK1,
     ARK2, BINARY_CHUNK_SIZE, CAPACITY_RANGE, DIGEST_BYTES, DIGEST_RANGE, DIGEST_SIZE, INPUT1_RANGE,
     INPUT2_RANGE, MDS, NUM_ROUNDS, RATE_RANGE, RATE_WIDTH, STATE_WIDTH, ZERO,
 };
-use core::ops::Range;
 
 mod digest;
 pub use digest::{RpoDigest, RpoDigestError};
@@ -167,8 +168,8 @@ impl Hasher for Rpo256 {
         // - seed is copied into the first 4 elements of the rate portion of the state.
         // - if the value fits into a single field element, copy it into the fifth rate element and
         //   set the first capacity element to 5.
-        // - if the value doesn't fit into a single field element, split it into two field
-        //   elements, copy them into rate elements 5 and 6 and set the first capacity element to 6.
+        // - if the value doesn't fit into a single field element, split it into two field elements,
+        //   copy them into rate elements 5 and 6 and set the first capacity element to 6.
         let mut state = [ZERO; STATE_WIDTH];
         state[INPUT1_RANGE].copy_from_slice(seed.as_elements());
         state[INPUT2_RANGE.start] = Felt::new(value);

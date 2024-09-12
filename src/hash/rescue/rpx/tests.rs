@@ -1,9 +1,10 @@
+use alloc::{collections::BTreeSet, vec::Vec};
+
 use proptest::prelude::*;
 use rand_utils::rand_value;
 
 use super::{Felt, Hasher, Rpx256, StarkField, ZERO};
 use crate::{hash::rescue::RpxDigest, ONE};
-use alloc::{collections::BTreeSet, vec::Vec};
 
 #[test]
 fn hash_elements_vs_merge() {
@@ -29,7 +30,8 @@ fn merge_vs_merge_in_domain() {
     ];
     let merge_result = Rpx256::merge(&digests);
 
-    // ------------- merge with domain = 0 ----------------------------------------------------------
+    // ------------- merge with domain = 0
+    // ----------------------------------------------------------
 
     // set domain to ZERO. This should not change the result.
     let domain = ZERO;
@@ -37,7 +39,8 @@ fn merge_vs_merge_in_domain() {
     let merge_in_domain_result = Rpx256::merge_in_domain(&digests, domain);
     assert_eq!(merge_result, merge_in_domain_result);
 
-    // ------------- merge with domain = 1 ----------------------------------------------------------
+    // ------------- merge with domain = 1
+    // ----------------------------------------------------------
 
     // set domain to ONE. This should change the result.
     let domain = ONE;
