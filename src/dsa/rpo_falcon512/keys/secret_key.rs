@@ -28,6 +28,8 @@ const WIDTH_SMALL_POLY_COEFFICIENT: usize = 6;
 // SECRET KEY
 // ================================================================================================
 
+/// Secret key of Falcon DSA.
+///
 /// The secret key is a quadruple [[g, -f], [G, -F]] of polynomials with integer coefficients. Each
 /// polynomial is of degree at most N = 512 and computations with these polynomials is done modulo
 /// the monic irreducible polynomial ϕ = x^N + 1. The secret key is a basis for a lattice and has
