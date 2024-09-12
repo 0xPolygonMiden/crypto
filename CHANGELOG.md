@@ -1,5 +1,6 @@
 ## 0.11.0 (TBD)
 
+- Added `Serializable` and `Deserializable` implementations for `PartialMmr` and `InOrderIndex` (#???).
 - [BREAKING]: renamed `Mmr::open()` into `Mmr::open_at()` and `Mmr::peaks()` into `Mmr::peaks_at()` (#234).
 - Added `Mmr::open()` and `Mmr::peaks()` which rely on `Mmr::open_at()` and `Mmr::peaks()` respectively (#234).
 - Standardised CI and Makefile across Miden repos (#323).
