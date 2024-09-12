@@ -10,13 +10,14 @@
 //! depths, i.e. as part of adding adding a new element to the forest the trees with same depth are
 //! merged, creating a new tree with depth d+1, this process is continued until the property is
 //! reestablished.
+use alloc::vec::Vec;
+
 use super::{
     super::{InnerNodeInfo, MerklePath},
     bit::TrueBitPositionIterator,
     leaf_to_corresponding_tree, nodes_in_forest, MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256,
     RpoDigest,
 };
-use alloc::vec::Vec;
 
 // MMR
 // ===============================================================================================
@@ -72,19 +73,36 @@ impl Mmr {
     // FUNCTIONALITY
     // ============================================================================================
 
-    /// Given a leaf position, returns the Merkle path to its corresponding peak. If the position
-    /// is greater-or-equal than the tree size an error is returned.
+    /// Returns an [MmrProof] for the leaf at the specified position.
     ///
     /// Note: The leaf position is the 0-indexed number corresponding to the order the leaves were
     /// added, this corresponds to the MMR size _prior_ to adding the element. So the 1st element
     /// has position 0, the second position 1, and so on.
-    pub fn open(&self, pos: usize, target_forest: usize) -> Result<MmrProof, MmrError> {
+    ///
+    /// # Errors
+    /// Returns an error if the specified leaf position is out of bounds for this MMR.
+    pub fn open(&self, pos: usize) -> Result<MmrProof, MmrError> {
+        self.open_at(pos, self.forest)
+    }
+
+    /// Returns an [MmrProof] for the leaf at the specified position using the state of the MMR
+    /// at the specified `forest`.
+    ///
+    /// Note: The leaf position is the 0-indexed number corresponding to the order the leaves were
+    /// added, this corresponds to the MMR size _prior_ to adding the element. So the 1st element
+    /// has position 0, the second position 1, and so on.
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - The specified leaf position is out of bounds for this MMR.
+    /// - The specified `forest` value is not valid for this MMR.
+    pub fn open_at(&self, pos: usize, forest: usize) -> Result<MmrProof, MmrError> {
         // find the target tree responsible for the MMR position
         let tree_bit =
-            leaf_to_corresponding_tree(pos, target_forest).ok_or(MmrError::InvalidPosition(pos))?;
+            leaf_to_corresponding_tree(pos, forest).ok_or(MmrError::InvalidPosition(pos))?;
 
         // isolate the trees before the target
-        let forest_before = target_forest & high_bitmask(tree_bit + 1);
+        let forest_before = forest & high_bitmask(tree_bit + 1);
         let index_offset = nodes_in_forest(forest_before);
 
         // update the value position from global to the target tree
@@ -94,7 +112,7 @@ impl Mmr {
         let (_, path) = self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset);
 
         Ok(MmrProof {
-            forest: target_forest,
+            forest,
             position: pos,
             merkle_path: MerklePath::new(path),
         })
@@ -145,8 +163,16 @@ impl Mmr {
         self.forest += 1;
     }
 
-    /// Returns an peaks of the MMR for the version specified by `forest`.
-    pub fn peaks(&self, forest: usize) -> Result<MmrPeaks, MmrError> {
+    /// Returns the current peaks of the MMR.
+    pub fn peaks(&self) -> MmrPeaks {
+        self.peaks_at(self.forest).expect("failed to get peaks at current forest")
+    }
+
+    /// Returns the peaks of the MMR at the state specified by `forest`.
+    ///
+    /// # Errors
+    /// Returns an error if the specified `forest` value is not valid for this MMR.
+    pub fn peaks_at(&self, forest: usize) -> Result<MmrPeaks, MmrError> {
         if forest > self.forest {
             return Err(MmrError::InvalidPeaks);
         }
@@ -377,7 +403,8 @@ impl<'a> Iterator for MmrNodes<'a> {
             // the next parent position is one above the position of the pair
             let parent = self.last_right << 1;
 
-            // the left node has been paired and the current parent yielded, removed it from the forest
+            // the left node has been paired and the current parent yielded, removed it from the
+            // forest
             self.forest ^= self.last_right;
             if self.forest & parent == 0 {
                 // this iteration yielded the left parent node

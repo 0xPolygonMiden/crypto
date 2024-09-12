@@ -1,14 +1,15 @@
-use super::{field::FalconFelt, polynomial::Polynomial, Inverse};
 use alloc::vec::Vec;
 use core::{
     f64::consts::PI,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
-use num::{One, Zero};
-use num_complex::Complex64;
 
 #[cfg(not(feature = "std"))]
 use num::Float;
+use num::{One, Zero};
+use num_complex::Complex64;
+
+use super::{field::FalconFelt, polynomial::Polynomial, Inverse};
 
 /// Implements Cyclotomic FFT without bitreversing the outputs, and using precomputed powers of the
 /// 2n-th primitive root of unity.
@@ -73,7 +74,7 @@ where
         rev
     }
 
-    /// Computes the first n powers of the 2nth root of unity, and put them in bit-reversed order.
+    /// Computes the first n powers of the 2nd root of unity, and put them in bit-reversed order.
     #[allow(dead_code)]
     fn bitreversed_powers(n: usize) -> Vec<Self> {
         let psi = Self::primitive_root_of_unity(2 * n);
@@ -87,7 +88,7 @@ where
         array
     }
 
-    /// Computes the first n powers of the 2nth root of unity, invert them, and put them in
+    /// Computes the first n powers of the 2nd root of unity, invert them, and put them in
     /// bit-reversed order.
     #[allow(dead_code)]
     fn bitreversed_powers_inverse(n: usize) -> Vec<Self> {
@@ -102,7 +103,8 @@ where
         array
     }
 
-    /// Reorders the given elements in the array by reversing the binary expansions of their indices.
+    /// Reorders the given elements in the array by reversing the binary expansions of their
+    /// indices.
     fn bitreverse_array<T>(array: &mut [T]) {
         let n = array.len();
         for i in 0..n {
@@ -118,19 +120,14 @@ where
     ///
     /// Arguments:
     ///
-    ///  - a : &mut [Self]
-    ///    (a reference to) a mutable array of field elements which is to
-    ///    be transformed under the FFT. The transformation happens in-
-    ///    place.
+    ///  - a : &mut [Self] (a reference to) a mutable array of field elements which is to be
+    ///    transformed under the FFT. The transformation happens in- place.
     ///
-    ///  - psi_rev: &[Self]
-    ///    (a reference to) an array of powers of psi, from 0 to n-1,
-    ///    but ordered by bit-reversed index. Here psi is a primitive root
-    ///    of order 2n. You can use
-    ///    `Self::bitreversed_powers(psi, n)` for this purpose, but this
-    ///    trait implementation is not const. For the performance benefit
-    ///    you want a precompiled array, which you can get if you can get
-    ///    by implementing the same method and marking it "const".
+    ///  - psi_rev: &[Self] (a reference to) an array of powers of psi, from 0 to n-1, but ordered
+    ///    by bit-reversed index. Here psi is a primitive root of order 2n. You can use
+    ///    `Self::bitreversed_powers(psi, n)` for this purpose, but this trait implementation is not
+    ///    const. For the performance benefit you want a precompiled array, which you can get if you
+    ///    can get by implementing the same method and marking it "const".
     fn fft(a: &mut [Self], psi_rev: &[Self]) {
         let n = a.len();
         let mut t = n;
@@ -158,20 +155,15 @@ where
     ///
     /// Arguments:
     ///
-    ///  - a : &mut [Self]
-    ///    (a reference to) a mutable array of field elements which is to
-    ///    be transformed under the IFFT. The transformation happens in-
-    ///    place.
+    ///  - a : &mut [Self] (a reference to) a mutable array of field elements which is to be
+    ///    transformed under the IFFT. The transformation happens in- place.
     ///
-    ///  - psi_inv_rev: &[Self]
-    ///    (a reference to) an array of powers of psi^-1, from 0 to n-1,
-    ///    but ordered by bit-reversed index. Here psi is a primitive root of
-    ///    order 2n. You can use
-    ///    `Self::bitreversed_powers(Self::inverse_or_zero(psi), n)` for
-    ///    this purpose, but this trait implementation is not const. For
-    ///    the performance benefit you want a precompiled array, which you
-    ///    can get if you can get by implementing the same methods and marking
-    ///    them "const".
+    ///  - psi_inv_rev: &[Self] (a reference to) an array of powers of psi^-1, from 0 to n-1, but
+    ///    ordered by bit-reversed index. Here psi is a primitive root of order 2n. You can use
+    ///    `Self::bitreversed_powers(Self::inverse_or_zero(psi), n)` for this purpose, but this
+    ///    trait implementation is not const. For the performance benefit you want a precompiled
+    ///    array, which you can get if you can get by implementing the same methods and marking them
+    ///    "const".
     fn ifft(a: &mut [Self], psi_inv_rev: &[Self], ninv: Self) {
         let n = a.len();
         let mut t = 1;

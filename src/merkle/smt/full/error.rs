@@ -37,17 +37,17 @@ impl fmt::Display for SmtLeafError {
         match self {
             InvalidNumEntriesForMultiple(num_entries) => {
                 write!(f, "Multiple leaf requires 2 or more entries. Got: {num_entries}")
-            }
+            },
             InconsistentKeys { entries, key_1, key_2 } => {
                 write!(f, "Multiple leaf requires all keys to map to the same leaf index. Offending keys: {key_1} and {key_2}. Entries: {entries:?}.")
-            }
+            },
             SingleKeyInconsistentWithLeafIndex { key, leaf_index } => {
                 write!(
                     f,
                     "Single key in leaf inconsistent with leaf index. Key: {key}, leaf index: {}",
                     leaf_index.value()
                 )
-            }
+            },
             MultipleKeysInconsistentWithLeafIndex {
                 leaf_index_from_keys,
                 leaf_index_supplied,
@@ -58,7 +58,7 @@ impl fmt::Display for SmtLeafError {
                     leaf_index_from_keys.value(),
                     leaf_index_supplied.value()
                 )
-            }
+            },
         }
     }
 }
@@ -80,7 +80,7 @@ impl fmt::Display for SmtProofError {
         match self {
             InvalidPathLength(path_length) => {
                 write!(f, "Invalid Merkle path length. Expected {SMT_DEPTH}, got {path_length}")
-            }
+            },
         }
     }
 }

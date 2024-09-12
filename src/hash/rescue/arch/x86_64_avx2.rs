@@ -4,40 +4,43 @@ use core::arch::x86_64::*;
 // https://github.com/0xPolygonZero/plonky2/blob/main/plonky2/src/hash/arch/x86_64/poseidon_goldilocks_avx2_bmi2.rs
 
 // Preliminary notes:
-// 1. AVX does not support addition with carry but 128-bit (2-word) addition can be easily
-//    emulated. The method recognizes that for a + b overflowed iff (a + b) < a:
-//        i. res_lo = a_lo + b_lo
-//       ii. carry_mask = res_lo < a_lo
-//      iii. res_hi = a_hi + b_hi - carry_mask
+// 1. AVX does not support addition with carry but 128-bit (2-word) addition can be easily emulated.
+//    The method recognizes that for a + b overflowed iff (a + b) < a:
+//    1. res_lo = a_lo + b_lo
+//    2. carry_mask = res_lo < a_lo
+//    3. res_hi = a_hi + b_hi - carry_mask
+//
 //    Notice that carry_mask is subtracted, not added. This is because AVX comparison instructions
 //    return -1 (all bits 1) for true and 0 for false.
 //
 // 2. AVX does not have unsigned 64-bit comparisons. Those can be emulated with signed comparisons
 //    by recognizing that a <u b iff a + (1 << 63) <s b + (1 << 63), where the addition wraps around
-//    and the comparisons are unsigned and signed respectively. The shift function adds/subtracts
-//    1 << 63 to enable this trick.
-//      Example: addition with carry.
-//        i. a_lo_s = shift(a_lo)
-//       ii. res_lo_s = a_lo_s + b_lo
-//      iii. carry_mask = res_lo_s <s a_lo_s
-//       iv. res_lo = shift(res_lo_s)
-//        v. res_hi = a_hi + b_hi - carry_mask
-//    The suffix _s denotes a value that has been shifted by 1 << 63. The result of addition is
-//    shifted if exactly one of the operands is shifted, as is the case on line ii. Line iii.
-//    performs a signed comparison res_lo_s <s a_lo_s on shifted values to emulate unsigned
-//    comparison res_lo <u a_lo on unshifted values. Finally, line iv. reverses the shift so the
-//    result can be returned.
-//      When performing a chain of calculations, we can often save instructions by letting the shift
-//    propagate through and only undoing it when necessary. For example, to compute the addition of
-//    three two-word (128-bit) numbers we can do:
-//        i. a_lo_s = shift(a_lo)
-//       ii. tmp_lo_s = a_lo_s + b_lo
-//      iii. tmp_carry_mask = tmp_lo_s <s a_lo_s
-//       iv. tmp_hi = a_hi + b_hi - tmp_carry_mask
-//        v. res_lo_s = tmp_lo_s + c_lo
-//       vi. res_carry_mask = res_lo_s <s tmp_lo_s
-//      vii. res_lo = shift(res_lo_s)
-//     viii. res_hi = tmp_hi + c_hi - res_carry_mask
+//    and the comparisons are unsigned and signed respectively. The shift function adds/subtracts 1
+//    << 63 to enable this trick. Addition with carry example:
+//    1. a_lo_s = shift(a_lo)
+//    2. res_lo_s = a_lo_s + b_lo
+//    3. carry_mask = res_lo_s <s a_lo_s
+//    4. res_lo = shift(res_lo_s)
+//    5. res_hi = a_hi + b_hi - carry_mask
+//
+//    The suffix _s denotes a value that has been shifted by 1 << 63. The result of addition
+//    is shifted if exactly one of the operands is shifted, as is the case on
+//    line 2. Line 3. performs a signed comparison res_lo_s <s a_lo_s on shifted values to
+//    emulate unsigned comparison res_lo <u a_lo on unshifted values. Finally, line 4. reverses the
+//    shift so the result can be returned.
+//
+//    When performing a chain of calculations, we can often save instructions by letting
+//    the shift propagate through and only undoing it when necessary.
+//    For example, to compute the addition of three two-word (128-bit) numbers we can do:
+//    1. a_lo_s = shift(a_lo)
+//    2. tmp_lo_s = a_lo_s + b_lo
+//    3. tmp_carry_mask = tmp_lo_s <s a_lo_s
+//    4. tmp_hi = a_hi + b_hi - tmp_carry_mask
+//    5. res_lo_s = tmp_lo_s + c_lo vi. res_carry_mask = res_lo_s <s tmp_lo_s
+//    6. res_carry_mask = res_lo_s <s tmp_lo_s
+//    7. res_lo = shift(res_lo_s)
+//    8. res_hi = tmp_hi + c_hi - res_carry_mask
+//
 //    Notice that the above 3-value addition still only requires two calls to shift, just like our
 //    2-value addition.
 
@@ -60,10 +63,10 @@ pub fn branch_hint() {
 }
 
 macro_rules! map3 {
-    ($f:ident::<$l:literal>, $v:ident) => {
+    ($f:ident:: < $l:literal > , $v:ident) => {
         ($f::<$l>($v.0), $f::<$l>($v.1), $f::<$l>($v.2))
     };
-    ($f:ident::<$l:literal>, $v1:ident, $v2:ident) => {
+    ($f:ident:: < $l:literal > , $v1:ident, $v2:ident) => {
         ($f::<$l>($v1.0, $v2.0), $f::<$l>($v1.1, $v2.1), $f::<$l>($v1.2, $v2.2))
     };
     ($f:ident, $v:ident) => {
@@ -72,11 +75,11 @@ macro_rules! map3 {
     ($f:ident, $v0:ident, $v1:ident) => {
         ($f($v0.0, $v1.0), $f($v0.1, $v1.1), $f($v0.2, $v1.2))
     };
-    ($f:ident, rep $v0:ident, $v1:ident) => {
+    ($f:ident,rep $v0:ident, $v1:ident) => {
         ($f($v0, $v1.0), $f($v0, $v1.1), $f($v0, $v1.2))
     };
 
-    ($f:ident, $v0:ident, rep $v1:ident) => {
+    ($f:ident, $v0:ident,rep $v1:ident) => {
         ($f($v0.0, $v1), $f($v0.1, $v1), $f($v0.2, $v1))
     };
 }

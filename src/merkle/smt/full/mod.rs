@@ -1,11 +1,12 @@
-use super::{
-    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
-    NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
-};
 use alloc::{
     collections::{BTreeMap, BTreeSet},
     string::ToString,
     vec::Vec,
+};
+
+use super::{
+    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
+    MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
 
 mod error;
@@ -32,8 +33,8 @@ pub const SMT_DEPTH: u8 = 64;
 /// Sparse Merkle tree mapping 256-bit keys to 256-bit values. Both keys and values are represented
 /// by 4 field elements.
 ///
-/// All leaves sit at depth 64. The most significant element of the key is used to identify the leaf to
-/// which the key maps.
+/// All leaves sit at depth 64. The most significant element of the key is used to identify the leaf
+/// to which the key maps.
 ///
 /// A leaf is either empty, or holds one or more key-value pairs. An empty leaf hashes to the empty
 /// word. Otherwise, a leaf hashes to the hash of its key-value pairs, ordered by key first, value
@@ -120,12 +121,7 @@ impl Smt {
 
     /// Returns the value associated with `key`
     pub fn get_value(&self, key: &RpoDigest) -> Word {
-        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
-
-        match self.leaves.get(&leaf_pos) {
-            Some(leaf) => leaf.get_value(key).unwrap_or_default(),
-            None => EMPTY_WORD,
-        }
+        <Self as SparseMerkleTree<SMT_DEPTH>>::get_value(self, key)
     }
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
@@ -171,6 +167,47 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::insert(self, key, value)
     }
 
+    /// Computes what changes are necessary to insert the specified key-value pairs into this Merkle
+    /// tree, allowing for validation before applying those changes.
+    ///
+    /// This method returns a [`MutationSet`], which contains all the information for inserting
+    /// `kv_pairs` into this Merkle tree already calculated, including the new root hash, which can
+    /// be queried with [`MutationSet::root()`]. Once a mutation set is returned,
+    /// [`Smt::apply_mutations()`] can be called in order to commit these changes to the Merkle
+    /// tree, or [`drop()`] to discard them.
+    ///
+    /// # Example
+    /// ```
+    /// # use miden_crypto::{hash::rpo::RpoDigest, Felt, Word};
+    /// # use miden_crypto::merkle::{Smt, EmptySubtreeRoots, SMT_DEPTH};
+    /// let mut smt = Smt::new();
+    /// let pair = (RpoDigest::default(), Word::default());
+    /// let mutations = smt.compute_mutations(vec![pair]);
+    /// assert_eq!(mutations.root(), *EmptySubtreeRoots::entry(SMT_DEPTH, 0));
+    /// smt.apply_mutations(mutations);
+    /// assert_eq!(smt.root(), *EmptySubtreeRoots::entry(SMT_DEPTH, 0));
+    /// ```
+    pub fn compute_mutations(
+        &self,
+        kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
+    }
+
+    /// Apply the prospective mutations computed with [`Smt::compute_mutations()`] to this tree.
+    ///
+    /// # Errors
+    /// If `mutations` was computed on a tree with a different root than this one, returns
+    /// [`MerkleError::ConflictingRoots`] with a two-item [`Vec`]. The first item is the root hash
+    /// the `mutations` were computed against, and the second item is the actual current root of
+    /// this tree.
+    pub fn apply_mutations(
+        &mut self,
+        mutations: MutationSet<SMT_DEPTH, RpoDigest, Word>,
+    ) -> Result<(), MerkleError> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::apply_mutations(self, mutations)
+    }
+
     // HELPERS
     // --------------------------------------------------------------------------------------------
 
@@ -187,7 +224,7 @@ impl Smt {
                 self.leaves.insert(leaf_index.value(), SmtLeaf::Single((key, value)));
 
                 None
-            }
+            },
         }
     }
 
@@ -225,11 +262,10 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     }
 
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
-        self.inner_nodes.get(&index).cloned().unwrap_or_else(|| {
-            let node = EmptySubtreeRoots::entry(SMT_DEPTH, index.depth() + 1);
-
-            InnerNode { left: *node, right: *node }
-        })
+        self.inner_nodes
+            .get(&index)
+            .cloned()
+            .unwrap_or_else(|| EmptySubtreeRoots::get_inner_node(SMT_DEPTH, index.depth()))
     }
 
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
@@ -249,6 +285,15 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         }
     }
 
+    fn get_value(&self, key: &Self::Key) -> Self::Value {
+        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
+
+        match self.leaves.get(&leaf_pos) {
+            Some(leaf) => leaf.get_value(key).unwrap_or_default(),
+            None => EMPTY_WORD,
+        }
+    }
+
     fn get_leaf(&self, key: &RpoDigest) -> Self::Leaf {
         let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
 
@@ -260,6 +305,28 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
     fn hash_leaf(leaf: &Self::Leaf) -> RpoDigest {
         leaf.hash()
+    }
+
+    fn construct_prospective_leaf(
+        &self,
+        mut existing_leaf: SmtLeaf,
+        key: &RpoDigest,
+        value: &Word,
+    ) -> SmtLeaf {
+        debug_assert_eq!(existing_leaf.index(), Self::key_to_leaf_index(key));
+
+        match existing_leaf {
+            SmtLeaf::Empty(_) => SmtLeaf::new_single(*key, *value),
+            _ => {
+                if *value != EMPTY_WORD {
+                    existing_leaf.insert(*key, *value);
+                } else {
+                    existing_leaf.remove(*key);
+                }
+
+                existing_leaf
+            },
+        }
     }
 
     fn key_to_leaf_index(key: &RpoDigest) -> LeafIndex<SMT_DEPTH> {

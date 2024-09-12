@@ -21,11 +21,11 @@ impl Display for MmrError {
             MmrError::InvalidPeaks => write!(fmt, "Invalid peaks count"),
             MmrError::InvalidPeak => {
                 write!(fmt, "Peak values does not match merkle path computed root")
-            }
+            },
             MmrError::InvalidUpdate => write!(fmt, "Invalid mmr update"),
             MmrError::UnknownPeak => {
                 write!(fmt, "Peak not in Mmr")
-            }
+            },
             MmrError::MerkleError(err) => write!(fmt, "{}", err),
         }
     }

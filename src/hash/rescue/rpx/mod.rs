@@ -26,8 +26,10 @@ pub type CubicExtElement = CubeExtension<Felt>;
 /// * Capacity size: 4 field elements.
 /// * S-Box degree: 7.
 /// * Rounds: There are 3 different types of rounds:
-/// - (FB): `apply_mds` → `add_constants` → `apply_sbox` → `apply_mds` → `add_constants` → `apply_inv_sbox`.
-/// - (E): `add_constants` → `ext_sbox` (which is raising to power 7 in the degree 3 extension field).
+/// - (FB): `apply_mds` → `add_constants` → `apply_sbox` → `apply_mds` → `add_constants` →
+///   `apply_inv_sbox`.
+/// - (E): `add_constants` → `ext_sbox` (which is raising to power 7 in the degree 3 extension
+///   field).
 /// - (M): `apply_mds` → `add_constants`.
 /// * Permutation: (FB) (E) (FB) (E) (FB) (E) (M).
 ///
@@ -158,8 +160,8 @@ impl Hasher for Rpx256 {
         // - seed is copied into the first 4 elements of the rate portion of the state.
         // - if the value fits into a single field element, copy it into the fifth rate element and
         //   set the first capacity element to 5.
-        // - if the value doesn't fit into a single field element, split it into two field
-        //   elements, copy them into rate elements 5 and 6 and set the first capacity element to 6.
+        // - if the value doesn't fit into a single field element, split it into two field elements,
+        //   copy them into rate elements 5 and 6 and set the first capacity element to 6.
         let mut state = [ZERO; STATE_WIDTH];
         state[INPUT1_RANGE].copy_from_slice(seed.as_elements());
         state[INPUT2_RANGE.start] = Felt::new(value);
