@@ -1,6 +1,6 @@
 ## 0.10.1 (TBD)
 
-* Added `Serializable` and `Deserializable` implementations for `PartialMmr` and `InOrderIndex` (#???).
+* Added `Serializable` and `Deserializable` implementations for `PartialMmr` and `InOrderIndex` (#329).
 
 ## 0.10.0 (2024-08-06)
 
