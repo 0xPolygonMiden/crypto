@@ -6,6 +6,8 @@
 //! leaves count.
 use core::num::NonZeroUsize;
 
+use winter_utils::{Deserializable, Serializable};
+
 // IN-ORDER INDEX
 // ================================================================================================
 
@@ -112,6 +114,21 @@ impl InOrderIndex {
     }
 }
 
+impl Serializable for InOrderIndex {
+    fn write_into<W: winter_utils::ByteWriter>(&self, target: &mut W) {
+        target.write_usize(self.idx);
+    }
+}
+
+impl Deserializable for InOrderIndex {
+    fn read_from<R: winter_utils::ByteReader>(
+        source: &mut R,
+    ) -> Result<Self, winter_utils::DeserializationError> {
+        let idx = source.read_usize()?;
+        Ok(InOrderIndex { idx })
+    }
+}
+
 // CONVERSIONS FROM IN-ORDER INDEX
 // ------------------------------------------------------------------------------------------------
 
@@ -127,6 +144,7 @@ impl From<InOrderIndex> for u64 {
 #[cfg(test)]
 mod test {
     use proptest::prelude::*;
+    use winter_utils::{Deserializable, Serializable};
 
     use super::InOrderIndex;
 
@@ -161,5 +179,13 @@ mod test {
         assert_eq!(left, right.parent().left_child());
         assert_eq!(left.sibling(), right);
         assert_eq!(left, right.sibling());
+    }
+
+    #[test]
+    fn test_inorder_index_serialization() {
+        let index = InOrderIndex::from_leaf_pos(5);
+        let bytes = index.to_bytes();
+        let index2 = InOrderIndex::read_from_bytes(&bytes).unwrap();
+        assert_eq!(index, index2);
     }
 }
