@@ -186,7 +186,7 @@ impl PartialMmr {
     pub fn inner_nodes<'a, I: Iterator<Item = (usize, RpoDigest)> + 'a>(
         &'a self,
         mut leaves: I,
-    ) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+    ) -> impl Iterator<Item = InnerNodeInfo> + 'a {
         let stack = if let Some((pos, leaf)) = leaves.next() {
             let idx = InOrderIndex::from_leaf_pos(pos);
             vec![(idx, leaf)]
