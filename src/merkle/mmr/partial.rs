@@ -3,6 +3,8 @@ use alloc::{
     vec::Vec,
 };
 
+use winter_utils::{Deserializable, Serializable};
+
 use super::{MmrDelta, MmrProof, Rpo256, RpoDigest};
 use crate::merkle::{
     mmr::{leaf_to_corresponding_tree, nodes_in_forest},
@@ -184,7 +186,7 @@ impl PartialMmr {
     pub fn inner_nodes<'a, I: Iterator<Item = (usize, RpoDigest)> + 'a>(
         &'a self,
         mut leaves: I,
-    ) -> impl Iterator<Item = InnerNodeInfo> + '_ {
+    ) -> impl Iterator<Item = InnerNodeInfo> + 'a {
         let stack = if let Some((pos, leaf)) = leaves.next() {
             let idx = InOrderIndex::from_leaf_pos(pos);
             vec![(idx, leaf)]
@@ -573,6 +575,28 @@ impl<'a, I: Iterator<Item = (usize, RpoDigest)>> Iterator for InnerNodeIterator<
     }
 }
 
+impl Serializable for PartialMmr {
+    fn write_into<W: winter_utils::ByteWriter>(&self, target: &mut W) {
+        self.forest.write_into(target);
+        self.peaks.write_into(target);
+        self.nodes.write_into(target);
+        target.write_bool(self.track_latest);
+    }
+}
+
+impl Deserializable for PartialMmr {
+    fn read_from<R: winter_utils::ByteReader>(
+        source: &mut R,
+    ) -> Result<Self, winter_utils::DeserializationError> {
+        let forest = usize::read_from(source)?;
+        let peaks = Vec::<RpoDigest>::read_from(source)?;
+        let nodes = NodeMap::read_from(source)?;
+        let track_latest = source.read_bool()?;
+
+        Ok(Self { forest, peaks, nodes, track_latest })
+    }
+}
+
 // UTILS
 // ================================================================================================
 
@@ -615,6 +639,8 @@ fn forest_to_rightmost_index(forest: usize) -> InOrderIndex {
 #[cfg(test)]
 mod tests {
     use alloc::{collections::BTreeSet, vec::Vec};
+
+    use winter_utils::{Deserializable, Serializable};
 
     use super::{
         forest_to_rightmost_index, forest_to_root_index, InOrderIndex, MmrPeaks, PartialMmr,
@@ -906,5 +932,17 @@ mod tests {
 
         // the openings should be the same
         assert_eq!(mmr.open(5).unwrap(), partial_mmr.open(5).unwrap().unwrap());
+    }
+
+    #[test]
+    fn test_partial_mmr_serialization() {
+        let mmr = Mmr::from((0..7).map(int_to_node));
+        let forest_size = mmr.forest();
+        let partial_mmr = PartialMmr::from_peaks(mmr.peaks(forest_size).unwrap());
+
+        let bytes = partial_mmr.to_bytes();
+        let decoded = PartialMmr::read_from_bytes(&bytes).unwrap();
+
+        assert_eq!(partial_mmr, decoded);
     }
 }

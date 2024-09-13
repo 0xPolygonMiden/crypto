@@ -7,7 +7,7 @@
 //!
 //! Additionally the structure only supports adding leaves to the right-most tree, the one with the
 //! least number of leaves. The structure preserves the invariant that each tree has different
-//! depths, i.e. as part of adding adding a new element to the forest the trees with same depth are
+//! depths, i.e. as part of adding a new element to the forest the trees with same depth are
 //! merged, creating a new tree with depth d+1, this process is continued until the property is
 //! reestablished.
 use alloc::vec::Vec;
