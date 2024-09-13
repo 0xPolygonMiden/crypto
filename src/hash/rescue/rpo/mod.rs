@@ -152,11 +152,10 @@ impl Hasher for Rpo256 {
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
         // initialize the state as follows:
         // - seed is copied into the first 4 elements of the rate portion of the state.
-        // - if the value fits into a single field element, copy it into the fifth rate element
-        //   and set the sixth rate element to 1.
-        // - if the value doesn't fit into a single field element, split it into two field
-        //   elements, copy them into rate elements 5 and 6, and set the seventh rate element
-        //   to 1.
+        // - if the value fits into a single field element, copy it into the fifth rate element and
+        //   set the sixth rate element to 1.
+        // - if the value doesn't fit into a single field element, split it into two field elements,
+        //   copy them into rate elements 5 and 6, and set the seventh rate element to 1.
         // - set the first capacity element to 1
         let mut state = [ZERO; STATE_WIDTH];
         state[INPUT1_RANGE].copy_from_slice(seed.as_elements());

@@ -20,8 +20,8 @@ impl SmtLeaf {
     ///
     /// # Errors
     ///   - Returns an error if 2 keys in `entries` map to a different leaf index
-    ///   - Returns an error if 1 or more keys in `entries` map to a leaf index
-    ///     different from `leaf_index`
+    ///   - Returns an error if 1 or more keys in `entries` map to a leaf index different from
+    ///     `leaf_index`
     pub fn new(
         entries: Vec<(RpoDigest, Word)>,
         leaf_index: LeafIndex<SMT_DEPTH>,
@@ -39,7 +39,7 @@ impl SmtLeaf {
                 }
 
                 Ok(Self::new_single(key, value))
-            }
+            },
             _ => {
                 let leaf = Self::new_multiple(entries)?;
 
@@ -53,7 +53,7 @@ impl SmtLeaf {
                 } else {
                     Ok(leaf)
                 }
-            }
+            },
         }
     }
 
@@ -118,7 +118,7 @@ impl SmtLeaf {
                 // Note: All keys are guaranteed to have the same leaf index
                 let (first_key, _) = entries[0];
                 first_key.into()
-            }
+            },
         }
     }
 
@@ -129,7 +129,7 @@ impl SmtLeaf {
             SmtLeaf::Single(_) => 1,
             SmtLeaf::Multiple(entries) => {
                 entries.len().try_into().expect("shouldn't have more than 2^64 entries")
-            }
+            },
         }
     }
 
@@ -141,7 +141,7 @@ impl SmtLeaf {
             SmtLeaf::Multiple(kvs) => {
                 let elements: Vec<Felt> = kvs.iter().copied().flat_map(kv_to_elements).collect();
                 Rpo256::hash_elements(&elements)
-            }
+            },
         }
     }
 
@@ -182,7 +182,8 @@ impl SmtLeaf {
     // HELPERS
     // ---------------------------------------------------------------------------------------------
 
-    /// Returns the value associated with `key` in the leaf, or `None` if `key` maps to another leaf.
+    /// Returns the value associated with `key` in the leaf, or `None` if `key` maps to another
+    /// leaf.
     pub(super) fn get_value(&self, key: &RpoDigest) -> Option<Word> {
         // Ensure that `key` maps to this leaf
         if self.index() != key.into() {
@@ -197,7 +198,7 @@ impl SmtLeaf {
                 } else {
                     Some(EMPTY_WORD)
                 }
-            }
+            },
             SmtLeaf::Multiple(kv_pairs) => {
                 for (key_in_leaf, value_in_leaf) in kv_pairs {
                     if key == key_in_leaf {
@@ -206,7 +207,7 @@ impl SmtLeaf {
                 }
 
                 Some(EMPTY_WORD)
-            }
+            },
         }
     }
 
@@ -219,7 +220,7 @@ impl SmtLeaf {
             SmtLeaf::Empty(_) => {
                 *self = SmtLeaf::new_single(key, value);
                 None
-            }
+            },
             SmtLeaf::Single(kv_pair) => {
                 if kv_pair.0 == key {
                     // the key is already in this leaf. Update the value and return the previous
@@ -237,7 +238,7 @@ impl SmtLeaf {
 
                     None
                 }
-            }
+            },
             SmtLeaf::Multiple(kv_pairs) => {
                 match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
                     Ok(pos) => {
@@ -245,14 +246,14 @@ impl SmtLeaf {
                         kv_pairs[pos].1 = value;
 
                         Some(old_value)
-                    }
+                    },
                     Err(pos) => {
                         kv_pairs.insert(pos, (key, value));
 
                         None
-                    }
+                    },
                 }
-            }
+            },
         }
     }
 
@@ -277,7 +278,7 @@ impl SmtLeaf {
                     // another key is stored at leaf; nothing to update
                     (None, false)
                 }
-            }
+            },
             SmtLeaf::Multiple(kv_pairs) => {
                 match kv_pairs.binary_search_by(|kv_pair| cmp_keys(kv_pair.0, key)) {
                     Ok(pos) => {
@@ -292,13 +293,13 @@ impl SmtLeaf {
                         }
 
                         (Some(old_value), false)
-                    }
+                    },
                     Err(_) => {
                         // other keys are stored at leaf; nothing to update
                         (None, false)
-                    }
+                    },
                 }
-            }
+            },
         }
     }
 }
@@ -349,7 +350,7 @@ impl Deserializable for SmtLeaf {
 // ================================================================================================
 
 /// Converts a key-value tuple to an iterator of `Felt`s
-fn kv_to_elements((key, value): (RpoDigest, Word)) -> impl Iterator<Item = Felt> {
+pub(crate) fn kv_to_elements((key, value): (RpoDigest, Word)) -> impl Iterator<Item = Felt> {
     let key_elements = key.into_iter();
     let value_elements = value.into_iter();
 
@@ -358,7 +359,7 @@ fn kv_to_elements((key, value): (RpoDigest, Word)) -> impl Iterator<Item = Felt>
 
 /// Compares two keys, compared element-by-element using their integer representations starting with
 /// the most significant element.
-fn cmp_keys(key_1: RpoDigest, key_2: RpoDigest) -> Ordering {
+pub(crate) fn cmp_keys(key_1: RpoDigest, key_2: RpoDigest) -> Ordering {
     for (v1, v2) in key_1.iter().zip(key_2.iter()).rev() {
         let v1 = v1.as_int();
         let v2 = v2.as_int();

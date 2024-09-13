@@ -1,13 +1,14 @@
-use crate::dsa::rpo_falcon512::FALCON_ENCODING_BITS;
+use alloc::string::ToString;
+use core::ops::Deref;
+
+use num::Zero;
 
 use super::{
     super::{Rpo256, LOG_N, N, PK_LEN},
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconFelt, Felt, Polynomial,
     Serializable, Signature, Word,
 };
-use alloc::string::ToString;
-use core::ops::Deref;
-use num::Zero;
+use crate::dsa::rpo_falcon512::FALCON_ENCODING_BITS;
 
 // PUBLIC KEY
 // ================================================================================================
@@ -116,7 +117,7 @@ impl Deserializable for PubKeyPoly {
 
             if acc_len >= FALCON_ENCODING_BITS {
                 acc_len -= FALCON_ENCODING_BITS;
-                let w = (acc >> acc_len) & 0x3FFF;
+                let w = (acc >> acc_len) & 0x3fff;
                 let element = w.try_into().map_err(|err| {
                     DeserializationError::InvalidValue(format!(
                         "Failed to decode public key: {err}"

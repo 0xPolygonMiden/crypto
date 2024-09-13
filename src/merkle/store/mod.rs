@@ -127,8 +127,8 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
     /// # Errors
     /// This method can return the following errors:
     /// - `RootNotInStore` if the `root` is not present in the store.
-    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in
-    ///   the store.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the
+    ///   store.
     pub fn get_node(&self, root: RpoDigest, index: NodeIndex) -> Result<RpoDigest, MerkleError> {
         let mut hash = root;
 
@@ -152,8 +152,8 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
     /// # Errors
     /// This method can return the following errors:
     /// - `RootNotInStore` if the `root` is not present in the store.
-    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in
-    ///   the store.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the
+    ///   store.
     pub fn get_path(&self, root: RpoDigest, index: NodeIndex) -> Result<ValuePath, MerkleError> {
         let mut hash = root;
         let mut path = Vec::with_capacity(index.depth().into());
@@ -421,8 +421,8 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
     /// # Errors
     /// This method can return the following errors:
     /// - `RootNotInStore` if the `root` is not present in the store.
-    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in
-    ///   the store.
+    /// - `NodeNotInStore` if a node needed to traverse from `root` to `index` is not present in the
+    ///   store.
     pub fn set_node(
         &mut self,
         mut root: RpoDigest,

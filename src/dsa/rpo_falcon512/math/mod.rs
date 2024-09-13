@@ -2,17 +2,19 @@
 //!
 //! It uses and acknowledges the work in:
 //!
-//! 1. The [reference](https://falcon-sign.info/impl/README.txt.html) implementation by Thomas Pornin.
+//! 1. The [reference](https://falcon-sign.info/impl/README.txt.html) implementation by Thomas
+//!    Pornin.
 //! 2. The [Rust](https://github.com/aszepieniec/falcon-rust) implementation by Alan Szepieniec.
-use super::MODULUS;
 use alloc::{string::String, vec::Vec};
 use core::ops::MulAssign;
+
+#[cfg(not(feature = "std"))]
+use num::Float;
 use num::{BigInt, FromPrimitive, One, Zero};
 use num_complex::Complex64;
 use rand::Rng;
 
-#[cfg(not(feature = "std"))]
-use num::Float;
+use super::MODULUS;
 
 mod fft;
 pub use fft::{CyclotomicFourier, FastFft};
@@ -152,7 +154,7 @@ fn ntru_solve(
             {
                 None
             }
-        }
+        },
     }
 }
 

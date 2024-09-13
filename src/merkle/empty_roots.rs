@@ -1,6 +1,6 @@
 use core::slice;
 
-use super::{Felt, RpoDigest, EMPTY_WORD};
+use super::{smt::InnerNode, Felt, RpoDigest, EMPTY_WORD};
 
 // EMPTY NODES SUBTREES
 // ================================================================================================
@@ -24,6 +24,17 @@ impl EmptySubtreeRoots {
         assert!(node_depth <= tree_depth);
         let pos = 255 - tree_depth + node_depth;
         &EMPTY_SUBTREES[pos as usize]
+    }
+
+    /// Returns a sparse Merkle tree [`InnerNode`] with two empty children.
+    ///
+    /// # Note
+    /// `node_depth` is the depth of the **parent** to have empty children. That is, `node_depth`
+    /// and the depth of the returned [`InnerNode`] are the same, and thus the empty hashes are for
+    /// subtrees of depth `node_depth + 1`.
+    pub(crate) const fn get_inner_node(tree_depth: u8, node_depth: u8) -> InnerNode {
+        let &child = Self::entry(tree_depth, node_depth + 1);
+        InnerNode { left: child, right: child }
     }
 }
 

@@ -1,6 +1,8 @@
 use alloc::{string::ToString, vec::Vec};
 use core::ops::Deref;
 
+use num::Zero;
+
 use super::{
     hash_to_point::hash_to_point_rpo256,
     keys::PubKeyPoly,
@@ -8,7 +10,6 @@ use super::{
     ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Nonce, Rpo256,
     Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_POLY_BYTE_LEN,
 };
-use num::Zero;
 
 // FALCON SIGNATURE
 // ================================================================================================
@@ -38,8 +39,8 @@ use num::Zero;
 /// The signature is serialized as:
 /// 1. A header byte specifying the algorithm used to encode the coefficients of the `s2` polynomial
 ///    together with the degree of the irreducible polynomial phi. For RPO Falcon512, the header
-///    byte is set to `10111001` which differentiates it from the standardized instantiation of
-///    the Falcon signature.
+///    byte is set to `10111001` which differentiates it from the standardized instantiation of the
+///    Falcon signature.
 /// 2. 40 bytes for the nonce.
 /// 4. 625 bytes encoding the `s2` polynomial above.
 ///
@@ -355,9 +356,10 @@ fn are_coefficients_valid(x: &[i16]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{super::SecretKey, *};
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
+
+    use super::{super::SecretKey, *};
 
     #[test]
     fn test_serialization_round_trip() {

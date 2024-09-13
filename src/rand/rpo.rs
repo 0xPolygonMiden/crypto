@@ -1,10 +1,12 @@
+use alloc::{string::ToString, vec::Vec};
+
+use rand_core::impls;
+
 use super::{Felt, FeltRng, FieldElement, RandomCoin, RandomCoinError, RngCore, Word, ZERO};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
     utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable},
 };
-use alloc::{string::ToString, vec::Vec};
-use rand_core::impls;
 
 // CONSTANTS
 // ================================================================================================
@@ -20,8 +22,8 @@ const HALF_RATE_WIDTH: usize = (Rpo256::RATE_RANGE.end - Rpo256::RATE_RANGE.star
 /// described in <https://eprint.iacr.org/2011/499.pdf>.
 ///
 /// The simplification is related to the following facts:
-/// 1. A call to the reseed method implies one and only one call to the permutation function.
-///    This is possible because in our case we never reseed with more than 4 field elements.
+/// 1. A call to the reseed method implies one and only one call to the permutation function. This
+///    is possible because in our case we never reseed with more than 4 field elements.
 /// 2. As a result of the previous point, we don't make use of an input buffer to accumulate seed
 ///    material.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

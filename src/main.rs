@@ -35,6 +35,7 @@ pub fn benchmark_smt() {
 
     let mut tree = construction(entries, tree_size).unwrap();
     insertion(&mut tree, tree_size).unwrap();
+    batched_insertion(&mut tree, tree_size).unwrap();
     proof_generation(&mut tree, tree_size).unwrap();
 }
 
@@ -78,6 +79,54 @@ pub fn insertion(tree: &mut Smt, size: u64) -> Result<(), MerkleError> {
         // 1000. As a result, we can only multiply by 50
         insertion_times.iter().sum::<f32>() * 50f32,
     );
+
+    Ok(())
+}
+
+pub fn batched_insertion(tree: &mut Smt, size: u64) -> Result<(), MerkleError> {
+    println!("Running a batched insertion benchmark:");
+
+    let new_pairs: Vec<(RpoDigest, Word)> = (0..1000)
+        .map(|i| {
+            let key = Rpo256::hash(&rand_value::<u64>().to_be_bytes());
+            let value = [ONE, ONE, ONE, Felt::new(size + i)];
+            (key, value)
+        })
+        .collect();
+
+    let now = Instant::now();
+    let mutations = tree.compute_mutations(new_pairs);
+    let compute_elapsed = now.elapsed();
+
+    let now = Instant::now();
+    tree.apply_mutations(mutations).unwrap();
+    let apply_elapsed = now.elapsed();
+
+    println!(
+        "An average batch computation time measured by a 1k-batch into an SMT with {} key-value pairs over {:.3} milliseconds is {:.3} milliseconds",
+        size,
+        compute_elapsed.as_secs_f32() * 1000f32,
+        // Dividing by the number of iterations, 1000, and then multiplying by 1000 to get
+        // milliseconds, cancels out.
+        compute_elapsed.as_secs_f32(),
+    );
+
+    println!(
+        "An average batch application time measured by a 1k-batch into an SMT with {} key-value pairs over {:.3} milliseconds is {:.3} milliseconds",
+        size,
+        apply_elapsed.as_secs_f32() * 1000f32,
+        // Dividing by the number of iterations, 1000, and then multiplying by 1000 to get
+        // milliseconds, cancels out.
+        apply_elapsed.as_secs_f32(),
+    );
+
+    println!(
+        "An average batch insertion time measured by a 1k-batch into an SMT with {} key-value pairs totals to {:.3} milliseconds",
+        size,
+        (compute_elapsed + apply_elapsed).as_secs_f32() * 1000f32,
+    );
+
+    println!();
 
     Ok(())
 }
