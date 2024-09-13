@@ -937,8 +937,7 @@ mod tests {
     #[test]
     fn test_partial_mmr_serialization() {
         let mmr = Mmr::from((0..7).map(int_to_node));
-        let forest_size = mmr.forest();
-        let partial_mmr = PartialMmr::from_peaks(mmr.peaks(forest_size).unwrap());
+        let partial_mmr = PartialMmr::from_peaks(mmr.peaks());
 
         let bytes = partial_mmr.to_bytes();
         let decoded = PartialMmr::read_from_bytes(&bytes).unwrap();
