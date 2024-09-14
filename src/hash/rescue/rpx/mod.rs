@@ -72,8 +72,9 @@ pub type CubicExtElement = CubeExtension<Felt>;
 /// lower than 2^128, we see that the target 128-bit security level is maintained as long as
 /// the size of the domain identifier space, including for padding, is less than 2^128.
 ///
-/// ## Hashing of empty lists
-/// The current implementation hashes empty lists to the zero digest [0, 0, 0, 0].
+/// ## Hashing of empty input
+/// The current implementation hashes empty input to the zero digest [0, 0, 0, 0]. This has
+/// the benefit of requiring no calls to the RPX permutation when hashing empty input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rpx256();
 
