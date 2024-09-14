@@ -1,6 +1,6 @@
 //! Cryptographic hash functions used by the Miden VM and the Miden rollup.
 
-use super::{CubeExtension, Felt, FieldElement, StarkField, ONE, ZERO};
+use super::{CubeExtension, Felt, FieldElement, StarkField, ZERO};
 
 pub mod blake;
 
