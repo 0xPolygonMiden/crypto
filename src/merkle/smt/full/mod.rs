@@ -1,3 +1,6 @@
+#[cfg(feature = "async")]
+use std::sync::Arc;
+
 use alloc::{
     collections::{BTreeMap, BTreeSet},
     string::ToString,
@@ -44,7 +47,10 @@ pub const SMT_DEPTH: u8 = 64;
 pub struct Smt {
     root: RpoDigest,
     leaves: BTreeMap<u64, SmtLeaf>,
+    #[cfg(not(feature = "async"))]
     inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+    #[cfg(feature = "async")]
+    inner_nodes: Arc<BTreeMap<NodeIndex, InnerNode>>,
 }
 
 impl Smt {
@@ -65,7 +71,7 @@ impl Smt {
         Self {
             root,
             leaves: BTreeMap::new(),
-            inner_nodes: BTreeMap::new(),
+            inner_nodes: Default::default(),
         }
     }
 
@@ -152,6 +158,23 @@ impl Smt {
             left: e.left,
             right: e.right,
         })
+    }
+
+    /// Gets a mutable reference to this structure's inner node mapping.
+    ///
+    /// # Panics
+    /// This will panic if we have violated our own invariants and try to mutate these nodes while
+    /// Self::compute_mutations_parallel() is still running.
+    fn inner_nodes_mut(&mut self) -> &mut BTreeMap<NodeIndex, InnerNode> {
+        #[cfg(feature = "async")]
+        {
+            Arc::get_mut(&mut self.inner_nodes).unwrap()
+        }
+
+        #[cfg(not(feature = "async"))]
+        {
+            &mut self.inner_nodes
+        }
     }
 
     // STATE MUTATORS
@@ -269,11 +292,11 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     }
 
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
-        self.inner_nodes.insert(index, inner_node);
+        self.inner_nodes_mut().insert(index, inner_node);
     }
 
     fn remove_inner_node(&mut self, index: NodeIndex) {
-        let _ = self.inner_nodes.remove(&index);
+        let _ = self.inner_nodes_mut().remove(&index);
     }
 
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
