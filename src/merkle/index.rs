@@ -114,8 +114,8 @@ impl NodeIndex {
     /// Returns the scalar representation of the depth/value pair.
     ///
     /// It is computed as `2^depth + value`.
-    pub const fn to_scalar_index(&self) -> u64 {
-        (1 << self.depth as u64) + self.value
+    pub const fn to_scalar_index(&self) -> u128 {
+        (1 << self.depth as u64) + (self.value as u128)
     }
 
     /// Returns the depth of the current instance.
