@@ -1,4 +1,4 @@
-use core::fmt::Display;
+use core::{fmt::Display, num::NonZero};
 
 use super::{Felt, MerkleError, RpoDigest};
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
@@ -69,6 +69,41 @@ impl NodeIndex {
         let depth = depth.as_int();
         let depth = u8::try_from(depth).map_err(|_| MerkleError::DepthTooBig(depth))?;
         let value = value.as_int();
+        Self::new(depth, value)
+    }
+
+    /// Converts a scalar representation of a depth/value pair to a [`NodeIndex`].
+    ///
+    /// This is the inverse operation of [`NodeIndex::to_scalar_index()`]. As `1` represents the
+    /// root node, `index` cannot be zero.
+    ///
+    /// # Errors
+    /// Returns the same errors under the same conditions as [`NodeIndex::new()`].
+    ///
+    /// # Panics
+    /// Panics if the depth indicated by `index` does not fit in a [`u8`], or if the row-value
+    /// indicated by `index` does not fit in a [`u64`].
+    pub const fn from_scalar_index(index: NonZero<u128>) -> Result<Self, MerkleError> {
+        let index = index.get() - 1;
+
+        if index == 0 {
+            return Ok(Self { depth: 0, value: 0 });
+        }
+
+        let depth = {
+            let depth = u128::ilog2(index);
+            assert!(depth <= u8::MAX as u32);
+            depth as u8
+        };
+
+        let max_value_for_depth = (1 << depth) - 1;
+
+        let value = {
+            let value = index - max_value_for_depth;
+            assert!(value <= u64::MAX as u128);
+            value as u64
+        };
+
         Self::new(depth, value)
     }
 
