@@ -19,6 +19,9 @@ use crate::{
 pub struct RpoDigest([Felt; DIGEST_SIZE]);
 
 impl RpoDigest {
+    /// The serialized size of the digest in bytes.
+    pub const SERIALIZED_SIZE: usize = DIGEST_BYTES;
+
     pub const fn new(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
     }
@@ -423,6 +426,10 @@ impl Serializable for RpoDigest {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_bytes(&self.as_bytes());
     }
+
+    fn get_size_hint(&self) -> usize {
+        Self::SERIALIZED_SIZE
+    }
 }
 
 impl Deserializable for RpoDigest {
@@ -476,6 +483,7 @@ mod tests {
         let mut bytes = vec![];
         d1.write_into(&mut bytes);
         assert_eq!(DIGEST_BYTES, bytes.len());
+        assert_eq!(bytes.len(), d1.get_size_hint());
 
         let mut reader = SliceReader::new(&bytes);
         let d2 = RpoDigest::read_from(&mut reader).unwrap();

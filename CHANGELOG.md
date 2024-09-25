@@ -1,3 +1,7 @@
+## 0.10.2 (TBD)
+
+* Implement `get_size_hint` for `RpoDigest` and `RpxDigest` and expose constants for their serialized size (#330).
+
 ## 0.10.1 (2024-09-13)
 
 * Added `Serializable` and `Deserializable` implementations for `PartialMmr` and `InOrderIndex` (#329).
