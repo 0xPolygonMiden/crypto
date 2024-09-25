@@ -1,4 +1,4 @@
-## 0.10.2 (TBD)
+## 0.10.2 (2024-09-25)
 
 * Implement `get_size_hint` for `RpoDigest` and `RpxDigest` and expose constants for their serialized size (#330).
 
