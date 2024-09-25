@@ -423,6 +423,10 @@ impl Serializable for RpxDigest {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write_bytes(&self.as_bytes());
     }
+
+    fn get_size_hint(&self) -> usize {
+        self.as_bytes().get_size_hint()
+    }
 }
 
 impl Deserializable for RpxDigest {
@@ -476,6 +480,7 @@ mod tests {
         let mut bytes = vec![];
         d1.write_into(&mut bytes);
         assert_eq!(DIGEST_BYTES, bytes.len());
+        assert_eq!(bytes.len(), d1.get_size_hint());
 
         let mut reader = SliceReader::new(&bytes);
         let d2 = RpxDigest::read_from(&mut reader).unwrap();
