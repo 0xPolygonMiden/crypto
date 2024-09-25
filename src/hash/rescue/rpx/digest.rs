@@ -19,6 +19,9 @@ use crate::{
 pub struct RpxDigest([Felt; DIGEST_SIZE]);
 
 impl RpxDigest {
+    /// The serialized size of the digest in bytes.
+    pub const SERIALIZED_SIZE: usize = DIGEST_BYTES;
+
     pub const fn new(value: [Felt; DIGEST_SIZE]) -> Self {
         Self(value)
     }
