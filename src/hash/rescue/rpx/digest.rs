@@ -428,7 +428,7 @@ impl Serializable for RpxDigest {
     }
 
     fn get_size_hint(&self) -> usize {
-        self.as_bytes().get_size_hint()
+        Self::SERIALIZED_SIZE
     }
 }
 
