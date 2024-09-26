@@ -1157,9 +1157,9 @@ dependencies = [
 
 [[package]]
 name = "winter-math"
-version = "0.9.0"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "004f85bb051ce986ec0b9a2bd90aaf81b83e3c67464becfdf7db31f14c1019ba"
+checksum = "5b0e685b3b872d82e58a86519294a814b7bc7a4d3cd2c93570a7d80c0c5a1aba"
 dependencies = [
  "serde",
  "winter-utils",
