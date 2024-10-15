@@ -1146,8 +1146,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 [[package]]
 name = "winter-crypto"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00fbb724d2d9fbfd3aa16ea27f5e461d4fe1d74b0c9e0ed1bf79e9e2a955f4d5"
+source = "git+https://github.com/facebook/winterfell?branch=next#9a9377fe1fab12dc0a54f258856e40ac960ddac2"
 dependencies = [
  "blake3",
  "sha3",
@@ -1168,8 +1167,7 @@ dependencies = [
 [[package]]
 name = "winter-rand-utils"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2b827c901ab0c316d89812858ff451d60855c0a5c7ae734b098c62a28624181"
+source = "git+https://github.com/facebook/winterfell?branch=next#9a9377fe1fab12dc0a54f258856e40ac960ddac2"
 dependencies = [
  "rand",
  "winter-utils",
