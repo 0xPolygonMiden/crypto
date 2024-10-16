@@ -193,26 +193,22 @@ impl NodeIndex {
                 return false;
             }
 
+            if other.depth < self.depth {
+                return false;
+            }
+
             other = other.parent();
         }
     }
 
-    /// Returns the right-most descendent of the current node for a tree of `DEPTH` depth.
-    pub const fn rightmost_descendent<const DEPTH: u8>(mut self) -> Self {
-        while self.depth() < DEPTH {
-            self = self.right_child();
-        }
-
-        self
+    /// The inverse of [`NodeIndex::is_ancestor_of`], except that it does not include itself.
+    pub fn is_descendent_of(self, other: Self) -> bool {
+        self.depth != other.depth && self.value != other.value && other.contains(self)
     }
 
-    /// Returns the left-most descendent of the current node for a tree of `DEPTH` depth.
-    pub const fn leftmost_descendent<const DEPTH: u8>(mut self) -> Self {
-        while self.depth() < DEPTH {
-            self = self.left_child();
-        }
-
-        self
+    /// Returns `true` if and only if `other` is an ancestor of the current node.
+    pub fn is_ancestor_of(self, other: Self) -> bool {
+        self.depth != other.depth && self.value != other.value && self.contains(other)
     }
 
     // PROVIDERS
