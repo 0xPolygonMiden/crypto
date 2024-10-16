@@ -69,6 +69,17 @@ impl MmrPeaks {
         &self.peaks
     }
 
+    /// Returns the peak by the provided index.
+    ///
+    /// # Errors
+    /// Returns an error if the provided peak index is greater or equal to the current number of
+    /// peaks in the Mmr.
+    pub fn get_peak(&self, peak_idx: usize) -> Result<&RpoDigest, MmrError> {
+        self.peaks
+            .get(peak_idx)
+            .ok_or(MmrError::PeakOutOfBounds(peak_idx, self.peaks.len()))
+    }
+
     /// Converts this [MmrPeaks] into its components: number of leaves and a vector of peaks of
     /// the underlying MMR.
     pub fn into_parts(self) -> (usize, Vec<RpoDigest>) {
@@ -84,9 +95,12 @@ impl MmrPeaks {
         Rpo256::hash_elements(&self.flatten_and_pad_peaks())
     }
 
-    pub fn verify(&self, value: RpoDigest, opening: MmrProof) -> bool {
-        let root = &self.peaks[opening.peak_index()];
-        opening.merkle_path.verify(opening.relative_pos() as u64, value, root)
+    pub fn verify(&self, value: RpoDigest, opening: MmrProof) -> Result<(), MmrError> {
+        let root = self.get_peak(opening.peak_index())?;
+        opening
+            .merkle_path
+            .verify(opening.relative_pos() as u64, value, root)
+            .map_err(MmrError::MerkleError)
     }
 
     /// Flattens and pads the peaks to make hashing inside of the Miden VM easier.

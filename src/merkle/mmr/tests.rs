@@ -216,7 +216,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 6);
     assert!(
-        mmr.peaks().verify(LEAVES[6], opening),
+        mmr.peaks().verify(LEAVES[6], opening).is_ok(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -229,7 +229,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 5);
     assert!(
-        mmr.peaks().verify(LEAVES[5], opening),
+        mmr.peaks().verify(LEAVES[5], opening).is_ok(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -241,7 +241,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 4);
     assert!(
-        mmr.peaks().verify(LEAVES[4], opening),
+        mmr.peaks().verify(LEAVES[4], opening).is_ok(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -254,7 +254,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 3);
     assert!(
-        mmr.peaks().verify(LEAVES[3], opening),
+        mmr.peaks().verify(LEAVES[3], opening).is_ok(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -266,7 +266,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 2);
     assert!(
-        mmr.peaks().verify(LEAVES[2], opening),
+        mmr.peaks().verify(LEAVES[2], opening).is_ok(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -278,7 +278,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 1);
     assert!(
-        mmr.peaks().verify(LEAVES[1], opening),
+        mmr.peaks().verify(LEAVES[1], opening).is_ok(),
         "MmrProof should be valid for the current accumulator."
     );
 
@@ -290,7 +290,7 @@ fn test_mmr_open() {
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 0);
     assert!(
-        mmr.peaks().verify(LEAVES[0], opening),
+        mmr.peaks().verify(LEAVES[0], opening).is_ok(),
         "MmrProof should be valid for the current accumulator."
     );
 }
@@ -833,6 +833,28 @@ fn test_mmr_add_invalid_odd_leaf() {
 
     let result = partial.track(LEAVES.len() - 1, LEAVES[6], &empty);
     assert!(result.is_ok());
+}
+
+#[test]
+fn test_mmr_error_invalid_proof() {
+    let mmr: Mmr = LEAVES[0..4].iter().cloned().into();
+    let mut proof = mmr.open(3).unwrap();
+    proof.forest = 5;
+    proof.position = 4;
+    assert!(mmr.peaks().verify(LEAVES[3], proof).is_err());
+}
+
+#[test]
+fn test_mmr_error_invalid_mmr() {
+    let leaves_len = 3;
+    let mut mmr = Mmr::from(LEAVES[0..leaves_len].iter().cloned());
+
+    let leaf_idx = leaves_len - 1;
+    let proof = mmr.open(leaf_idx).unwrap();
+    assert!(mmr.peaks().verify(LEAVES[leaf_idx], proof.clone()).is_ok());
+
+    mmr.add(LEAVES[leaves_len]);
+    assert!(mmr.peaks().verify(LEAVES[leaf_idx], proof).is_err());
 }
 
 mod property_tests {
