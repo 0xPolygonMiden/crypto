@@ -1,5 +1,5 @@
 #[cfg(feature = "async")]
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use alloc::{
     collections::{BTreeMap, BTreeSet},
@@ -11,6 +11,9 @@ use super::{
     EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
     MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
+
+#[cfg(feature = "async")]
+use super::NodeMutation;
 
 mod error;
 pub use error::{SmtLeafError, SmtProofError};
@@ -297,6 +300,27 @@ impl Smt {
             None
         }
     }
+
+    fn construct_prospective_leaf(
+        mut existing_leaf: SmtLeaf,
+        key: &RpoDigest,
+        value: &Word,
+    ) -> SmtLeaf {
+        debug_assert_eq!(existing_leaf.index(), Self::key_to_leaf_index(key));
+
+        match existing_leaf {
+            SmtLeaf::Empty(_) => SmtLeaf::new_single(*key, *value),
+            _ => {
+                if *value != EMPTY_WORD {
+                    existing_leaf.insert(*key, *value);
+                } else {
+                    existing_leaf.remove(*key);
+                }
+
+                existing_leaf
+            },
+        }
+    }
 }
 
 impl SparseMerkleTree<SMT_DEPTH> for Smt {
@@ -396,6 +420,141 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 impl Default for Smt {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Just a [`NodeMutation`] with its hash already computed and stored.
+#[cfg(feature = "async")]
+pub struct ComputedNodeMutation {
+    pub mutation: NodeMutation,
+    pub hash: RpoDigest,
+}
+
+#[cfg(feature = "async")]
+pub struct NodeSubtreeComputer {
+    inner_nodes: Arc<BTreeMap<NodeIndex, InnerNode>>,
+    leaves: Arc<BTreeMap<u64, SmtLeaf>>,
+    existing_mutations: Arc<HashMap<NodeIndex, ComputedNodeMutation>>,
+    new_mutations: HashMap<NodeIndex, ComputedNodeMutation>,
+    new_pairs: Arc<BTreeMap<RpoDigest, Word>>,
+    /// Cache indices we know to be dirty.
+    dirtied_indices: HashMap<NodeIndex, bool>,
+    cached_leaf_hashes: HashMap<LeafIndex<SMT_DEPTH>, RpoDigest>,
+}
+
+#[cfg(feature = "async")]
+impl NodeSubtreeComputer {
+    pub fn with_smt(
+        smt: &Smt,
+        existing_mutations: Arc<HashMap<NodeIndex, ComputedNodeMutation>>,
+        new_pairs: Arc<BTreeMap<RpoDigest, Word>>,
+    ) -> Self {
+        Self {
+            inner_nodes: Arc::clone(&smt.inner_nodes),
+            leaves: Arc::clone(&smt.leaves),
+            existing_mutations,
+            new_mutations: Default::default(),
+            new_pairs,
+            dirtied_indices: Default::default(),
+            cached_leaf_hashes: Default::default(),
+        }
+    }
+
+    pub(crate) fn is_index_dirty(&mut self, index_to_check: NodeIndex) -> bool {
+        if let Some(cached) = self.dirtied_indices.get(&index_to_check) {
+            return *cached;
+        }
+
+        // An index is dirty if there is a new pair at it, an known existing mutation at it, or an
+        // ancestor of one of those.
+        let is_dirty = self
+            .existing_mutations
+            .iter()
+            .map(|(index, _)| *index)
+            .chain(self.new_pairs.iter().map(|(key, _v)| Smt::key_to_leaf_index(key).index))
+            .filter(|&dirtied_index| index_to_check.contains(dirtied_index))
+            .next()
+            .is_some();
+
+        // This is somewhat expensive to compute, so cache this.
+        self.dirtied_indices.insert(index_to_check, is_dirty);
+        is_dirty
+    }
+
+    pub(crate) fn get_effective_leaf(&self, index: LeafIndex<SMT_DEPTH>) -> SmtLeaf {
+        let pairs_at_index = self
+            .new_pairs
+            .iter()
+            .filter(|&(new_key, _)| Smt::key_to_leaf_index(new_key) == index);
+
+        let existing_leaf = self
+            .leaves
+            .get(&index.index.value())
+            .cloned()
+            .unwrap_or_else(|| SmtLeaf::new_empty(index));
+
+        pairs_at_index.fold(existing_leaf, |acc, (k, v)| {
+            let existing_leaf = acc.clone();
+            Smt::construct_prospective_leaf(existing_leaf, k, v)
+        })
+    }
+
+    /// Does NOT check `new_mutations`.
+    pub(crate) fn get_clean_hash(&self, index: NodeIndex) -> Option<RpoDigest> {
+        self.existing_mutations
+            .get(&index)
+            .map(|ComputedNodeMutation { hash, .. }| *hash)
+            .or_else(|| self.inner_nodes.get(&index).map(|inner_node| InnerNode::hash(&inner_node)))
+    }
+
+    /// Retrieve a cached hash, or recursively compute it.
+    pub fn get_or_make_hash(&mut self, index: NodeIndex) -> RpoDigest {
+        use NodeMutation::*;
+
+        // If this is a leaf, then only do leaf stuff.
+        if index.depth() == SMT_DEPTH {
+            let index = LeafIndex::new(index.value()).unwrap();
+            return match self.cached_leaf_hashes.get(&index) {
+                Some(cached_hash) => cached_hash.clone(),
+                None => {
+                    let leaf = self.get_effective_leaf(index);
+                    let hash = Smt::hash_leaf(&leaf);
+                    self.cached_leaf_hashes.insert(index, hash);
+                    hash
+                },
+            };
+        }
+
+        // If we already computed this one earlier as a mutation, just return it.
+        if let Some(ComputedNodeMutation { hash, .. }) = self.new_mutations.get(&index) {
+            return *hash;
+        }
+
+        // Otherwise, we need to know if this node is one of the nodes we're in the process of
+        // recomputing, or if we can safely use the node already in the Merkle tree.
+        if !self.is_index_dirty(index) {
+            return self
+                .get_clean_hash(index)
+                .unwrap_or_else(|| *EmptySubtreeRoots::entry(SMT_DEPTH, index.depth()));
+        }
+
+        // If we got here, then we have to make, rather than get, this hash.
+        // Make sure we mark this index as now dirty.
+        self.dirtied_indices.insert(index, true);
+
+        // Recurse for the left and right sides.
+        let left = self.get_or_make_hash(index.left_child());
+        let right = self.get_or_make_hash(index.right_child());
+        let node = InnerNode { left, right };
+        let hash = node.hash();
+        let &equivalent_empty_hash = EmptySubtreeRoots::entry(SMT_DEPTH, index.depth());
+        let is_removal = hash == equivalent_empty_hash;
+        let new_entry = if is_removal { Removal } else { Addition(node) };
+
+        self.new_mutations
+            .insert(index, ComputedNodeMutation { hash, mutation: new_entry });
+
+        hash
     }
 }
 

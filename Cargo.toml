@@ -31,6 +31,10 @@ harness = false
 name = "store"
 harness = false
 
+[[bench]]
+name = "subtree"
+harness = false
+
 [features]
 default = ["std", "async"]
 executable = ["dep:clap", "dep:rand-utils", "std"]

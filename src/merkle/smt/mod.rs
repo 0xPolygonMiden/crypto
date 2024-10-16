@@ -7,7 +7,9 @@ use crate::{
 };
 
 mod full;
-pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};
+pub use full::{
+    NodeSubtreeComputer, Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH,
+};
 
 mod simple;
 pub use simple::SimpleSmt;
@@ -43,7 +45,7 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 /// must accomodate all keys that map to the same leaf.
 ///
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
-pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
+pub trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a key
     type Key: Clone + Ord;
     /// The type for a value
@@ -346,7 +348,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct InnerNode {
+pub struct InnerNode {
     pub left: RpoDigest,
     pub right: RpoDigest,
 }
@@ -459,7 +461,7 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
 /// [`MutationSet`] stores this type in relation to a [`NodeIndex`] to keep track of what changes
 /// need to occur at which node indices.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum NodeMutation {
+pub enum NodeMutation {
     /// Corresponds to [`SparseMerkleTree::remove_inner_node()`].
     Removal,
     /// Corresponds to [`SparseMerkleTree::insert_inner_node()`].
@@ -498,7 +500,6 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
         self.new_root
     }
 }
-
 
 #[cfg(test)]
 mod tests {
