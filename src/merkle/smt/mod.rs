@@ -12,6 +12,11 @@ pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};
 mod simple;
 pub use simple::SimpleSmt;
 
+#[cfg(feature = "async")]
+mod parallel;
+#[cfg(feature = "async")]
+pub(crate) use parallel::ParallelSparseMerkleTree;
+
 // CONSTANTS
 // ================================================================================================
 
@@ -466,6 +471,26 @@ pub(crate) enum NodeMutation {
     Addition(InnerNode),
 }
 
+impl NodeMutation {
+    #[allow(dead_code)]
+    pub fn into_inner_node(self, tree_depth: u8, node_depth: u8) -> InnerNode {
+        use NodeMutation::*;
+        match self {
+            Addition(node) => node,
+            Removal => EmptySubtreeRoots::get_inner_node(tree_depth, node_depth),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn as_hash(&self, tree_depth: u8, node_depth: u8) -> RpoDigest {
+        use NodeMutation::*;
+        match self {
+            Addition(node) => node.hash(),
+            Removal => *EmptySubtreeRoots::entry(tree_depth, node_depth),
+        }
+    }
+}
+
 /// Represents a group of prospective mutations to a `SparseMerkleTree`, created by
 /// `SparseMerkleTree::compute_mutations()`, and that can be applied with
 /// `SparseMerkleTree::apply_mutations()`.
@@ -498,7 +523,6 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
         self.new_root
     }
 }
-
 
 #[cfg(test)]
 mod tests {

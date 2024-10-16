@@ -294,6 +294,27 @@ impl Deserializable for NodeIndex {
     }
 }
 
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub struct SubtreeIndex {
+    pub root: NodeIndex,
+    pub depth: u8,
+}
+
+#[allow(dead_code)]
+impl SubtreeIndex {
+    pub const fn new(root: NodeIndex, depth: u8) -> Self {
+        Self { root, depth }
+    }
+
+    pub const fn left_bound(&self) -> NodeIndex {
+        self.root.left_ancestor_n(self.depth)
+    }
+
+    pub const fn right_bound(&self) -> NodeIndex {
+        self.root.right_ancestor_n(self.depth)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;

@@ -1,6 +1,19 @@
 use alloc::vec::Vec;
+#[cfg(feature = "async")]
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap},
+    sync::Arc,
+    time::Instant,
+};
+#[cfg(feature = "async")]
+use tokio::task::JoinSet;
 
 use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
+#[cfg(feature = "async")]
+use crate::merkle::{
+    index::SubtreeIndex,
+    smt::{full::NodeSubtreeState, NodeMutation},
+};
 use crate::{
     merkle::{smt::SparseMerkleTree, EmptySubtreeRoots, MerkleStore},
     utils::{Deserializable, Serializable},
@@ -566,6 +579,263 @@ fn test_multiple_smt_leaf_serialization_success() {
     let deserialized = SmtLeaf::read_from_bytes(&serialized).unwrap();
 
     assert_eq!(multiple_leaf, deserialized);
+}
+
+#[cfg(feature = "async")]
+fn setup_subtree_test(kv_count: u64) -> (Vec<(RpoDigest, Word)>, Smt) {
+    // FIXME: override seed.
+    let rand_felt = || rand_utils::rand_value::<Felt>();
+
+    let kv_pairs: Vec<(RpoDigest, Word)> = (0..kv_count)
+        .into_iter()
+        .map(|i| {
+            let leaf_index = u64::MAX / (i + 1);
+            let key =
+                RpoDigest::new([rand_felt(), rand_felt(), rand_felt(), Felt::new(leaf_index)]);
+            let value: Word = [Felt::new(i), rand_felt(), rand_felt(), rand_felt()];
+            (key, value)
+        })
+        .collect();
+
+    let control_smt = Smt::with_entries(kv_pairs.clone()).unwrap();
+
+    (kv_pairs, control_smt)
+}
+
+#[test]
+#[cfg(feature = "async")]
+fn test_single_node_subtree() {
+    use alloc::collections::BTreeMap;
+    use std::{collections::HashMap, sync::Arc};
+
+    use crate::merkle::smt::{full::NodeSubtreeState, NodeMutation};
+
+    const KV_COUNT: u64 = 2_000;
+
+    let (kv_pairs, control_smt) = setup_subtree_test(KV_COUNT);
+    let new_pairs = Arc::new(BTreeMap::from_iter(kv_pairs));
+
+    let test_smt = Smt::new();
+
+    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let _: () = rt.block_on(async move {
+        // Construct some fake node mutations based on the leaves in the control Smt.
+        let node_mutations: HashMap<NodeIndex, (RpoDigest, NodeMutation)> = control_smt
+            .leaves()
+            .flat_map(|(index, _leaf)| {
+                let subtree = index.index.parent();
+                let mutation = control_smt
+                    .inner_nodes
+                    .get(&subtree)
+                    .cloned()
+                    .map(|node| (node.hash(), NodeMutation::Addition(node)))
+                    .unwrap_or_else(|| {
+                        (
+                            *EmptySubtreeRoots::entry(SMT_DEPTH, subtree.depth()),
+                            NodeMutation::Removal,
+                        )
+                    });
+
+                vec![(subtree, mutation)]
+            })
+            .collect();
+        let node_mutations = Arc::new(node_mutations);
+
+        let mut state = NodeSubtreeState::<SMT_DEPTH>::new(
+            Arc::clone(&test_smt.inner_nodes),
+            Arc::clone(&node_mutations),
+            Arc::clone(&control_smt.leaves),
+            Arc::clone(&new_pairs),
+            SubtreeIndex::new(NodeIndex::root(), 8),
+        );
+
+        for (i, (&index, mutation)) in node_mutations.iter().enumerate() {
+            assert!(index.depth() <= SMT_DEPTH, "index {index:?} is invalid");
+
+            let control_hash = if index.depth() < SMT_DEPTH {
+                control_smt.get_inner_node(index).hash()
+            } else {
+                control_smt
+                    .leaves
+                    .get(&index.value())
+                    .map(Smt::hash_leaf)
+                    .unwrap_or_else(|| *EmptySubtreeRoots::entry(SMT_DEPTH, index.depth()))
+            };
+            let mutation_hash = mutation.0;
+            let test_hash = state.get_or_make_hash(index);
+            assert_eq!(mutation_hash, control_hash);
+            assert_eq!(
+                test_hash, control_hash,
+                "test_hash != control_hash for mutation {i} at {index:?}",
+            );
+        }
+    });
+}
+
+// Test doing a node subtree from a LeafSubtreeMutationSet.
+#[test]
+#[cfg(feature = "async")]
+fn test_node_subtree_with_leaves() {
+    const KV_COUNT: u64 = 2_000;
+
+    let (kv_pairs, control_smt) = setup_subtree_test(KV_COUNT);
+    let new_pairs = Arc::new(BTreeMap::from_iter(kv_pairs));
+
+    let test_smt = Smt::new();
+
+    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let _: () = rt.block_on(async move {
+        let mut task_mutations: HashMap<NodeIndex, (RpoDigest, NodeMutation)> = Default::default();
+
+        for leaf_index in control_smt.leaves().map(|(index, _leaf)| index) {
+            let subtree = SubtreeIndex::new(leaf_index.index.parent_n(8), 8);
+            let subtree_pairs: Vec<(RpoDigest, Word)> = control_smt
+                .leaves()
+                .flat_map(|(leaf_index, leaf)| {
+                    if subtree.root.contains(leaf_index.index) {
+                        leaf.entries()
+                    } else {
+                        vec![]
+                    }
+                })
+                .cloned()
+                .collect();
+
+            let mut state = NodeSubtreeState::<SMT_DEPTH>::with_smt(
+                &test_smt,
+                Default::default(),
+                Arc::new(BTreeMap::from_iter(subtree_pairs)),
+                //Arc::clone(&new_pairs),
+                subtree,
+            );
+            let test_subtree_hash = state.get_or_make_hash(subtree.root);
+            let control_subtree_hash = control_smt.get_inner_node(subtree.root).hash();
+            assert_eq!(test_subtree_hash, control_subtree_hash);
+
+            task_mutations.extend(state.new_mutations);
+        }
+
+        let node_mutations = Arc::new(task_mutations);
+        let subtrees: BTreeSet<SubtreeIndex> = control_smt
+            .leaves()
+            .map(|(index, _leaf)| SubtreeIndex::new(index.index.parent_n(8).parent_n(8), 8))
+            .collect();
+
+        for (i, subtree) in subtrees.into_iter().enumerate() {
+            let mut state = NodeSubtreeState::<SMT_DEPTH>::with_smt(
+                &test_smt,
+                Arc::clone(&node_mutations),
+                Arc::clone(&new_pairs),
+                subtree,
+            );
+
+            let control_subtree_hash = control_smt.get_inner_node(subtree.root).hash();
+            let test_subtree_hash = state.get_or_make_hash(subtree.root);
+            assert_eq!(
+                test_subtree_hash, control_subtree_hash,
+                "test subtree hash does not match control hash for subtree {i} '{subtree:?}'",
+            );
+        }
+    });
+}
+
+#[test]
+#[cfg(feature = "async")]
+fn test_node_subtrees_parallel() {
+    const KV_COUNT: u64 = 2_000;
+
+    let (kv_pairs, control_smt) = setup_subtree_test(KV_COUNT);
+    let new_pairs = Arc::new(BTreeMap::from_iter(kv_pairs));
+
+    let test_smt = Smt::new();
+
+    let rt = tokio::runtime::Builder::new_multi_thread().build().unwrap();
+    //let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let _: () = rt.block_on(async move {
+        let mut current_subtree_depth = SMT_DEPTH;
+
+        let subtrees: BTreeSet<SubtreeIndex> = new_pairs
+            .keys()
+            .map(|key| SubtreeIndex::new(Smt::key_to_leaf_index(key).index.parent_n(8), 8))
+            .collect();
+        current_subtree_depth -= 8;
+
+        let mut node_mutations: Arc<HashMap<NodeIndex, (RpoDigest, NodeMutation)>> =
+            Default::default();
+        let mut tasks = JoinSet::new();
+
+        // FIXME
+        let mut now = Instant::now();
+        for subtree in subtrees.iter().copied() {
+            let mut state = NodeSubtreeState::<SMT_DEPTH>::with_smt(
+                &test_smt,
+                Arc::clone(&node_mutations),
+                Arc::clone(&new_pairs),
+                subtree,
+            );
+            tasks.spawn(tokio::spawn(async move {
+                let hash = state.get_or_make_hash(subtree.root);
+                (subtree, hash, state)
+            }));
+        }
+
+        let mut cached_leaf_hashes: HashMap<LeafIndex<SMT_DEPTH>, RpoDigest> = Default::default();
+        let mut subtrees = subtrees;
+        let mut tasks = Some(tasks);
+        while current_subtree_depth > 0 {
+            std::eprintln!(
+                "joining {} tasks for depth {current_subtree_depth}",
+                tasks.as_ref().unwrap().len(),
+            );
+            let mut tasks_mutations: HashMap<NodeIndex, (RpoDigest, NodeMutation)> =
+                Default::default();
+            let results = tasks.take().unwrap().join_all().await;
+            let elapsed = now.elapsed();
+            std::eprintln!("    joined in {:.3} milliseconds", elapsed.as_secs_f64() * 1000.0);
+            for result in results {
+                let (subtree, test_hash, state) = result.unwrap();
+                let control_hash = control_smt.get_inner_node(subtree.root).hash();
+                assert_eq!(test_hash, control_hash);
+
+                tasks_mutations.extend(state.new_mutations);
+                cached_leaf_hashes.extend(state.cached_leaf_hashes);
+            }
+            Arc::get_mut(&mut node_mutations).unwrap().extend(tasks_mutations);
+
+            // Move all our subtrees up.
+            current_subtree_depth -= 8;
+            subtrees = subtrees
+                .into_iter()
+                .map(|subtree| {
+                    let subtree = SubtreeIndex::new(subtree.root.parent_n(8), 8);
+                    assert_eq!(subtree.root.depth(), current_subtree_depth);
+                    subtree
+                })
+                .collect();
+
+            // And spawn our new tasks.
+            //std::eprintln!("spawning tasks for depth {current_subtree_depth}");
+            let tasks = tasks.insert(JoinSet::new());
+            // FIXME
+            now = Instant::now();
+            for subtree in subtrees.iter().copied() {
+                let mut state = NodeSubtreeState::<SMT_DEPTH>::with_smt(
+                    &test_smt,
+                    Arc::clone(&node_mutations),
+                    Arc::clone(&new_pairs),
+                    subtree,
+                );
+                state.cached_leaf_hashes = cached_leaf_hashes.clone();
+                tasks.spawn(tokio::spawn(async move {
+                    let hash = state.get_or_make_hash(subtree.root);
+                    (subtree, hash, state)
+                }));
+            }
+        }
+
+        assert!(tasks.is_some());
+        assert_eq!(tasks.as_ref().unwrap().len(), 1);
+    });
 }
 
 // HELPERS

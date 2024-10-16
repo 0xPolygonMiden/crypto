@@ -1,16 +1,25 @@
 #[cfg(feature = "async")]
-use std::sync::Arc;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use alloc::{
     collections::{BTreeMap, BTreeSet},
     string::ToString,
     vec::Vec,
 };
+#[cfg(feature = "async")]
+use tokio::task::JoinSet;
 
+#[cfg(feature = "async")]
+use super::NodeMutation;
 use super::{
     EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
     MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
+#[cfg(feature = "async")]
+use crate::merkle::index::SubtreeIndex;
 
 mod error;
 pub use error::{SmtLeafError, SmtProofError};
@@ -115,6 +124,17 @@ impl Smt {
     #[cfg(feature = "async")]
     pub fn get_leaves(&self) -> Arc<BTreeMap<u64, SmtLeaf>> {
         Arc::clone(&self.leaves)
+    }
+
+    #[cfg(feature = "async")]
+    pub async fn compute_mutations_parallel(
+        &self,
+        kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
+        <Self as super::ParallelSparseMerkleTree<SMT_DEPTH>>::compute_mutations_parallel(
+            self, kv_pairs,
+        )
+        .await
     }
 
     // PUBLIC ACCESSORS
@@ -297,6 +317,27 @@ impl Smt {
             None
         }
     }
+
+    fn construct_prospective_leaf(
+        mut existing_leaf: SmtLeaf,
+        key: &RpoDigest,
+        value: &Word,
+    ) -> SmtLeaf {
+        debug_assert_eq!(existing_leaf.index(), Self::key_to_leaf_index(key));
+
+        match existing_leaf {
+            SmtLeaf::Empty(_) => SmtLeaf::new_single(*key, *value),
+            _ => {
+                if *value != EMPTY_WORD {
+                    existing_leaf.insert(*key, *value);
+                } else {
+                    existing_leaf.remove(*key);
+                }
+
+                existing_leaf
+            },
+        }
+    }
 }
 
 impl SparseMerkleTree<SMT_DEPTH> for Smt {
@@ -363,24 +404,11 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
     fn construct_prospective_leaf(
         &self,
-        mut existing_leaf: SmtLeaf,
+        existing_leaf: SmtLeaf,
         key: &RpoDigest,
         value: &Word,
     ) -> SmtLeaf {
-        debug_assert_eq!(existing_leaf.index(), Self::key_to_leaf_index(key));
-
-        match existing_leaf {
-            SmtLeaf::Empty(_) => SmtLeaf::new_single(*key, *value),
-            _ => {
-                if *value != EMPTY_WORD {
-                    existing_leaf.insert(*key, *value);
-                } else {
-                    existing_leaf.remove(*key);
-                }
-
-                existing_leaf
-            },
-        }
+        Smt::construct_prospective_leaf(existing_leaf, key, value)
     }
 
     fn key_to_leaf_index(key: &RpoDigest) -> LeafIndex<SMT_DEPTH> {
@@ -393,10 +421,295 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     }
 }
 
+#[cfg(feature = "async")]
+impl super::ParallelSparseMerkleTree<SMT_DEPTH> for Smt {
+    // Helpers required only for the parallel version of the SMT trait.
+    fn get_inner_nodes(&self) -> Arc<BTreeMap<NodeIndex, InnerNode>> {
+        Arc::clone(&self.inner_nodes)
+    }
+
+    fn get_leaves(&self) -> Arc<BTreeMap<u64, SmtLeaf>> {
+        Arc::clone(&self.leaves)
+    }
+
+    async fn compute_mutations_parallel<I>(
+        &self,
+        kv_pairs: I,
+    ) -> MutationSet<SMT_DEPTH, RpoDigest, Word>
+    where
+        I: IntoIterator<Item = (RpoDigest, Word)>,
+    {
+        use std::time::Instant;
+
+        const SUBTREE_INTERVAL: u8 = 8;
+
+        // FIXME: check for duplicates and return MerkleError.
+        let kv_pairs = Arc::new(BTreeMap::from_iter(kv_pairs));
+
+        // The first subtrees we calculate, which include our new leaves.
+        let mut subtrees: HashSet<NodeIndex> = kv_pairs
+            .keys()
+            .map(|key| {
+                let index_for_key = NodeIndex::from(Smt::key_to_leaf_index(key));
+                index_for_key.parent_n(SUBTREE_INTERVAL)
+            })
+            .collect();
+
+        // Node mutations across all tasks will be collected here.
+        // Every time we collect tasks we store all the new known node mutations and their hashes
+        // (so we don't have to recompute them every time we need them).
+        let mut node_mutations: Arc<HashMap<NodeIndex, (RpoDigest, NodeMutation)>> =
+            Default::default();
+        // Any leaf hashes done by tasks will be collected here, so hopefully we only hash each leaf
+        // once.
+        let mut cached_leaf_hashes: Arc<HashMap<LeafIndex<SMT_DEPTH>, RpoDigest>> =
+            Default::default();
+
+        for subtree_depth in (0..SMT_DEPTH).step_by(SUBTREE_INTERVAL.into()).rev() {
+            let now = Instant::now();
+            let mut tasks = JoinSet::new();
+
+            for subtree in subtrees.iter().copied() {
+                debug_assert_eq!(subtree.depth(), subtree_depth);
+                let mut state = NodeSubtreeState::<SMT_DEPTH>::with_smt(
+                    &self,
+                    Arc::clone(&node_mutations),
+                    Arc::clone(&kv_pairs),
+                    SubtreeIndex::new(subtree, SUBTREE_INTERVAL as u8),
+                );
+                // The "double spawn" here is necessary to allow tokio to run these tasks in
+                // parallel.
+                tasks.spawn(tokio::spawn(async move {
+                    let hash = state.get_or_make_hash(subtree);
+                    (subtree, hash, state.into_results())
+                }));
+            }
+
+            let task_results = tasks.join_all().await;
+            let elapsed = now.elapsed();
+            std::eprintln!(
+                "joined {} tasks for depth {} in {:.3} milliseconds",
+                task_results.len(),
+                subtree_depth,
+                elapsed.as_secs_f64() * 1000.0,
+            );
+
+            for result in task_results {
+                // FIXME: .expect() error message?
+                let result = result.unwrap();
+                let (subtree, hash, state) = result;
+                let NodeSubtreeResults {
+                    new_mutations,
+                    cached_leaf_hashes: new_leaf_hashes,
+                } = state;
+
+                Arc::get_mut(&mut node_mutations).unwrap().extend(new_mutations);
+                Arc::get_mut(&mut cached_leaf_hashes).unwrap().extend(new_leaf_hashes);
+                // Make sure the final hash we calculated is in the new mutations.
+                assert_eq!(
+                    node_mutations.get(&subtree).unwrap().0,
+                    hash,
+                    "Stored and returned hashes for subtree '{subtree:?}' differ",
+                );
+            }
+
+            // And advance our subtrees, unless we just did the root depth.
+            if subtree_depth == 0 {
+                continue;
+            }
+
+            let subtree_count_before_advance = subtrees.len();
+            subtrees =
+                subtrees.into_iter().map(|subtree| subtree.parent_n(SUBTREE_INTERVAL)).collect();
+            // FIXME: remove.
+            assert!(subtrees.len() <= subtree_count_before_advance);
+        }
+
+        let root = NodeIndex::root();
+        let new_root = node_mutations.get(&root).unwrap().0;
+
+        MutationSet {
+            old_root: self.root(),
+            //node_mutations: Arc::into_inner(node_mutations).unwrap().into_iter().collect(),
+            node_mutations: Arc::into_inner(node_mutations)
+                .unwrap()
+                .into_iter()
+                .map(|(key, (_hash, node))| (key, node))
+                .collect(),
+            new_pairs: Arc::into_inner(kv_pairs).unwrap(),
+            new_root,
+        }
+    }
+}
+
 impl Default for Smt {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[cfg(feature = "async")]
+pub(crate) struct NodeSubtreeState<const DEPTH: u8> {
+    inner_nodes: Arc<BTreeMap<NodeIndex, InnerNode>>,
+    leaves: Arc<BTreeMap<u64, SmtLeaf>>,
+    // This field has invariants!
+    dirtied_indices: HashMap<NodeIndex, bool>,
+    existing_mutations: Arc<HashMap<NodeIndex, (RpoDigest, NodeMutation)>>,
+    new_mutations: HashMap<NodeIndex, (RpoDigest, NodeMutation)>,
+    new_pairs: Arc<BTreeMap<RpoDigest, Word>>,
+    cached_leaf_hashes: HashMap<LeafIndex<SMT_DEPTH>, RpoDigest>,
+    indentation: u8,
+    subtree: SubtreeIndex,
+}
+
+#[cfg(feature = "async")]
+impl<const DEPTH: u8> NodeSubtreeState<DEPTH> {
+    pub(crate) fn new(
+        inner_nodes: Arc<BTreeMap<NodeIndex, InnerNode>>,
+        existing_mutations: Arc<HashMap<NodeIndex, (RpoDigest, NodeMutation)>>,
+        leaves: Arc<BTreeMap<u64, SmtLeaf>>,
+        new_pairs: Arc<BTreeMap<RpoDigest, Word>>,
+        subtree: SubtreeIndex,
+    ) -> Self {
+        Self {
+            inner_nodes,
+            leaves,
+            dirtied_indices: Default::default(),
+            new_mutations: Default::default(),
+            existing_mutations,
+            new_pairs,
+            cached_leaf_hashes: Default::default(),
+            indentation: 0,
+            subtree,
+        }
+    }
+
+    pub(crate) fn with_smt(
+        smt: &Smt,
+        existing_mutations: Arc<HashMap<NodeIndex, (RpoDigest, NodeMutation)>>,
+        new_pairs: Arc<BTreeMap<RpoDigest, Word>>,
+        subtree: SubtreeIndex,
+    ) -> Self {
+        Self::new(
+            Arc::clone(&smt.inner_nodes),
+            existing_mutations,
+            Arc::clone(&smt.leaves),
+            new_pairs,
+            subtree,
+        )
+    }
+
+    #[inline(never)] // XXX: for profiling.
+    pub(crate) fn is_index_dirty(&mut self, index_to_check: NodeIndex) -> bool {
+        if index_to_check == self.subtree.root {
+            return true;
+        }
+        if let Some(cached) = self.dirtied_indices.get(&index_to_check) {
+            return *cached;
+        }
+        let is_dirty = self
+            .existing_mutations
+            .iter()
+            .map(|(index, _)| *index)
+            .chain(self.new_pairs.iter().map(|(key, _v)| Smt::key_to_leaf_index(key).index))
+            .filter(|&dirtied_index| index_to_check.contains(dirtied_index))
+            .next()
+            .is_some();
+        self.dirtied_indices.insert(index_to_check, is_dirty);
+        is_dirty
+    }
+
+    /// Does NOT check `new_mutations`.
+    #[inline(never)] // XXX: for profiling.
+    pub(crate) fn get_clean_hash(&self, index: NodeIndex) -> Option<RpoDigest> {
+        self.existing_mutations
+            .get(&index)
+            .map(|(hash, _)| *hash)
+            .or_else(|| self.inner_nodes.get(&index).map(|inner_node| InnerNode::hash(&inner_node)))
+    }
+
+    #[inline(never)] // XXX: for profiling.
+    pub(crate) fn get_effective_leaf(&self, index: LeafIndex<SMT_DEPTH>) -> SmtLeaf {
+        let pairs_at_index = self
+            .new_pairs
+            .iter()
+            .filter(|&(new_key, _)| Smt::key_to_leaf_index(new_key) == index);
+
+        let existing_leaf = self
+            .leaves
+            .get(&index.index.value())
+            .cloned()
+            .unwrap_or_else(|| SmtLeaf::new_empty(index));
+
+        pairs_at_index.fold(existing_leaf, |acc, (k, v)| {
+            let existing_leaf = acc.clone();
+            Smt::construct_prospective_leaf(existing_leaf, k, v)
+        })
+    }
+
+    /// Retrieve a cached hash, or recursively compute it.
+    #[inline(never)] // XXX: for profiling.
+    pub fn get_or_make_hash(&mut self, index: NodeIndex) -> RpoDigest {
+        use NodeMutation::*;
+
+        // If this is a leaf, then only do leaf stuff.
+        if index.depth() == SMT_DEPTH {
+            let index = LeafIndex::new(index.value()).unwrap();
+            return match self.cached_leaf_hashes.get(&index) {
+                Some(cached_hash) => cached_hash.clone(),
+                None => {
+                    let leaf = self.get_effective_leaf(index);
+                    let hash = Smt::hash_leaf(&leaf);
+                    self.cached_leaf_hashes.insert(index, hash);
+                    hash
+                },
+            };
+        }
+
+        // If we already computed this one earlier as a mutation, just return it.
+        if let Some((hash, _)) = self.new_mutations.get(&index) {
+            return *hash;
+        }
+
+        // Otherwise, we need to know if this node is one of the nodes we're in the process of
+        // recomputing, or if we can safely use the node already in the Merkle tree.
+        if !self.is_index_dirty(index) {
+            return self
+                .get_clean_hash(index)
+                .unwrap_or_else(|| *EmptySubtreeRoots::entry(SMT_DEPTH, index.depth()));
+        }
+
+        // If we got here, then we have to make, rather than get, this hash.
+        // Make sure we mark this index as now dirty.
+        self.dirtied_indices.insert(index, true);
+
+        // Recurse for the left and right sides.
+        let left = self.get_or_make_hash(index.left_child());
+        let right = self.get_or_make_hash(index.right_child());
+        let node = InnerNode { left, right };
+        let hash = node.hash();
+        let &equivalent_empty_hash = EmptySubtreeRoots::entry(SMT_DEPTH, index.depth());
+        let is_removal = hash == equivalent_empty_hash;
+        let new_entry = if is_removal { Removal } else { Addition(node) };
+
+        self.new_mutations.insert(index, (hash, new_entry));
+
+        hash
+    }
+
+    fn into_results(self) -> NodeSubtreeResults {
+        NodeSubtreeResults {
+            new_mutations: self.new_mutations,
+            cached_leaf_hashes: self.cached_leaf_hashes,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg(feature = "async")]
+pub(crate) struct NodeSubtreeResults {
+    pub(crate) new_mutations: HashMap<NodeIndex, (RpoDigest, NodeMutation)>,
+    pub(crate) cached_leaf_hashes: HashMap<LeafIndex<SMT_DEPTH>, RpoDigest>,
 }
 
 // CONVERSIONS

@@ -395,3 +395,19 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
         (path, leaf).into()
     }
 }
+
+//#[cfg(feature = "async")]
+////impl<const DEPTH: u8> super::ParallelSparseMerkleTree<DEPTH, LeafIndex<DEPTH>, Word, Word>
+//impl<const DEPTH: u8> super::ParallelSparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
+//    fn get_inner_nodes(&self) -> Arc<BTreeMap<NodeIndex, InnerNode>> {
+//        Arc::clone(&self.inner_nodes)
+//    }
+//
+//    fn get_leaf_value(leaf: &Word, _key: &LeafIndex<DEPTH>) -> Option<Word> {
+//        Some(*leaf)
+//    }
+//
+//    fn cmp_keys(lhs: &LeafIndex<DEPTH>, rhs: &LeafIndex<DEPTH>) -> Ordering {
+//        LeafIndex::cmp(lhs, rhs)
+//    }
+//}
