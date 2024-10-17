@@ -215,10 +215,7 @@ fn test_mmr_open() {
     assert_eq!(opening.merkle_path, empty);
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 6);
-    assert!(
-        mmr.peaks().verify(LEAVES[6], opening),
-        "MmrProof should be valid for the current accumulator."
-    );
+    mmr.peaks().verify(LEAVES[6], opening).unwrap();
 
     // nodes 4,5 are depth 1
     let root_to_path = MerklePath::new(vec![LEAVES[4]]);
@@ -228,10 +225,7 @@ fn test_mmr_open() {
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 5);
-    assert!(
-        mmr.peaks().verify(LEAVES[5], opening),
-        "MmrProof should be valid for the current accumulator."
-    );
+    mmr.peaks().verify(LEAVES[5], opening).unwrap();
 
     let root_to_path = MerklePath::new(vec![LEAVES[5]]);
     let opening = mmr
@@ -240,10 +234,7 @@ fn test_mmr_open() {
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 4);
-    assert!(
-        mmr.peaks().verify(LEAVES[4], opening),
-        "MmrProof should be valid for the current accumulator."
-    );
+    mmr.peaks().verify(LEAVES[4], opening).unwrap();
 
     // nodes 0,1,2,3 are detph 2
     let root_to_path = MerklePath::new(vec![LEAVES[2], h01]);
@@ -253,10 +244,7 @@ fn test_mmr_open() {
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 3);
-    assert!(
-        mmr.peaks().verify(LEAVES[3], opening),
-        "MmrProof should be valid for the current accumulator."
-    );
+    mmr.peaks().verify(LEAVES[3], opening).unwrap();
 
     let root_to_path = MerklePath::new(vec![LEAVES[3], h01]);
     let opening = mmr
@@ -265,10 +253,7 @@ fn test_mmr_open() {
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 2);
-    assert!(
-        mmr.peaks().verify(LEAVES[2], opening),
-        "MmrProof should be valid for the current accumulator."
-    );
+    mmr.peaks().verify(LEAVES[2], opening).unwrap();
 
     let root_to_path = MerklePath::new(vec![LEAVES[0], h23]);
     let opening = mmr
@@ -277,10 +262,7 @@ fn test_mmr_open() {
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 1);
-    assert!(
-        mmr.peaks().verify(LEAVES[1], opening),
-        "MmrProof should be valid for the current accumulator."
-    );
+    mmr.peaks().verify(LEAVES[1], opening).unwrap();
 
     let root_to_path = MerklePath::new(vec![LEAVES[1], h23]);
     let opening = mmr
@@ -289,10 +271,7 @@ fn test_mmr_open() {
     assert_eq!(opening.merkle_path, root_to_path);
     assert_eq!(opening.forest, mmr.forest);
     assert_eq!(opening.position, 0);
-    assert!(
-        mmr.peaks().verify(LEAVES[0], opening),
-        "MmrProof should be valid for the current accumulator."
-    );
+    mmr.peaks().verify(LEAVES[0], opening).unwrap();
 }
 
 #[test]
@@ -833,6 +812,39 @@ fn test_mmr_add_invalid_odd_leaf() {
 
     let result = partial.track(LEAVES.len() - 1, LEAVES[6], &empty);
     assert!(result.is_ok());
+}
+
+/// Tests that a proof whose peak count exceeds the peak count of the MMR returns an error.
+///
+/// Here we manipulate the proof to return a peak index of 1 while the MMR only has 1 peak (with
+/// index 0).
+#[test]
+#[should_panic]
+fn test_mmr_proof_num_peaks_exceeds_current_num_peaks() {
+    let mmr: Mmr = LEAVES[0..4].iter().cloned().into();
+    let mut proof = mmr.open(3).unwrap();
+    proof.forest = 5;
+    proof.position = 4;
+    mmr.peaks().verify(LEAVES[3], proof).unwrap();
+}
+
+/// Tests that a proof whose peak count exceeds the peak count of the MMR returns an error.
+///
+/// We create an MmrProof for a leaf whose peak index to verify against is 1.
+/// Then we add another leaf which results in an Mmr with just one peak due to trees
+/// being merged. If we try to use the old proof against the new Mmr, we should get an error.
+#[test]
+#[should_panic]
+fn test_mmr_old_proof_num_peaks_exceeds_current_num_peaks() {
+    let leaves_len = 3;
+    let mut mmr = Mmr::from(LEAVES[0..leaves_len].iter().cloned());
+
+    let leaf_idx = leaves_len - 1;
+    let proof = mmr.open(leaf_idx).unwrap();
+    assert!(mmr.peaks().verify(LEAVES[leaf_idx], proof.clone()).is_ok());
+
+    mmr.add(LEAVES[leaves_len]);
+    mmr.peaks().verify(LEAVES[leaf_idx], proof).unwrap();
 }
 
 mod property_tests {

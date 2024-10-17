@@ -4,10 +4,12 @@
 - Added `Mmr::open()` and `Mmr::peaks()` which rely on `Mmr::open_at()` and `Mmr::peaks()` respectively (#234).
 - Standardised CI and Makefile across Miden repos (#323).
 - Added `Smt::compute_mutations()` and `Smt::apply_mutations()` for validation-checked insertions (#327).
+- [BREAKING] Changed return value of the `Mmr::verify()` and `MerklePath::verify()` from `bool` to
+  `Result<>` (#).
 
 ## 0.10.1 (2024-09-13)
 
-* Added `Serializable` and `Deserializable` implementations for `PartialMmr` and `InOrderIndex` (#329).
+- Added `Serializable` and `Deserializable` implementations for `PartialMmr` and `InOrderIndex` (#329).
 
 ## 0.10.0 (2024-08-06)
 
