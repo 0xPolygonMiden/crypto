@@ -6,6 +6,7 @@
 - Added `Smt::compute_mutations()` and `Smt::apply_mutations()` for validation-checked insertions (#327).
 - [BREAKING] Changed return value of the `Mmr::verify()` and `MerklePath::verify()` from `bool` to
   `Result<>` (#).
+- Added `is_empty()` functions to the `SimpleSmt` and `Smt` structures. Added `EMPTY_ROOT` constant to the `SparseMerkleTree` trait (#337).
 
 ## 0.10.1 (2024-09-13)
 
