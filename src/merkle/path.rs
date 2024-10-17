@@ -54,7 +54,10 @@ impl MerklePath {
 
     /// Verifies the Merkle opening proof towards the provided root.
     ///
-    /// Returns `true` if `node` exists at `index` in a Merkle tree with `root`.
+    /// # Errors
+    /// Returns an error if:
+    /// - provided node index is invalid.
+    /// - root calculated during the verification differs from the provided one.
     pub fn verify(&self, index: u64, node: RpoDigest, root: &RpoDigest) -> Result<(), MerkleError> {
         let computed_root = self.compute_root(index, node)?;
         if &computed_root != root {

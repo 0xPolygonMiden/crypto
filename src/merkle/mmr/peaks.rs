@@ -95,6 +95,12 @@ impl MmrPeaks {
         Rpo256::hash_elements(&self.flatten_and_pad_peaks())
     }
 
+    /// Verifies the Merkle opening proof.
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - provided opening proof is invalid.
+    /// - Mmr root value computed using the provided leaf value differs from the actual one.
     pub fn verify(&self, value: RpoDigest, opening: MmrProof) -> Result<(), MmrError> {
         let root = self.get_peak(opening.peak_index())?;
         opening
