@@ -160,7 +160,8 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
     /// Returns a boolean value indicating whether the SMT is empty.
     pub fn is_empty(&self) -> bool {
-        self.leaves.is_empty()
+        debug_assert_eq!(self.leaves.is_empty(), self.root == Self::EMPTY_ROOT);
+        self.root == Self::EMPTY_ROOT
     }
 
     // ITERATORS

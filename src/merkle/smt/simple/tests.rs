@@ -444,6 +444,23 @@ fn test_simplesmt_set_subtree_entire_tree() {
     assert_eq!(tree.root(), *EmptySubtreeRoots::entry(DEPTH, 0));
 }
 
+/// Tests that `EMPTY_ROOT` constant generated in the `SimpleSmt` equals to the root of the empty
+/// tree of depth 64
+#[test]
+fn test_simplesmt_check_empty_root_constant() {
+    // get the root of the empty tree of depth 64
+    let empty_root_64_depth = EmptySubtreeRoots::empty_hashes(64)[0];
+    assert_eq!(empty_root_64_depth, SimpleSmt::<64>::EMPTY_ROOT);
+
+    // get the root of the empty tree of depth 32
+    let empty_root_32_depth = EmptySubtreeRoots::empty_hashes(32)[0];
+    assert_eq!(empty_root_32_depth, SimpleSmt::<32>::EMPTY_ROOT);
+
+    // get the root of the empty tree of depth 0
+    let empty_root_1_depth = EmptySubtreeRoots::empty_hashes(1)[0];
+    assert_eq!(empty_root_1_depth, SimpleSmt::<1>::EMPTY_ROOT);
+}
+
 // HELPER FUNCTIONS
 // --------------------------------------------------------------------------------------------
 

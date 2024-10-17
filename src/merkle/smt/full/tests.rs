@@ -516,6 +516,16 @@ fn test_smt_entries() {
     assert!(entries.next().is_none());
 }
 
+/// Tests that `EMPTY_ROOT` constant generated in the `Smt` equals to the root of the empty tree of
+/// depth 64
+#[test]
+fn test_smt_check_empty_root_constant() {
+    // get the root of the empty tree of depth 64
+    let empty_root_64_depth = EmptySubtreeRoots::empty_hashes(64)[0];
+
+    assert_eq!(empty_root_64_depth, Smt::EMPTY_ROOT);
+}
+
 // SMT LEAF
 // --------------------------------------------------------------------------------------------
 
