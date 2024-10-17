@@ -158,6 +158,12 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         <Self as SparseMerkleTree<DEPTH>>::open(self, key)
     }
 
+    /// Returns a boolean value indicating whether the SMT is empty.
+    pub fn is_empty(&self) -> bool {
+        debug_assert_eq!(self.leaves.is_empty(), self.root == Self::EMPTY_ROOT);
+        self.root == Self::EMPTY_ROOT
+    }
+
     // ITERATORS
     // --------------------------------------------------------------------------------------------
 
@@ -298,6 +304,7 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     type Opening = ValuePath;
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
+    const EMPTY_ROOT: RpoDigest = *EmptySubtreeRoots::entry(DEPTH, 0);
 
     fn root(&self) -> RpoDigest {
         self.root
