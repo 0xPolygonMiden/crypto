@@ -9,6 +9,7 @@ pub enum MmrError {
     InvalidPosition(usize),
     InvalidPeaks,
     InvalidPeak,
+    PeakOutOfBounds(usize, usize),
     InvalidUpdate,
     UnknownPeak,
     MerkleError(MerkleError),
@@ -21,11 +22,16 @@ impl Display for MmrError {
             MmrError::InvalidPeaks => write!(fmt, "Invalid peaks count"),
             MmrError::InvalidPeak => {
                 write!(fmt, "Peak values does not match merkle path computed root")
-            }
-            MmrError::InvalidUpdate => write!(fmt, "Invalid mmr update"),
+            },
+            MmrError::PeakOutOfBounds(peak_idx, peaks_len) => write!(
+                fmt,
+                "Requested peak index is {} but the number of peaks is {}",
+                peak_idx, peaks_len
+            ),
+            MmrError::InvalidUpdate => write!(fmt, "Invalid Mmr update"),
             MmrError::UnknownPeak => {
                 write!(fmt, "Peak not in Mmr")
-            }
+            },
             MmrError::MerkleError(err) => write!(fmt, "{}", err),
         }
     }

@@ -1,10 +1,11 @@
+use alloc::vec::Vec;
+
 use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
 use crate::{
-    merkle::{EmptySubtreeRoots, MerkleStore},
+    merkle::{smt::SparseMerkleTree, EmptySubtreeRoots, MerkleStore},
     utils::{Deserializable, Serializable},
     Word, ONE, WORD_SIZE,
 };
-use alloc::vec::Vec;
 
 // SMT
 // --------------------------------------------------------------------------------------------
@@ -257,6 +258,195 @@ fn test_smt_removal() {
     }
 }
 
+/// This tests that we can correctly calculate prospective leaves -- that is, we can construct
+/// correct [`SmtLeaf`] values for a theoretical insertion on a Merkle tree without mutating or
+/// cloning the tree.
+#[test]
+fn test_prospective_hash() {
+    let mut smt = Smt::default();
+
+    let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), Felt::new(raw)]);
+    // Sort key_3 before key_1, to test non-append insertion.
+    let key_3: RpoDigest =
+        RpoDigest::from([0_u32.into(), 0_u32.into(), 0_u32.into(), Felt::new(raw)]);
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
+    let value_3: [Felt; 4] = [3_u32.into(); WORD_SIZE];
+
+    // insert key-value 1
+    {
+        let prospective =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_1), &key_1, &value_1).hash();
+        smt.insert(key_1, value_1);
+
+        let leaf = smt.get_leaf(&key_1);
+        assert_eq!(
+            prospective,
+            leaf.hash(),
+            "prospective hash for leaf {leaf:?} did not match actual hash",
+        );
+    }
+
+    // insert key-value 2
+    {
+        let prospective =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_2), &key_2, &value_2).hash();
+        smt.insert(key_2, value_2);
+
+        let leaf = smt.get_leaf(&key_2);
+        assert_eq!(
+            prospective,
+            leaf.hash(),
+            "prospective hash for leaf {leaf:?} did not match actual hash",
+        );
+    }
+
+    // insert key-value 3
+    {
+        let prospective =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_3), &key_3, &value_3).hash();
+        smt.insert(key_3, value_3);
+
+        let leaf = smt.get_leaf(&key_3);
+        assert_eq!(
+            prospective,
+            leaf.hash(),
+            "prospective hash for leaf {leaf:?} did not match actual hash",
+        );
+    }
+
+    // remove key 3
+    {
+        let old_leaf = smt.get_leaf(&key_3);
+        let old_value_3 = smt.insert(key_3, EMPTY_WORD);
+        assert_eq!(old_value_3, value_3);
+        let prospective_leaf =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_3), &key_3, &old_value_3);
+
+        assert_eq!(
+            old_leaf.hash(),
+            prospective_leaf.hash(),
+            "removing and prospectively re-adding a leaf didn't yield the original leaf:\
+            \n  original leaf:    {old_leaf:?}\
+            \n  prospective leaf: {prospective_leaf:?}",
+        );
+    }
+
+    // remove key 2
+    {
+        let old_leaf = smt.get_leaf(&key_2);
+        let old_value_2 = smt.insert(key_2, EMPTY_WORD);
+        assert_eq!(old_value_2, value_2);
+        let prospective_leaf =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_2), &key_2, &old_value_2);
+
+        assert_eq!(
+            old_leaf.hash(),
+            prospective_leaf.hash(),
+            "removing and prospectively re-adding a leaf didn't yield the original leaf:\
+            \n  original leaf:    {old_leaf:?}\
+            \n  prospective leaf: {prospective_leaf:?}",
+        );
+    }
+
+    // remove key 1
+    {
+        let old_leaf = smt.get_leaf(&key_1);
+        let old_value_1 = smt.insert(key_1, EMPTY_WORD);
+        assert_eq!(old_value_1, value_1);
+        let prospective_leaf =
+            smt.construct_prospective_leaf(smt.get_leaf(&key_1), &key_1, &old_value_1);
+        assert_eq!(
+            old_leaf.hash(),
+            prospective_leaf.hash(),
+            "removing and prospectively re-adding a leaf didn't yield the original leaf:\
+            \n  original leaf:    {old_leaf:?}\
+            \n  prospective leaf: {prospective_leaf:?}",
+        );
+    }
+}
+
+/// This tests that we can perform prospective changes correctly.
+#[test]
+fn test_prospective_insertion() {
+    let mut smt = Smt::default();
+
+    let raw = 0b_01101001_01101100_00011111_11111111_10010110_10010011_11100000_00000000_u64;
+
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(raw)]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), Felt::new(raw)]);
+    // Sort key_3 before key_1, to test non-append insertion.
+    let key_3: RpoDigest =
+        RpoDigest::from([0_u32.into(), 0_u32.into(), 0_u32.into(), Felt::new(raw)]);
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
+    let value_3: [Felt; 4] = [3_u32.into(); WORD_SIZE];
+
+    let root_empty = smt.root();
+
+    let root_1 = {
+        smt.insert(key_1, value_1);
+        smt.root()
+    };
+
+    let root_2 = {
+        smt.insert(key_2, value_2);
+        smt.root()
+    };
+
+    let root_3 = {
+        smt.insert(key_3, value_3);
+        smt.root()
+    };
+
+    // Test incremental updates.
+
+    let mut smt = Smt::default();
+
+    let mutations = smt.compute_mutations(vec![(key_1, value_1)]);
+    assert_eq!(mutations.root(), root_1, "prospective root 1 did not match actual root 1");
+    smt.apply_mutations(mutations).unwrap();
+    assert_eq!(smt.root(), root_1, "mutations before and after apply did not match");
+
+    let mutations = smt.compute_mutations(vec![(key_2, value_2)]);
+    assert_eq!(mutations.root(), root_2, "prospective root 2 did not match actual root 2");
+    let mutations =
+        smt.compute_mutations(vec![(key_3, EMPTY_WORD), (key_2, value_2), (key_3, value_3)]);
+    assert_eq!(mutations.root(), root_3, "mutations before and after apply did not match");
+    smt.apply_mutations(mutations).unwrap();
+
+    // Edge case: multiple values at the same key, where a later pair restores the original value.
+    let mutations = smt.compute_mutations(vec![(key_3, EMPTY_WORD), (key_3, value_3)]);
+    assert_eq!(mutations.root(), root_3);
+    smt.apply_mutations(mutations).unwrap();
+    assert_eq!(smt.root(), root_3);
+
+    // Test batch updates, and that the order doesn't matter.
+    let pairs =
+        vec![(key_3, value_2), (key_2, EMPTY_WORD), (key_1, EMPTY_WORD), (key_3, EMPTY_WORD)];
+    let mutations = smt.compute_mutations(pairs);
+    assert_eq!(
+        mutations.root(),
+        root_empty,
+        "prospective root for batch removal did not match actual root",
+    );
+    smt.apply_mutations(mutations).unwrap();
+    assert_eq!(smt.root(), root_empty, "mutations before and after apply did not match");
+
+    let pairs = vec![(key_3, value_3), (key_1, value_1), (key_2, value_2)];
+    let mutations = smt.compute_mutations(pairs);
+    assert_eq!(mutations.root(), root_3);
+    smt.apply_mutations(mutations).unwrap();
+    assert_eq!(smt.root(), root_3);
+}
+
 /// Tests that 2 key-value pairs stored in the same leaf have the same path
 #[test]
 fn test_smt_path_to_keys_in_same_leaf_are_equal() {
@@ -324,6 +514,16 @@ fn test_smt_entries() {
     assert_eq!(&(key_1, value_1), entries.next().unwrap());
     assert_eq!(&(key_2, value_2), entries.next().unwrap());
     assert!(entries.next().is_none());
+}
+
+/// Tests that `EMPTY_ROOT` constant generated in the `Smt` equals to the root of the empty tree of
+/// depth 64
+#[test]
+fn test_smt_check_empty_root_constant() {
+    // get the root of the empty tree of depth 64
+    let empty_root_64_depth = EmptySubtreeRoots::empty_hashes(64)[0];
+
+    assert_eq!(empty_root_64_depth, Smt::EMPTY_ROOT);
 }
 
 // SMT LEAF

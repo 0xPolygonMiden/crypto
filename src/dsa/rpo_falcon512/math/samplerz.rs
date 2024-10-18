@@ -1,8 +1,8 @@
 use core::f64::consts::LN_2;
-use rand::Rng;
 
 #[cfg(not(feature = "std"))]
 use num::Float;
+use rand::Rng;
 
 /// Samples an integer from {0, ..., 18} according to the distribution χ, which is close to
 /// the half-Gaussian distribution on the natural numbers with mean 0 and standard deviation
@@ -40,18 +40,18 @@ fn approx_exp(x: f64, ccs: f64) -> u64 {
     //   https://eprint.iacr.org/2018/1234
     //   https://github.com/raykzhao/gaussian
     const C: [u64; 13] = [
-        0x00000004741183A3u64,
-        0x00000036548CFC06u64,
-        0x0000024FDCBF140Au64,
-        0x0000171D939DE045u64,
-        0x0000D00CF58F6F84u64,
-        0x000680681CF796E3u64,
-        0x002D82D8305B0FEAu64,
-        0x011111110E066FD0u64,
-        0x0555555555070F00u64,
-        0x155555555581FF00u64,
-        0x400000000002B400u64,
-        0x7FFFFFFFFFFF4800u64,
+        0x00000004741183a3u64,
+        0x00000036548cfc06u64,
+        0x0000024fdcbf140au64,
+        0x0000171d939de045u64,
+        0x0000d00cf58f6f84u64,
+        0x000680681cf796e3u64,
+        0x002d82d8305b0feau64,
+        0x011111110e066fd0u64,
+        0x0555555555070f00u64,
+        0x155555555581ff00u64,
+        0x400000000002b400u64,
+        0x7fffffffffff4800u64,
         0x8000000000000000u64,
     ];
 
@@ -116,8 +116,9 @@ pub(crate) fn sampler_z<R: Rng>(mu: f64, sigma: f64, sigma_min: f64, rng: &mut R
 #[cfg(all(test, feature = "std"))]
 mod test {
     use alloc::vec::Vec;
-    use rand::RngCore;
     use std::{thread::sleep, time::Duration};
+
+    use rand::RngCore;
 
     use super::{approx_exp, ber_exp, sampler_z};
 

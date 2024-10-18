@@ -54,12 +54,17 @@ impl MerklePath {
 
     /// Verifies the Merkle opening proof towards the provided root.
     ///
-    /// Returns `true` if `node` exists at `index` in a Merkle tree with `root`.
-    pub fn verify(&self, index: u64, node: RpoDigest, root: &RpoDigest) -> bool {
-        match self.compute_root(index, node) {
-            Ok(computed_root) => root == &computed_root,
-            Err(_) => false,
+    /// # Errors
+    /// Returns an error if:
+    /// - provided node index is invalid.
+    /// - root calculated during the verification differs from the provided one.
+    pub fn verify(&self, index: u64, node: RpoDigest, root: &RpoDigest) -> Result<(), MerkleError> {
+        let computed_root = self.compute_root(index, node)?;
+        if &computed_root != root {
+            return Err(MerkleError::ConflictingRoots(vec![computed_root, *root]));
         }
+
+        Ok(())
     }
 
     /// Returns an iterator over every inner node of this [MerklePath].
@@ -143,7 +148,7 @@ pub struct InnerNodeIterator<'a> {
     value: RpoDigest,
 }
 
-impl<'a> Iterator for InnerNodeIterator<'a> {
+impl Iterator for InnerNodeIterator<'_> {
     type Item = InnerNodeInfo;
 
     fn next(&mut self) -> Option<Self::Item> {

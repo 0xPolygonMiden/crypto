@@ -1,12 +1,16 @@
+use alloc::{collections::BTreeSet, vec::Vec};
+
 use proptest::prelude::*;
 use rand_utils::rand_value;
 
 use super::{
     super::{apply_inv_sbox, apply_sbox, ALPHA, INV_ALPHA},
-    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, ONE, STATE_WIDTH, ZERO,
+    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, STATE_WIDTH, ZERO,
 };
-use crate::Word;
-use alloc::{collections::BTreeSet, vec::Vec};
+use crate::{
+    hash::rescue::{BINARY_CHUNK_SIZE, CAPACITY_RANGE, RATE_WIDTH},
+    Word, ONE,
+};
 
 #[test]
 fn test_sbox() {
@@ -58,7 +62,7 @@ fn merge_vs_merge_in_domain() {
     ];
     let merge_result = Rpo256::merge(&digests);
 
-    // ------------- merge with domain = 0 ----------------------------------------------------------
+    // ------------- merge with domain = 0 -------------
 
     // set domain to ZERO. This should not change the result.
     let domain = ZERO;
@@ -66,7 +70,7 @@ fn merge_vs_merge_in_domain() {
     let merge_in_domain_result = Rpo256::merge_in_domain(&digests, domain);
     assert_eq!(merge_result, merge_in_domain_result);
 
-    // ------------- merge with domain = 1 ----------------------------------------------------------
+    // ------------- merge with domain = 1 -------------
 
     // set domain to ONE. This should change the result.
     let domain = ONE;
@@ -126,6 +130,27 @@ fn hash_padding() {
 }
 
 #[test]
+fn hash_padding_no_extra_permutation_call() {
+    use crate::hash::rescue::DIGEST_RANGE;
+
+    // Implementation
+    let num_bytes = BINARY_CHUNK_SIZE * RATE_WIDTH;
+    let mut buffer = vec![0_u8; num_bytes];
+    *buffer.last_mut().unwrap() = 97;
+    let r1 = Rpo256::hash(&buffer);
+
+    // Expected
+    let final_chunk = [0_u8, 0, 0, 0, 0, 0, 97, 1];
+    let mut state = [ZERO; STATE_WIDTH];
+    // padding when hashing bytes
+    state[CAPACITY_RANGE.start] = Felt::from(RATE_WIDTH as u8);
+    *state.last_mut().unwrap() = Felt::new(u64::from_le_bytes(final_chunk));
+    Rpo256::apply_permutation(&mut state);
+
+    assert_eq!(&r1[0..4], &state[DIGEST_RANGE]);
+}
+
+#[test]
 fn hash_elements_padding() {
     let e1 = [Felt::new(rand_value()); 2];
     let e2 = [e1[0], e1[1], ZERO];
@@ -156,6 +181,24 @@ fn hash_elements() {
     let m_result = Rpo256::merge(&digests);
     let h_result = Rpo256::hash_elements(&elements);
     assert_eq!(m_result, h_result);
+}
+
+#[test]
+fn hash_empty() {
+    let elements: Vec<Felt> = vec![];
+
+    let zero_digest = RpoDigest::default();
+    let h_result = Rpo256::hash_elements(&elements);
+    assert_eq!(zero_digest, h_result);
+}
+
+#[test]
+fn hash_empty_bytes() {
+    let bytes: Vec<u8> = vec![];
+
+    let zero_digest = RpoDigest::default();
+    let h_result = Rpo256::hash(&bytes);
+    assert_eq!(zero_digest, h_result);
 }
 
 #[test]
@@ -228,46 +271,46 @@ proptest! {
 
 const EXPECTED: [Word; 19] = [
     [
-        Felt::new(1502364727743950833),
-        Felt::new(5880949717274681448),
-        Felt::new(162790463902224431),
-        Felt::new(6901340476773664264),
+        Felt::new(18126731724905382595),
+        Felt::new(7388557040857728717),
+        Felt::new(14290750514634285295),
+        Felt::new(7852282086160480146),
     ],
     [
-        Felt::new(7478710183745780580),
-        Felt::new(3308077307559720969),
-        Felt::new(3383561985796182409),
-        Felt::new(17205078494700259815),
+        Felt::new(10139303045932500183),
+        Felt::new(2293916558361785533),
+        Felt::new(15496361415980502047),
+        Felt::new(17904948502382283940),
     ],
     [
-        Felt::new(17439912364295172999),
-        Felt::new(17979156346142712171),
-        Felt::new(8280795511427637894),
-        Felt::new(9349844417834368814),
+        Felt::new(17457546260239634015),
+        Felt::new(803990662839494686),
+        Felt::new(10386005777401424878),
+        Felt::new(18168807883298448638),
     ],
     [
-        Felt::new(5105868198472766874),
-        Felt::new(13090564195691924742),
-        Felt::new(1058904296915798891),
-        Felt::new(18379501748825152268),
+        Felt::new(13072499238647455740),
+        Felt::new(10174350003422057273),
+        Felt::new(9201651627651151113),
+        Felt::new(6872461887313298746),
     ],
     [
-        Felt::new(9133662113608941286),
-        Felt::new(12096627591905525991),
-        Felt::new(14963426595993304047),
-        Felt::new(13290205840019973377),
+        Felt::new(2903803350580990546),
+        Felt::new(1838870750730563299),
+        Felt::new(4258619137315479708),
+        Felt::new(17334260395129062936),
     ],
     [
-        Felt::new(3134262397541159485),
-        Felt::new(10106105871979362399),
-        Felt::new(138768814855329459),
-        Felt::new(15044809212457404677),
+        Felt::new(8571221005243425262),
+        Felt::new(3016595589318175865),
+        Felt::new(13933674291329928438),
+        Felt::new(678640375034313072),
     ],
     [
-        Felt::new(162696376578462826),
-        Felt::new(4991300494838863586),
-        Felt::new(660346084748120605),
-        Felt::new(13179389528641752698),
+        Felt::new(16314113978986502310),
+        Felt::new(14587622368743051587),
+        Felt::new(2808708361436818462),
+        Felt::new(10660517522478329440),
     ],
     [
         Felt::new(2242391899857912644),
@@ -276,46 +319,46 @@ const EXPECTED: [Word; 19] = [
         Felt::new(5046143039268215739),
     ],
     [
-        Felt::new(9585630502158073976),
-        Felt::new(1310051013427303477),
-        Felt::new(7491921222636097758),
-        Felt::new(9417501558995216762),
+        Felt::new(5218076004221736204),
+        Felt::new(17169400568680971304),
+        Felt::new(8840075572473868990),
+        Felt::new(12382372614369863623),
     ],
     [
-        Felt::new(1994394001720334744),
-        Felt::new(10866209900885216467),
-        Felt::new(13836092831163031683),
-        Felt::new(10814636682252756697),
+        Felt::new(9783834557155203486),
+        Felt::new(12317263104955018849),
+        Felt::new(3933748931816109604),
+        Felt::new(1843043029836917214),
     ],
     [
-        Felt::new(17486854790732826405),
-        Felt::new(17376549265955727562),
-        Felt::new(2371059831956435003),
-        Felt::new(17585704935858006533),
+        Felt::new(14498234468286984551),
+        Felt::new(16837257669834682387),
+        Felt::new(6664141123711355107),
+        Felt::new(4590460158294697186),
     ],
     [
-        Felt::new(11368277489137713825),
-        Felt::new(3906270146963049287),
-        Felt::new(10236262408213059745),
-        Felt::new(78552867005814007),
+        Felt::new(4661800562479916067),
+        Felt::new(11794407552792839953),
+        Felt::new(9037742258721863712),
+        Felt::new(6287820818064278819),
     ],
     [
-        Felt::new(17899847381280262181),
-        Felt::new(14717912805498651446),
-        Felt::new(10769146203951775298),
-        Felt::new(2774289833490417856),
+        Felt::new(7752693085194633729),
+        Felt::new(7379857372245835536),
+        Felt::new(9270229380648024178),
+        Felt::new(10638301488452560378),
     ],
     [
-        Felt::new(3794717687462954368),
-        Felt::new(4386865643074822822),
-        Felt::new(8854162840275334305),
-        Felt::new(7129983987107225269),
+        Felt::new(11542686762698783357),
+        Felt::new(15570714990728449027),
+        Felt::new(7518801014067819501),
+        Felt::new(12706437751337583515),
     ],
     [
-        Felt::new(7244773535611633983),
-        Felt::new(19359923075859320),
-        Felt::new(10898655967774994333),
-        Felt::new(9319339563065736480),
+        Felt::new(9553923701032839042),
+        Felt::new(7281190920209838818),
+        Felt::new(2488477917448393955),
+        Felt::new(5088955350303368837),
     ],
     [
         Felt::new(4935426252518736883),
@@ -324,21 +367,21 @@ const EXPECTED: [Word; 19] = [
         Felt::new(18159875708229758073),
     ],
     [
-        Felt::new(14871230873837295931),
-        Felt::new(11225255908868362971),
-        Felt::new(18100987641405432308),
-        Felt::new(1559244340089644233),
+        Felt::new(12795429638314178838),
+        Felt::new(14360248269767567855),
+        Felt::new(3819563852436765058),
+        Felt::new(10859123583999067291),
     ],
     [
-        Felt::new(8348203744950016968),
-        Felt::new(4041411241960726733),
-        Felt::new(17584743399305468057),
-        Felt::new(16836952610803537051),
+        Felt::new(2695742617679420093),
+        Felt::new(9151515850666059759),
+        Felt::new(15855828029180595485),
+        Felt::new(17190029785471463210),
     ],
     [
-        Felt::new(16139797453633030050),
-        Felt::new(1090233424040889412),
-        Felt::new(10770255347785669036),
-        Felt::new(16982398877290254028),
+        Felt::new(13205273108219124830),
+        Felt::new(2524898486192849221),
+        Felt::new(14618764355375283547),
+        Felt::new(10615614265042186874),
     ],
 ];

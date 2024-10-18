@@ -466,6 +466,7 @@ impl IntoIterator for RpxDigest {
 #[cfg(test)]
 mod tests {
     use alloc::string::String;
+
     use rand_utils::rand_value;
 
     use super::{Deserializable, Felt, RpxDigest, Serializable, DIGEST_BYTES, DIGEST_SIZE};

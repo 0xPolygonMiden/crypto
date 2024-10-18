@@ -1,4 +1,10 @@
 use seq_macro::seq;
+#[cfg(feature = "std")]
+use {
+    super::{Deserializable, Serializable},
+    alloc::boxed::Box,
+    std::error::Error,
+};
 
 use super::{
     DefaultMerkleStore as MerkleStore, EmptySubtreeRoots, MerkleError, MerklePath, NodeIndex,
@@ -9,13 +15,6 @@ use crate::{
         digests_to_words, int_to_leaf, int_to_node, LeafIndex, MerkleTree, SimpleSmt, SMT_MAX_DEPTH,
     },
     Felt, Word, ONE, WORD_SIZE, ZERO,
-};
-
-#[cfg(feature = "std")]
-use {
-    super::{Deserializable, Serializable},
-    alloc::boxed::Box,
-    std::error::Error,
 };
 
 // TEST DATA
@@ -614,7 +613,7 @@ fn node_path_should_be_truncated_by_midtier_insert() {
     let path = store.get_path(root, index).unwrap().path;
     assert_eq!(node, result);
     assert_eq!(path.depth(), depth);
-    assert!(path.verify(index.value(), result, &root));
+    assert!(path.verify(index.value(), result, &root).is_ok());
 
     // flip the first bit of the key and insert the second node on a different depth
     let key = key ^ (1 << 63);
@@ -627,7 +626,7 @@ fn node_path_should_be_truncated_by_midtier_insert() {
     let path = store.get_path(root, index).unwrap().path;
     assert_eq!(node, result);
     assert_eq!(path.depth(), depth);
-    assert!(path.verify(index.value(), result, &root));
+    assert!(path.verify(index.value(), result, &root).is_ok());
 
     // attempt to fetch a path of the second node to depth 64
     // should fail because the previously inserted node will remove its sub-tree from the set

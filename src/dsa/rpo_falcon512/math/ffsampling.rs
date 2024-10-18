@@ -1,11 +1,12 @@
-use super::{fft::FastFft, polynomial::Polynomial, samplerz::sampler_z};
 use alloc::boxed::Box;
+
+#[cfg(not(feature = "std"))]
+use num::Float;
 use num::{One, Zero};
 use num_complex::{Complex, Complex64};
 use rand::Rng;
 
-#[cfg(not(feature = "std"))]
-use num::Float;
+use super::{fft::FastFft, polynomial::Polynomial, samplerz::sampler_z};
 
 const SIGMIN: f64 = 1.2778336969128337;
 
@@ -80,11 +81,11 @@ pub fn normalize_tree(tree: &mut LdlTree, sigma: f64) {
         LdlTree::Branch(_ell, left, right) => {
             normalize_tree(left, sigma);
             normalize_tree(right, sigma);
-        }
+        },
         LdlTree::Leaf(vector) => {
             vector[0] = Complex::new(sigma / vector[0].re.sqrt(), 0.0);
             vector[1] = Complex64::zero();
-        }
+        },
     }
 }
 
@@ -110,7 +111,7 @@ pub fn ffsampling<R: Rng>(
             let z0 = Polynomial::<Complex64>::merge_fft(&bold_z0.0, &bold_z0.1);
 
             (z0, z1)
-        }
+        },
         LdlTree::Leaf(value) => {
             let z0 = sampler_z(t.0.coefficients[0].re, value[0].re, SIGMIN, &mut rng);
             let z1 = sampler_z(t.1.coefficients[0].re, value[0].re, SIGMIN, &mut rng);
@@ -118,6 +119,6 @@ pub fn ffsampling<R: Rng>(
                 Polynomial::new(vec![Complex64::new(z0 as f64, 0.0)]),
                 Polynomial::new(vec![Complex64::new(z1 as f64, 0.0)]),
             )
-        }
+        },
     }
 }

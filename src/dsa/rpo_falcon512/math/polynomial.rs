@@ -1,11 +1,17 @@
-use super::{field::FalconFelt, Inverse};
-use crate::dsa::rpo_falcon512::{MODULUS, N};
-use crate::Felt;
 use alloc::vec::Vec;
-use core::default::Default;
-use core::fmt::Debug;
-use core::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
+use core::{
+    default::Default,
+    fmt::Debug,
+    ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign},
+};
+
 use num::{One, Zero};
+
+use super::{field::FalconFelt, Inverse};
+use crate::{
+    dsa::rpo_falcon512::{MODULUS, N},
+    Felt,
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct Polynomial<F> {
@@ -134,8 +140,8 @@ impl<
         Self::new(coefficients)
     }
 
-    /// Computes the galois adjoint of the polynomial in the cyclotomic ring F\[ X \] / < X^n + 1 > ,
-    /// which corresponds to f(x^2).
+    /// Computes the galois adjoint of the polynomial in the cyclotomic ring F\[ X \] / < X^n + 1 >
+    /// , which corresponds to f(x^2).
     pub fn galois_adjoint(&self) -> Self {
         Self::new(
             self.coefficients

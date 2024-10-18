@@ -4,7 +4,7 @@ use super::{
     add_constants, add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox, apply_inv_sbox,
     apply_mds, apply_sbox, Digest, ElementHasher, Felt, FieldElement, Hasher, StarkField, ARK1,
     ARK2, BINARY_CHUNK_SIZE, CAPACITY_RANGE, DIGEST_BYTES, DIGEST_RANGE, DIGEST_SIZE, INPUT1_RANGE,
-    INPUT2_RANGE, MDS, NUM_ROUNDS, ONE, RATE_RANGE, RATE_WIDTH, STATE_WIDTH, ZERO,
+    INPUT2_RANGE, MDS, NUM_ROUNDS, RATE_RANGE, RATE_WIDTH, STATE_WIDTH, ZERO,
 };
 
 mod digest;
@@ -19,7 +19,8 @@ mod tests;
 /// Implementation of the Rescue Prime Optimized hash function with 256-bit output.
 ///
 /// The hash function is implemented according to the Rescue Prime Optimized
-/// [specifications](https://eprint.iacr.org/2022/1577)
+/// [specifications](https://eprint.iacr.org/2022/1577) while the padding rule follows the one
+/// described [here](https://eprint.iacr.org/2023/1045).
 ///
 /// The parameters used to instantiate the function are:
 /// * Field: 64-bit prime field with modulus p = 2^64 - 2^32 + 1.
@@ -51,7 +52,7 @@ mod tests;
 ///
 /// Thus, if the underlying data consists of valid field elements, it might make more sense
 /// to deserialize them into field elements and then hash them using
-/// [hash_elements()](Rpo256::hash_elements) function rather then hashing the serialized bytes
+/// [hash_elements()](Rpo256::hash_elements) function rather than hashing the serialized bytes
 /// using [hash()](Rpo256::hash) function.
 ///
 /// ## Domain separation
@@ -64,6 +65,10 @@ mod tests;
 /// becomes the bottleneck for the security bound of the sponge in overwrite-mode only when it is
 /// lower than 2^128, we see that the target 128-bit security level is maintained as long as
 /// the size of the domain identifier space, including for padding, is less than 2^128.
+///
+/// ## Hashing of empty input
+/// The current implementation hashes empty input to the zero digest [0, 0, 0, 0]. This has
+/// the benefit of requiring no calls to the RPO permutation when hashing empty input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rpo256();
 
@@ -77,14 +82,16 @@ impl Hasher for Rpo256 {
         // initialize the state with zeroes
         let mut state = [ZERO; STATE_WIDTH];
 
-        // set the capacity (first element) to a flag on whether or not the input length is evenly
-        // divided by the rate. this will prevent collisions between padded and non-padded inputs,
-        // and will rule out the need to perform an extra permutation in case of evenly divided
-        // inputs.
-        let is_rate_multiple = bytes.len() % RATE_WIDTH == 0;
-        if !is_rate_multiple {
-            state[CAPACITY_RANGE.start] = ONE;
-        }
+        // determine the number of field elements needed to encode `bytes` when each field element
+        // represents at most 7 bytes.
+        let num_field_elem = bytes.len().div_ceil(BINARY_CHUNK_SIZE);
+
+        // set the first capacity element to `RATE_WIDTH + (num_field_elem % RATE_WIDTH)`. We do
+        // this to achieve:
+        // 1. Domain separating hashing of `[u8]` from hashing of `[Felt]`.
+        // 2. Avoiding collisions at the `[Felt]` representation of the encoded bytes.
+        state[CAPACITY_RANGE.start] =
+            Felt::from((RATE_WIDTH + (num_field_elem % RATE_WIDTH)) as u8);
 
         // initialize a buffer to receive the little-endian elements.
         let mut buf = [0_u8; 8];
@@ -93,41 +100,49 @@ impl Hasher for Rpo256 {
         // into the state.
         //
         // every time the rate range is filled, a permutation is performed. if the final value of
-        // `i` is not zero, then the chunks count wasn't enough to fill the state range, and an
-        // additional permutation must be performed.
-        let i = bytes.chunks(BINARY_CHUNK_SIZE).fold(0, |i, chunk| {
-            // the last element of the iteration may or may not be a full chunk. if it's not, then
-            // we need to pad the remainder bytes of the chunk with zeroes, separated by a `1`.
-            // this will avoid collisions.
-            if chunk.len() == BINARY_CHUNK_SIZE {
+        // `rate_pos` is not zero, then the chunks count wasn't enough to fill the state range,
+        // and an additional permutation must be performed.
+        let mut current_chunk_idx = 0_usize;
+        // handle the case of an empty `bytes`
+        let last_chunk_idx = if num_field_elem == 0 {
+            current_chunk_idx
+        } else {
+            num_field_elem - 1
+        };
+        let rate_pos = bytes.chunks(BINARY_CHUNK_SIZE).fold(0, |rate_pos, chunk| {
+            // copy the chunk into the buffer
+            if current_chunk_idx != last_chunk_idx {
                 buf[..BINARY_CHUNK_SIZE].copy_from_slice(chunk);
             } else {
+                // on the last iteration, we pad `buf` with a 1 followed by as many 0's as are
+                // needed to fill it
                 buf.fill(0);
                 buf[..chunk.len()].copy_from_slice(chunk);
                 buf[chunk.len()] = 1;
             }
+            current_chunk_idx += 1;
 
             // set the current rate element to the input. since we take at most 7 bytes, we are
             // guaranteed that the inputs data will fit into a single field element.
-            state[RATE_RANGE.start + i] = Felt::new(u64::from_le_bytes(buf));
+            state[RATE_RANGE.start + rate_pos] = Felt::new(u64::from_le_bytes(buf));
 
             // proceed filling the range. if it's full, then we apply a permutation and reset the
             // counter to the beginning of the range.
-            if i == RATE_WIDTH - 1 {
+            if rate_pos == RATE_WIDTH - 1 {
                 Self::apply_permutation(&mut state);
                 0
             } else {
-                i + 1
+                rate_pos + 1
             }
         });
 
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
         // the number of elements is not a multiple of RATE_WIDTH), apply the RPO permutation. we
         // don't need to apply any extra padding because the first capacity element contains a
-        // flag indicating whether the input is evenly divisible by the rate.
-        if i != 0 {
-            state[RATE_RANGE.start + i..RATE_RANGE.end].fill(ZERO);
-            state[RATE_RANGE.start + i] = ONE;
+        // flag indicating the number of field elements constituting the last block when the latter
+        // is not divisible by `RATE_WIDTH`.
+        if rate_pos != 0 {
+            state[RATE_RANGE.start + rate_pos..RATE_RANGE.end].fill(ZERO);
             Self::apply_permutation(&mut state);
         }
 
@@ -152,26 +167,21 @@ impl Hasher for Rpo256 {
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
         // initialize the state as follows:
         // - seed is copied into the first 4 elements of the rate portion of the state.
-        // - if the value fits into a single field element, copy it into the fifth rate element
-        //   and set the sixth rate element to 1.
-        // - if the value doesn't fit into a single field element, split it into two field
-        //   elements, copy them into rate elements 5 and 6, and set the seventh rate element
-        //   to 1.
-        // - set the first capacity element to 1
+        // - if the value fits into a single field element, copy it into the fifth rate element and
+        //   set the first capacity element to 5.
+        // - if the value doesn't fit into a single field element, split it into two field elements,
+        //   copy them into rate elements 5 and 6 and set the first capacity element to 6.
         let mut state = [ZERO; STATE_WIDTH];
         state[INPUT1_RANGE].copy_from_slice(seed.as_elements());
         state[INPUT2_RANGE.start] = Felt::new(value);
         if value < Felt::MODULUS {
-            state[INPUT2_RANGE.start + 1] = ONE;
+            state[CAPACITY_RANGE.start] = Felt::from(5_u8);
         } else {
             state[INPUT2_RANGE.start + 1] = Felt::new(value / Felt::MODULUS);
-            state[INPUT2_RANGE.start + 2] = ONE;
+            state[CAPACITY_RANGE.start] = Felt::from(6_u8);
         }
 
-        // common padding for both cases
-        state[CAPACITY_RANGE.start] = ONE;
-
-        // apply the RPO permutation and return the first four elements of the state
+        // apply the RPO permutation and return the first four elements of the rate
         Self::apply_permutation(&mut state);
         RpoDigest::new(state[DIGEST_RANGE].try_into().unwrap())
     }
@@ -185,11 +195,9 @@ impl ElementHasher for Rpo256 {
         let elements = E::slice_as_base_elements(elements);
 
         // initialize state to all zeros, except for the first element of the capacity part, which
-        // is set to 1 if the number of elements is not a multiple of RATE_WIDTH.
+        // is set to `elements.len() % RATE_WIDTH`.
         let mut state = [ZERO; STATE_WIDTH];
-        if elements.len() % RATE_WIDTH != 0 {
-            state[CAPACITY_RANGE.start] = ONE;
-        }
+        state[CAPACITY_RANGE.start] = Self::BaseField::from((elements.len() % RATE_WIDTH) as u8);
 
         // absorb elements into the state one by one until the rate portion of the state is filled
         // up; then apply the Rescue permutation and start absorbing again; repeat until all
@@ -206,11 +214,8 @@ impl ElementHasher for Rpo256 {
 
         // if we absorbed some elements but didn't apply a permutation to them (would happen when
         // the number of elements is not a multiple of RATE_WIDTH), apply the RPO permutation after
-        // padding by appending a 1 followed by as many 0 as necessary to make the input length a
-        // multiple of the RATE_WIDTH.
+        // padding by as many 0 as necessary to make the input length a multiple of the RATE_WIDTH.
         if i > 0 {
-            state[RATE_RANGE.start + i] = ONE;
-            i += 1;
             while i != RATE_WIDTH {
                 state[RATE_RANGE.start + i] = ZERO;
                 i += 1;

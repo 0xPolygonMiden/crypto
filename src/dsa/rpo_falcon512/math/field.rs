@@ -1,7 +1,9 @@
-use super::{fft::CyclotomicFourier, Inverse, MODULUS};
 use alloc::string::String;
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+
 use num::{One, Zero};
+
+use super::{fft::CyclotomicFourier, Inverse, MODULUS};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct FalconFelt(u32);

@@ -59,16 +59,16 @@ impl Display for HexParseError {
         match self {
             HexParseError::InvalidLength { expected, actual } => {
                 write!(f, "Expected hex data to have length {expected}, including the 0x prefix. Got {actual}")
-            }
+            },
             HexParseError::MissingPrefix => {
                 write!(f, "Hex encoded data must start with 0x prefix")
-            }
+            },
             HexParseError::InvalidChar => {
                 write!(f, "Hex encoded data must contain characters [a-zA-Z0-9]")
-            }
+            },
             HexParseError::OutOfRange => {
                 write!(f, "Hex encoded values of an RpoDigest must be inside the field modulus")
-            }
+            },
         }
     }
 }
