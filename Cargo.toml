@@ -31,8 +31,12 @@ harness = false
 name = "store"
 harness = false
 
+[[bench]]
+name = "subtree"
+harness = false
+
 [features]
-default = ["std"]
+default = ["std", "async"]
 executable = ["dep:clap", "dep:rand-utils", "std"]
 serde = ["dep:serde", "serde?/alloc", "winter-math/serde"]
 std = [
@@ -44,6 +48,7 @@ std = [
     "winter-math/std",
     "winter-utils/std",
 ]
+async = ["serde?/rc"]
 
 [dependencies]
 blake3 = { version = "1.5", default-features = false }
