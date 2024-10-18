@@ -8,6 +8,14 @@
 - [BREAKING] Changed return value of the `Mmr::verify()` and `MerklePath::verify()` from `bool` to `Result<>` (#335).
 - Added `is_empty()` functions to the `SimpleSmt` and `Smt` structures. Added `EMPTY_ROOT` constant to the `SparseMerkleTree` trait (#337).
 
+## 0.10.3 (2024-09-25)
+
+- Implement `get_size_hint` for `Smt` (#331).
+
+## 0.10.2 (2024-09-25)
+
+- Implement `get_size_hint` for `RpoDigest` and `RpxDigest` and expose constants for their serialized size (#330).
+
 ## 0.10.1 (2024-09-13)
 
 - Added `Serializable` and `Deserializable` implementations for `PartialMmr` and `InOrderIndex` (#329).

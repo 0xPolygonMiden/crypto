@@ -388,6 +388,14 @@ impl Serializable for Smt {
             target.write(value);
         }
     }
+
+    fn get_size_hint(&self) -> usize {
+        let entries_count = self.entries().count();
+
+        // Each entry is the size of a digest plus a word.
+        entries_count.get_size_hint()
+            + entries_count * (RpoDigest::SERIALIZED_SIZE + EMPTY_WORD.get_size_hint())
+    }
 }
 
 impl Deserializable for Smt {
@@ -413,6 +421,7 @@ fn test_smt_serialization_deserialization() {
     let smt_default = Smt::default();
     let bytes = smt_default.to_bytes();
     assert_eq!(smt_default, Smt::read_from_bytes(&bytes).unwrap());
+    assert_eq!(bytes.len(), smt_default.get_size_hint());
 
     // Smt with values
     let smt_leaves_2: [(RpoDigest, Word); 2] = [
@@ -429,4 +438,5 @@ fn test_smt_serialization_deserialization() {
 
     let bytes = smt.to_bytes();
     assert_eq!(smt, Smt::read_from_bytes(&bytes).unwrap());
+    assert_eq!(bytes.len(), smt.get_size_hint());
 }
