@@ -202,7 +202,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// be queried with [`MutationSet::root()`]. Once a mutation set is returned,
     /// [`SimpleSmt::apply_mutations()`] can be called in order to commit these changes to the
     /// Merkle tree, or [`drop()`] to discard them.
-
+    ///
     /// # Example
     /// ```
     /// # use miden_crypto::{hash::rpo::RpoDigest, Felt, Word};

@@ -1,20 +1,21 @@
 // FFT-BASED MDS MULTIPLICATION HELPER FUNCTIONS
 // ================================================================================================
 
-/// This module contains helper functions as well as constants used to perform the vector-matrix
-/// multiplication step of the Rescue prime permutation. The special form of our MDS matrix
-/// i.e. being circular, allows us to reduce the vector-matrix multiplication to a Hadamard product
-/// of two vectors in "frequency domain". This follows from the simple fact that every circulant
-/// matrix has the columns of the discrete Fourier transform matrix as orthogonal eigenvectors.
-/// The implementation also avoids the use of 3-point FFTs, and 3-point iFFTs, and substitutes that
-/// with explicit expressions. It also avoids, due to the form of our matrix in the frequency
-/// domain, divisions by 2 and repeated modular reductions. This is because of our explicit choice
-/// of an MDS matrix that has small powers of 2 entries in frequency domain.
-/// The following implementation has benefited greatly from the discussions and insights of
-/// Hamish Ivey-Law and Jacqueline Nabaglo of Polygon Zero and is base on Nabaglo's Plonky2
-/// implementation.
+//! This module contains helper functions as well as constants used to perform the vector-matrix
+//! multiplication step of the Rescue prime permutation. The special form of our MDS matrix
+//! i.e. being circular, allows us to reduce the vector-matrix multiplication to a Hadamard product
+//! of two vectors in "frequency domain". This follows from the simple fact that every circulant
+//! matrix has the columns of the discrete Fourier transform matrix as orthogonal eigenvectors.
+//! The implementation also avoids the use of 3-point FFTs, and 3-point iFFTs, and substitutes that
+//! with explicit expressions. It also avoids, due to the form of our matrix in the frequency
+//! domain, divisions by 2 and repeated modular reductions. This is because of our explicit choice
+//! of an MDS matrix that has small powers of 2 entries in frequency domain.
+//! The following implementation has benefited greatly from the discussions and insights of
+//! Hamish Ivey-Law and Jacqueline Nabaglo of Polygon Zero and is base on Nabaglo's Plonky2
+//! implementation.
 
 // Rescue MDS matrix in frequency domain.
+//
 // More precisely, this is the output of the three 4-point (real) FFTs of the first column of
 // the MDS matrix i.e. just before the multiplication with the appropriate twiddle factors
 // and application of the final four 3-point FFT in order to get the full 12-point FFT.

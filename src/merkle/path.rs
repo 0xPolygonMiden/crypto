@@ -61,7 +61,7 @@ impl MerklePath {
     pub fn verify(&self, index: u64, node: RpoDigest, root: &RpoDigest) -> Result<(), MerkleError> {
         let computed_root = self.compute_root(index, node)?;
         if &computed_root != root {
-            return Err(MerkleError::ConflictingRoots(vec![computed_root, root.clone()]));
+            return Err(MerkleError::ConflictingRoots(vec![computed_root, *root]));
         }
 
         Ok(())
@@ -148,7 +148,7 @@ pub struct InnerNodeIterator<'a> {
     value: RpoDigest,
 }
 
-impl<'a> Iterator for InnerNodeIterator<'a> {
+impl Iterator for InnerNodeIterator<'_> {
     type Item = InnerNodeInfo;
 
     fn next(&mut self) -> Option<Self::Item> {

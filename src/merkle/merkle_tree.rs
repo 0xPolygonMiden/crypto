@@ -211,7 +211,7 @@ pub struct InnerNodeIterator<'a> {
     index: usize,
 }
 
-impl<'a> Iterator for InnerNodeIterator<'a> {
+impl Iterator for InnerNodeIterator<'_> {
     type Item = InnerNodeInfo;
 
     fn next(&mut self) -> Option<Self::Item> {

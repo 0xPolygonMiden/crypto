@@ -539,7 +539,7 @@ pub struct InnerNodeIterator<'a, I: Iterator<Item = (usize, RpoDigest)>> {
     seen_nodes: BTreeSet<InOrderIndex>,
 }
 
-impl<'a, I: Iterator<Item = (usize, RpoDigest)>> Iterator for InnerNodeIterator<'a, I> {
+impl<I: Iterator<Item = (usize, RpoDigest)>> Iterator for InnerNodeIterator<'_, I> {
     type Item = InnerNodeInfo;
 
     fn next(&mut self) -> Option<Self::Item> {

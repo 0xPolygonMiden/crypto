@@ -370,7 +370,7 @@ pub struct MmrNodes<'a> {
     index: usize,
 }
 
-impl<'a> Iterator for MmrNodes<'a> {
+impl Iterator for MmrNodes<'_> {
     type Item = InnerNodeInfo;
 
     fn next(&mut self) -> Option<Self::Item> {
