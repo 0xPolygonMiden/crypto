@@ -1,4 +1,4 @@
-use core::fmt::Display;
+use core::{fmt::Display, num::NonZero};
 
 use super::{Felt, MerkleError, RpoDigest};
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
@@ -72,6 +72,50 @@ impl NodeIndex {
         Self::new(depth, value)
     }
 
+    /// Converts a scalar representation of a depth/value pair to a [`NodeIndex`].
+    ///
+    /// This is the inverse operation of [`NodeIndex::to_scalar_index()`]. As `1` represents the
+    /// root node, `index` cannot be zero.
+    ///
+    /// # Errors
+    /// Returns the same errors under the same conditions as [`NodeIndex::new()`].
+    ///
+    /// # Panics
+    /// Panics if the depth indicated by `index` does not fit in a [`u8`], or if the row-value
+    /// indicated by `index` does not fit in a [`u64`].
+    pub fn from_scalar_index(index: NonZero<u128>) -> Result<Self, MerkleError> {
+        let index = index.get() - 1;
+
+        if index == 0 {
+            return Ok(Self::root());
+        }
+
+        // The log of 1 is always 0.
+        if index == 1 {
+            return Ok(Self::root().left_child());
+        }
+
+        let depth = {
+            let depth = u128::ilog2(index + 1);
+            assert!(depth <= u8::MAX as u32);
+            depth as u8
+        };
+
+        let max_value_for_depth = (1 << depth) - 1;
+        assert!(
+            max_value_for_depth <= u64::MAX as u128,
+            "max_value ({max_value_for_depth}) does not fit in u64",
+        );
+
+        let value = {
+            let value = index - max_value_for_depth;
+            assert!(value <= u64::MAX as u128);
+            value as u64
+        };
+
+        Self::new(depth, value)
+    }
+
     /// Creates a new node index pointing to the root of the tree.
     pub const fn root() -> Self {
         Self { depth: 0, value: 0 }
@@ -90,11 +134,81 @@ impl NodeIndex {
         self
     }
 
+    pub const fn left_ancestor_n(mut self, n: u8) -> Self {
+        self.depth += n;
+        self.value <<= n;
+        self
+    }
+
+    pub const fn right_ancestor_n(mut self, n: u8) -> Self {
+        self.depth += n;
+        self.value = (self.value << n) + 1;
+        self
+    }
+
     /// Returns right child index of the current node.
     pub const fn right_child(mut self) -> Self {
         self.depth += 1;
         self.value = (self.value << 1) + 1;
         self
+    }
+
+    /// Returns the parent of the current node.
+    pub const fn parent(mut self) -> Self {
+        self.depth = self.depth.saturating_sub(1);
+        self.value >>= 1;
+        self
+    }
+
+    /// Returns the `n`th parent of the current node.
+    pub fn parent_n(mut self, n: u8) -> Self {
+        debug_assert!(n <= self.depth);
+        self.depth = self.depth.saturating_sub(n);
+        self.value >>= n;
+
+        self
+    }
+
+    /// Returns `true` if and only if `other` is an ancestor of the current node, or the current
+    /// node itself.
+    pub fn contains(&self, mut other: Self) -> bool {
+        if other == *self {
+            return true;
+        }
+        if other.is_root() {
+            return false;
+        }
+        if other.depth < self.depth {
+            return false;
+        }
+
+        other = other.parent_n(other.depth() - self.depth());
+
+        loop {
+            if other == *self {
+                return true;
+            }
+
+            if other.is_root() {
+                return false;
+            }
+
+            if other.depth < self.depth {
+                return false;
+            }
+
+            other = other.parent();
+        }
+    }
+
+    /// The inverse of [`NodeIndex::is_ancestor_of`], except that it does not include itself.
+    pub fn is_descendent_of(self, other: Self) -> bool {
+        self.depth != other.depth && self.value != other.value && other.contains(self)
+    }
+
+    /// Returns `true` if and only if `other` is an ancestor of the current node.
+    pub fn is_ancestor_of(self, other: Self) -> bool {
+        self.depth != other.depth && self.value != other.value && self.contains(other)
     }
 
     // PROVIDERS
@@ -114,8 +228,8 @@ impl NodeIndex {
     /// Returns the scalar representation of the depth/value pair.
     ///
     /// It is computed as `2^depth + value`.
-    pub const fn to_scalar_index(&self) -> u64 {
-        (1 << self.depth as u64) + self.value
+    pub const fn to_scalar_index(&self) -> u128 {
+        (1 << self.depth as u64) + (self.value as u128)
     }
 
     /// Returns the depth of the current instance.
@@ -180,6 +294,27 @@ impl Deserializable for NodeIndex {
     }
 }
 
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub struct SubtreeIndex {
+    pub root: NodeIndex,
+    pub depth: u8,
+}
+
+#[allow(dead_code)]
+impl SubtreeIndex {
+    pub const fn new(root: NodeIndex, depth: u8) -> Self {
+        Self { root, depth }
+    }
+
+    pub const fn left_bound(&self) -> NodeIndex {
+        self.root.left_ancestor_n(self.depth)
+    }
+
+    pub const fn right_bound(&self) -> NodeIndex {
+        self.root.right_ancestor_n(self.depth)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
@@ -208,6 +343,21 @@ mod tests {
     #[test]
     fn test_node_index_can_represent_depth_64() {
         assert!(NodeIndex::new(64, u64::MAX).is_ok());
+    }
+
+    #[test]
+    fn test_scalar_roundtrip() {
+        // Arbitrary value that's at the bottom and not in a corner.
+        let start = NodeIndex::make(64, u64::MAX - 8);
+
+        let mut index = start;
+        while !index.is_root() {
+            let as_scalar = index.to_scalar_index();
+            let round_trip =
+                NodeIndex::from_scalar_index(NonZero::new(as_scalar).unwrap()).unwrap();
+            assert_eq!(index, round_trip, "{index:?} did not round-trip as a scalar index");
+            index.move_up();
+        }
     }
 
     prop_compose! {

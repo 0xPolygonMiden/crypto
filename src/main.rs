@@ -16,8 +16,49 @@ pub struct BenchmarkCmd {
     size: u64,
 }
 
+#[cfg(not(feature = "async"))]
 fn main() {
     benchmark_smt();
+}
+
+#[cfg(feature = "async")]
+#[tokio::main(flavor = "multi_thread")]
+async fn main() {
+    // FIXME: very incomplete
+
+    let args = BenchmarkCmd::parse();
+    let tree_size = args.size;
+
+    let mut entries = Vec::new();
+    for i in 0..tree_size {
+        //let key = rand_value::<RpoDigest>();
+        let leaf_index = u64::MAX / (i + 1);
+        let key = RpoDigest::new([ONE, ONE, Felt::new(i), Felt::new(leaf_index)]);
+        let value = [ONE, ONE, ONE, Felt::new(i)];
+        entries.push((key, value));
+    }
+
+    let control = Smt::with_entries(entries.clone()).unwrap();
+
+    let mut tree = Smt::new();
+    println!("Running a parallel construction benchmark:");
+    let now = Instant::now();
+    let mutations = tree.compute_mutations_parallel(entries).await;
+    assert_eq!(mutations.root(), control.root());
+    tree.apply_mutations(mutations.clone()).unwrap();
+    let elapsed = now.elapsed();
+    assert_eq!(tree.root(), mutations.root(), "mutation did not apply the right root?");
+    assert_eq!(control.root(), mutations.root(), "mutation root hash did not match control");
+    assert_eq!(tree.root(), control.root(), "applied root hash did not match control");
+    std::eprintln!("\nassertion checks complete");
+
+    println!(
+        "Constructed an SMT in parallel with {} key-value pairs in {:.3} seconds",
+        tree_size,
+        elapsed.as_secs_f32(),
+    );
+
+    //benchmark_smt();
 }
 
 /// Run a benchmark for [`Smt`].
