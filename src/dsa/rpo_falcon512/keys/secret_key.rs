@@ -28,14 +28,15 @@ const WIDTH_SMALL_POLY_COEFFICIENT: usize = 6;
 // SECRET KEY
 // ================================================================================================
 
-/// The secret key is a quadruple [[g, -f], [G, -F]] of polynomials with integer coefficients.
+/// Represents the secret key for Falcon DSA.
 ///
-/// Each polynomial is of degree at most N = 512 and computations with these polynomials are done
-/// modulo the monic irreducible polynomial ϕ = x^N + 1. The secret key is a basis for a lattice
-/// and has the property of being short with respect to a certain norm and an upper bound
-/// appropriate for a given security parameter. The public key on the other hand is another basis
-/// for the same lattice and can be described by a single polynomial h with integer coefficients
-/// modulo ϕ. The two keys are related by the following relation:
+/// The secret key is a quadruple [[g, -f], [G, -F]] of polynomials with integer coefficients. Each
+/// polynomial is of degree at most N = 512 and computations with these polynomials is done modulo
+/// the monic irreducible polynomial ϕ = x^N + 1. The secret key is a basis for a lattice and has
+/// the property of being short with respect to a certain norm and an upper bound appropriate for
+/// a given security parameter. The public key on the other hand is another basis for the same
+/// lattice and can be described by a single polynomial h with integer coefficients modulo ϕ.
+/// The two keys are related by the following relation:
 ///
 /// 1. h = g /f [mod ϕ][mod p]
 /// 2. f.G - g.F = p [mod ϕ]

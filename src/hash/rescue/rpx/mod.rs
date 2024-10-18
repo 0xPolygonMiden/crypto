@@ -11,6 +11,9 @@ use super::{
 mod digest;
 pub use digest::{RpxDigest, RpxDigestError};
 
+#[cfg(test)]
+mod tests;
+
 pub type CubicExtElement = CubeExtension<Felt>;
 
 // HASHER IMPLEMENTATION
@@ -55,7 +58,7 @@ pub type CubicExtElement = CubeExtension<Felt>;
 ///
 /// Thus, if the underlying data consists of valid field elements, it might make more sense
 /// to deserialize them into field elements and then hash them using
-/// [hash_elements()](Rpx256::hash_elements) function rather then hashing the serialized bytes
+/// [hash_elements()](Rpx256::hash_elements) function rather than hashing the serialized bytes
 /// using [hash()](Rpx256::hash) function.
 ///
 /// ## Domain separation
@@ -68,6 +71,10 @@ pub type CubicExtElement = CubeExtension<Felt>;
 /// the bottleneck for the security bound of the sponge in overwrite-mode only when it is
 /// lower than 2^128, we see that the target 128-bit security level is maintained as long as
 /// the size of the domain identifier space, including for padding, is less than 2^128.
+///
+/// ## Hashing of empty input
+/// The current implementation hashes empty input to the zero digest [0, 0, 0, 0]. This has
+/// the benefit of requiring no calls to the RPX permutation when hashing empty input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Rpx256();
 
@@ -99,11 +106,18 @@ impl Hasher for Rpx256 {
         // into the state.
         //
         // every time the rate range is filled, a permutation is performed. if the final value of
-        // `i` is not zero, then the chunks count wasn't enough to fill the state range, and an
-        // additional permutation must be performed.
-        let i = bytes.chunks(BINARY_CHUNK_SIZE).fold(0, |i, chunk| {
+        // `rate_pos` is not zero, then the chunks count wasn't enough to fill the state range,
+        // and an additional permutation must be performed.
+        let mut current_chunk_idx = 0_usize;
+        // handle the case of an empty `bytes`
+        let last_chunk_idx = if num_field_elem == 0 {
+            current_chunk_idx
+        } else {
+            num_field_elem - 1
+        };
+        let rate_pos = bytes.chunks(BINARY_CHUNK_SIZE).fold(0, |rate_pos, chunk| {
             // copy the chunk into the buffer
-            if i != num_field_elem - 1 {
+            if current_chunk_idx != last_chunk_idx {
                 buf[..BINARY_CHUNK_SIZE].copy_from_slice(chunk);
             } else {
                 // on the last iteration, we pad `buf` with a 1 followed by as many 0's as are
@@ -112,18 +126,19 @@ impl Hasher for Rpx256 {
                 buf[..chunk.len()].copy_from_slice(chunk);
                 buf[chunk.len()] = 1;
             }
+            current_chunk_idx += 1;
 
             // set the current rate element to the input. since we take at most 7 bytes, we are
             // guaranteed that the inputs data will fit into a single field element.
-            state[RATE_RANGE.start + i] = Felt::new(u64::from_le_bytes(buf));
+            state[RATE_RANGE.start + rate_pos] = Felt::new(u64::from_le_bytes(buf));
 
             // proceed filling the range. if it's full, then we apply a permutation and reset the
             // counter to the beginning of the range.
-            if i == RATE_WIDTH - 1 {
+            if rate_pos == RATE_WIDTH - 1 {
                 Self::apply_permutation(&mut state);
                 0
             } else {
-                i + 1
+                rate_pos + 1
             }
         });
 
@@ -132,8 +147,8 @@ impl Hasher for Rpx256 {
         // don't need to apply any extra padding because the first capacity element contains a
         // flag indicating the number of field elements constituting the last block when the latter
         // is not divisible by `RATE_WIDTH`.
-        if i != 0 {
-            state[RATE_RANGE.start + i..RATE_RANGE.end].fill(ZERO);
+        if rate_pos != 0 {
+            state[RATE_RANGE.start + rate_pos..RATE_RANGE.end].fill(ZERO);
             Self::apply_permutation(&mut state);
         }
 
@@ -172,7 +187,7 @@ impl Hasher for Rpx256 {
             state[CAPACITY_RANGE.start] = Felt::from(6_u8);
         }
 
-        // apply the RPX permutation and return the first four elements of the state
+        // apply the RPX permutation and return the first four elements of the rate
         Self::apply_permutation(&mut state);
         RpxDigest::new(state[DIGEST_RANGE].try_into().unwrap())
     }
