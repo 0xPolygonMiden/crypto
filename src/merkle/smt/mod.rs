@@ -1,4 +1,7 @@
 use alloc::{collections::BTreeMap, vec::Vec};
+use core::mem;
+
+use num::Integer;
 
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
 use crate::{
@@ -339,6 +342,108 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     ///
     /// The length `path` is guaranteed to be equal to `DEPTH`
     fn path_and_leaf_to_opening(path: MerklePath, leaf: Self::Leaf) -> Self::Opening;
+
+    /// Builds Merkle nodes from a bottom layer of tuples of horizontal indices and their hashes,
+    /// sorted by their position.
+    ///
+    /// The leaves are 'conceptual' leaves, simply being entities at the bottom of some subtree, not
+    /// [`Self::Leaf`].
+    ///
+    /// # Panics
+    /// With debug assertions on, this function panics under invalid inputs: if `leaves` contains
+    /// more entries than can fit in a depth-8 subtree (more than 256), if `bottom_depth` is
+    /// lower in the tree than the specified maximum depth (`DEPTH`), or if `leaves` is not sorted.
+    // FIXME: more complete docstring.
+    #[cfg_attr(not(test), allow(dead_code))]
+    fn build_subtree(
+        mut leaves: Vec<(u64, RpoDigest)>,
+        bottom_depth: u8,
+    ) -> BTreeMap<NodeIndex, InnerNode> {
+        debug_assert!(bottom_depth <= DEPTH);
+        debug_assert!(bottom_depth.is_multiple_of(&8));
+        debug_assert!(leaves.len() <= usize::pow(2, 8));
+
+        let subtree_root = bottom_depth - 8;
+
+        let mut inner_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
+
+        let mut next_leaves: Vec<(u64, RpoDigest)> = Vec::with_capacity(leaves.len() / 2);
+
+        for next_depth in (subtree_root..bottom_depth).rev() {
+            debug_assert!(next_depth <= bottom_depth);
+
+            // `next_depth` is the stuff we're making.
+            // `current_depth` is the stuff we have.
+            let current_depth = next_depth + 1;
+
+            let mut iter = leaves.drain(..).map(SubtreeLeaf::from_tuple).peekable();
+            while let Some(first) = iter.next() {
+                // On non-continuous iterations, including the first iteration, `first_column` may
+                // be a left or right node. On subsequent continuous iterations, we will always call
+                // `iter.next()` twice.
+
+                // On non-continuous iterations (including the very first iteration), this column
+                // could be either on the left or the right. If the next iteration is not
+                // discontinuous with our right node, then the next iteration's
+
+                let is_right = first.col.is_odd();
+                let (left, right) = if is_right {
+                    // Discontinuous iteration: we have no left node, so it must be empty.
+
+                    let left = SubtreeLeaf {
+                        col: first.col - 1,
+                        hash: *EmptySubtreeRoots::entry(DEPTH, current_depth),
+                    };
+                    let right = first;
+
+                    (left, right)
+                } else {
+                    let left = first;
+
+                    let right_col = first.col + 1;
+                    let right = match iter.peek().copied() {
+                        Some(SubtreeLeaf { col, .. }) if col == right_col => {
+                            // Our inputs must be sorted.
+                            debug_assert!(left.col <= col);
+                            // The next leaf in the iterator is our sibling. Use it and consume it!
+                            iter.next().unwrap()
+                        },
+                        // Otherwise, the leaves don't contain our sibling, so our sibling must be
+                        // empty.
+                        _ => SubtreeLeaf {
+                            col: right_col,
+                            hash: *EmptySubtreeRoots::entry(DEPTH, current_depth),
+                        },
+                    };
+
+                    (left, right)
+                };
+
+                let index = NodeIndex::new_unchecked(current_depth, left.col).parent();
+                let node = InnerNode { left: left.hash, right: right.hash };
+                let hash = node.hash();
+
+                let &equivalent_empty_hash = EmptySubtreeRoots::entry(DEPTH, next_depth);
+                // If this hash is empty, then it doesn't become a new inner node, nor does it count
+                // as a leaf for the next depth.
+                if hash != equivalent_empty_hash {
+                    inner_nodes.insert(index, node);
+                    // FIXME: is it possible for this to end up not being sorted? I don't think so.
+                    next_leaves.push((index.value(), hash));
+                }
+            }
+
+            // Stop borrowing `leaves`, so we can swap it.
+            // The iterator is empty at this point anyway.
+            drop(iter);
+
+            // After each depth, consider the stuff we just made the new "leaves", and empty the
+            // other collection.
+            mem::swap(&mut leaves, &mut next_leaves);
+        }
+
+        inner_nodes
+    }
 }
 
 // INNER NODE
@@ -346,7 +451,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct InnerNode {
+pub struct InnerNode {
     pub left: RpoDigest,
     pub right: RpoDigest,
 }
@@ -454,5 +559,69 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
     /// that method for more information.
     pub fn root(&self) -> RpoDigest {
         self.new_root
+    }
+}
+
+// HELPERS
+// ================================================================================================
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+struct SubtreeLeaf {
+    col: u64,
+    hash: RpoDigest,
+}
+impl SubtreeLeaf {
+    const fn from_tuple((col, hash): (u64, RpoDigest)) -> Self {
+        Self { col, hash }
+    }
+}
+
+// TESTS
+// ================================================================================================
+#[cfg(test)]
+mod test {
+    use alloc::vec::Vec;
+
+    use super::SparseMerkleTree;
+    use crate::{
+        hash::rpo::RpoDigest,
+        merkle::{Smt, SmtLeaf, SMT_DEPTH},
+        Felt, Word, ONE,
+    };
+
+    #[test]
+    fn test_build_subtree_from_leaves() {
+        const PAIR_COUNT: u64 = u64::pow(2, 8);
+
+        let entries: Vec<(RpoDigest, Word)> = (0..PAIR_COUNT)
+            .map(|i| {
+                let leaf_index = u64::MAX / (i + 1);
+                let key = RpoDigest::new([ONE, ONE, Felt::new(i), Felt::new(leaf_index)]);
+                let value = [ONE, ONE, ONE, Felt::new(i)];
+                (key, value)
+            })
+            .collect();
+
+        let control = Smt::with_entries(entries.clone()).unwrap();
+
+        let leaves: Vec<(u64, RpoDigest)> = entries
+            .iter()
+            .map(|(key, value)| {
+                let leaf = SmtLeaf::new_single(*key, *value);
+                let col = leaf.index().index.value();
+                let hash = leaf.hash();
+                (col, hash)
+            })
+            .collect();
+
+        let first_subtree = Smt::build_subtree(leaves, SMT_DEPTH);
+        assert!(!first_subtree.is_empty());
+
+        for (index, node) in first_subtree.into_iter() {
+            let control = control.get_inner_node(index);
+            assert_eq!(
+                control, node,
+                "subtree-computed node at index {index:?} does not match control",
+            );
+        }
     }
 }

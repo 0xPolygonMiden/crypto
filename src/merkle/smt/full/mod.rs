@@ -243,6 +243,13 @@ impl Smt {
             None
         }
     }
+
+    pub fn build_subtree(
+        leaves: Vec<(u64, RpoDigest)>,
+        bottom_depth: u8,
+    ) -> BTreeMap<NodeIndex, InnerNode> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::build_subtree(leaves, bottom_depth)
+    }
 }
 
 impl SparseMerkleTree<SMT_DEPTH> for Smt {

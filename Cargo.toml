@@ -28,6 +28,10 @@ name = "smt"
 harness = false
 
 [[bench]]
+name = "smt-subtree"
+harness = false
+
+[[bench]]
 name = "store"
 harness = false
 
