@@ -9,12 +9,14 @@ use miden_crypto::{
 use rand_utils::prng_array;
 use winter_utils::Randomizable;
 
+const PAIR_COUNTS: [u64; 5] = [1, 64, 128, 192, 256];
+
 fn smt_subtree_even(c: &mut Criterion) {
     let mut seed = [0u8; 32];
 
     let mut group = c.benchmark_group("subtree8-even");
 
-    for pair_count in (64..=256).step_by(64) {
+    for pair_count in PAIR_COUNTS {
         let bench_id = BenchmarkId::from_parameter(pair_count);
         group.bench_with_input(bench_id, &pair_count, |b, &pair_count| {
             b.iter_batched(
@@ -64,7 +66,7 @@ fn smt_subtree_random(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("subtree8-rand");
 
-    for pair_count in (64..=256).step_by(64) {
+    for pair_count in PAIR_COUNTS {
         let bench_id = BenchmarkId::from_parameter(pair_count);
         group.bench_with_input(bench_id, &pair_count, |b, &pair_count| {
             b.iter_batched(
@@ -94,10 +96,6 @@ fn smt_subtree_random(c: &mut Criterion) {
                         })
                         .collect();
                     leaves.sort();
-                    let before = leaves.len();
-                    leaves.dedup();
-                    let after = leaves.len();
-                    assert_eq!(before, after);
                     leaves
                 },
                 |leaves| {
