@@ -1,10 +1,9 @@
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 use core::{
     mem::{size_of, transmute, transmute_copy},
     ops::Deref,
     slice::from_raw_parts,
 };
-use alloc::vec::Vec;
 
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
 use crate::utils::{
