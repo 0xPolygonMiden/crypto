@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::ops::Range;
 
 use super::{
@@ -168,6 +169,12 @@ impl Hasher for Rpx256 {
         // apply the RPX permutation and return the first four elements of the state
         Self::apply_permutation(&mut state);
         RpxDigest::new(state[DIGEST_RANGE].try_into().unwrap())
+    }
+
+    fn merge_many(values: &[Self::Digest]) -> Self::Digest {
+        let elements: Vec<Felt> =
+            Self::Digest::digests_as_elements(values.iter()).copied().collect();
+        Self::hash_elements(&elements)
     }
 
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {

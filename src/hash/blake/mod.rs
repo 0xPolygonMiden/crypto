@@ -4,6 +4,7 @@ use core::{
     ops::Deref,
     slice::from_raw_parts,
 };
+use std::vec::Vec;
 
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
 use crate::utils::{
@@ -114,6 +115,11 @@ impl Hasher for Blake3_256 {
         Self::hash(prepare_merge(values))
     }
 
+    fn merge_many(values: &[Self::Digest]) -> Self::Digest {
+        let bytes: Vec<u8> = values.iter().flat_map(|v| v.as_bytes()).collect();
+        Blake3Digest(blake3::hash(&bytes).into())
+    }
+
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
         let mut hasher = blake3::Hasher::new();
         hasher.update(&seed.0);
@@ -172,6 +178,11 @@ impl Hasher for Blake3_192 {
 
     fn hash(bytes: &[u8]) -> Self::Digest {
         Blake3Digest(*shrink_bytes(&blake3::hash(bytes).into()))
+    }
+
+    fn merge_many(values: &[Self::Digest]) -> Self::Digest {
+        let bytes: Vec<u8> = values.iter().flat_map(|v| v.as_bytes()).collect();
+        Blake3Digest(*shrink_bytes(&blake3::hash(&bytes).into()))
     }
 
     fn merge(values: &[Self::Digest; 2]) -> Self::Digest {
@@ -240,6 +251,11 @@ impl Hasher for Blake3_160 {
 
     fn merge(values: &[Self::Digest; 2]) -> Self::Digest {
         Self::hash(prepare_merge(values))
+    }
+
+    fn merge_many(values: &[Self::Digest]) -> Self::Digest {
+        let bytes: Vec<u8> = values.iter().flat_map(|v| v.as_bytes()).collect();
+        Blake3Digest(*shrink_bytes(&blake3::hash(&bytes).into()))
     }
 
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
