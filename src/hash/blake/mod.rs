@@ -4,7 +4,7 @@ use core::{
     ops::Deref,
     slice::from_raw_parts,
 };
-use std::vec::Vec;
+use alloc::vec::Vec;
 
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
 use crate::utils::{
