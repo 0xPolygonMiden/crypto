@@ -1,4 +1,3 @@
-use alloc::vec::Vec;
 use core::ops::Range;
 
 use super::{
@@ -161,7 +160,7 @@ impl Hasher for Rpx256 {
         // initialize the state by copying the digest elements into the rate portion of the state
         // (8 total elements), and set the capacity elements to 0.
         let mut state = [ZERO; STATE_WIDTH];
-        let it = Self::Digest::digests_as_elements(values.iter());
+        let it = Self::Digest::digests_as_elements_iter(values.iter());
         for (i, v) in it.enumerate() {
             state[RATE_RANGE.start + i] = *v;
         }
@@ -172,9 +171,7 @@ impl Hasher for Rpx256 {
     }
 
     fn merge_many(values: &[Self::Digest]) -> Self::Digest {
-        let elements: Vec<Felt> =
-            Self::Digest::digests_as_elements(values.iter()).copied().collect();
-        Self::hash_elements(&elements)
+        Self::hash_elements(Self::Digest::digests_as_elements(values))
     }
 
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
@@ -300,7 +297,7 @@ impl Rpx256 {
         // initialize the state by copying the digest elements into the rate portion of the state
         // (8 total elements), and set the capacity elements to 0.
         let mut state = [ZERO; STATE_WIDTH];
-        let it = RpxDigest::digests_as_elements(values.iter());
+        let it = RpxDigest::digests_as_elements_iter(values.iter());
         for (i, v) in it.enumerate() {
             state[RATE_RANGE.start + i] = *v;
         }

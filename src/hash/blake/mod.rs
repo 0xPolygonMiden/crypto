@@ -2,7 +2,7 @@ use alloc::{string::String, vec::Vec};
 use core::{
     mem::{size_of, transmute, transmute_copy},
     ops::Deref,
-    slice::from_raw_parts,
+    slice::{self, from_raw_parts},
 };
 
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
@@ -32,6 +32,14 @@ const DIGEST20_BYTES: usize = 20;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(into = "String", try_from = "&str"))]
 pub struct Blake3Digest<const N: usize>([u8; N]);
+
+impl<const N: usize> Blake3Digest<N> {
+    pub fn digests_as_bytes(digests: &[Blake3Digest<N>]) -> &[u8] {
+        let p = digests.as_ptr();
+        let len = digests.len() * N;
+        unsafe { slice::from_raw_parts(p as *const u8, len) }
+    }
+}
 
 impl<const N: usize> Default for Blake3Digest<N> {
     fn default() -> Self {
@@ -115,8 +123,7 @@ impl Hasher for Blake3_256 {
     }
 
     fn merge_many(values: &[Self::Digest]) -> Self::Digest {
-        let bytes: Vec<u8> = values.iter().flat_map(|v| v.as_bytes()).collect();
-        Blake3Digest(blake3::hash(&bytes).into())
+        Blake3Digest(blake3::hash(Blake3Digest::digests_as_bytes(values)).into())
     }
 
     fn merge_with_int(seed: Self::Digest, value: u64) -> Self::Digest {
