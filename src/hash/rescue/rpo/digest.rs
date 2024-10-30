@@ -1,5 +1,5 @@
 use alloc::string::String;
-use core::{cmp::Ordering, fmt::Display, ops::Deref};
+use core::{cmp::Ordering, fmt::Display, ops::Deref, slice};
 
 use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
 use crate::{
@@ -34,11 +34,17 @@ impl RpoDigest {
         <Self as Digest>::as_bytes(self)
     }
 
-    pub fn digests_as_elements<'a, I>(digests: I) -> impl Iterator<Item = &'a Felt>
+    pub fn digests_as_elements_iter<'a, I>(digests: I) -> impl Iterator<Item = &'a Felt>
     where
         I: Iterator<Item = &'a Self>,
     {
         digests.flat_map(|d| d.0.iter())
+    }
+
+    pub fn digests_as_elements(digests: &[Self]) -> &[Felt] {
+        let p = digests.as_ptr();
+        let len = digests.len() * DIGEST_SIZE;
+        unsafe { slice::from_raw_parts(p as *const Felt, len) }
     }
 
     /// Returns hexadecimal representation of this digest prefixed with `0x`.

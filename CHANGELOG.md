@@ -1,3 +1,7 @@
+## 0.11.0 (2024-10-30)
+
+- [BREAKING] Updated Winterfell dependency to v0.10 (#338).
+
 ## 0.11.0 (2024-10-17)
 
 - [BREAKING]: renamed `Mmr::open()` into `Mmr::open_at()` and `Mmr::peaks()` into `Mmr::peaks_at()` (#234).
