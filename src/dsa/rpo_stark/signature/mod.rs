@@ -93,7 +93,7 @@ impl SecretKey {
 /// The signature is a STARK proof of knowledge of a pre-image given an image where the map is
 /// the RPO permutation, the pre-image is the secret key and the image is the public key.
 /// The current implementation follows the description in [1] in the unique decoding regime where
-/// it is argued that for the parameter set [PROOF_OPTIONS] the signature achieves $113$ bits of
+/// it is argued that for the parameter set `PROOF_OPTIONS` the signature achieves $113$ bits of
 /// average-case existential unforgeability security against $2^{113}$-query bound adversaries
 /// that can obtain up to $2^{64}$ signatures under the same public key.
 ///

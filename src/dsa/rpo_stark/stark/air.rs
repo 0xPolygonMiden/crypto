@@ -1,4 +1,4 @@
-use std::vec::Vec;
+use alloc::vec::Vec;
 
 use winter_math::{fields::f64::BaseElement, FieldElement, ToElements};
 use winter_prover::{
