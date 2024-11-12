@@ -145,8 +145,8 @@ impl RandomCoin for RpoRandomCoin {
         self.state[RATE_START] += nonce;
         Rpo256::apply_permutation(&mut self.state);
 
-        // reset the buffer
-        self.current = RATE_START;
+        // reset the buffer and skip the element containing the proof-of-work
+        self.current = RATE_START + 1;
 
         // determine how many bits are needed to represent valid values in the domain
         let v_mask = (domain_size - 1) as u64;
