@@ -338,6 +338,10 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Maps a key to a leaf index
     fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
 
+    /// Constructs a single leaf from an arbitrary amount of key-value pairs.
+    /// Those pairs must all have the same leaf index.
+    fn pairs_to_leaf(pairs: Vec<(Self::Key, Self::Value)>) -> Self::Leaf;
+
     /// Maps a (MerklePath, Self::Leaf) to an opening.
     ///
     /// The length `path` is guaranteed to be equal to `DEPTH`
