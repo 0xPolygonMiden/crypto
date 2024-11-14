@@ -410,14 +410,119 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         accumulator.leaves = SubtreeLeavesIter::from_leaves(&mut accumulated_leaves).collect();
         accumulator
     }
+
+    /// Builds Merkle nodes from a bottom layer of "leaves" -- represented by a horizontal index and
+    /// the hash of the leaf at that index. `leaves` *must* be sorted by horizontal index, and
+    /// `leaves` must not contain more than one depth-8 subtree's worth of leaves.
+    ///
+    /// This function will then calculate the inner nodes above each leaf for 8 layers, as well as
+    /// the "leaves" for the next 8-deep subtree, so this function can effectively be chained into
+    /// itself.
+    ///
+    /// # Panics
+    /// With debug assertions on, this function panics under invalid inputs: if `leaves` contains
+    /// more entries than can fit in a depth-8 subtree, if `leaves` contains leaves belonging to
+    /// different depth-8 subtrees, if `bottom_depth` is lower in the tree than the specified
+    /// maximum depth (`DEPTH`), or if `leaves` is not sorted.
+    fn build_subtree(
+        mut leaves: Vec<SubtreeLeaf>,
+        bottom_depth: u8,
+    ) -> (BTreeMap<NodeIndex, InnerNode>, Vec<SubtreeLeaf>) {
+        debug_assert!(bottom_depth <= DEPTH);
+        debug_assert!(Integer::is_multiple_of(&bottom_depth, &SUBTREE_DEPTH));
+        debug_assert!(leaves.len() <= usize::pow(2, SUBTREE_DEPTH as u32));
+
+        let subtree_root = bottom_depth - SUBTREE_DEPTH;
+
+        let mut inner_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
+
+        let mut next_leaves: Vec<SubtreeLeaf> = Vec::with_capacity(leaves.len() / 2);
+
+        for next_depth in (subtree_root..bottom_depth).rev() {
+            debug_assert!(next_depth <= bottom_depth);
+
+            // `next_depth` is the stuff we're making.
+            // `current_depth` is the stuff we have.
+            let current_depth = next_depth + 1;
+
+            let mut iter = leaves.drain(..).peekable();
+            while let Some(first) = iter.next() {
+                // On non-continuous iterations, including the first iteration, `first_column` may
+                // be a left or right node. On subsequent continuous iterations, we will always call
+                // `iter.next()` twice.
+
+                // On non-continuous iterations (including the very first iteration), this column
+                // could be either on the left or the right. If the next iteration is not
+                // discontinuous with our right node, then the next iteration's
+
+                let is_right = first.col.is_odd();
+                let (left, right) = if is_right {
+                    // Discontinuous iteration: we have no left node, so it must be empty.
+
+                    let left = SubtreeLeaf {
+                        col: first.col - 1,
+                        hash: *EmptySubtreeRoots::entry(DEPTH, current_depth),
+                    };
+                    let right = first;
+
+                    (left, right)
+                } else {
+                    let left = first;
+
+                    let right_col = first.col + 1;
+                    let right = match iter.peek().copied() {
+                        Some(SubtreeLeaf { col, .. }) if col == right_col => {
+                            // Our inputs must be sorted.
+                            debug_assert!(left.col <= col);
+                            // The next leaf in the iterator is our sibling. Use it and consume it!
+                            iter.next().unwrap()
+                        },
+                        // Otherwise, the leaves don't contain our sibling, so our sibling must be
+                        // empty.
+                        _ => SubtreeLeaf {
+                            col: right_col,
+                            hash: *EmptySubtreeRoots::entry(DEPTH, current_depth),
+                        },
+                    };
+
+                    (left, right)
+                };
+
+                let index = NodeIndex::new_unchecked(current_depth, left.col).parent();
+                let node = InnerNode { left: left.hash, right: right.hash };
+                let hash = node.hash();
+
+                let &equivalent_empty_hash = EmptySubtreeRoots::entry(DEPTH, next_depth);
+                // If this hash is empty, then it doesn't become a new inner node, nor does it count
+                // as a leaf for the next depth.
+                if hash != equivalent_empty_hash {
+                    inner_nodes.insert(index, node);
+                    next_leaves.push(SubtreeLeaf { col: index.value(), hash });
+                }
+            }
+
+            // Stop borrowing `leaves`, so we can swap it.
+            // The iterator is empty at this point anyway.
+            drop(iter);
+
+            // After each depth, consider the stuff we just made the new "leaves", and empty the
+            // other collection.
+            mem::swap(&mut leaves, &mut next_leaves);
+        }
+
+        (inner_nodes, leaves)
+    }
 }
 
 // INNER NODE
 // ================================================================================================
 
+/// This struct is public so functions returning it can be used in `benches/`, but is otherwise not
+/// part of the public API.
+#[doc(hidden)]
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct InnerNode {
+pub struct InnerNode {
     pub left: RpoDigest,
     pub right: RpoDigest,
 }
@@ -530,8 +635,11 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
 
 // SUBTREES
 // ================================================================================================
+/// A subtree is of depth 8.
+const SUBTREE_DEPTH: u8 = 8;
+
 /// A depth-8 subtree contains 256 "columns" that can possibly be occupied.
-const COLS_PER_SUBTREE: u64 = u64::pow(2, 8);
+const COLS_PER_SUBTREE: u64 = u64::pow(2, SUBTREE_DEPTH as u32);
 
 /// Helper struct for organizing the data we care about when computing Merkle subtrees.
 ///

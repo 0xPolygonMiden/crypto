@@ -23,7 +23,7 @@ pub use path::{MerklePath, RootPath, ValuePath};
 mod smt;
 pub use smt::{
     LeafIndex, MutationSet, SimpleSmt, Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError,
-    SMT_DEPTH, SMT_MAX_DEPTH, SMT_MIN_DEPTH,
+    SubtreeLeaf, SMT_DEPTH, SMT_MAX_DEPTH, SMT_MIN_DEPTH,
 };
 
 mod mmr;
