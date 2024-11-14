@@ -1,8 +1,8 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 
 use super::{
-    NodeIndex, PairComputations, SmtLeaf, SparseMerkleTree, SubtreeLeaf, SubtreeLeavesIter,
-    COLS_PER_SUBTREE, SUBTREE_DEPTH,
+    InnerNode, LeafIndex, NodeIndex, PairComputations, SmtLeaf, SparseMerkleTree, SubtreeLeaf,
+    SubtreeLeavesIter, COLS_PER_SUBTREE, SUBTREE_DEPTH,
 };
 use crate::{
     hash::rpo::RpoDigest,
@@ -208,4 +208,105 @@ fn test_two_subtrees() {
         let control = control_node.hash();
         assert_eq!(control, hash);
     }
+}
+
+#[test]
+fn test_singlethreaded_subtrees() {
+    const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
+
+    let entries = generate_entries(PAIR_COUNT);
+
+    let control = Smt::with_entries(entries.clone()).unwrap();
+
+    let mut accumulated_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
+
+    let PairComputations {
+        leaves: mut leaf_subtrees,
+        nodes: test_leaves,
+    } = Smt::sorted_pairs_to_leaves(entries);
+
+    for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+        // There's no flat_map_unzip(), so this is the best we can do.
+        let (nodes, subtrees): (Vec<BTreeMap<_, _>>, Vec<Vec<SubtreeLeaf>>) = leaf_subtrees
+            .into_iter()
+            .enumerate()
+            .map(|(i, subtree)| {
+                // Pre-assertions.
+                assert!(
+                    subtree.is_sorted(),
+                    "subtree {i} at bottom-depth {current_depth} is not sorted",
+                );
+                assert!(
+                    !subtree.is_empty(),
+                    "subtree {i} at bottom-depth {current_depth} is empty!",
+                );
+
+                // Do actual things.
+                let (nodes, next_leaves) = Smt::build_subtree(subtree, current_depth);
+                // Post-assertions.
+                assert!(next_leaves.is_sorted());
+
+                for (&index, test_node) in nodes.iter() {
+                    let control_node = control.get_inner_node(index);
+                    assert_eq!(
+                        test_node, &control_node,
+                        "depth {} subtree {}: test node does not match control at index {:?}",
+                        current_depth, i, index,
+                    );
+                }
+
+                (nodes, next_leaves)
+            })
+            .unzip();
+
+        // Update state between each depth iteration.
+
+        let mut all_leaves: Vec<SubtreeLeaf> = subtrees.into_iter().flatten().collect();
+        leaf_subtrees = SubtreeLeavesIter::from_leaves(&mut all_leaves).collect();
+        accumulated_nodes.extend(nodes.into_iter().flatten());
+
+        assert!(!leaf_subtrees.is_empty(), "on depth {current_depth}");
+    }
+
+    // Make sure the true leaves match, first checking length and then checking each individual
+    // leaf.
+    let control_leaves: BTreeMap<_, _> = control.leaves().collect();
+    let control_leaves_len = control_leaves.len();
+    let test_leaves_len = test_leaves.len();
+    assert_eq!(test_leaves_len, control_leaves_len);
+    for (col, ref test_leaf) in test_leaves {
+        let index = LeafIndex::new_max_depth(col);
+        let &control_leaf = control_leaves.get(&index).unwrap();
+        assert_eq!(test_leaf, control_leaf, "test leaf at column {col} does not match control");
+    }
+
+    // Make sure the inner nodes match, checking length first and then each individual leaf.
+    let control_nodes_len = control.inner_nodes().count();
+    let test_nodes_len = accumulated_nodes.len();
+    assert_eq!(test_nodes_len, control_nodes_len);
+    for (index, test_node) in accumulated_nodes.clone() {
+        let control_node = control.get_inner_node(index);
+        assert_eq!(test_node, control_node, "test node does not match control at {index:?}");
+    }
+
+    // After the last iteration of the above for loop, we should have the new root node actually
+    // in two places: one in `accumulated_nodes`, and the other as the "next leaves" return from
+    // `build_subtree()`. So let's check both!
+
+    let control_root = control.get_inner_node(NodeIndex::root());
+
+    // That for loop should have left us with only one leaf subtree...
+    let [leaf_subtree]: [Vec<_>; 1] = leaf_subtrees.try_into().unwrap();
+    // which itself contains only one 'leaf'...
+    let [root_leaf]: [SubtreeLeaf; 1] = leaf_subtree.try_into().unwrap();
+    // which matches the expected root.
+    assert_eq!(control.root(), root_leaf.hash);
+
+    // Likewise `accumulated_nodes` should contain a node at the root index...
+    assert!(accumulated_nodes.contains_key(&NodeIndex::root()));
+    // and it should match our actual root.
+    let test_root = accumulated_nodes.get(&NodeIndex::root()).unwrap();
+    assert_eq!(control_root, *test_root);
+    // And of course the root we got from each place should match.
+    assert_eq!(control.root(), root_leaf.hash);
 }
