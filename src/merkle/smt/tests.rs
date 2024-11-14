@@ -146,3 +146,66 @@ fn test_single_subtree() {
         );
     }
 }
+
+// Test that not just can we compute a subtree correctly, but we can feed the results of one
+// subtree into computing another. In other words, test that `build_subtree()` is correctly
+// composable.
+#[test]
+fn test_two_subtrees() {
+    // Two subtrees' worth of leaves.
+    const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 2;
+
+    let entries = generate_entries(PAIR_COUNT);
+
+    let control = Smt::with_entries(entries.clone()).unwrap();
+
+    let PairComputations { leaves, .. } = Smt::sorted_pairs_to_leaves(entries);
+    // With two subtrees' worth of leaves, we should have exactly two subtrees.
+    let [first, second]: [Vec<_>; 2] = leaves.try_into().unwrap();
+    assert_eq!(first.len() as u64, PAIR_COUNT / 2);
+    assert_eq!(first.len(), second.len());
+
+    let mut current_depth = SMT_DEPTH;
+    let mut next_leaves: Vec<SubtreeLeaf> = Default::default();
+
+    let (first_nodes, leaves) = Smt::build_subtree(first, current_depth);
+    next_leaves.extend(leaves);
+
+    let (second_nodes, leaves) = Smt::build_subtree(second, current_depth);
+    next_leaves.extend(leaves);
+
+    // All new inner nodes + the new subtree-leaves should be 512, for one depth-cycle.
+    let total_computed = first_nodes.len() + second_nodes.len() + next_leaves.len();
+    assert_eq!(total_computed as u64, PAIR_COUNT);
+
+    // Verify the computed nodes of both subtrees.
+    let computed_nodes = first_nodes.clone().into_iter().chain(second_nodes);
+    for (index, test_node) in computed_nodes {
+        let control_node = control.get_inner_node(index);
+        assert_eq!(
+            control_node, test_node,
+            "subtree-computed node at index {index:?} does not match control",
+        );
+    }
+
+    current_depth -= SUBTREE_DEPTH;
+
+    let (nodes, next_leaves) = Smt::build_subtree(next_leaves, current_depth);
+    assert_eq!(nodes.len(), SUBTREE_DEPTH as usize);
+    assert_eq!(next_leaves.len(), 1);
+
+    for (index, test_node) in nodes {
+        let control_node = control.get_inner_node(index);
+        assert_eq!(
+            control_node, test_node,
+            "subtree-computed node at index {index:?} does not match control",
+        );
+    }
+
+    for SubtreeLeaf { col, hash } in next_leaves {
+        let index = NodeIndex::new(current_depth - SUBTREE_DEPTH, col).unwrap();
+        let control_node = control.get_inner_node(index);
+        let control = control_node.hash();
+        assert_eq!(control, hash);
+    }
+}
