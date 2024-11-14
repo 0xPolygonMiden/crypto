@@ -40,9 +40,10 @@ name = "store"
 harness = false
 
 [features]
-default = ["std"]
+default = ["std", "concurrent"]
 executable = ["dep:clap", "dep:rand-utils", "std"]
 serde = ["dep:serde", "serde?/alloc", "winter-math/serde"]
+concurrent = ["dep:rayon"]
 std = [
     "blake3/std",
     "dep:cc",
@@ -66,6 +67,7 @@ sha3 = { version = "0.10", default-features = false }
 winter-crypto = { version = "0.10", default-features = false }
 winter-math = { version = "0.10", default-features = false }
 winter-utils = { version = "0.10", default-features = false }
+rayon = { version = "1.10.0", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
