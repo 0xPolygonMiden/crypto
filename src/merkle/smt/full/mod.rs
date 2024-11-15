@@ -101,6 +101,19 @@ impl Smt {
         Ok(tree)
     }
 
+    /// The parallel version of [`Smt::with_entries()`].
+    ///
+    /// Returns a new [`Smt`] instantiated with leaves set as specified by the provided entries,
+    /// constructed in parallel.
+    ///
+    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
+    #[cfg(feature = "concurrent")]
+    pub fn with_entries_par(
+        entries: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> Result<Self, MerkleError> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::with_entries_par(Vec::from_iter(entries))
+    }
+
     /// Returns a new [`Smt`] instantiated from already computed leaves and nodes.
     ///
     /// This function performs minimal consistency checking. It is the caller's responsibility to

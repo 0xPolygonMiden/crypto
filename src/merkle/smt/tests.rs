@@ -411,3 +411,17 @@ fn test_multithreaded_subtrees() {
     // And of course the root we got from each place should match.
     assert_eq!(control.root(), root_leaf.hash);
 }
+
+#[test]
+#[cfg(feature = "concurrent")]
+fn test_with_entries_par() {
+    const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
+
+    let entries = generate_entries(PAIR_COUNT);
+
+    let control = Smt::with_entries(entries.clone()).unwrap();
+
+    let smt = Smt::with_entries_par(entries.clone()).unwrap();
+    assert_eq!(smt.root(), control.root());
+    assert_eq!(smt, control);
+}

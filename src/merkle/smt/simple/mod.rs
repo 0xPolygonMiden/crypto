@@ -100,6 +100,23 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         Ok(tree)
     }
 
+    /// The parallel version of [`SimpleSmt::with_leaves()`].
+    ///
+    /// Returns a new [`SimpleSmt`] instantiated with leaves set as specified by the provided
+    /// entries.
+    ///
+    /// All leaves omitted from the entries list are set to [ZERO; 4].
+    #[cfg(feature = "concurrent")]
+    pub fn with_leaves_par(
+        entries: impl IntoIterator<Item = (u64, Word)>,
+    ) -> Result<Self, MerkleError> {
+        let entries: Vec<_> = entries
+            .into_iter()
+            .map(|(col, value)| (LeafIndex::<DEPTH>::new(col).unwrap(), value))
+            .collect();
+        <Self as SparseMerkleTree<DEPTH>>::with_entries_par(entries)
+    }
+
     /// Returns a new [`SimpleSmt`] instantiated from already computed leaves and nodes.
     ///
     /// This function performs minimal consistency checking. It is the caller's responsibility to

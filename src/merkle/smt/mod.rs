@@ -65,6 +65,19 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     // PROVIDED METHODS
     // ---------------------------------------------------------------------------------------------
 
+    /// Creates a new sparse Merkle tree from an existing set of key-value pairs, in parallel.
+    #[cfg(feature = "concurrent")]
+    fn with_entries_par(entries: Vec<(Self::Key, Self::Value)>) -> Result<Self, MerkleError>
+    where
+        Self: Sized,
+    {
+        let (inner_nodes, leaves) = Self::build_subtrees(entries);
+        let leaves: BTreeMap<u64, Self::Leaf> =
+            leaves.into_iter().map(|(index, leaf)| (index.value(), leaf)).collect();
+        let root = inner_nodes.get(&NodeIndex::root()).unwrap().hash();
+        Self::from_raw_parts(inner_nodes, leaves, root)
+    }
+
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
     /// path to the leaf, as well as the leaf itself.
     fn open(&self, key: &Self::Key) -> Self::Opening {
@@ -429,6 +442,8 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// the "leaves" for the next 8-deep subtree, so this function can effectively be chained into
     /// itself.
     ///
+    /// This function is mostly an implementation detail of [`SparseMerkleTree::build_subtrees()`].
+    ///
     /// # Panics
     /// With debug assertions on, this function panics under invalid inputs: if `leaves` contains
     /// more entries than can fit in a depth-8 subtree, if `leaves` contains leaves belonging to
@@ -521,6 +536,64 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         }
 
         (inner_nodes, leaves)
+    }
+
+    /// Computes the raw parts for a new sparse Merkle tree from a set of key-value pairs.
+    ///
+    /// `entries` need not be sorted. This function will sort them.
+    ///
+    /// This function is mostly an implementation detail of
+    /// [`SparseMerkleTree::with_entries_par()`].
+    #[cfg(feature = "concurrent")]
+    fn build_subtrees(
+        mut entries: Vec<(Self::Key, Self::Value)>,
+    ) -> (BTreeMap<NodeIndex, InnerNode>, BTreeMap<LeafIndex<DEPTH>, Self::Leaf>) {
+        use rayon::prelude::*;
+
+        entries.sort_by_key(|item| {
+            let index = Self::key_to_leaf_index(&item.0);
+            index.value()
+        });
+
+        let mut accumulated_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
+
+        let PairComputations {
+            leaves: mut leaf_subtrees,
+            nodes: initial_leaves,
+        } = Self::sorted_pairs_to_leaves(entries);
+
+        for current_depth in (SUBTREE_DEPTH..=DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+            let (nodes, subtrees): (Vec<BTreeMap<_, _>>, Vec<Vec<SubtreeLeaf>>) = leaf_subtrees
+                .into_par_iter()
+                .map(|subtree| {
+                    debug_assert!(subtree.is_sorted());
+                    debug_assert!(!subtree.is_empty());
+
+                    let (nodes, next_leaves) = Self::build_subtree(subtree, current_depth);
+
+                    debug_assert!(next_leaves.is_sorted());
+
+                    (nodes, next_leaves)
+                })
+                .unzip();
+
+            let mut all_leaves: Vec<SubtreeLeaf> = subtrees.into_iter().flatten().collect();
+            leaf_subtrees = SubtreeLeavesIter::from_leaves(&mut all_leaves).collect();
+            accumulated_nodes.extend(nodes.into_iter().flatten());
+
+            debug_assert!(!leaf_subtrees.is_empty());
+        }
+
+        let leaves: BTreeMap<LeafIndex<DEPTH>, Self::Leaf> = initial_leaves
+            .into_iter()
+            .map(|(key, value)| {
+                // This unwrap *should* be unreachable.
+                let key = LeafIndex::<DEPTH>::new(key).unwrap();
+                (key, value)
+            })
+            .collect();
+
+        (accumulated_nodes, leaves)
     }
 }
 
