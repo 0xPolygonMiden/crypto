@@ -101,6 +101,23 @@ impl Smt {
         Ok(tree)
     }
 
+    /// Returns a new [`Smt`] instantiated from already computed leaves and nodes.
+    ///
+    /// This function performs minimal consistency checking. It is the caller's responsibility to
+    /// ensure the passed arguments are correct and consistent with each other.
+    ///
+    /// # Panics
+    /// With debug assertions on, this function panics if `root` does not match the root node in
+    /// `inner_nodes`.
+    pub fn from_raw_parts(
+        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+        leaves: BTreeMap<u64, SmtLeaf>,
+        root: RpoDigest,
+    ) -> Self {
+        // Our particular implementation of `from_raw_parts()` never returns `Err`.
+        <Self as SparseMerkleTree<SMT_DEPTH>>::from_raw_parts(inner_nodes, leaves, root).unwrap()
+    }
+
     // PUBLIC ACCESSORS
     // --------------------------------------------------------------------------------------------
 
@@ -283,6 +300,19 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
     const EMPTY_ROOT: RpoDigest = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
+
+    fn from_raw_parts(
+        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+        leaves: BTreeMap<u64, SmtLeaf>,
+        root: RpoDigest,
+    ) -> Result<Self, MerkleError> {
+        if cfg!(debug_assertions) {
+            let root_node = inner_nodes.get(&NodeIndex::root()).unwrap();
+            assert_eq!(root_node.hash(), root);
+        }
+
+        Ok(Self { root, inner_nodes, leaves })
+    }
 
     fn root(&self) -> RpoDigest {
         self.root

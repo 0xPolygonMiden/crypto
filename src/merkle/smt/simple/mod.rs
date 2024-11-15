@@ -100,6 +100,23 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         Ok(tree)
     }
 
+    /// Returns a new [`SimpleSmt`] instantiated from already computed leaves and nodes.
+    ///
+    /// This function performs minimal consistency checking. It is the caller's responsibility to
+    /// ensure the passed arguments are correct and consistent with each other.
+    ///
+    /// # Panics
+    /// With debug assertions on, this function panics if `root` does not match the root node in
+    /// `inner_nodes`.
+    pub fn from_raw_parts(
+        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+        leaves: BTreeMap<u64, Word>,
+        root: RpoDigest,
+    ) -> Self {
+        // Our particular implementation of `from_raw_parts()` never returns `Err`.
+        <Self as SparseMerkleTree<DEPTH>>::from_raw_parts(inner_nodes, leaves, root).unwrap()
+    }
+
     /// Wrapper around [`SimpleSmt::with_leaves`] which inserts leaves at contiguous indices
     /// starting at index 0.
     pub fn with_contiguous_leaves(
@@ -308,6 +325,19 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
 
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
     const EMPTY_ROOT: RpoDigest = *EmptySubtreeRoots::entry(DEPTH, 0);
+
+    fn from_raw_parts(
+        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+        leaves: BTreeMap<u64, Word>,
+        root: RpoDigest,
+    ) -> Result<Self, MerkleError> {
+        if cfg!(debug_assertions) {
+            let root_node = inner_nodes.get(&NodeIndex::root()).unwrap();
+            assert_eq!(root_node.hash(), root);
+        }
+
+        Ok(Self { root, inner_nodes, leaves })
+    }
 
     fn root(&self) -> RpoDigest {
         self.root

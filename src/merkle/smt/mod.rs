@@ -292,6 +292,16 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     // REQUIRED METHODS
     // ---------------------------------------------------------------------------------------------
 
+    /// Construct this type from already computed leaves and nodes. The caller ensures passed
+    /// arguments are correct and consistent with each other.
+    fn from_raw_parts(
+        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+        leaves: BTreeMap<u64, Self::Leaf>,
+        root: RpoDigest,
+    ) -> Result<Self, MerkleError>
+    where
+        Self: Sized;
+
     /// The root of the tree
     fn root(&self) -> RpoDigest;
 
