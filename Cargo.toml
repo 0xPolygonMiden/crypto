@@ -36,6 +36,11 @@ name = "merkle"
 harness = false
 
 [[bench]]
+name = "parallel-subtree"
+harness = false
+required-features = ["concurrent"]
+
+[[bench]]
 name = "store"
 harness = false
 
