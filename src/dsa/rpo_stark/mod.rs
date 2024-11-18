@@ -2,12 +2,15 @@ mod signature;
 pub use signature::{PublicKey, SecretKey, Signature};
 
 mod stark;
+pub use stark::{PublicInputs, RescueAir};
 
 // TESTS
 // ================================================================================================
 
 #[cfg(test)]
 mod tests {
+    use std::println;
+
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 
@@ -23,8 +26,9 @@ mod tests {
 
         let message = rand_array();
         let signature = sk.sign(message);
-
+        //println!("signature {:?}", signature);
         let pk = sk.compute_public_key();
+        println!("verify {:?}", pk.verify(message, &signature));
         assert!(pk.verify(message, &signature))
     }
 }

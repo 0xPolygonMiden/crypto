@@ -1,4 +1,5 @@
 use alloc::string::String;
+use rand::{distributions::Standard, prelude::Distribution};
 use core::{cmp::Ordering, fmt::Display, ops::Deref, slice};
 
 use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
@@ -64,6 +65,18 @@ impl Digest for RpoDigest {
 
         result
     }
+
+    fn from_random_bytes(buffer: &[u8]) -> Self {
+        let mut digest: [Felt; DIGEST_SIZE] = [ZERO; DIGEST_SIZE];
+
+        buffer.chunks(8).zip(digest.iter_mut()).for_each(|(chunk, digest)| {
+            *digest = Felt::new(u64::from_be_bytes(
+                chunk.try_into().expect("Given the size of the chunk this should not panic"),
+            ))
+        });
+
+        digest.into()
+    }
 }
 
 impl Deref for RpoDigest {
@@ -121,6 +134,18 @@ impl Randomizable for RpoDigest {
         } else {
             None
         }
+    }
+}
+
+impl Distribution<RpoDigest> for Standard {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> RpoDigest {
+        let mut res = [ZERO; DIGEST_SIZE];
+        for r in res.iter_mut() {
+            let mut source = [0_u8; 8];
+            rng.fill_bytes(&mut source);
+            *r = Felt::from_random_bytes(&source).expect("failed to generate element");
+        }
+        RpoDigest::new(res)
     }
 }
 

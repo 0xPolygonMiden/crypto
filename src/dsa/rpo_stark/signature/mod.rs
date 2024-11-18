@@ -1,3 +1,5 @@
+use std::println;
+
 use rand::Rng;
 use winter_math::fields::f64::BaseElement;
 use winter_prover::Proof;
@@ -20,7 +22,7 @@ use crate::{dsa::rpo_stark::stark::RpoSignatureScheme, hash::rpo::Rpo256, Word, 
 /// domain. Since the PR enabling zero-knowledge in Winterfell is yet to be merged, this not
 /// case.
 pub const PROOF_OPTIONS: ProofOptions =
-    ProofOptions::new(63, 8, 0, FieldExtension::Quadratic, 8, 31);
+    ProofOptions::new(3, 8, 0, FieldExtension::Quadratic, 4, 31, true);
 
 // PUBLIC KEY
 // ================================================================================================
@@ -30,6 +32,12 @@ pub const PROOF_OPTIONS: ProofOptions =
 /// The public key is a [Word] (i.e., 4 field elements) that is the hash of the secret key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PublicKey(Word);
+
+impl PublicKey {
+    pub fn inner(&self) -> Word {
+        self.0
+    }
+}
 
 impl PublicKey {
     /// Verifies the provided signature against provided message and this public key.
@@ -104,12 +112,17 @@ pub struct Signature {
 }
 
 impl Signature {
+    pub fn inner(&self) -> Proof {
+        self.proof.clone()
+    }
     /// Returns true if this signature is a valid signature for the specified message generated
     /// against the secret key matching the specified public key commitment.
     pub fn verify(&self, message: Word, pk: Word) -> bool {
         let signature: RpoSignatureScheme<Rpo256> = RpoSignatureScheme::new(PROOF_OPTIONS);
 
-        signature.verify(pk, message, self.proof.clone()).is_ok()
+        let res = signature.verify(pk, message, self.proof.clone());
+        println!("res is {:?}", res);
+        res.is_ok()
     }
 }
 

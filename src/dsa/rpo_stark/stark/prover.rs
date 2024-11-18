@@ -1,6 +1,9 @@
 use core::marker::PhantomData;
 
-use winter_crypto::{DefaultRandomCoin, ElementHasher, MerkleTree};
+use rand::SeedableRng;
+use rand_chacha::ChaCha20Rng;
+use winter_air::ZkParameters;
+use winter_crypto::{DefaultRandomCoin, ElementHasher, MerkleTree, SaltedMerkleTree};
 use winter_math::{fields::f64::BaseElement, FieldElement};
 use winter_prover::{
     matrix::ColMatrix, DefaultConstraintEvaluator, DefaultTraceLde, ProofOptions, Prover,
@@ -10,7 +13,7 @@ use winter_utils::{Deserializable, Serializable};
 use winterfell::{AuxRandElements, ConstraintCompositionCoefficients, PartitionOptions};
 
 use super::air::{PublicInputs, RescueAir, HASH_CYCLE_LEN};
-use crate::{hash::rpo::Rpo256, Word, ZERO};
+use crate::{hash::rpo::Rpo256, rand::RpoRandomCoin, Word, ZERO};
 
 // PROVER
 // ================================================================================================
@@ -68,9 +71,9 @@ where
     type BaseField = BaseElement;
     type Air = RescueAir;
     type Trace = TraceTable<BaseElement>;
-    type HashFn = H;
-    type VC = MerkleTree<H>;
-    type RandomCoin = DefaultRandomCoin<Self::HashFn>;
+    type HashFn = Rpo256;
+    type VC = SaltedMerkleTree<Self::HashFn>;
+    type RandomCoin = RpoRandomCoin;
     type TraceLde<E: FieldElement<BaseField = Self::BaseField>> =
         DefaultTraceLde<E, Self::HashFn, Self::VC>;
     type ConstraintEvaluator<'a, E: FieldElement<BaseField = Self::BaseField>> =
@@ -101,8 +104,17 @@ where
         main_trace: &ColMatrix<Self::BaseField>,
         domain: &StarkDomain<Self::BaseField>,
         partition_option: PartitionOptions,
+        zk_parameters: Option<ZkParameters>,
     ) -> (Self::TraceLde<E>, TracePolyTable<E>) {
-        DefaultTraceLde::new(trace_info, main_trace, domain, partition_option)
+        let mut prng = ChaCha20Rng::from_entropy();
+        DefaultTraceLde::new(
+            trace_info,
+            main_trace,
+            domain,
+            partition_option,
+            zk_parameters,
+            &mut prng,
+        )
     }
 
     fn new_evaluator<'a, E: FieldElement<BaseField = Self::BaseField>>(

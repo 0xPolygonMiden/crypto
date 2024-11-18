@@ -172,6 +172,14 @@ impl RandomCoin for RpxRandomCoin {
 
         Ok(values)
     }
+    
+    fn reseed_with_salt(
+        &mut self,
+        data: <Self::Hasher as winter_crypto::Hasher>::Digest,
+        salt: Option<<Self::Hasher as winter_crypto::Hasher>::Digest>,
+    ) {
+        todo!()
+    }
 }
 
 // FELT RNG IMPLEMENTATION

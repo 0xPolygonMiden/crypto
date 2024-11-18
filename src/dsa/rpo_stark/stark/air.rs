@@ -105,6 +105,12 @@ pub struct PublicInputs {
     pub(crate) msg: Word,
 }
 
+impl PublicInputs {
+    pub fn new(pub_key: Word, msg: Word) -> Self {
+        Self { pub_key, msg }
+    }
+}
+
 impl ToElements<BaseElement> for PublicInputs {
     fn to_elements(&self) -> Vec<BaseElement> {
         let mut res = self.pub_key.to_vec();
