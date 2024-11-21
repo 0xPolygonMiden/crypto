@@ -4,7 +4,7 @@ use std::error::Error;
 
 use crate::merkle::MerkleError;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug)]
 pub enum MmrError {
     InvalidPosition(usize),
     InvalidPeaks,

@@ -136,7 +136,10 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
         self.nodes.get(&hash).ok_or(MerkleError::RootNotInStore(hash))?;
 
         for i in (0..index.depth()).rev() {
-            let node = self.nodes.get(&hash).ok_or(MerkleError::NodeNotInStore(hash, index))?;
+            let node = self
+                .nodes
+                .get(&hash)
+                .ok_or(MerkleError::NodeIndexNotFoundInStore(hash, index))?;
 
             let bit = (index.value() >> i) & 1;
             hash = if bit == 0 { node.left } else { node.right }
@@ -162,7 +165,10 @@ impl<T: KvMap<RpoDigest, StoreNode>> MerkleStore<T> {
         self.nodes.get(&hash).ok_or(MerkleError::RootNotInStore(hash))?;
 
         for i in (0..index.depth()).rev() {
-            let node = self.nodes.get(&hash).ok_or(MerkleError::NodeNotInStore(hash, index))?;
+            let node = self
+                .nodes
+                .get(&hash)
+                .ok_or(MerkleError::NodeIndexNotFoundInStore(hash, index))?;
 
             let bit = (index.value() >> i) & 1;
             hash = if bit == 0 {
