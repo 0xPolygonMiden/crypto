@@ -55,11 +55,13 @@ rand_core = { version = "0.6", default-features = false }
 rand-utils = { version = "0.10", package = "winter-rand-utils", optional = true }
 serde = { version = "1.0", default-features = false, optional = true, features = ["derive"] }
 sha3 = { version = "0.10", default-features = false }
+thiserror = { version = "2.0", default-features = false }
 winter-crypto = { version = "0.10", default-features = false }
 winter-math = { version = "0.10", default-features = false }
 winter-utils = { version = "0.10", default-features = false }
 
 [dev-dependencies]
+assert_matches = { version = "1.5.0", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 getrandom = { version = "0.2", features = ["js"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
