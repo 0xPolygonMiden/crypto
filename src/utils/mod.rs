@@ -1,7 +1,9 @@
 //! Utilities used in this crate which can also be generally useful downstream.
 
 use alloc::string::String;
-use core::fmt::{self, Display, Write};
+use core::fmt::{self, Write};
+
+use thiserror::Error;
 
 use super::Word;
 
@@ -46,35 +48,19 @@ pub fn bytes_to_hex_string<const N: usize>(data: [u8; N]) -> String {
 }
 
 /// Defines errors which can occur during parsing of hexadecimal strings.
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum HexParseError {
+    #[error(
+        "expected hex data to have length {expected}, including the 0x prefix, found {actual}"
+    )]
     InvalidLength { expected: usize, actual: usize },
+    #[error("hex encoded data must start with 0x prefix")]
     MissingPrefix,
+    #[error("hex encoded data must contain only characters [a-zA-Z0-9]")]
     InvalidChar,
+    #[error("hex encoded values of a Digest must be inside the field modulus")]
     OutOfRange,
 }
-
-impl Display for HexParseError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            HexParseError::InvalidLength { expected, actual } => {
-                write!(f, "Expected hex data to have length {expected}, including the 0x prefix. Got {actual}")
-            },
-            HexParseError::MissingPrefix => {
-                write!(f, "Hex encoded data must start with 0x prefix")
-            },
-            HexParseError::InvalidChar => {
-                write!(f, "Hex encoded data must contain characters [a-zA-Z0-9]")
-            },
-            HexParseError::OutOfRange => {
-                write!(f, "Hex encoded values of an RpoDigest must be inside the field modulus")
-            },
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for HexParseError {}
 
 /// Parses a hex string into an array of bytes of known size.
 pub fn hex_to_bytes<const N: usize>(value: &str) -> Result<[u8; N], HexParseError> {
