@@ -78,40 +78,50 @@ impl Smt {
     pub fn with_entries(
         entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
-        // create an empty tree
-        let mut tree = Self::new();
-
-        // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
-        // entries with the empty value need additional tracking.
-        let mut key_set_to_zero = BTreeSet::new();
-
-        for (key, value) in entries {
-            let old_value = tree.insert(key, value);
-
-            if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
-                return Err(MerkleError::DuplicateValuesForIndex(
-                    LeafIndex::<SMT_DEPTH>::from(key).value(),
-                ));
+        #[cfg(feature="concurrent")]
+        {
+            let mut seen_keys = BTreeSet::new();
+            let entries: Vec<_> = entries
+                .into_iter()
+                .map(|(key, value)| {
+                    if !seen_keys.insert(key) {
+                        Err(MerkleError::DuplicateValuesForIndex(
+                            LeafIndex::<SMT_DEPTH>::from(key).value(),
+                        ))
+                    } else {
+                        Ok((key, value))
+                    }
+                })
+                .collect::<Result<_, _>>()?;
+            if entries.is_empty() {
+                return Ok(Self::default());
             }
-
-            if value == EMPTY_WORD {
-                key_set_to_zero.insert(key);
-            };
+            <Self as SparseMerkleTree<SMT_DEPTH>>::with_entries_par(entries)
         }
-        Ok(tree)
-    }
+        #[cfg(not(feature="concurrent"))]
+        {
+            // create an empty tree
+            let mut tree = Self::new();
 
-    /// The parallel version of [`Smt::with_entries()`].
-    ///
-    /// Returns a new [`Smt`] instantiated with leaves set as specified by the provided entries,
-    /// constructed in parallel.
-    ///
-    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
-    #[cfg(feature = "concurrent")]
-    pub fn with_entries_par(
-        entries: impl IntoIterator<Item = (RpoDigest, Word)>,
-    ) -> Result<Self, MerkleError> {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::with_entries_par(Vec::from_iter(entries))
+            // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
+            // entries with the empty value need additional tracking.
+            let mut key_set_to_zero = BTreeSet::new();
+
+            for (key, value) in entries {
+                let old_value = tree.insert(key, value);
+
+                if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
+                    return Err(MerkleError::DuplicateValuesForIndex(
+                        LeafIndex::<SMT_DEPTH>::from(key).value(),
+                    ));
+                }
+
+                if value == EMPTY_WORD {
+                    key_set_to_zero.insert(key);
+                };
+            }
+            Ok(tree)
+        }
     }
 
     /// Returns a new [`Smt`] instantiated from already computed leaves and nodes.

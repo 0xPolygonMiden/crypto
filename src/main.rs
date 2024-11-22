@@ -69,7 +69,7 @@ pub fn parallel_construction(
     println!("Running a parallel construction benchmark:");
     let now = Instant::now();
 
-    let tree = Smt::with_entries_par(entries).unwrap();
+    let tree = Smt::with_entries(entries).unwrap();
 
     let elapsed = now.elapsed();
     println!(
