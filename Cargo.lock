@@ -249,9 +249,9 @@ checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "cpufeatures"
-version = "0.2.15"
+version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ca741a962e1b0bff6d724a1a0958b686406e853bb14061f218562e1896f95e6"
+checksum = "16b80225097f2e5ae4e7179dd2266824648f3e2f49d9134d584b76389d31c4c3"
 dependencies = [
  "libc",
 ]
@@ -1173,9 +1173,9 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "winter-crypto"
-version = "0.10.2"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fcae1ada055aa10554910ecffc106cb116a19dba11ac91390ef982f94adb9c5"
+checksum = "67c57748fd2da77742be601f03eda639ff6046879738fd1faae86e80018263cb"
 dependencies = [
  "blake3",
  "sha3",
@@ -1185,9 +1185,9 @@ dependencies = [
 
 [[package]]
 name = "winter-math"
-version = "0.10.2"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82479f94efc0b5374a93e2074ba46ef404384fb1ea6e35a847febec53096509b"
+checksum = "6020c17839fa107ce4a7cc178e407ebbc24adfac1980f4fa2111198e052700ab"
 dependencies = [
  "serde",
  "winter-utils",
@@ -1195,9 +1195,9 @@ dependencies = [
 
 [[package]]
 name = "winter-rand-utils"
-version = "0.10.1"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a7616d11fcc26552dada45c803a884ac97c253218835b83a2c63e1c2a988639"
+checksum = "226e4c455f6eb72f64ac6eeb7642df25e21ff2280a4f6b09db75392ad6b390ef"
 dependencies = [
  "rand",
  "winter-utils",
@@ -1205,9 +1205,9 @@ dependencies = [
 
 [[package]]
 name = "winter-utils"
-version = "0.10.2"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f948e71ffd482aa13d0ec3349047f81ecdb89f3b3287577973dcbf092a25fb4"
+checksum = "1507ef312ea5569d54c2c7446a18b82143eb2a2e21f5c3ec7cfbe8200c03bd7c"
 
 [[package]]
 name = "zerocopy"

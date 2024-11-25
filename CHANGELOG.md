@@ -2,6 +2,7 @@
 
 - Fixed a bug in the implementation of `draw_integers` for `RpoRandomCoin` (#343).
 - [BREAKING] Refactor error messages and use `thiserror` to derive errors (#344).
+- [BREAKING] Updated Winterfell dependency to v0.11 (#346).
 
 ## 0.12.0 (2024-10-30)
 
