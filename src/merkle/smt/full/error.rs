@@ -1,86 +1,39 @@
-use alloc::vec::Vec;
-use core::fmt;
+use thiserror::Error;
 
 use crate::{
     hash::rpo::RpoDigest,
     merkle::{LeafIndex, SMT_DEPTH},
-    Word,
 };
 
 // SMT LEAF ERROR
 // =================================================================================================
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum SmtLeafError {
-    InconsistentKeys {
-        entries: Vec<(RpoDigest, Word)>,
-        key_1: RpoDigest,
-        key_2: RpoDigest,
-    },
-    InvalidNumEntriesForMultiple(usize),
-    SingleKeyInconsistentWithLeafIndex {
+    #[error(
+      "multiple leaf requires all keys to map to the same leaf index but key1 {key_1} and key2 {key_2} map to different indices"
+    )]
+    InconsistentMultipleLeafKeys { key_1: RpoDigest, key_2: RpoDigest },
+    #[error("single leaf key {key} maps to {actual_leaf_index:?} but was expected to map to {expected_leaf_index:?}")]
+    InconsistentSingleLeafIndices {
         key: RpoDigest,
-        leaf_index: LeafIndex<SMT_DEPTH>,
+        expected_leaf_index: LeafIndex<SMT_DEPTH>,
+        actual_leaf_index: LeafIndex<SMT_DEPTH>,
     },
-    MultipleKeysInconsistentWithLeafIndex {
+    #[error("supplied leaf index {leaf_index_supplied:?} does not match {leaf_index_from_keys:?} for multiple leaf")]
+    InconsistentMultipleLeafIndices {
         leaf_index_from_keys: LeafIndex<SMT_DEPTH>,
         leaf_index_supplied: LeafIndex<SMT_DEPTH>,
     },
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for SmtLeafError {}
-
-impl fmt::Display for SmtLeafError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use SmtLeafError::*;
-        match self {
-            InvalidNumEntriesForMultiple(num_entries) => {
-                write!(f, "Multiple leaf requires 2 or more entries. Got: {num_entries}")
-            },
-            InconsistentKeys { entries, key_1, key_2 } => {
-                write!(f, "Multiple leaf requires all keys to map to the same leaf index. Offending keys: {key_1} and {key_2}. Entries: {entries:?}.")
-            },
-            SingleKeyInconsistentWithLeafIndex { key, leaf_index } => {
-                write!(
-                    f,
-                    "Single key in leaf inconsistent with leaf index. Key: {key}, leaf index: {}",
-                    leaf_index.value()
-                )
-            },
-            MultipleKeysInconsistentWithLeafIndex {
-                leaf_index_from_keys,
-                leaf_index_supplied,
-            } => {
-                write!(
-                    f,
-                    "Keys in entries map to leaf index {}, but leaf index {} was supplied",
-                    leaf_index_from_keys.value(),
-                    leaf_index_supplied.value()
-                )
-            },
-        }
-    }
+    #[error("multiple leaf requires at least two entries but only {0} were given")]
+    MultipleLeafRequiresTwoEntries(usize),
 }
 
 // SMT PROOF ERROR
 // =================================================================================================
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum SmtProofError {
-    InvalidPathLength(usize),
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for SmtProofError {}
-
-impl fmt::Display for SmtProofError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use SmtProofError::*;
-        match self {
-            InvalidPathLength(path_length) => {
-                write!(f, "Invalid Merkle path length. Expected {SMT_DEPTH}, got {path_length}")
-            },
-        }
-    }
+    #[error("merkle path length {0} does not match SMT depth {SMT_DEPTH}")]
+    InvalidMerklePathLength(usize),
 }

@@ -1,12 +1,12 @@
 [package]
 name = "miden-crypto"
-version = "0.12.0"
+version = "0.13.0"
 description = "Miden Cryptographic primitives"
 authors = ["miden contributors"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
-documentation = "https://docs.rs/miden-crypto/0.12.0"
+documentation = "https://docs.rs/miden-crypto/0.13.0"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
@@ -52,22 +52,24 @@ num = { version = "0.4", default-features = false, features = ["alloc", "libm"] 
 num-complex = { version = "0.4", default-features = false }
 rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false }
-rand-utils = { version = "0.10", package = "winter-rand-utils", optional = true }
+rand-utils = { version = "0.11", package = "winter-rand-utils", optional = true }
 serde = { version = "1.0", default-features = false, optional = true, features = ["derive"] }
 sha3 = { version = "0.10", default-features = false }
-winter-crypto = { version = "0.10", default-features = false }
-winter-math = { version = "0.10", default-features = false }
-winter-utils = { version = "0.10", default-features = false }
+thiserror = { version = "2.0", default-features = false }
+winter-crypto = { version = "0.11", default-features = false }
+winter-math = { version = "0.11", default-features = false }
+winter-utils = { version = "0.11", default-features = false }
 
 [dev-dependencies]
+assert_matches = { version = "1.5", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 getrandom = { version = "0.2", features = ["js"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 proptest = "1.5"
 rand_chacha = { version = "0.3", default-features = false }
-rand-utils = { version = "0.10", package = "winter-rand-utils" }
+rand-utils = { version = "0.11", package = "winter-rand-utils" }
 seq-macro = { version = "0.3" }
 
 [build-dependencies]
-cc = { version = "1.1", optional = true, features = ["parallel"] }
+cc = { version = "1.2", optional = true, features = ["parallel"] }
 glob = "0.3"
