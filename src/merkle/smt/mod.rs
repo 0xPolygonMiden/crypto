@@ -452,7 +452,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     fn build_subtree(
         mut leaves: Vec<SubtreeLeaf>,
         bottom_depth: u8,
-    ) -> (BTreeMap<NodeIndex, InnerNode>, Vec<SubtreeLeaf>) {
+    ) -> (BTreeMap<NodeIndex, InnerNode>, SubtreeLeaf) {
         debug_assert!(bottom_depth <= DEPTH);
         debug_assert!(Integer::is_multiple_of(&bottom_depth, &SUBTREE_DEPTH));
         debug_assert!(leaves.len() <= usize::pow(2, SUBTREE_DEPTH as u32));
@@ -534,8 +534,9 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             // other collection.
             mem::swap(&mut leaves, &mut next_leaves);
         }
-
-        (inner_nodes, leaves)
+        debug_assert_eq!(leaves.len(), 1);
+        let root = leaves.pop().unwrap();
+        (inner_nodes, root)
     }
 
     /// Computes the raw parts for a new sparse Merkle tree from a set of key-value pairs.
@@ -563,22 +564,18 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         } = Self::sorted_pairs_to_leaves(entries);
 
         for current_depth in (SUBTREE_DEPTH..=DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
-            let (nodes, subtrees): (Vec<BTreeMap<_, _>>, Vec<Vec<SubtreeLeaf>>) = leaf_subtrees
+            let (nodes, mut subtree_roots): (Vec<BTreeMap<_, _>>, Vec<SubtreeLeaf>) = leaf_subtrees
                 .into_par_iter()
                 .map(|subtree| {
                     debug_assert!(subtree.is_sorted());
                     debug_assert!(!subtree.is_empty());
 
-                    let (nodes, next_leaves) = Self::build_subtree(subtree, current_depth);
-
-                    debug_assert!(next_leaves.is_sorted());
-
-                    (nodes, next_leaves)
+                    let (nodes, subtree_root) = Self::build_subtree(subtree, current_depth);
+                    (nodes, subtree_root)
                 })
                 .unzip();
 
-            let mut all_leaves: Vec<SubtreeLeaf> = subtrees.into_iter().flatten().collect();
-            leaf_subtrees = SubtreeLeavesIter::from_leaves(&mut all_leaves).collect();
+            leaf_subtrees = SubtreeLeavesIter::from_leaves(&mut subtree_roots).collect();
             accumulated_nodes.extend(nodes.into_iter().flatten());
 
             debug_assert!(!leaf_subtrees.is_empty());

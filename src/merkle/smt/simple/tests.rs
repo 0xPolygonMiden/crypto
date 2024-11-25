@@ -1,4 +1,3 @@
-#[cfg(not(feature="concurrent"))]
 use alloc::vec::Vec;
 
 use super::{
@@ -87,17 +86,16 @@ fn build_sparse_tree() {
 #[test]
 fn build_contiguous_tree() {
     let tree_with_leaves =
-        SimpleSmt::<8>::with_leaves([0, 1, 2, 3].into_iter().zip(digests_to_words(&VALUES4)))
+        SimpleSmt::<2>::with_leaves([0, 1, 2, 3].into_iter().zip(digests_to_words(&VALUES4)))
             .unwrap();
 
     let tree_with_contiguous_leaves =
-        SimpleSmt::<8>::with_contiguous_leaves(digests_to_words(&VALUES4)).unwrap();
+        SimpleSmt::<2>::with_contiguous_leaves(digests_to_words(&VALUES4)).unwrap();
 
     assert_eq!(tree_with_leaves, tree_with_contiguous_leaves);
 }
 
 #[test]
-#[cfg(not(feature="concurrent"))]
 fn test_depth2_tree() {
     let tree =
         SimpleSmt::<2>::with_leaves(KEYS4.into_iter().zip(digests_to_words(&VALUES4))).unwrap();
@@ -122,7 +120,6 @@ fn test_depth2_tree() {
 }
 
 #[test]
-#[cfg(not(feature="concurrent"))]
 fn test_inner_node_iterator() -> Result<(), MerkleError> {
     let tree =
         SimpleSmt::<2>::with_leaves(KEYS4.into_iter().zip(digests_to_words(&VALUES4))).unwrap();
@@ -154,7 +151,6 @@ fn test_inner_node_iterator() -> Result<(), MerkleError> {
 }
 
 #[test]
-#[cfg(not(feature="concurrent"))]
 fn test_insert() {
     const DEPTH: u8 = 3;
     let mut tree =
@@ -197,7 +193,6 @@ fn test_insert() {
 }
 
 #[test]
-#[cfg(not(feature="concurrent"))]
 fn small_tree_opening_is_consistent() {
     //        ____k____
     //       /         \
@@ -319,7 +314,6 @@ fn test_simplesmt_with_leaves_nonexisting_leaf() {
 }
 
 #[test]
-#[cfg(not(feature="concurrent"))]
 fn test_simplesmt_set_subtree() {
     // Final Tree:
     //
@@ -375,7 +369,6 @@ fn test_simplesmt_set_subtree() {
 
 /// Ensures that an invalid input node index into `set_subtree()` incurs no mutation of the tree
 #[test]
-#[cfg(not(feature="concurrent"))]
 fn test_simplesmt_set_subtree_unchanged_for_wrong_index() {
     // Final Tree:
     //
@@ -417,7 +410,6 @@ fn test_simplesmt_set_subtree_unchanged_for_wrong_index() {
 
 /// We insert an empty subtree that has the same depth as the original tree
 #[test]
-#[cfg(not(feature="concurrent"))]
 fn test_simplesmt_set_subtree_entire_tree() {
     // Initial Tree:
     //
@@ -471,7 +463,7 @@ fn test_simplesmt_check_empty_root_constant() {
 
 // HELPER FUNCTIONS
 // --------------------------------------------------------------------------------------------
-#[cfg(not(feature="concurrent"))]
+
 fn compute_internal_nodes() -> (RpoDigest, RpoDigest, RpoDigest) {
     let node2 = Rpo256::merge(&[VALUES4[0], VALUES4[1]]);
     let node3 = Rpo256::merge(&[VALUES4[2], VALUES4[3]]);

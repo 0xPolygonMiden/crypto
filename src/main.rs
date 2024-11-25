@@ -34,11 +34,6 @@ pub fn benchmark_smt() {
     }
 
     let mut tree = construction(entries.clone(), tree_size).unwrap();
-    #[cfg(feature = "concurrent")]
-    {
-        let parallel = parallel_construction(entries, tree_size).unwrap();
-        assert_eq!(tree, parallel);
-    }
     insertion(&mut tree, tree_size).unwrap();
     batched_insertion(&mut tree, tree_size).unwrap();
     proof_generation(&mut tree, tree_size).unwrap();
@@ -56,27 +51,6 @@ pub fn construction(entries: Vec<(RpoDigest, Word)>, size: u64) -> Result<Smt, M
         elapsed.as_secs_f32(),
     );
 
-    println!("Number of leaf nodes: {}\n", tree.leaves().count());
-
-    Ok(tree)
-}
-
-#[cfg(feature = "concurrent")]
-pub fn parallel_construction(
-    entries: Vec<(RpoDigest, Word)>,
-    size: u64,
-) -> Result<Smt, MerkleError> {
-    println!("Running a parallel construction benchmark:");
-    let now = Instant::now();
-
-    let tree = Smt::with_entries(entries).unwrap();
-
-    let elapsed = now.elapsed();
-    println!(
-        "Parallel-constructed an SMT with {} key-value pairs in {:.3} seconds",
-        size,
-        elapsed.as_secs_f32(),
-    );
     println!("Number of leaf nodes: {}\n", tree.leaves().count());
 
     Ok(tree)

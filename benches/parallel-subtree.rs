@@ -33,10 +33,14 @@ fn smt_parallel_subtree(c: &mut Criterion) {
                             (key, value)
                         })
                         .collect();
-                    entries
+
+                    let control = Smt::with_entries_sequential(entries.clone()).unwrap();
+                    (entries, control)
                 },
-                |entries| {
-                    Smt::with_entries(hint::black_box(entries)).unwrap()
+                |(entries, control)| {
+                    // Benchmarked function.
+                    let tree = Smt::with_entries(hint::black_box(entries)).unwrap();
+                    assert_eq!(tree.root(), control.root());
                 },
                 BatchSize::SmallInput,
             );

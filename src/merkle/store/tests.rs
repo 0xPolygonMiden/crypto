@@ -212,7 +212,6 @@ fn test_get_invalid_node() {
 }
 
 #[test]
-#[cfg(not(feature="concurrent"))]
 fn test_add_sparse_merkle_tree_one_level() -> Result<(), MerkleError> {
     let keys2: [u64; 2] = [0, 1];
     let leaves2: [Word; 2] = [int_to_leaf(1), int_to_leaf(2)];

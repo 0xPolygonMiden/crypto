@@ -71,8 +71,11 @@ impl Smt {
 
     /// Returns a new [Smt] instantiated with leaves set as specified by the provided entries.
     ///
-    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
+    /// If the `concurrent` feature is enabled, this function uses a parallel implementation to 
+    /// process the entries efficiently, otherwise it defaults to the sequential implementation.
     ///
+    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
+    /// 
     /// # Errors
     /// Returns an error if the provided entries contain multiple values for the same key.
     pub fn with_entries(
@@ -84,12 +87,12 @@ impl Smt {
             let entries: Vec<_> = entries
                 .into_iter()
                 .map(|(key, value)| {
-                    if !seen_keys.insert(key) {
+                    if seen_keys.insert(key) {
+                        Ok((key, value))
+                    } else {
                         Err(MerkleError::DuplicateValuesForIndex(
                             LeafIndex::<SMT_DEPTH>::from(key).value(),
                         ))
-                    } else {
-                        Ok((key, value))
                     }
                 })
                 .collect::<Result<_, _>>()?;
@@ -100,28 +103,41 @@ impl Smt {
         }
         #[cfg(not(feature="concurrent"))]
         {
-            // create an empty tree
-            let mut tree = Self::new();
-
-            // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
-            // entries with the empty value need additional tracking.
-            let mut key_set_to_zero = BTreeSet::new();
-
-            for (key, value) in entries {
-                let old_value = tree.insert(key, value);
-
-                if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
-                    return Err(MerkleError::DuplicateValuesForIndex(
-                        LeafIndex::<SMT_DEPTH>::from(key).value(),
-                    ));
-                }
-
-                if value == EMPTY_WORD {
-                    key_set_to_zero.insert(key);
-                };
-            }
-            Ok(tree)
+            Self::with_entries_sequential(entries)
         }
+    }
+
+    /// Returns a new [Smt] instantiated with leaves set as specified by the provided entries.
+    ///
+    /// This sequential implementation processes entries one at a time to build the tree.
+    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
+    ///
+    /// # Errors
+    /// Returns an error if the provided entries contain multiple values for the same key.
+    pub fn with_entries_sequential(
+        entries: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> Result<Self, MerkleError> {
+        // create an empty tree
+        let mut tree = Self::new();
+
+        // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
+        // entries with the empty value need additional tracking.
+        let mut key_set_to_zero = BTreeSet::new();
+
+        for (key, value) in entries {
+            let old_value = tree.insert(key, value);
+
+            if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
+                return Err(MerkleError::DuplicateValuesForIndex(
+                    LeafIndex::<SMT_DEPTH>::from(key).value(),
+                ));
+            }
+
+            if value == EMPTY_WORD {
+                key_set_to_zero.insert(key);
+            };
+        }
+        Ok(tree)
     }
 
     /// Returns a new [`Smt`] instantiated from already computed leaves and nodes.
@@ -310,7 +326,7 @@ impl Smt {
     pub fn build_subtree(
         leaves: Vec<SubtreeLeaf>,
         bottom_depth: u8,
-    ) -> (BTreeMap<NodeIndex, InnerNode>, Vec<SubtreeLeaf>) {
+    ) -> (BTreeMap<NodeIndex, InnerNode>, SubtreeLeaf) {
         <Self as SparseMerkleTree<SMT_DEPTH>>::build_subtree(leaves, bottom_depth)
     }
 }

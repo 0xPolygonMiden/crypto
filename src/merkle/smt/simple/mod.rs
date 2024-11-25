@@ -71,60 +71,33 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     pub fn with_leaves(
         entries: impl IntoIterator<Item = (u64, Word)>,
     ) -> Result<Self, MerkleError> {
+        // create an empty tree
+        let mut tree = Self::new()?;
+
         // compute the max number of entries. We use an upper bound of depth 63 because we consider
         // passing in a vector of size 2^64 infeasible.
         let max_num_entries = 2_usize.pow(DEPTH.min(63).into());
 
-        #[cfg(feature = "concurrent")]
-        {
-            let mut seen_keys = BTreeSet::new();
-            let entries: Vec<_> = entries
-            .into_iter()
-            .map(|(col, value)| {
-                if col >= max_num_entries as u64 {
-                    Err(MerkleError::InvalidIndex {
-                        depth: DEPTH,
-                        value: col,
-                    })
-                } else if !seen_keys.insert(col) {
-                    Err(MerkleError::DuplicateValuesForIndex(col))
-                } else {
-                    Ok((LeafIndex::<DEPTH>::new(col).unwrap(), value))
-                }
-            })
-            .collect::<Result<_, _>>()?;
-        
-            if entries.is_empty() {
-                return Self::new();
+        // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
+        // entries with the empty value need additional tracking.
+        let mut key_set_to_zero = BTreeSet::new();
+
+        for (idx, (key, value)) in entries.into_iter().enumerate() {
+            if idx >= max_num_entries {
+                return Err(MerkleError::InvalidNumEntries(max_num_entries));
             }
-            <Self as SparseMerkleTree<DEPTH>>::with_entries_par(entries)
-        }
-        #[cfg(not(feature = "concurrent"))]
-        {
-            // create an empty tree
-            let mut tree = Self::new()?;
 
-            // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
-            // entries with the empty value need additional tracking.
-            let mut key_set_to_zero = BTreeSet::new();
+            let old_value = tree.insert(LeafIndex::<DEPTH>::new(key)?, value);
 
-            for (idx, (key, value)) in entries.into_iter().enumerate() {
-                if idx >= max_num_entries {
-                    return Err(MerkleError::InvalidNumEntries(max_num_entries));
-                }
-
-                let old_value = tree.insert(LeafIndex::<DEPTH>::new(key)?, value);
-
-                if old_value != Self::EMPTY_VALUE || key_set_to_zero.contains(&key) {
-                    return Err(MerkleError::DuplicateValuesForIndex(key));
-                }
-
-                if value == Self::EMPTY_VALUE {
-                    key_set_to_zero.insert(key);
-                };
+            if old_value != Self::EMPTY_VALUE || key_set_to_zero.contains(&key) {
+                return Err(MerkleError::DuplicateValuesForIndex(key));
             }
-            Ok(tree)
+
+            if value == Self::EMPTY_VALUE {
+                key_set_to_zero.insert(key);
+            };
         }
+        Ok(tree)
     }
 
     /// Returns a new [`SimpleSmt`] instantiated from already computed leaves and nodes.
