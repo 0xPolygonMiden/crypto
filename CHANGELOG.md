@@ -1,4 +1,4 @@
-## 0.13.0 (TBD)
+## 0.13.0 (2024-11-24)
 
 - Fixed a bug in the implementation of `draw_integers` for `RpoRandomCoin` (#343).
 - [BREAKING] Refactor error messages and use `thiserror` to derive errors (#344).
