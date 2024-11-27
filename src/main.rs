@@ -33,7 +33,7 @@ pub fn benchmark_smt() {
         entries.push((key, value));
     }
 
-    let mut tree = construction(entries.clone(), tree_size).unwrap();
+    let mut tree = construction(entries, tree_size).unwrap();
     insertion(&mut tree, tree_size).unwrap();
     batched_insertion(&mut tree, tree_size).unwrap();
     proof_generation(&mut tree, tree_size).unwrap();

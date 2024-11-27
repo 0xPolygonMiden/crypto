@@ -5,7 +5,7 @@ use alloc::{
 };
 
 use super::{
-    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
+    build_subtree, EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
     MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, SubtreeLeaf, Word, EMPTY_WORD,
 };
 
@@ -327,7 +327,7 @@ impl Smt {
         leaves: Vec<SubtreeLeaf>,
         bottom_depth: u8,
     ) -> (BTreeMap<NodeIndex, InnerNode>, SubtreeLeaf) {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::build_subtree(leaves, bottom_depth)
+        build_subtree(leaves, SMT_DEPTH, bottom_depth)
     }
 }
 
