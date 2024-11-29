@@ -30,13 +30,14 @@ harness = false
 [[bench]]
 name = "smt-subtree"
 harness = false
+required-features = ["internal"]
 
 [[bench]]
 name = "merkle"
 harness = false
 
 [[bench]]
-name = "parallel-subtree"
+name = "smt-with-entries"
 harness = false
 required-features = ["concurrent"]
 
@@ -48,6 +49,7 @@ harness = false
 concurrent = ["dep:rayon"]
 default = ["std", "concurrent"]
 executable = ["dep:clap", "dep:rand-utils", "std"]
+internal = ["concurrent"]
 serde = ["dep:serde", "serde?/alloc", "winter-math/serde"]
 std = [
     "blake3/std",

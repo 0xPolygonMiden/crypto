@@ -60,7 +60,7 @@ make
 
 This crate can be compiled with the following features:
 
-- `concurrent`- enabled by default; enables multi-threaded implementation of `Smt::with_entries()` with significantly improved performance.
+- `concurrent`- enabled by default; enables multi-threaded implementation of `Smt::with_entries()` which significantly improves performance on multi-core CPUs.
 - `std` - enabled by default and relies on the Rust standard library.
 - `no_std` does not rely on the Rust standard library and enables compilation to WebAssembly.
 

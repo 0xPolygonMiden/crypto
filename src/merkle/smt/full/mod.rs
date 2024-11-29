@@ -5,8 +5,8 @@ use alloc::{
 };
 
 use super::{
-    build_subtree, EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
-    MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, SubtreeLeaf, Word, EMPTY_WORD,
+    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
+    MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
 
 mod error;
@@ -304,30 +304,6 @@ impl Smt {
             // there's nothing stored at the leaf; nothing to update
             None
         }
-    }
-
-    /// Builds Merkle nodes from a bottom layer of "leaves" -- represented by a horizontal index and
-    /// the hash of the leaf at that index. `leaves` *must* be sorted by horizontal index, and
-    /// `leaves` must not contain more than one depth-8 subtree's worth of leaves.
-    ///
-    /// This function will then calculate the inner nodes above each leaf for 8 layers, as well as
-    /// the "leaves" for the next 8-deep subtree, so this function can effectively be chained into
-    /// itself.
-    ///
-    /// # Panics
-    /// With debug assertions on, this function panics under invalid inputs: if `leaves` contains
-    /// more entries than can fit in a depth-8 subtree, if `leaves` contains leaves belonging to
-    /// different depth-8 subtrees, if `bottom_depth` is lower in the tree than the specified
-    /// maximum depth (`DEPTH`), or if `leaves` is not sorted.
-    ///
-    /// This function is public so functions returning it can be used in tests and benchmarks, but
-    /// is otherwise not part of the public API.
-    #[doc(hidden)]
-    pub fn build_subtree(
-        leaves: Vec<SubtreeLeaf>,
-        bottom_depth: u8,
-    ) -> (BTreeMap<NodeIndex, InnerNode>, SubtreeLeaf) {
-        build_subtree(leaves, SMT_DEPTH, bottom_depth)
     }
 }
 

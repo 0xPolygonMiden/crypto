@@ -72,8 +72,6 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         Self: Sized,
     {
         let (inner_nodes, leaves) = Self::build_subtrees(entries);
-        let leaves: BTreeMap<u64, Self::Leaf> =
-            leaves.into_iter().map(|(index, leaf)| (index.value(), leaf)).collect();
         let root = inner_nodes.get(&NodeIndex::root()).unwrap().hash();
         Self::from_raw_parts(inner_nodes, leaves, root)
     }
@@ -375,7 +373,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
     /// Performs the initial transforms for constructing a [`SparseMerkleTree`] by composing
     /// subtrees. In other words, this function takes the key-value inputs to the tree, and produces
-    /// the inputs to feed into [`SparseMerkleTree::build_subtree()`].
+    /// the inputs to feed into [`build_subtree()`].
     ///
     /// `pairs` *must* already be sorted **by leaf index column**, not simply sorted by key. If
     /// `pairs` is not correctly sorted, the returned computations will be incorrect.
@@ -389,7 +387,8 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         debug_assert!(pairs.is_sorted_by_key(|(key, _)| Self::key_to_leaf_index(key).value()));
 
         let mut accumulator: PairComputations<u64, Self::Leaf> = Default::default();
-        let mut accumulated_leaves: Vec<SubtreeLeaf> = Default::default();
+        let mut accumulated_leaves: Vec<SubtreeLeaf> = Vec::with_capacity(pairs.len() / 2);
+
 
         // As we iterate, we'll keep track of the kv-pairs we've seen so far that correspond to a
         // single leaf. When we see a pair that's in a different leaf, we'll swap these pairs
@@ -437,19 +436,26 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Computes the raw parts for a new sparse Merkle tree from a set of key-value pairs.
     ///
     /// `entries` need not be sorted. This function will sort them.
-    ///
-    /// This function is mostly an implementation detail of
-    /// [`SparseMerkleTree::with_entries_par()`].
     #[cfg(feature = "concurrent")]
     fn build_subtrees(
         mut entries: Vec<(Self::Key, Self::Value)>,
-    ) -> (BTreeMap<NodeIndex, InnerNode>, BTreeMap<LeafIndex<DEPTH>, Self::Leaf>) {
-        use rayon::prelude::*;
-
+    ) -> (BTreeMap<NodeIndex, InnerNode>, BTreeMap<u64, Self::Leaf>) {
         entries.sort_by_key(|item| {
             let index = Self::key_to_leaf_index(&item.0);
             index.value()
         });
+        Self::build_subtrees_from_sorted_entries(entries)
+    }
+
+    /// Computes the raw parts for a new sparse Merkle tree from a set of key-value pairs.
+    ///
+    /// This function is mostly an implementation detail of
+    /// [`SparseMerkleTree::with_entries_par()`].
+    #[cfg(feature = "concurrent")]
+    fn build_subtrees_from_sorted_entries(
+        entries: Vec<(Self::Key, Self::Value)>,
+    ) -> (BTreeMap<NodeIndex, InnerNode>, BTreeMap<u64, Self::Leaf>) {
+        use rayon::prelude::*;
 
         let mut accumulated_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
 
@@ -476,11 +482,11 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             debug_assert!(!leaf_subtrees.is_empty());
         }
 
-        let leaves: BTreeMap<LeafIndex<DEPTH>, Self::Leaf> = initial_leaves
+        let leaves: BTreeMap<u64, Self::Leaf> = initial_leaves
             .into_iter()
             .map(|(key, value)| {
                 // This unwrap *should* be unreachable.
-                let key = LeafIndex::<DEPTH>::new(key).unwrap();
+                let key = LeafIndex::<DEPTH>::new(key).unwrap().value();
                 (key, value)
             })
             .collect();
@@ -660,7 +666,7 @@ impl<'s> SubtreeLeavesIter<'s> {
         Self { leaves: leaves.drain(..).peekable() }
     }
 }
-impl<'s> core::iter::Iterator for SubtreeLeavesIter<'s> {
+impl core::iter::Iterator for SubtreeLeavesIter<'_> {
     type Item = Vec<SubtreeLeaf>;
 
     /// Each `next()` collects an entire subtree.
@@ -786,6 +792,15 @@ fn build_subtree(
     debug_assert_eq!(leaves.len(), 1);
     let root = leaves.pop().unwrap();
     (inner_nodes, root)
+}
+
+#[cfg(feature = "internal")]
+pub fn build_subtree_for_bench(
+    leaves: Vec<SubtreeLeaf>,
+    tree_depth: u8,
+    bottom_depth: u8,
+) -> (BTreeMap<NodeIndex, InnerNode>, SubtreeLeaf) {
+    build_subtree(leaves, tree_depth, bottom_depth)
 }
 
 // TESTS

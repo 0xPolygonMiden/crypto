@@ -3,7 +3,7 @@ use std::{fmt::Debug, hint, mem, time::Duration};
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use miden_crypto::{
     hash::rpo::RpoDigest,
-    merkle::{NodeIndex, Smt, SmtLeaf, SubtreeLeaf, SMT_DEPTH},
+    merkle::{build_subtree_for_bench, NodeIndex, SmtLeaf, SubtreeLeaf, SMT_DEPTH},
     Felt, Word, ONE,
 };
 use rand_utils::prng_array;
@@ -53,7 +53,7 @@ fn smt_subtree_even(c: &mut Criterion) {
                 |leaves| {
                     // Benchmarked function.
                     let (subtree, _) =
-                        Smt::build_subtree(hint::black_box(leaves), hint::black_box(SMT_DEPTH));
+                        build_subtree_for_bench(hint::black_box(leaves), hint::black_box(SMT_DEPTH), hint::black_box(SMT_DEPTH));
                     assert!(!subtree.is_empty());
                 },
                 BatchSize::SmallInput,
@@ -101,7 +101,7 @@ fn smt_subtree_random(c: &mut Criterion) {
                 },
                 |leaves| {
                     let (subtree, _) =
-                        Smt::build_subtree(hint::black_box(leaves), hint::black_box(SMT_DEPTH));
+                        build_subtree_for_bench(hint::black_box(leaves), hint::black_box(SMT_DEPTH), hint::black_box(SMT_DEPTH));
                     assert!(!subtree.is_empty());
                 },
                 BatchSize::SmallInput,

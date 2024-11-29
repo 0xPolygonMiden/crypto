@@ -1,7 +1,7 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 
 use super::{
-    InnerNode, LeafIndex, NodeIndex, PairComputations, SmtLeaf, SparseMerkleTree, SubtreeLeaf,
+    build_subtree, InnerNode, LeafIndex, NodeIndex, PairComputations, SmtLeaf, SparseMerkleTree, SubtreeLeaf,
     SubtreeLeavesIter, COLS_PER_SUBTREE, SUBTREE_DEPTH,
 };
 use crate::{
@@ -33,7 +33,7 @@ fn test_sorted_pairs_to_leaves() {
         (RpoDigest::new([ONE, ONE, ONE, Felt::new(1024)]), [ONE; 4]),
     ];
 
-    let control = Smt::with_entries(entries.clone()).unwrap();
+    let control = Smt::with_entries_sequential(entries.clone()).unwrap();
 
     let control_leaves: Vec<SmtLeaf> = {
         let mut entries_iter = entries.iter().cloned();
@@ -116,13 +116,13 @@ fn test_single_subtree() {
 
     let entries = generate_entries(PAIR_COUNT);
 
-    let control = Smt::with_entries(entries.clone()).unwrap();
+    let control = Smt::with_entries_sequential(entries.clone()).unwrap();
 
     // `entries` should already be sorted by nature of how we constructed it.
     let leaves = Smt::sorted_pairs_to_leaves(entries).leaves;
     let leaves = leaves.into_iter().next().unwrap();
 
-    let (first_subtree, subtree_root) = Smt::build_subtree(leaves, SMT_DEPTH);
+    let (first_subtree, subtree_root) = build_subtree(leaves, SMT_DEPTH, SMT_DEPTH);
     assert!(!first_subtree.is_empty());
 
     // The inner nodes computed from that subtree should match the nodes in our control tree.
@@ -155,7 +155,7 @@ fn test_two_subtrees() {
 
     let entries = generate_entries(PAIR_COUNT);
 
-    let control = Smt::with_entries(entries.clone()).unwrap();
+    let control = Smt::with_entries_sequential(entries.clone()).unwrap();
 
     let PairComputations { leaves, .. } = Smt::sorted_pairs_to_leaves(entries);
     // With two subtrees' worth of leaves, we should have exactly two subtrees.
@@ -166,10 +166,10 @@ fn test_two_subtrees() {
     let mut current_depth = SMT_DEPTH;
     let mut next_leaves: Vec<SubtreeLeaf> = Default::default();
 
-    let (first_nodes, first_root) = Smt::build_subtree(first, current_depth);
+    let (first_nodes, first_root) = build_subtree(first, SMT_DEPTH, current_depth);
     next_leaves.push(first_root);
 
-    let (second_nodes, second_root) = Smt::build_subtree(second, current_depth);
+    let (second_nodes, second_root) = build_subtree(second, SMT_DEPTH, current_depth);
     next_leaves.push(second_root);
 
     // All new inner nodes + the new subtree-leaves should be 512, for one depth-cycle.
@@ -188,7 +188,7 @@ fn test_two_subtrees() {
 
     current_depth -= SUBTREE_DEPTH;
 
-    let (nodes, root_leaf) = Smt::build_subtree(next_leaves, current_depth);
+    let (nodes, root_leaf) = build_subtree(next_leaves, SMT_DEPTH, current_depth);
     assert_eq!(nodes.len(), SUBTREE_DEPTH as usize);
     assert_eq!(root_leaf.col, 0);
 
@@ -211,7 +211,7 @@ fn test_singlethreaded_subtrees() {
 
     let entries = generate_entries(PAIR_COUNT);
 
-    let control = Smt::with_entries(entries.clone()).unwrap();
+    let control = Smt::with_entries_sequential(entries.clone()).unwrap();
 
     let mut accumulated_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
 
@@ -237,7 +237,7 @@ fn test_singlethreaded_subtrees() {
                 );
 
                 // Do actual things.
-                let (nodes, subtree_root) = Smt::build_subtree(subtree, current_depth);
+                let (nodes, subtree_root) = build_subtree(subtree, SMT_DEPTH, current_depth);
                 
                 // Post-assertions.
                 for (&index, test_node) in nodes.iter() {
@@ -314,7 +314,7 @@ fn test_multithreaded_subtrees() {
 
     let entries = generate_entries(PAIR_COUNT);
 
-    let control = Smt::with_entries(entries.clone()).unwrap();
+    let control = Smt::with_entries_sequential(entries.clone()).unwrap();
 
     let mut accumulated_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
 
@@ -338,7 +338,7 @@ fn test_multithreaded_subtrees() {
                     "subtree {i} at bottom-depth {current_depth} is empty!",
                 );
 
-                let (nodes, subtree_root) = Smt::build_subtree(subtree, current_depth);
+                let (nodes, subtree_root) = build_subtree(subtree, SMT_DEPTH, current_depth);
 
                 // Post-assertions.
                 for (&index, test_node) in nodes.iter() {
