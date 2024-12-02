@@ -19,14 +19,11 @@ fn smt_with_entries(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     // Setup.
-                    let entries = prepare_entries(pair_count, &mut seed );
-                    let control = Smt::with_entries_sequential(entries.clone()).unwrap();
-                    (entries, control)
+                    prepare_entries(pair_count, &mut seed )
                 },
-                |(entries, control)| {
+                |entries| {
                     // Benchmarked function.
-                    let tree = Smt::with_entries(hint::black_box(entries)).unwrap();
-                    assert_eq!(tree.root(), control.root());
+                    Smt::with_entries(hint::black_box(entries)).unwrap();
                 },
                 BatchSize::SmallInput,
             );

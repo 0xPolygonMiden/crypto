@@ -481,17 +481,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
             debug_assert!(!leaf_subtrees.is_empty());
         }
-
-        let leaves: BTreeMap<u64, Self::Leaf> = initial_leaves
-            .into_iter()
-            .map(|(key, value)| {
-                // This unwrap *should* be unreachable.
-                let key = LeafIndex::<DEPTH>::new(key).unwrap().value();
-                (key, value)
-            })
-            .collect();
-
-        (accumulated_nodes, leaves)
+        (accumulated_nodes, initial_leaves)
     }
 }
 

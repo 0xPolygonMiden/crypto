@@ -39,7 +39,6 @@ harness = false
 [[bench]]
 name = "smt-with-entries"
 harness = false
-required-features = ["concurrent"]
 
 [[bench]]
 name = "store"
