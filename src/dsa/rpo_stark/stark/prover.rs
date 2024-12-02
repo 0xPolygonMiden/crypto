@@ -1,9 +1,8 @@
 use core::marker::PhantomData;
 
-use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
 use winter_air::ZkParameters;
-use winter_crypto::{DefaultRandomCoin, ElementHasher, MerkleTree, SaltedMerkleTree};
+use winter_crypto::{ElementHasher, SaltedMerkleTree};
 use winter_math::{fields::f64::BaseElement, FieldElement};
 use winter_prover::{
     matrix::ColMatrix, DefaultConstraintEvaluator, DefaultTraceLde, ProofOptions, Prover,
@@ -72,12 +71,13 @@ where
     type Air = RescueAir;
     type Trace = TraceTable<BaseElement>;
     type HashFn = Rpo256;
-    type VC = SaltedMerkleTree<Self::HashFn>;
+    type VC = SaltedMerkleTree<Self::HashFn, Self::ZkPrng>;
     type RandomCoin = RpoRandomCoin;
     type TraceLde<E: FieldElement<BaseField = Self::BaseField>> =
         DefaultTraceLde<E, Self::HashFn, Self::VC>;
     type ConstraintEvaluator<'a, E: FieldElement<BaseField = Self::BaseField>> =
         DefaultConstraintEvaluator<'a, Self::Air, E>;
+    type ZkPrng = ChaCha20Rng;
 
     fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
         let last_step = trace.length() - 1;
@@ -105,16 +105,9 @@ where
         domain: &StarkDomain<Self::BaseField>,
         partition_option: PartitionOptions,
         zk_parameters: Option<ZkParameters>,
+        prng: &mut Option<Self::ZkPrng>,
     ) -> (Self::TraceLde<E>, TracePolyTable<E>) {
-        let mut prng = ChaCha20Rng::from_entropy();
-        DefaultTraceLde::new(
-            trace_info,
-            main_trace,
-            domain,
-            partition_option,
-            zk_parameters,
-            &mut prng,
-        )
+        DefaultTraceLde::new(trace_info, main_trace, domain, partition_option, zk_parameters, prng)
     }
 
     fn new_evaluator<'a, E: FieldElement<BaseField = Self::BaseField>>(

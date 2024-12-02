@@ -1,5 +1,3 @@
-use std::println;
-
 use rand::Rng;
 use winter_math::fields::f64::BaseElement;
 use winter_prover::Proof;
@@ -15,14 +13,8 @@ use crate::{dsa::rpo_stark::stark::RpoSignatureScheme, hash::rpo::Rpo256, Word, 
 // ================================================================================================
 
 /// Specifies the parameters of the STARK underlying the signature scheme.
-///
-/// TODO: The number of queries needs to be updated so that it matches the one given in
-/// the specification. The reason for choosing such a low number for the number of FRI queries is
-/// due to the fact that the number of FRI queries should be smaller than the size of the LDE
-/// domain. Since the PR enabling zero-knowledge in Winterfell is yet to be merged, this not
-/// case.
 pub const PROOF_OPTIONS: ProofOptions =
-    ProofOptions::new(3, 8, 0, FieldExtension::Quadratic, 4, 31, true);
+    ProofOptions::new(30, 8, 12, FieldExtension::Quadratic, 4, 7, true);
 
 // PUBLIC KEY
 // ================================================================================================
@@ -42,7 +34,7 @@ impl PublicKey {
 impl PublicKey {
     /// Verifies the provided signature against provided message and this public key.
     pub fn verify(&self, message: Word, signature: &Signature) -> bool {
-        signature.verify(message, self.0)
+        signature.verify(message, *self)
     }
 }
 
@@ -117,11 +109,10 @@ impl Signature {
     }
     /// Returns true if this signature is a valid signature for the specified message generated
     /// against the secret key matching the specified public key commitment.
-    pub fn verify(&self, message: Word, pk: Word) -> bool {
+    pub fn verify(&self, message: Word, pk: PublicKey) -> bool {
         let signature: RpoSignatureScheme<Rpo256> = RpoSignatureScheme::new(PROOF_OPTIONS);
 
-        let res = signature.verify(pk, message, self.proof.clone());
-        println!("res is {:?}", res);
+        let res = signature.verify(pk.inner(), message, self.proof.clone());
         res.is_ok()
     }
 }

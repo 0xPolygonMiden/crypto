@@ -1,5 +1,3 @@
-use std::println;
-
 use alloc::{string::ToString, vec::Vec};
 
 use rand_core::impls;
@@ -149,7 +147,6 @@ impl RandomCoin for RpoRandomCoin {
 
         // reset the buffer
         self.current = RATE_START + 1;
-        println!("here");
 
         // determine how many bits are needed to represent valid values in the domain
         let v_mask = (domain_size - 1) as u64;
@@ -173,7 +170,6 @@ impl RandomCoin for RpoRandomCoin {
             return Err(RandomCoinError::FailedToDrawIntegers(num_values, values.len(), 1000));
         }
 
-        println!("rand_integers {:?}", values);
         Ok(values)
     }
 

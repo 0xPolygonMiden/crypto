@@ -494,15 +494,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18d287de67fe55fd7e1581fe933d965a5a9477b38e949cfa9f8574ef01506398"
 
 [[package]]
-name = "libc-print"
-version = "0.1.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a660208db49e35faf57b37484350f1a61072f2a5becf0592af6015d9ddd4b0"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "libm"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -548,7 +539,9 @@ dependencies = [
  "sha3",
  "winter-air",
  "winter-crypto",
+ "winter-fri",
  "winter-math",
+ "winter-maybe-async",
  "winter-prover",
  "winter-rand-utils",
  "winter-utils",
@@ -1193,6 +1186,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 [[package]]
 name = "winter-air"
 version = "0.10.0"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 dependencies = [
  "libm",
  "winter-crypto",
@@ -1204,9 +1198,11 @@ dependencies = [
 [[package]]
 name = "winter-crypto"
 version = "0.10.0"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 dependencies = [
  "blake3",
  "rand",
+ "rand_chacha",
  "sha3",
  "winter-math",
  "winter-utils",
@@ -1215,6 +1211,7 @@ dependencies = [
 [[package]]
 name = "winter-fri"
 version = "0.10.0"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 dependencies = [
  "rand",
  "rand_chacha",
@@ -1226,6 +1223,7 @@ dependencies = [
 [[package]]
 name = "winter-math"
 version = "0.10.0"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 dependencies = [
  "serde",
  "winter-utils",
@@ -1234,6 +1232,7 @@ dependencies = [
 [[package]]
 name = "winter-maybe-async"
 version = "0.10.1"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 dependencies = [
  "quote",
  "syn",
@@ -1242,8 +1241,8 @@ dependencies = [
 [[package]]
 name = "winter-prover"
 version = "0.10.0"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 dependencies = [
- "libc-print",
  "rand",
  "rand_chacha",
  "tracing",
@@ -1259,6 +1258,7 @@ dependencies = [
 [[package]]
 name = "winter-rand-utils"
 version = "0.10.0"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 dependencies = [
  "rand",
  "winter-utils",
@@ -1267,10 +1267,12 @@ dependencies = [
 [[package]]
 name = "winter-utils"
 version = "0.10.0"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 
 [[package]]
 name = "winter-verifier"
 version = "0.10.0"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 dependencies = [
  "winter-air",
  "winter-crypto",
@@ -1281,9 +1283,8 @@ dependencies = [
 
 [[package]]
 name = "winterfell"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39c8336dc6a035698780b8cc624f875e479bd6bf6e1846670f3ef4485c125882"
+version = "0.10.0"
+source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#c6542eb717e73baaeda156dafe0ab187089a995f"
 dependencies = [
  "winter-air",
  "winter-prover",

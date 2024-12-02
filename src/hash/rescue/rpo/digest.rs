@@ -1,6 +1,7 @@
 use alloc::string::String;
-use rand::{distributions::Standard, prelude::Distribution};
 use core::{cmp::Ordering, fmt::Display, ops::Deref, slice};
+
+use rand::{distributions::Standard, prelude::Distribution};
 
 use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
 use crate::{

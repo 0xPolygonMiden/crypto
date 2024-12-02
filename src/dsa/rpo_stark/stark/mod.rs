@@ -1,14 +1,18 @@
 use core::marker::PhantomData;
 
 use prover::RpoSignatureProver;
-use rand::{distributions::Standard, prelude::Distribution};
-use winter_crypto::{DefaultRandomCoin, ElementHasher, Hasher, MerkleTree, SaltedMerkleTree};
+use rand::{distributions::Standard, prelude::Distribution, thread_rng, RngCore, SeedableRng};
+use rand_chacha::ChaCha20Rng;
+use winter_crypto::{ElementHasher, Hasher, SaltedMerkleTree};
 use winter_math::{fields::f64::BaseElement, FieldElement};
 use winter_prover::{Proof, ProofOptions};
 use winter_verifier::{verify, AcceptableOptions, VerifierError};
 use winterfell::Prover;
 
-use crate::{hash::rpo::{Rpo256, DIGEST_RANGE, DIGEST_SIZE, NUM_ROUNDS, STATE_WIDTH}, rand::RpoRandomCoin};
+use crate::{
+    hash::rpo::{Rpo256, DIGEST_RANGE, DIGEST_SIZE, NUM_ROUNDS, STATE_WIDTH},
+    rand::RpoRandomCoin,
+};
 
 mod air;
 pub use air::{PublicInputs, RescueAir};
@@ -36,8 +40,13 @@ where
         // generate execution trace
         let trace = prover.build_trace(sk, msg);
 
+        // generate the initial seed for the PRNG used for zero-knowledge
+        let mut seed = <ChaCha20Rng as SeedableRng>::Seed::default();
+        let mut rng = thread_rng();
+        rng.fill_bytes(&mut seed);
+
         // generate the proof
-        prover.prove(trace).expect("failed to generate the signature")
+        prover.prove(trace, Some(seed)).expect("failed to generate the signature")
     }
 
     pub fn verify(
@@ -48,7 +57,7 @@ where
     ) -> Result<(), VerifierError> {
         let pub_inputs = PublicInputs { pub_key, msg };
         let acceptable_options = AcceptableOptions::OptionSet(vec![proof.options().clone()]);
-        verify::<RescueAir, Rpo256, RpoRandomCoin, SaltedMerkleTree<Rpo256>>(
+        verify::<RescueAir, Rpo256, RpoRandomCoin, SaltedMerkleTree<Rpo256, ChaCha20Rng>>(
             proof,
             pub_inputs,
             &acceptable_options,
