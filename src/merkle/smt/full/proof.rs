@@ -25,7 +25,7 @@ impl SmtProof {
     pub fn new(path: MerklePath, leaf: SmtLeaf) -> Result<Self, SmtProofError> {
         let depth: usize = SMT_DEPTH.into();
         if path.len() != depth {
-            return Err(SmtProofError::InvalidPathLength(path.len()));
+            return Err(SmtProofError::InvalidMerklePathLength(path.len()));
         }
 
         Ok(Self { path, leaf })

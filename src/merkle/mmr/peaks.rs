@@ -45,7 +45,11 @@ impl MmrPeaks {
     /// Returns an error if the number of leaves and the number of peaks are inconsistent.
     pub fn new(num_leaves: usize, peaks: Vec<RpoDigest>) -> Result<Self, MmrError> {
         if num_leaves.count_ones() as usize != peaks.len() {
-            return Err(MmrError::InvalidPeaks);
+            return Err(MmrError::InvalidPeaks(format!(
+                "number of one bits in leaves is {} which does not equal peak length {}",
+                num_leaves.count_ones(),
+                peaks.len()
+            )));
         }
 
         Ok(Self { num_leaves, peaks })
@@ -77,7 +81,7 @@ impl MmrPeaks {
     pub fn get_peak(&self, peak_idx: usize) -> Result<&RpoDigest, MmrError> {
         self.peaks
             .get(peak_idx)
-            .ok_or(MmrError::PeakOutOfBounds(peak_idx, self.peaks.len()))
+            .ok_or(MmrError::PeakOutOfBounds { peak_idx, peaks_len: self.peaks.len() })
     }
 
     /// Converts this [MmrPeaks] into its components: number of leaves and a vector of peaks of
@@ -106,7 +110,7 @@ impl MmrPeaks {
         opening
             .merkle_path
             .verify(opening.relative_pos() as u64, value, root)
-            .map_err(MmrError::MerkleError)
+            .map_err(MmrError::InvalidMerklePath)
     }
 
     /// Flattens and pads the peaks to make hashing inside of the Miden VM easier.

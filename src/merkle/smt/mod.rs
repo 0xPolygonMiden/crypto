@@ -281,7 +281,10 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         // Guard against accidentally trying to apply mutations that were computed against a
         // different tree, including a stale version of this tree.
         if old_root != self.root() {
-            return Err(MerkleError::ConflictingRoots(vec![old_root, self.root()]));
+            return Err(MerkleError::ConflictingRoots {
+                expected_root: self.root(),
+                actual_root: old_root,
+            });
         }
 
         for (index, mutation) in node_mutations {
@@ -547,7 +550,7 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
 
     fn try_from(node_index: NodeIndex) -> Result<Self, Self::Error> {
         if node_index.depth() != DEPTH {
-            return Err(MerkleError::InvalidDepth {
+            return Err(MerkleError::InvalidNodeIndexDepth {
                 expected: DEPTH,
                 provided: node_index.depth(),
             });

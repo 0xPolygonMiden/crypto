@@ -61,7 +61,10 @@ impl MerklePath {
     pub fn verify(&self, index: u64, node: RpoDigest, root: &RpoDigest) -> Result<(), MerkleError> {
         let computed_root = self.compute_root(index, node)?;
         if &computed_root != root {
-            return Err(MerkleError::ConflictingRoots(vec![computed_root, *root]));
+            return Err(MerkleError::ConflictingRoots {
+                expected_root: *root,
+                actual_root: computed_root,
+            });
         }
 
         Ok(())

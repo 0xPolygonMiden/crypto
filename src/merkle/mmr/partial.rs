@@ -145,7 +145,7 @@ impl PartialMmr {
     /// in the underlying MMR.
     pub fn open(&self, pos: usize) -> Result<Option<MmrProof>, MmrError> {
         let tree_bit =
-            leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::InvalidPosition(pos))?;
+            leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::PositionNotFound(pos))?;
         let depth = tree_bit as usize;
 
         let mut nodes = Vec::with_capacity(depth);
@@ -298,7 +298,7 @@ impl PartialMmr {
         // invalid.
         let tree = 1 << path.depth();
         if tree & self.forest == 0 {
-            return Err(MmrError::UnknownPeak);
+            return Err(MmrError::UnknownPeak(path.depth()));
         };
 
         if leaf_pos + 1 == self.forest
@@ -319,9 +319,11 @@ impl PartialMmr {
 
         // Compute the root of the authentication path, and check it matches the current version of
         // the PartialMmr.
-        let computed = path.compute_root(path_idx as u64, leaf).map_err(MmrError::MerkleError)?;
+        let computed = path
+            .compute_root(path_idx as u64, leaf)
+            .map_err(MmrError::MerkleRootComputationFailed)?;
         if self.peaks[peak_pos] != computed {
-            return Err(MmrError::InvalidPeak);
+            return Err(MmrError::PeakPathMismatch);
         }
 
         let mut idx = InOrderIndex::from_leaf_pos(leaf_pos);
@@ -356,7 +358,10 @@ impl PartialMmr {
     /// inserted into the partial MMR.
     pub fn apply(&mut self, delta: MmrDelta) -> Result<Vec<(InOrderIndex, RpoDigest)>, MmrError> {
         if delta.forest < self.forest {
-            return Err(MmrError::InvalidPeaks);
+            return Err(MmrError::InvalidPeaks(format!(
+                "forest of mmr delta {} is less than current forest {}",
+                delta.forest, self.forest
+            )));
         }
 
         let mut inserted_nodes = Vec::new();

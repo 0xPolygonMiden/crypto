@@ -116,7 +116,7 @@ impl PartialMerkleTree {
         // depth of 63 because we consider passing in a vector of size 2^64 infeasible.
         let max = 2usize.pow(63);
         if layers.len() > max {
-            return Err(MerkleError::InvalidNumEntries(max));
+            return Err(MerkleError::TooManyEntries(max));
         }
 
         // Get maximum depth
@@ -147,11 +147,12 @@ impl PartialMerkleTree {
                     let index = NodeIndex::new(depth, index_value)?;
 
                     // get hash of the current node
-                    let node = nodes.get(&index).ok_or(MerkleError::NodeNotInSet(index))?;
+                    let node =
+                        nodes.get(&index).ok_or(MerkleError::NodeIndexNotFoundInTree(index))?;
                     // get hash of the sibling node
                     let sibling = nodes
                         .get(&index.sibling())
-                        .ok_or(MerkleError::NodeNotInSet(index.sibling()))?;
+                        .ok_or(MerkleError::NodeIndexNotFoundInTree(index.sibling()))?;
                     // get parent hash
                     let parent = Rpo256::merge(&index.build_node(*node, *sibling));
 
@@ -184,7 +185,10 @@ impl PartialMerkleTree {
     /// # Errors
     /// Returns an error if the specified NodeIndex is not contained in the nodes map.
     pub fn get_node(&self, index: NodeIndex) -> Result<RpoDigest, MerkleError> {
-        self.nodes.get(&index).ok_or(MerkleError::NodeNotInSet(index)).copied()
+        self.nodes
+            .get(&index)
+            .ok_or(MerkleError::NodeIndexNotFoundInTree(index))
+            .copied()
     }
 
     /// Returns true if provided index contains in the leaves set, false otherwise.
@@ -224,7 +228,7 @@ impl PartialMerkleTree {
         }
 
         if !self.nodes.contains_key(&index) {
-            return Err(MerkleError::NodeNotInSet(index));
+            return Err(MerkleError::NodeIndexNotFoundInTree(index));
         }
 
         let mut path = Vec::new();
@@ -335,15 +339,16 @@ impl PartialMerkleTree {
         if self.root() == EMPTY_DIGEST {
             self.nodes.insert(ROOT_INDEX, root);
         } else if self.root() != root {
-            return Err(MerkleError::ConflictingRoots([self.root(), root].to_vec()));
+            return Err(MerkleError::ConflictingRoots {
+                expected_root: self.root(),
+                actual_root: root,
+            });
         }
 
         Ok(())
     }
 
     /// Updates value of the leaf at the specified index returning the old leaf value.
-    /// By default the specified index is assumed to belong to the deepest layer. If the considered
-    /// node does not belong to the tree, the first node on the way to the root will be changed.
     ///
     /// By default the specified index is assumed to belong to the deepest layer. If the considered
     /// node does not belong to the tree, the first node on the way to the root will be changed.
@@ -352,6 +357,7 @@ impl PartialMerkleTree {
     ///
     /// # Errors
     /// Returns an error if:
+    /// - No entry exists at the specified index.
     /// - The specified index is greater than the maximum number of nodes on the deepest layer.
     pub fn update_leaf(&mut self, index: u64, value: Word) -> Result<RpoDigest, MerkleError> {
         let mut node_index = NodeIndex::new(self.max_depth(), index)?;
@@ -367,7 +373,7 @@ impl PartialMerkleTree {
         let old_value = self
             .nodes
             .insert(node_index, value.into())
-            .ok_or(MerkleError::NodeNotInSet(node_index))?;
+            .ok_or(MerkleError::NodeIndexNotFoundInTree(node_index))?;
 
         // if the old value and new value are the same, there is nothing to update
         if value == *old_value {
