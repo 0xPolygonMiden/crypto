@@ -545,6 +545,7 @@ dependencies = [
  "seq-macro",
  "serde",
  "sha3",
+ "thiserror",
  "winter-air",
  "winter-crypto",
  "winter-fri",

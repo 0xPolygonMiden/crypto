@@ -2,6 +2,7 @@ use alloc::string::String;
 use core::{cmp::Ordering, fmt::Display, ops::Deref, slice};
 
 use rand::{distributions::Standard, prelude::Distribution};
+use thiserror::Error;
 
 use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
 use crate::{
