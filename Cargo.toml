@@ -48,7 +48,7 @@ harness = false
 concurrent = ["dep:rayon"]
 default = ["std", "concurrent"]
 executable = ["dep:clap", "dep:rand-utils", "std"]
-internal = ["concurrent"]
+internal = []
 serde = ["dep:serde", "serde?/alloc", "winter-math/serde"]
 std = [
     "blake3/std",
