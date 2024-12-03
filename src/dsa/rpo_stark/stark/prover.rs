@@ -9,7 +9,10 @@ use winter_prover::{
     StarkDomain, Trace, TraceInfo, TracePolyTable, TraceTable,
 };
 use winter_utils::{Deserializable, Serializable};
-use winterfell::{AuxRandElements, ConstraintCompositionCoefficients, PartitionOptions};
+use winterfell::{
+    AuxRandElements, CompositionPoly, CompositionPolyTrace, ConstraintCompositionCoefficients,
+    DefaultConstraintCommitment, PartitionOptions,
+};
 
 use super::air::{PublicInputs, RescueAir, HASH_CYCLE_LEN};
 use crate::{hash::rpo::Rpo256, rand::RpoRandomCoin, Word, ZERO};
@@ -75,6 +78,8 @@ where
     type RandomCoin = RpoRandomCoin;
     type TraceLde<E: FieldElement<BaseField = Self::BaseField>> =
         DefaultTraceLde<E, Self::HashFn, Self::VC>;
+    type ConstraintCommitment<E: FieldElement<BaseField = Self::BaseField>> =
+        DefaultConstraintCommitment<E, Self::HashFn, Self::ZkPrng, Self::VC>;
     type ConstraintEvaluator<'a, E: FieldElement<BaseField = Self::BaseField>> =
         DefaultConstraintEvaluator<'a, Self::Air, E>;
     type ZkPrng = ChaCha20Rng;
@@ -117,5 +122,24 @@ where
         composition_coefficients: ConstraintCompositionCoefficients<E>,
     ) -> Self::ConstraintEvaluator<'a, E> {
         DefaultConstraintEvaluator::new(air, aux_rand_elements, composition_coefficients)
+    }
+
+    fn build_constraint_commitment<E: FieldElement<BaseField = Self::BaseField>>(
+        &self,
+        composition_poly_trace: CompositionPolyTrace<E>,
+        num_constraint_composition_columns: usize,
+        domain: &StarkDomain<Self::BaseField>,
+        partition_options: PartitionOptions,
+        zk_parameters: Option<ZkParameters>,
+        prng: &mut Option<Self::ZkPrng>,
+    ) -> (Self::ConstraintCommitment<E>, CompositionPoly<E>) {
+        DefaultConstraintCommitment::new(
+            composition_poly_trace,
+            num_constraint_composition_columns,
+            domain,
+            partition_options,
+            zk_parameters,
+            prng,
+        )
     }
 }
