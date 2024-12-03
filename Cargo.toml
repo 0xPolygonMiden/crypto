@@ -1,12 +1,12 @@
 [package]
 name = "miden-crypto"
-version = "0.12.0"
+version = "0.13.0"
 description = "Miden Cryptographic primitives"
 authors = ["miden contributors"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
-documentation = "https://docs.rs/miden-crypto/0.12.0"
+documentation = "https://docs.rs/miden-crypto/0.13.0"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
@@ -69,6 +69,7 @@ winterfell = {git = 'https://github.com/Al-Kindi-0/winterfell/', branch = 'al-zk
 rand_chacha = { version = "0.3", default-features = false }
 
 [dev-dependencies]
+assert_matches = { version = "1.5", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 getrandom = { version = "0.2", features = ["js"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
@@ -79,5 +80,5 @@ rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', package = "winte
 seq-macro = { version = "0.3" }
 
 [build-dependencies]
-cc = { version = "1.1", optional = true, features = ["parallel"] }
+cc = { version = "1.2", optional = true, features = ["parallel"] }
 glob = "0.3"

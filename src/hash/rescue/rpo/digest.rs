@@ -153,9 +153,12 @@ impl Distribution<RpoDigest> for Standard {
 // CONVERSIONS: FROM RPO DIGEST
 // ================================================================================================
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Error)]
 pub enum RpoDigestError {
-    InvalidInteger,
+    #[error("failed to convert digest field element to {0}")]
+    TypeConversion(&'static str),
+    #[error("failed to convert to field element: {0}")]
+    InvalidFieldElement(String),
 }
 
 impl TryFrom<&RpoDigest> for [bool; DIGEST_SIZE] {
@@ -179,10 +182,10 @@ impl TryFrom<RpoDigest> for [bool; DIGEST_SIZE] {
         }
 
         Ok([
-            to_bool(value.0[0].as_int()).ok_or(RpoDigestError::InvalidInteger)?,
-            to_bool(value.0[1].as_int()).ok_or(RpoDigestError::InvalidInteger)?,
-            to_bool(value.0[2].as_int()).ok_or(RpoDigestError::InvalidInteger)?,
-            to_bool(value.0[3].as_int()).ok_or(RpoDigestError::InvalidInteger)?,
+            to_bool(value.0[0].as_int()).ok_or(RpoDigestError::TypeConversion("bool"))?,
+            to_bool(value.0[1].as_int()).ok_or(RpoDigestError::TypeConversion("bool"))?,
+            to_bool(value.0[2].as_int()).ok_or(RpoDigestError::TypeConversion("bool"))?,
+            to_bool(value.0[3].as_int()).ok_or(RpoDigestError::TypeConversion("bool"))?,
         ])
     }
 }
@@ -200,10 +203,22 @@ impl TryFrom<RpoDigest> for [u8; DIGEST_SIZE] {
 
     fn try_from(value: RpoDigest) -> Result<Self, Self::Error> {
         Ok([
-            value.0[0].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value.0[1].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value.0[2].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value.0[3].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
+            value.0[0]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u8"))?,
+            value.0[1]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u8"))?,
+            value.0[2]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u8"))?,
+            value.0[3]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u8"))?,
         ])
     }
 }
@@ -221,10 +236,22 @@ impl TryFrom<RpoDigest> for [u16; DIGEST_SIZE] {
 
     fn try_from(value: RpoDigest) -> Result<Self, Self::Error> {
         Ok([
-            value.0[0].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value.0[1].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value.0[2].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value.0[3].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
+            value.0[0]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u16"))?,
+            value.0[1]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u16"))?,
+            value.0[2]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u16"))?,
+            value.0[3]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u16"))?,
         ])
     }
 }
@@ -242,10 +269,22 @@ impl TryFrom<RpoDigest> for [u32; DIGEST_SIZE] {
 
     fn try_from(value: RpoDigest) -> Result<Self, Self::Error> {
         Ok([
-            value.0[0].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value.0[1].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value.0[2].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value.0[3].as_int().try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
+            value.0[0]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u32"))?,
+            value.0[1]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u32"))?,
+            value.0[2]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u32"))?,
+            value.0[3]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpoDigestError::TypeConversion("u32"))?,
         ])
     }
 }
@@ -369,10 +408,10 @@ impl TryFrom<[u64; DIGEST_SIZE]> for RpoDigest {
 
     fn try_from(value: [u64; DIGEST_SIZE]) -> Result<Self, RpoDigestError> {
         Ok(Self([
-            value[0].try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value[1].try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value[2].try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
-            value[3].try_into().map_err(|_| RpoDigestError::InvalidInteger)?,
+            value[0].try_into().map_err(RpoDigestError::InvalidFieldElement)?,
+            value[1].try_into().map_err(RpoDigestError::InvalidFieldElement)?,
+            value[2].try_into().map_err(RpoDigestError::InvalidFieldElement)?,
+            value[3].try_into().map_err(RpoDigestError::InvalidFieldElement)?,
         ]))
     }
 }

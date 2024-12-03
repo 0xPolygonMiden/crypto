@@ -1,6 +1,8 @@
 use alloc::string::String;
 use core::{cmp::Ordering, fmt::Display, ops::Deref, slice};
 
+use thiserror::Error;
+
 use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
 use crate::{
     rand::Randomizable,
@@ -139,9 +141,12 @@ impl Randomizable for RpxDigest {
 // CONVERSIONS: FROM RPX DIGEST
 // ================================================================================================
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Error)]
 pub enum RpxDigestError {
-    InvalidInteger,
+    #[error("failed to convert digest field element to {0}")]
+    TypeConversion(&'static str),
+    #[error("failed to convert to field element: {0}")]
+    InvalidFieldElement(String),
 }
 
 impl TryFrom<&RpxDigest> for [bool; DIGEST_SIZE] {
@@ -165,10 +170,10 @@ impl TryFrom<RpxDigest> for [bool; DIGEST_SIZE] {
         }
 
         Ok([
-            to_bool(value.0[0].as_int()).ok_or(RpxDigestError::InvalidInteger)?,
-            to_bool(value.0[1].as_int()).ok_or(RpxDigestError::InvalidInteger)?,
-            to_bool(value.0[2].as_int()).ok_or(RpxDigestError::InvalidInteger)?,
-            to_bool(value.0[3].as_int()).ok_or(RpxDigestError::InvalidInteger)?,
+            to_bool(value.0[0].as_int()).ok_or(RpxDigestError::TypeConversion("bool"))?,
+            to_bool(value.0[1].as_int()).ok_or(RpxDigestError::TypeConversion("bool"))?,
+            to_bool(value.0[2].as_int()).ok_or(RpxDigestError::TypeConversion("bool"))?,
+            to_bool(value.0[3].as_int()).ok_or(RpxDigestError::TypeConversion("bool"))?,
         ])
     }
 }
@@ -186,10 +191,22 @@ impl TryFrom<RpxDigest> for [u8; DIGEST_SIZE] {
 
     fn try_from(value: RpxDigest) -> Result<Self, Self::Error> {
         Ok([
-            value.0[0].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value.0[1].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value.0[2].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value.0[3].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[0]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u8"))?,
+            value.0[1]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u8"))?,
+            value.0[2]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u8"))?,
+            value.0[3]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u8"))?,
         ])
     }
 }
@@ -207,10 +224,22 @@ impl TryFrom<RpxDigest> for [u16; DIGEST_SIZE] {
 
     fn try_from(value: RpxDigest) -> Result<Self, Self::Error> {
         Ok([
-            value.0[0].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value.0[1].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value.0[2].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value.0[3].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[0]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u16"))?,
+            value.0[1]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u16"))?,
+            value.0[2]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u16"))?,
+            value.0[3]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u16"))?,
         ])
     }
 }
@@ -228,10 +257,22 @@ impl TryFrom<RpxDigest> for [u32; DIGEST_SIZE] {
 
     fn try_from(value: RpxDigest) -> Result<Self, Self::Error> {
         Ok([
-            value.0[0].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value.0[1].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value.0[2].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value.0[3].as_int().try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value.0[0]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u32"))?,
+            value.0[1]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u32"))?,
+            value.0[2]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u32"))?,
+            value.0[3]
+                .as_int()
+                .try_into()
+                .map_err(|_| RpxDigestError::TypeConversion("u32"))?,
         ])
     }
 }
@@ -355,10 +396,10 @@ impl TryFrom<[u64; DIGEST_SIZE]> for RpxDigest {
 
     fn try_from(value: [u64; DIGEST_SIZE]) -> Result<Self, RpxDigestError> {
         Ok(Self([
-            value[0].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value[1].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value[2].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
-            value[3].try_into().map_err(|_| RpxDigestError::InvalidInteger)?,
+            value[0].try_into().map_err(RpxDigestError::InvalidFieldElement)?,
+            value[1].try_into().map_err(RpxDigestError::InvalidFieldElement)?,
+            value[2].try_into().map_err(RpxDigestError::InvalidFieldElement)?,
+            value[3].try_into().map_err(RpxDigestError::InvalidFieldElement)?,
         ]))
     }
 }

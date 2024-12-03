@@ -1,5 +1,7 @@
 use alloc::vec::Vec;
 
+use assert_matches::assert_matches;
+
 use super::{
     super::{MerkleError, RpoDigest, SimpleSmt},
     NodeIndex,
@@ -257,12 +259,12 @@ fn test_simplesmt_fail_on_duplicates() {
         // consecutive
         let entries = [(1, *first), (1, *second)];
         let smt = SimpleSmt::<64>::with_leaves(entries);
-        assert_eq!(smt.unwrap_err(), MerkleError::DuplicateValuesForIndex(1));
+        assert_matches!(smt.unwrap_err(), MerkleError::DuplicateValuesForIndex(1));
 
         // not consecutive
         let entries = [(1, *first), (5, int_to_leaf(5)), (1, *second)];
         let smt = SimpleSmt::<64>::with_leaves(entries);
-        assert_eq!(smt.unwrap_err(), MerkleError::DuplicateValuesForIndex(1));
+        assert_matches!(smt.unwrap_err(), MerkleError::DuplicateValuesForIndex(1));
     }
 }
 
