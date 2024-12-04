@@ -58,6 +58,11 @@ impl SecretKey {
         Self::with_rng(&mut rng)
     }
 
+    /// Generates a secret key from a [Word].
+    pub fn from_word(sk: Word) -> Self {
+        Self(sk)
+    }
+
     /// Generates a secret_key using the provided random number generator `Rng`.
     pub fn with_rng<R: Rng>(rng: &mut R) -> Self {
         let mut sk = [ZERO; 4];
