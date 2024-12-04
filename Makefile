@@ -83,4 +83,4 @@ build-sve: ## Build with sve support
 
 .PHONY: bench-tx
 bench-tx: ## Run crypto benchmarks
-	cargo bench
+	cargo bench --features="concurrent"

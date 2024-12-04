@@ -1,4 +1,7 @@
 use alloc::{collections::BTreeMap, vec::Vec};
+use core::mem;
+
+use num::Integer;
 
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
 use crate::{
@@ -61,6 +64,17 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
     // PROVIDED METHODS
     // ---------------------------------------------------------------------------------------------
+
+    /// Creates a new sparse Merkle tree from an existing set of key-value pairs, in parallel.
+    #[cfg(feature = "concurrent")]
+    fn with_entries_par(entries: Vec<(Self::Key, Self::Value)>) -> Result<Self, MerkleError>
+    where
+        Self: Sized,
+    {
+        let (inner_nodes, leaves) = Self::build_subtrees(entries);
+        let root = inner_nodes.get(&NodeIndex::root()).unwrap().hash();
+        Self::from_raw_parts(inner_nodes, leaves, root)
+    }
 
     /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
     /// path to the leaf, as well as the leaf itself.
@@ -292,6 +306,16 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     // REQUIRED METHODS
     // ---------------------------------------------------------------------------------------------
 
+    /// Construct this type from already computed leaves and nodes. The caller ensures passed
+    /// arguments are correct and consistent with each other.
+    fn from_raw_parts(
+        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+        leaves: BTreeMap<u64, Self::Leaf>,
+        root: RpoDigest,
+    ) -> Result<Self, MerkleError>
+    where
+        Self: Sized;
+
     /// The root of the tree
     fn root(&self) -> RpoDigest;
 
@@ -341,18 +365,137 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Maps a key to a leaf index
     fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
 
+    /// Constructs a single leaf from an arbitrary amount of key-value pairs.
+    /// Those pairs must all have the same leaf index.
+    fn pairs_to_leaf(pairs: Vec<(Self::Key, Self::Value)>) -> Self::Leaf;
+
     /// Maps a (MerklePath, Self::Leaf) to an opening.
     ///
     /// The length `path` is guaranteed to be equal to `DEPTH`
     fn path_and_leaf_to_opening(path: MerklePath, leaf: Self::Leaf) -> Self::Opening;
+
+    /// Performs the initial transforms for constructing a [`SparseMerkleTree`] by composing
+    /// subtrees. In other words, this function takes the key-value inputs to the tree, and produces
+    /// the inputs to feed into [`build_subtree()`].
+    ///
+    /// `pairs` *must* already be sorted **by leaf index column**, not simply sorted by key. If
+    /// `pairs` is not correctly sorted, the returned computations will be incorrect.
+    ///
+    /// # Panics
+    /// With debug assertions on, this function panics if it detects that `pairs` is not correctly
+    /// sorted. Without debug assertions, the returned computations will be incorrect.
+    fn sorted_pairs_to_leaves(
+        pairs: Vec<(Self::Key, Self::Value)>,
+    ) -> PairComputations<u64, Self::Leaf> {
+        debug_assert!(pairs.is_sorted_by_key(|(key, _)| Self::key_to_leaf_index(key).value()));
+
+        let mut accumulator: PairComputations<u64, Self::Leaf> = Default::default();
+        let mut accumulated_leaves: Vec<SubtreeLeaf> = Vec::with_capacity(pairs.len() / 2);
+
+        // As we iterate, we'll keep track of the kv-pairs we've seen so far that correspond to a
+        // single leaf. When we see a pair that's in a different leaf, we'll swap these pairs
+        // out and store them in our accumulated leaves.
+        let mut current_leaf_buffer: Vec<(Self::Key, Self::Value)> = Default::default();
+
+        let mut iter = pairs.into_iter().peekable();
+        while let Some((key, value)) = iter.next() {
+            let col = Self::key_to_leaf_index(&key).index.value();
+            let peeked_col = iter.peek().map(|(key, _v)| {
+                let index = Self::key_to_leaf_index(key);
+                let next_col = index.index.value();
+                // We panic if `pairs` is not sorted by column.
+                debug_assert!(next_col >= col);
+                next_col
+            });
+            current_leaf_buffer.push((key, value));
+
+            // If the next pair is the same column as this one, then we're done after adding this
+            // pair to the buffer.
+            if peeked_col == Some(col) {
+                continue;
+            }
+
+            // Otherwise, the next pair is a different column, or there is no next pair. Either way
+            // it's time to swap out our buffer.
+            let leaf_pairs = mem::take(&mut current_leaf_buffer);
+            let leaf = Self::pairs_to_leaf(leaf_pairs);
+            let hash = Self::hash_leaf(&leaf);
+
+            accumulator.nodes.insert(col, leaf);
+            accumulated_leaves.push(SubtreeLeaf { col, hash });
+
+            debug_assert!(current_leaf_buffer.is_empty());
+        }
+
+        // TODO: determine is there is any notable performance difference between computing
+        // subtree boundaries after the fact as an iterator adapter (like this), versus computing
+        // subtree boundaries as we go. Either way this function is only used at the beginning of a
+        // parallel construction, so it should not be a critical path.
+        accumulator.leaves = SubtreeLeavesIter::from_leaves(&mut accumulated_leaves).collect();
+        accumulator
+    }
+
+    /// Computes the raw parts for a new sparse Merkle tree from a set of key-value pairs.
+    ///
+    /// `entries` need not be sorted. This function will sort them.
+    #[cfg(feature = "concurrent")]
+    fn build_subtrees(
+        mut entries: Vec<(Self::Key, Self::Value)>,
+    ) -> (BTreeMap<NodeIndex, InnerNode>, BTreeMap<u64, Self::Leaf>) {
+        entries.sort_by_key(|item| {
+            let index = Self::key_to_leaf_index(&item.0);
+            index.value()
+        });
+        Self::build_subtrees_from_sorted_entries(entries)
+    }
+
+    /// Computes the raw parts for a new sparse Merkle tree from a set of key-value pairs.
+    ///
+    /// This function is mostly an implementation detail of
+    /// [`SparseMerkleTree::with_entries_par()`].
+    #[cfg(feature = "concurrent")]
+    fn build_subtrees_from_sorted_entries(
+        entries: Vec<(Self::Key, Self::Value)>,
+    ) -> (BTreeMap<NodeIndex, InnerNode>, BTreeMap<u64, Self::Leaf>) {
+        use rayon::prelude::*;
+
+        let mut accumulated_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
+
+        let PairComputations {
+            leaves: mut leaf_subtrees,
+            nodes: initial_leaves,
+        } = Self::sorted_pairs_to_leaves(entries);
+
+        for current_depth in (SUBTREE_DEPTH..=DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+            let (nodes, mut subtree_roots): (Vec<BTreeMap<_, _>>, Vec<SubtreeLeaf>) = leaf_subtrees
+                .into_par_iter()
+                .map(|subtree| {
+                    debug_assert!(subtree.is_sorted());
+                    debug_assert!(!subtree.is_empty());
+
+                    let (nodes, subtree_root) = build_subtree(subtree, DEPTH, current_depth);
+                    (nodes, subtree_root)
+                })
+                .unzip();
+
+            leaf_subtrees = SubtreeLeavesIter::from_leaves(&mut subtree_roots).collect();
+            accumulated_nodes.extend(nodes.into_iter().flatten());
+
+            debug_assert!(!leaf_subtrees.is_empty());
+        }
+        (accumulated_nodes, initial_leaves)
+    }
 }
 
 // INNER NODE
 // ================================================================================================
 
+/// This struct is public so functions returning it can be used in `benches/`, but is otherwise not
+/// part of the public API.
+#[doc(hidden)]
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct InnerNode {
+pub struct InnerNode {
     pub left: RpoDigest,
     pub right: RpoDigest,
 }
@@ -462,3 +605,197 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
         self.new_root
     }
 }
+
+// SUBTREES
+// ================================================================================================
+/// A subtree is of depth 8.
+const SUBTREE_DEPTH: u8 = 8;
+
+/// A depth-8 subtree contains 256 "columns" that can possibly be occupied.
+const COLS_PER_SUBTREE: u64 = u64::pow(2, SUBTREE_DEPTH as u32);
+
+/// Helper struct for organizing the data we care about when computing Merkle subtrees.
+///
+/// Note that these represet "conceptual" leaves of some subtree, not necessarily
+/// the leaf type for the sparse Merkle tree.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct SubtreeLeaf {
+    /// The 'value' field of [`NodeIndex`]. When computing a subtree, the depth is already known.
+    pub col: u64,
+    /// The hash of the node this `SubtreeLeaf` represents.
+    pub hash: RpoDigest,
+}
+
+/// Helper struct to organize the return value of [`SparseMerkleTree::sorted_pairs_to_leaves()`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PairComputations<K, L> {
+    /// Literal leaves to be added to the sparse Merkle tree's internal mapping.
+    pub nodes: BTreeMap<K, L>,
+    /// "Conceptual" leaves that will be used for computations.
+    pub leaves: Vec<Vec<SubtreeLeaf>>,
+}
+
+// Derive requires `L` to impl Default, even though we don't actually need that.
+impl<K, L> Default for PairComputations<K, L> {
+    fn default() -> Self {
+        Self {
+            nodes: Default::default(),
+            leaves: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct SubtreeLeavesIter<'s> {
+    leaves: core::iter::Peekable<alloc::vec::Drain<'s, SubtreeLeaf>>,
+}
+impl<'s> SubtreeLeavesIter<'s> {
+    fn from_leaves(leaves: &'s mut Vec<SubtreeLeaf>) -> Self {
+        // TODO: determine if there is any notable performance difference between taking a Vec,
+        // which many need flattening first, vs storing a `Box<dyn Iterator<Item = SubtreeLeaf>>`.
+        // The latter may have self-referential properties that are impossible to express in purely
+        // safe Rust Rust.
+        Self { leaves: leaves.drain(..).peekable() }
+    }
+}
+impl core::iter::Iterator for SubtreeLeavesIter<'_> {
+    type Item = Vec<SubtreeLeaf>;
+
+    /// Each `next()` collects an entire subtree.
+    fn next(&mut self) -> Option<Vec<SubtreeLeaf>> {
+        let mut subtree: Vec<SubtreeLeaf> = Default::default();
+
+        let mut last_subtree_col = 0;
+
+        while let Some(leaf) = self.leaves.peek() {
+            last_subtree_col = u64::max(1, last_subtree_col);
+            let is_exact_multiple = Integer::is_multiple_of(&last_subtree_col, &COLS_PER_SUBTREE);
+            let next_subtree_col = if is_exact_multiple {
+                u64::next_multiple_of(last_subtree_col + 1, COLS_PER_SUBTREE)
+            } else {
+                last_subtree_col.next_multiple_of(COLS_PER_SUBTREE)
+            };
+
+            last_subtree_col = leaf.col;
+            if leaf.col < next_subtree_col {
+                subtree.push(self.leaves.next().unwrap());
+            } else if subtree.is_empty() {
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        if subtree.is_empty() {
+            debug_assert!(self.leaves.peek().is_none());
+            return None;
+        }
+
+        Some(subtree)
+    }
+}
+
+// HELPER FUNCTIONS
+// ================================================================================================
+
+/// Builds Merkle nodes from a bottom layer of "leaves" -- represented by a horizontal index and
+/// the hash of the leaf at that index. `leaves` *must* be sorted by horizontal index, and
+/// `leaves` must not contain more than one depth-8 subtree's worth of leaves.
+///
+/// This function will then calculate the inner nodes above each leaf for 8 layers, as well as
+/// the "leaves" for the next 8-deep subtree, so this function can effectively be chained into
+/// itself.
+///
+/// # Panics
+/// With debug assertions on, this function panics under invalid inputs: if `leaves` contains
+/// more entries than can fit in a depth-8 subtree, if `leaves` contains leaves belonging to
+/// different depth-8 subtrees, if `bottom_depth` is lower in the tree than the specified
+/// maximum depth (`DEPTH`), or if `leaves` is not sorted.
+fn build_subtree(
+    mut leaves: Vec<SubtreeLeaf>,
+    tree_depth: u8,
+    bottom_depth: u8,
+) -> (BTreeMap<NodeIndex, InnerNode>, SubtreeLeaf) {
+    debug_assert!(bottom_depth <= tree_depth);
+    debug_assert!(Integer::is_multiple_of(&bottom_depth, &SUBTREE_DEPTH));
+    debug_assert!(leaves.len() <= usize::pow(2, SUBTREE_DEPTH as u32));
+    let subtree_root = bottom_depth - SUBTREE_DEPTH;
+    let mut inner_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
+    let mut next_leaves: Vec<SubtreeLeaf> = Vec::with_capacity(leaves.len() / 2);
+    for next_depth in (subtree_root..bottom_depth).rev() {
+        debug_assert!(next_depth <= bottom_depth);
+        // `next_depth` is the stuff we're making.
+        // `current_depth` is the stuff we have.
+        let current_depth = next_depth + 1;
+        let mut iter = leaves.drain(..).peekable();
+        while let Some(first) = iter.next() {
+            // On non-continuous iterations, including the first iteration, `first_column` may
+            // be a left or right node. On subsequent continuous iterations, we will always call
+            // `iter.next()` twice.
+            // On non-continuous iterations (including the very first iteration), this column
+            // could be either on the left or the right. If the next iteration is not
+            // discontinuous with our right node, then the next iteration's
+            let is_right = first.col.is_odd();
+            let (left, right) = if is_right {
+                // Discontinuous iteration: we have no left node, so it must be empty.
+                let left = SubtreeLeaf {
+                    col: first.col - 1,
+                    hash: *EmptySubtreeRoots::entry(tree_depth, current_depth),
+                };
+                let right = first;
+                (left, right)
+            } else {
+                let left = first;
+                let right_col = first.col + 1;
+                let right = match iter.peek().copied() {
+                    Some(SubtreeLeaf { col, .. }) if col == right_col => {
+                        // Our inputs must be sorted.
+                        debug_assert!(left.col <= col);
+                        // The next leaf in the iterator is our sibling. Use it and consume it!
+                        iter.next().unwrap()
+                    },
+                    // Otherwise, the leaves don't contain our sibling, so our sibling must be
+                    // empty.
+                    _ => SubtreeLeaf {
+                        col: right_col,
+                        hash: *EmptySubtreeRoots::entry(tree_depth, current_depth),
+                    },
+                };
+                (left, right)
+            };
+            let index = NodeIndex::new_unchecked(current_depth, left.col).parent();
+            let node = InnerNode { left: left.hash, right: right.hash };
+            let hash = node.hash();
+            let &equivalent_empty_hash = EmptySubtreeRoots::entry(tree_depth, next_depth);
+            // If this hash is empty, then it doesn't become a new inner node, nor does it count
+            // as a leaf for the next depth.
+            if hash != equivalent_empty_hash {
+                inner_nodes.insert(index, node);
+                next_leaves.push(SubtreeLeaf { col: index.value(), hash });
+            }
+        }
+        // Stop borrowing `leaves`, so we can swap it.
+        // The iterator is empty at this point anyway.
+        drop(iter);
+        // After each depth, consider the stuff we just made the new "leaves", and empty the
+        // other collection.
+        mem::swap(&mut leaves, &mut next_leaves);
+    }
+    debug_assert_eq!(leaves.len(), 1);
+    let root = leaves.pop().unwrap();
+    (inner_nodes, root)
+}
+
+#[cfg(feature = "internal")]
+pub fn build_subtree_for_bench(
+    leaves: Vec<SubtreeLeaf>,
+    tree_depth: u8,
+    bottom_depth: u8,
+) -> (BTreeMap<NodeIndex, InnerNode>, SubtreeLeaf) {
+    build_subtree(leaves, tree_depth, bottom_depth)
+}
+
+// TESTS
+// ================================================================================================
+#[cfg(test)]
+mod tests;

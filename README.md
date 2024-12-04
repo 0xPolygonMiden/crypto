@@ -60,10 +60,11 @@ make
 
 This crate can be compiled with the following features:
 
+- `concurrent`- enabled by default; enables multi-threaded implementation of `Smt::with_entries()` which significantly improves performance on multi-core CPUs.
 - `std` - enabled by default and relies on the Rust standard library.
 - `no_std` does not rely on the Rust standard library and enables compilation to WebAssembly.
 
-Both of these features imply the use of [alloc](https://doc.rust-lang.org/alloc/) to support heap-allocated collections.
+All of these features imply the use of [alloc](https://doc.rust-lang.org/alloc/) to support heap-allocated collections.
 
 To compile with `no_std`, disable default features via `--no-default-features` flag or using the following command:
 
