@@ -1,8 +1,8 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 
 use super::{
-    build_subtree, InnerNode, LeafIndex, NodeIndex, PairComputations, SmtLeaf, SparseMerkleTree, SubtreeLeaf,
-    SubtreeLeavesIter, COLS_PER_SUBTREE, SUBTREE_DEPTH,
+    build_subtree, InnerNode, LeafIndex, NodeIndex, PairComputations, SmtLeaf, SparseMerkleTree,
+    SubtreeLeaf, SubtreeLeavesIter, COLS_PER_SUBTREE, SUBTREE_DEPTH,
 };
 use crate::{
     hash::rpo::RpoDigest,
@@ -135,8 +135,8 @@ fn test_single_subtree() {
     }
 
     // The root returned should also match the equivalent node in the control tree.
-    let control_root_index = NodeIndex::new(SMT_DEPTH - SUBTREE_DEPTH, subtree_root.col)
-    .expect("Valid root index");
+    let control_root_index =
+        NodeIndex::new(SMT_DEPTH - SUBTREE_DEPTH, subtree_root.col).expect("Valid root index");
     let control_root_node = control.get_inner_node(control_root_index);
     let control_hash = control_root_node.hash();
     assert_eq!(
@@ -238,7 +238,7 @@ fn test_singlethreaded_subtrees() {
 
                 // Do actual things.
                 let (nodes, subtree_root) = build_subtree(subtree, SMT_DEPTH, current_depth);
-                
+
                 // Post-assertions.
                 for (&index, test_node) in nodes.iter() {
                     let control_node = control.get_inner_node(index);

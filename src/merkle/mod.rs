@@ -21,12 +21,12 @@ mod path;
 pub use path::{MerklePath, RootPath, ValuePath};
 
 mod smt;
+#[cfg(feature = "internal")]
+pub use smt::build_subtree_for_bench;
 pub use smt::{
     LeafIndex, MutationSet, SimpleSmt, Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError,
     SubtreeLeaf, SMT_DEPTH, SMT_MAX_DEPTH, SMT_MIN_DEPTH,
 };
-#[cfg(feature="internal")]
-pub use smt::build_subtree_for_bench;
 
 mod mmr;
 pub use mmr::{InOrderIndex, Mmr, MmrDelta, MmrError, MmrPeaks, MmrProof, PartialMmr};

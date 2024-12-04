@@ -71,17 +71,17 @@ impl Smt {
 
     /// Returns a new [Smt] instantiated with leaves set as specified by the provided entries.
     ///
-    /// If the `concurrent` feature is enabled, this function uses a parallel implementation to 
+    /// If the `concurrent` feature is enabled, this function uses a parallel implementation to
     /// process the entries efficiently, otherwise it defaults to the sequential implementation.
     ///
     /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
-    /// 
+    ///
     /// # Errors
     /// Returns an error if the provided entries contain multiple values for the same key.
     pub fn with_entries(
         entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
-        #[cfg(feature="concurrent")]
+        #[cfg(feature = "concurrent")]
         {
             let mut seen_keys = BTreeSet::new();
             let entries: Vec<_> = entries
@@ -101,7 +101,7 @@ impl Smt {
             }
             <Self as SparseMerkleTree<SMT_DEPTH>>::with_entries_par(entries)
         }
-        #[cfg(not(feature="concurrent"))]
+        #[cfg(not(feature = "concurrent"))]
         {
             Self::with_entries_sequential(entries)
         }

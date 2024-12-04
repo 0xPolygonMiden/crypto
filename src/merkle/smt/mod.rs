@@ -392,7 +392,6 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         let mut accumulator: PairComputations<u64, Self::Leaf> = Default::default();
         let mut accumulated_leaves: Vec<SubtreeLeaf> = Vec::with_capacity(pairs.len() / 2);
 
-
         // As we iterate, we'll keep track of the kv-pairs we've seen so far that correspond to a
         // single leaf. When we see a pair that's in a different leaf, we'll swap these pairs
         // out and store them in our accumulated leaves.

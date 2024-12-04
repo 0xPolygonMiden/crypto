@@ -52,8 +52,11 @@ fn smt_subtree_even(c: &mut Criterion) {
                 },
                 |leaves| {
                     // Benchmarked function.
-                    let (subtree, _) =
-                        build_subtree_for_bench(hint::black_box(leaves), hint::black_box(SMT_DEPTH), hint::black_box(SMT_DEPTH));
+                    let (subtree, _) = build_subtree_for_bench(
+                        hint::black_box(leaves),
+                        hint::black_box(SMT_DEPTH),
+                        hint::black_box(SMT_DEPTH),
+                    );
                     assert!(!subtree.is_empty());
                 },
                 BatchSize::SmallInput,
@@ -100,8 +103,11 @@ fn smt_subtree_random(c: &mut Criterion) {
                     leaves
                 },
                 |leaves| {
-                    let (subtree, _) =
-                        build_subtree_for_bench(hint::black_box(leaves), hint::black_box(SMT_DEPTH), hint::black_box(SMT_DEPTH));
+                    let (subtree, _) = build_subtree_for_bench(
+                        hint::black_box(leaves),
+                        hint::black_box(SMT_DEPTH),
+                        hint::black_box(SMT_DEPTH),
+                    );
                     assert!(!subtree.is_empty());
                 },
                 BatchSize::SmallInput,

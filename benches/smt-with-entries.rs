@@ -19,7 +19,7 @@ fn smt_with_entries(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     // Setup.
-                    prepare_entries(pair_count, &mut seed )
+                    prepare_entries(pair_count, &mut seed)
                 },
                 |entries| {
                     // Benchmarked function.
@@ -50,12 +50,7 @@ fn prepare_entries(pair_count: u64, seed: &mut [u8; 32]) -> Vec<(RpoDigest, [Fel
         .map(|i| {
             let count = pair_count as f64;
             let idx = ((i as f64 / count) * (count)) as u64;
-            let key = RpoDigest::new([
-                generate_value(seed),
-                ONE,
-                Felt::new(i),
-                Felt::new(idx),
-            ]);
+            let key = RpoDigest::new([generate_value(seed), ONE, Felt::new(i), Felt::new(idx)]);
             let value = generate_word(seed);
             (key, value)
         })
