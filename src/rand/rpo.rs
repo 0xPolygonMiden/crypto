@@ -174,6 +174,36 @@ impl RandomCoin for RpoRandomCoin {
 
         Ok(values)
     }
+
+    fn reseed_with_salt(
+        &mut self,
+        data: <Self::Hasher as winter_crypto::Hasher>::Digest,
+        salt: Option<<Self::Hasher as winter_crypto::Hasher>::Digest>,
+    ) {
+        // Reset buffer
+        self.current = RATE_START;
+
+        // Add the new seed material to the first half of the rate portion of the RPO state
+        let data: Word = data.into();
+
+        self.state[RATE_START] += data[0];
+        self.state[RATE_START + 1] += data[1];
+        self.state[RATE_START + 2] += data[2];
+        self.state[RATE_START + 3] += data[3];
+
+        if let Some(salt) = salt {
+            // Add the salt to the second half of the rate portion of the RPO state
+            let data: Word = salt.into();
+
+            self.state[RATE_START + 4] += data[0];
+            self.state[RATE_START + 5] += data[1];
+            self.state[RATE_START + 6] += data[2];
+            self.state[RATE_START + 7] += data[3];
+        }
+
+        // Absorb
+        Rpo256::apply_permutation(&mut self.state);
+    }
 }
 
 // FELT RNG IMPLEMENTATION
