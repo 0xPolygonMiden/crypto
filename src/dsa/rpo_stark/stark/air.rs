@@ -7,7 +7,7 @@ use winter_prover::{
 };
 
 use crate::{
-    hash::rpo::{ARK1, ARK2, MDS, STATE_WIDTH},
+    hash::{ARK1, ARK2, MDS, STATE_WIDTH},
     Word, ZERO,
 };
 
@@ -15,7 +15,6 @@ use crate::{
 // ================================================================================================
 
 pub const HASH_CYCLE_LEN: usize = 8;
-pub const TRACE_WIDTH: usize = 12;
 
 // AIR
 // ================================================================================================
@@ -50,7 +49,7 @@ impl Air for RescueAir {
             TransitionConstraintDegree::new(7),
             TransitionConstraintDegree::new(7),
         ];
-        assert_eq!(TRACE_WIDTH, trace_info.width());
+        assert_eq!(STATE_WIDTH, trace_info.width());
         let context = AirContext::new(trace_info, degrees, 12, options);
         let context = context.set_num_transition_exemptions(1);
         RescueAir { context, pub_key: pub_inputs.pub_key }
@@ -69,8 +68,8 @@ impl Air for RescueAir {
         let current = frame.current();
         let next = frame.next();
         // expected state width is 12 field elements
-        debug_assert_eq!(TRACE_WIDTH, current.len());
-        debug_assert_eq!(TRACE_WIDTH, next.len());
+        debug_assert_eq!(STATE_WIDTH, current.len());
+        debug_assert_eq!(STATE_WIDTH, next.len());
 
         enforce_rpo_round(frame, result, periodic_values);
     }
@@ -153,7 +152,7 @@ pub fn enforce_rpo_round<E: FieldElement + From<BaseElement>>(
 
     // make sure that the results are equal.
     for i in 0..STATE_WIDTH {
-        result.agg_constraint(i, are_equal(step2[i], step1[i]));
+        result[i] = step2[i] - step1[i]
     }
 }
 
@@ -193,31 +192,4 @@ pub fn get_round_constants() -> Vec<Vec<BaseElement>> {
     }
 
     constants
-}
-
-// CONSTRAINT EVALUATION HELPERS
-// ================================================================================================
-
-/// Returns zero only when a == b.
-pub fn are_equal<E: FieldElement>(a: E, b: E) -> E {
-    a - b
-}
-
-// TRAIT TO SIMPLIFY CONSTRAINT AGGREGATION
-// ================================================================================================
-
-pub trait EvaluationResult<E> {
-    fn agg_constraint(&mut self, index: usize, value: E);
-}
-
-impl<E: FieldElement> EvaluationResult<E> for [E] {
-    fn agg_constraint(&mut self, index: usize, value: E) {
-        self[index] += value;
-    }
-}
-
-impl<E: FieldElement> EvaluationResult<E> for Vec<E> {
-    fn agg_constraint(&mut self, index: usize, value: E) {
-        self[index] += value;
-    }
 }

@@ -4,13 +4,13 @@ use prover::RpoSignatureProver;
 use rand::{distributions::Standard, prelude::Distribution, thread_rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use winter_crypto::{ElementHasher, Hasher, SaltedMerkleTree};
-use winter_math::{fields::f64::BaseElement, FieldElement};
+use winter_math::fields::f64::BaseElement;
 use winter_prover::{Proof, ProofOptions};
 use winter_verifier::{verify, AcceptableOptions, VerifierError};
 use winterfell::Prover;
 
 use crate::{
-    hash::rpo::{Rpo256, DIGEST_RANGE, DIGEST_SIZE, NUM_ROUNDS, STATE_WIDTH},
+    hash::{rpo::Rpo256, DIGEST_SIZE},
     rand::RpoRandomCoin,
 };
 
@@ -63,18 +63,4 @@ where
             &acceptable_options,
         )
     }
-}
-
-// HELPER FUNCTIONS
-// ================================================================================================
-
-pub fn compute_rpo_image(pre_image: [BaseElement; DIGEST_SIZE]) -> [BaseElement; DIGEST_SIZE] {
-    let mut state = [BaseElement::ZERO; STATE_WIDTH];
-    state[DIGEST_RANGE].copy_from_slice(&pre_image);
-    for i in 0..NUM_ROUNDS {
-        Rpo256::apply_round(&mut state, i);
-    }
-    state[DIGEST_RANGE]
-        .try_into()
-        .expect("should not fail given the size of the array")
 }

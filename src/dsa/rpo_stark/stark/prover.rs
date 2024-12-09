@@ -20,20 +20,21 @@ use crate::{hash::rpo::Rpo256, rand::RpoRandomCoin, Word, ZERO};
 // PROVER
 // ================================================================================================
 
-pub struct RpoSignatureProver<H: ElementHasher>
-where
-    H: Sync,
-{
+/// A prover for the RPO STARK-based signature scheme.
+///
+/// The signature is based on the the one-wayness of the RPO hash function but it is generic over
+/// the hash function used for instantiating the random oracle for the BCS transform.
+pub(crate) struct RpoSignatureProver<H: ElementHasher + Sync> {
     options: ProofOptions,
     _hasher: PhantomData<H>,
 }
 
 impl<H: ElementHasher + Sync> RpoSignatureProver<H> {
-    pub fn new(options: ProofOptions) -> Self {
+    pub(crate) fn new(options: ProofOptions) -> Self {
         Self { options, _hasher: PhantomData }
     }
 
-    pub fn build_trace(&self, sk: Word, msg: Word) -> TraceTable<BaseElement> {
+    pub(crate) fn build_trace(&self, sk: Word, msg: Word) -> TraceTable<BaseElement> {
         let trace_length = HASH_CYCLE_LEN;
         let mut target = vec![];
         msg.write_into(&mut target);
@@ -41,7 +42,7 @@ impl<H: ElementHasher + Sync> RpoSignatureProver<H> {
 
         trace.fill(
             |state| {
-                // initialize first state of the computation
+                // initialize first half of the rate portion of the state with the secret key
                 state[0] = ZERO;
                 state[1] = ZERO;
                 state[2] = ZERO;

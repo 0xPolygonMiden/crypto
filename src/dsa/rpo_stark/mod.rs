@@ -26,7 +26,7 @@ mod tests {
 
         let message = rand_array();
         let signature = sk.sign(message);
-        let pk = sk.compute_public_key();
+        let pk = sk.public_key();
         println!("verify {:?}", pk.verify(message, &signature));
         assert!(pk.verify(message, &signature))
     }

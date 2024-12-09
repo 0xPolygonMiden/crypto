@@ -70,8 +70,8 @@ impl Digest for RpxDigest {
     fn from_random_bytes(buffer: &[u8]) -> Self {
         let mut digest: [Felt; DIGEST_SIZE] = [ZERO; DIGEST_SIZE];
 
-        buffer.chunks(8).zip(digest.iter_mut()).for_each(|(chunk, digest)| {
-            *digest = Felt::new(u64::from_be_bytes(
+        buffer.chunks(8).zip(digest.iter_mut()).for_each(|(chunk, element)| {
+            *element = Felt::new(u64::from_be_bytes(
                 chunk.try_into().expect("Given the size of the chunk this should not panic"),
             ))
         });

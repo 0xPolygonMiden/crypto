@@ -6,7 +6,7 @@ mod arch;
 pub use arch::optimized::{add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox};
 
 mod mds;
-pub use mds::{apply_mds, MDS};
+pub(crate) use mds::{apply_mds, MDS};
 
 mod rpo;
 pub use rpo::{Rpo256, RpoDigest, RpoDigestError};
@@ -22,11 +22,11 @@ mod tests;
 
 /// The number of rounds is set to 7. For the RPO hash functions all rounds are uniform. For the
 /// RPX hash function, there are 3 different types of rounds.
-pub const NUM_ROUNDS: usize = 7;
+const NUM_ROUNDS: usize = 7;
 
 /// Sponge state is set to 12 field elements or 96 bytes; 8 elements are reserved for rate and
 /// the remaining 4 elements are reserved for capacity.
-pub const STATE_WIDTH: usize = 12;
+pub(crate) const STATE_WIDTH: usize = 12;
 
 /// The rate portion of the state is located in elements 4 through 11.
 const RATE_RANGE: Range<usize> = 4..12;
@@ -42,8 +42,8 @@ const CAPACITY_RANGE: Range<usize> = 0..4;
 ///
 /// The digest is returned from state elements 4, 5, 6, and 7 (the first four elements of the
 /// rate portion).
-pub const DIGEST_RANGE: Range<usize> = 4..8;
-pub const DIGEST_SIZE: usize = DIGEST_RANGE.end - DIGEST_RANGE.start;
+pub(crate) const DIGEST_RANGE: Range<usize> = 4..8;
+pub(crate) const DIGEST_SIZE: usize = DIGEST_RANGE.end - DIGEST_RANGE.start;
 
 /// The number of bytes needed to encoded a digest
 const DIGEST_BYTES: usize = 32;
@@ -83,7 +83,7 @@ fn apply_sbox(state: &mut [Felt; STATE_WIDTH]) {
 // ================================================================================================
 
 #[inline(always)]
-pub fn apply_inv_sbox(state: &mut [Felt; STATE_WIDTH]) {
+fn apply_inv_sbox(state: &mut [Felt; STATE_WIDTH]) {
     // compute base^10540996611094048183 using 72 multiplications per array element
     // 10540996611094048183 = b1001001001001001001001001001000110110110110110110110110110110111
 
@@ -132,7 +132,7 @@ pub fn apply_inv_sbox(state: &mut [Felt; STATE_WIDTH]) {
 }
 
 #[inline(always)]
-pub fn add_constants(state: &mut [Felt; STATE_WIDTH], ark: &[Felt; STATE_WIDTH]) {
+fn add_constants(state: &mut [Felt; STATE_WIDTH], ark: &[Felt; STATE_WIDTH]) {
     state.iter_mut().zip(ark).for_each(|(s, &k)| *s += k);
 }
 
@@ -144,7 +144,7 @@ pub fn add_constants(state: &mut [Felt; STATE_WIDTH], ark: &[Felt; STATE_WIDTH])
 ///
 /// The constants are broken up into two arrays ARK1 and ARK2; ARK1 contains the constants for the
 /// first half of RPO round, and ARK2 contains constants for the second half of RPO round.
-pub const ARK1: [[Felt; STATE_WIDTH]; NUM_ROUNDS] = [
+pub(crate) const ARK1: [[Felt; STATE_WIDTH]; NUM_ROUNDS] = [
     [
         Felt::new(5789762306288267392),
         Felt::new(6522564764413701783),
@@ -245,7 +245,7 @@ pub const ARK1: [[Felt; STATE_WIDTH]; NUM_ROUNDS] = [
     ],
 ];
 
-pub const ARK2: [[Felt; STATE_WIDTH]; NUM_ROUNDS] = [
+pub(crate) const ARK2: [[Felt; STATE_WIDTH]; NUM_ROUNDS] = [
     [
         Felt::new(6077062762357204287),
         Felt::new(15277620170502011191),
