@@ -20,6 +20,10 @@ doctest = false
 required-features = ["executable"]
 
 [[bench]]
+name = "dsa"
+harness = false
+
+[[bench]]
 name = "hash"
 harness = false
 
