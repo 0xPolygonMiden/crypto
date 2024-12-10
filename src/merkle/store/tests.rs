@@ -725,7 +725,7 @@ fn get_leaf_depth_works_with_depth_8() {
         assert_eq!(8, store.get_leaf_depth(root, 8, k).unwrap());
     }
 
-    // flip last bit of a and expect it to return the the same depth, but for an empty node
+    // flip last bit of a and expect it to return the same depth, but for an empty node
     assert_eq!(8, store.get_leaf_depth(root, 8, 0b01101000_u64).unwrap());
 
     // flip fourth bit of a and expect an empty node on depth 4
