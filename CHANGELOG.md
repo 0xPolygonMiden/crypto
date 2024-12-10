@@ -7,6 +7,7 @@
 ## 0.12.0 (2024-10-30)
 
 - [BREAKING] Updated Winterfell dependency to v0.10 (#338).
+- Added parallel implementation of `Smt::with_entries()` with significantly better performance when the `concurrent` feature is enabled (#341).
 
 ## 0.11.0 (2024-10-17)
 
