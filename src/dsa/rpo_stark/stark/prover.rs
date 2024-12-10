@@ -8,14 +8,17 @@ use winter_prover::{
     matrix::ColMatrix, DefaultConstraintEvaluator, DefaultTraceLde, ProofOptions, Prover,
     StarkDomain, Trace, TraceInfo, TracePolyTable, TraceTable,
 };
-use winter_utils::{Deserializable, Serializable};
 use winterfell::{
     AuxRandElements, CompositionPoly, CompositionPolyTrace, ConstraintCompositionCoefficients,
     DefaultConstraintCommitment, PartitionOptions,
 };
 
 use super::air::{PublicInputs, RescueAir, HASH_CYCLE_LEN};
-use crate::{hash::rpo::Rpo256, rand::RpoRandomCoin, Word, ZERO};
+use crate::{
+    hash::{rpo::Rpo256, STATE_WIDTH},
+    rand::RpoRandomCoin,
+    Word, ZERO,
+};
 
 // PROVER
 // ================================================================================================
@@ -25,20 +28,18 @@ use crate::{hash::rpo::Rpo256, rand::RpoRandomCoin, Word, ZERO};
 /// The signature is based on the the one-wayness of the RPO hash function but it is generic over
 /// the hash function used for instantiating the random oracle for the BCS transform.
 pub(crate) struct RpoSignatureProver<H: ElementHasher + Sync> {
+    message: Word,
     options: ProofOptions,
     _hasher: PhantomData<H>,
 }
 
 impl<H: ElementHasher + Sync> RpoSignatureProver<H> {
-    pub(crate) fn new(options: ProofOptions) -> Self {
-        Self { options, _hasher: PhantomData }
+    pub(crate) fn new(message: Word, options: ProofOptions) -> Self {
+        Self { message, options, _hasher: PhantomData }
     }
 
-    pub(crate) fn build_trace(&self, sk: Word, msg: Word) -> TraceTable<BaseElement> {
-        let trace_length = HASH_CYCLE_LEN;
-        let mut target = vec![];
-        msg.write_into(&mut target);
-        let mut trace = TraceTable::with_meta(12, trace_length, target);
+    pub(crate) fn build_trace(&self, sk: Word) -> TraceTable<BaseElement> {
+        let mut trace = TraceTable::new(STATE_WIDTH, HASH_CYCLE_LEN);
 
         trace.fill(
             |state| {
@@ -87,8 +88,10 @@ where
 
     fn get_pub_inputs(&self, trace: &Self::Trace) -> PublicInputs {
         let last_step = trace.length() - 1;
-        let source = trace.info().meta();
-        let msg = <Word>::read_from_bytes(source).expect("the message should be a Word");
+        // Note that the message is not part of the execution trace but is part of the public
+        // inputs. This is explained in the reference description of the DSA and intuitively
+        // it is done in order to make sure that the message is part of the Fiat-Shamir
+        // transcript and hence binds the proof/signature to the message
         PublicInputs {
             pub_key: [
                 trace.get(4, last_step),
@@ -96,7 +99,7 @@ where
                 trace.get(6, last_step),
                 trace.get(7, last_step),
             ],
-            msg,
+            msg: self.message,
         }
     }
 

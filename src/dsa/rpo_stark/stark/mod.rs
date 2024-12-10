@@ -35,10 +35,10 @@ where
 
     pub fn sign(&self, sk: [BaseElement; DIGEST_SIZE], msg: [BaseElement; DIGEST_SIZE]) -> Proof {
         // create a prover
-        let prover = RpoSignatureProver::<H>::new(self.options.clone());
+        let prover = RpoSignatureProver::<H>::new(msg, self.options.clone());
 
         // generate execution trace
-        let trace = prover.build_trace(sk, msg);
+        let trace = prover.build_trace(sk);
 
         // generate the initial seed for the PRNG used for zero-knowledge
         let mut seed = <ChaCha20Rng as SeedableRng>::Seed::default();
@@ -55,6 +55,9 @@ where
         msg: [BaseElement; DIGEST_SIZE],
         proof: Proof,
     ) -> Result<(), VerifierError> {
+        if *proof.options() != self.options {
+            return Err(VerifierError::UnacceptableProofOptions);
+        }
         let pub_inputs = PublicInputs { pub_key, msg };
         let acceptable_options = AcceptableOptions::OptionSet(vec![proof.options().clone()]);
         verify::<RescueAir, Rpo256, RpoRandomCoin, SaltedMerkleTree<Rpo256, ChaCha20Rng>>(

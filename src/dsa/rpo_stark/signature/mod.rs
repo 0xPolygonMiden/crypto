@@ -31,6 +31,7 @@ pub const PROOF_OPTIONS: ProofOptions =
 pub struct PublicKey(Word);
 
 impl PublicKey {
+    /// Returns the [Word] defining the public key.
     pub fn inner(&self) -> Word {
         self.0
     }
@@ -144,6 +145,7 @@ pub struct Signature {
 }
 
 impl Signature {
+    /// Returns the STARK proof constituting the signature.
     pub fn inner(&self) -> Proof {
         self.proof.clone()
     }

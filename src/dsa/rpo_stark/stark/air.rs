@@ -75,10 +75,12 @@ impl Air for RescueAir {
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
-        // Assert that the public key is the correct one
         let initial_step = 0;
         let last_step = self.trace_length() - 1;
         vec![
+            // Assert that the capacity as well as the second half of the rate portion of the state
+            // are initialized to `ZERO`.The first half of the rate is unconstrained as it will
+            // contain the secret key
             Assertion::single(0, initial_step, Self::BaseField::ZERO),
             Assertion::single(1, initial_step, Self::BaseField::ZERO),
             Assertion::single(2, initial_step, Self::BaseField::ZERO),
@@ -87,6 +89,7 @@ impl Air for RescueAir {
             Assertion::single(9, initial_step, Self::BaseField::ZERO),
             Assertion::single(10, initial_step, Self::BaseField::ZERO),
             Assertion::single(11, initial_step, Self::BaseField::ZERO),
+            // Assert that the public key is the correct one
             Assertion::single(4, last_step, self.pub_key[0]),
             Assertion::single(5, last_step, self.pub_key[1]),
             Assertion::single(6, last_step, self.pub_key[2]),
