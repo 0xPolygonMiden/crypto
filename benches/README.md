@@ -54,3 +54,76 @@ To run the benchmarks for Rescue Prime, Poseidon and SHA3, clone the following [
 ```
 cargo bench hash
 ```
+
+# Miden VM DSA
+
+We make use of the following digital signature algorithms (DSA) in the Miden VM:
+
+* **RPO-Falcon512** as specified [here](https://falcon-sign.info/falcon.pdf) with the one difference being the use of the RPO hash function for the hash-to-point algorithm (Algorithm 3 in the previous reference) instead of SHAKE256.
+* **RPO-STARK** as specified [here](https://eprint.iacr.org/2024/1553), where the parameters are the ones for the unique-decoding regime (UDR) with the two differences:
+  *  We rely on the conjecture on the security of the toy protocol in the [ethSTARK](https://eprint.iacr.org/2021/582) paper.
+  *  The number of FRI queries is $30$ and the grinding factor is $12$ bits. Thus using the previous point we can argue that the modified version achieves at least $102$ bits of average-case existential unforgeability security against $2^{113}$-query bound adversaries that can obtain up to $2^{64}$ signatures under the same public key.
+
+
+
+## Comparison and Instructions
+
+### Comparison
+
+
+#### Key Generation
+
+##### Public Key
+
+| Function            | Falcon512 | RPO-STARK |
+| ------------------- | --------- | --------- |
+| Apple M1 Pro        |           |           |
+| Apple M2 Max        |           |           |
+| Amazon Graviton 3   |           |
+| AMD Ryzen 9 5950X   |           |           |
+| AMD EPYC 9R14       |           |           |
+| Intel Core i5-8279U |  594 µs   |   9 µs    |
+| Intel Xeon 8375C    |           |           |
+
+##### Secret Key
+
+| Function            | Falcon512 | RPO-STARK |
+| ------------------- | --------- | --------- |
+| Apple M1 Pro        |           |           |
+| Apple M2 Max        |           |           |
+| Amazon Graviton 3   |           |
+| AMD Ryzen 9 5950X   |           |           |
+| AMD EPYC 9R14       |           |           |
+| Intel Core i5-8279U |  584 ms   |  865 ns   |
+| Intel Xeon 8375C    |           |           |
+
+#### Signature Generation
+
+| Function            | Falcon512 | RPO-STARK |
+| ------------------- | --------- | --------- |
+| Apple M1 Pro        |           |           |
+| Apple M2 Max        |           |           |
+| Amazon Graviton 3   |           |
+| AMD Ryzen 9 5950X   |           |           |
+| AMD EPYC 9R14       |           |           |
+| Intel Core i5-8279U |  1.8 ms   |  130 ms   |
+| Intel Xeon 8375C    |           |           |
+
+#### Signature Verification
+
+| Function            | Falcon512 | RPO-STARK |
+| ------------------- | --------- | --------- |
+| Apple M1 Pro        |           |           |
+| Apple M2 Max        |           |           |
+| Amazon Graviton 3   |           |
+| AMD Ryzen 9 5950X   |           |           |
+| AMD EPYC 9R14       |           |           |
+| Intel Core i5-8279U |  1.2 ms   |  7.9 ms   |
+| Intel Xeon 8375C    |           |           |
+
+### Instructions
+Before you can run the benchmarks, you'll need to make sure you have Rust [installed](https://www.rust-lang.org/tools/install). After that, to run the benchmarks, clone the current repository, and from the root directory of the repo run the following:
+
+ ```
+ cargo bench --bench dsa
+ ```
