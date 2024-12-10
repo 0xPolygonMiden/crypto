@@ -99,14 +99,6 @@ impl<const N: usize> Digest for Blake3Digest<N> {
         assert!(N <= 32, "digest currently supports only 32 bytes!");
         expand_bytes(&self.0)
     }
-
-    fn from_random_bytes(buffer: &[u8]) -> Self {
-        Self(
-            buffer
-                .try_into()
-                .expect("The size of the buffer with random bytes should be 32"),
-        )
-    }
 }
 
 // BLAKE3 256-BIT OUTPUT
