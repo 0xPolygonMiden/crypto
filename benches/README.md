@@ -63,7 +63,7 @@ We make use of the following digital signature algorithms (DSA) in the Miden VM:
 
 * **RPO-Falcon512** as specified [here](https://falcon-sign.info/falcon.pdf) with the one difference being the use of the RPO hash function for the hash-to-point algorithm (Algorithm 3 in the previous reference) instead of SHAKE256.
 * **RPO-STARK** as specified [here](https://eprint.iacr.org/2024/1553), where the parameters are the ones for the unique-decoding regime (UDR) with the two differences:
-  *  We rely on the conjecture on the security of the toy protocol in the [ethSTARK](https://eprint.iacr.org/2021/582) paper.
+  *  We rely on Conjecture 1 in the [ethSTARK](https://eprint.iacr.org/2021/582) paper.
   *  The number of FRI queries is $30$ and the grinding factor is $12$ bits. Thus using the previous point we can argue that the modified version achieves at least $102$ bits of average-case existential unforgeability security against $2^{113}$-query bound adversaries that can obtain up to $2^{64}$ signatures under the same public key.
 
 
@@ -73,11 +73,11 @@ We make use of the following digital signature algorithms (DSA) in the Miden VM:
 #### Comparison
 
 
-##### Key Generation (Public Key \| Secret Key)
+##### Key Generation
 
 | DSA                 |  RPO-Falcon512   |    RPO-STARK   |
 | ------------------- | ---------------- | -------------- |
-| Intel Core i5-8279U | 594 µs \| 584 ms | 9 µs \| 865 ns |
+| Intel Core i5-8279U |      585 ms      |     10 µs      |
 
 ##### Signature Generation
 
