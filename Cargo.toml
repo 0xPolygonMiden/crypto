@@ -82,11 +82,11 @@ winter-fri = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk'
 winter-maybe-async = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 winter-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', package = "winter-rand-utils" , branch = 'al-zk', optional = true }
+getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 assert_matches = { version = "1.5", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
-getrandom = { version = "0.2", features = ["js"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 proptest = "1.5"
 rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', package = "winter-rand-utils" , branch = 'al-zk' }
