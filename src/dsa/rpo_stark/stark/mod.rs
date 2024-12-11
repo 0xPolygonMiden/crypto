@@ -5,9 +5,8 @@ use rand::{distributions::Standard, prelude::Distribution, thread_rng, RngCore, 
 use rand_chacha::ChaCha20Rng;
 use winter_crypto::{ElementHasher, Hasher, SaltedMerkleTree};
 use winter_math::fields::f64::BaseElement;
-use winter_prover::{Proof, ProofOptions};
+use winter_prover::{Proof, ProofOptions, Prover};
 use winter_verifier::{verify, AcceptableOptions, VerifierError};
-use winterfell::Prover;
 
 use crate::{
     hash::{rpo::Rpo256, DIGEST_SIZE},
@@ -55,6 +54,7 @@ where
         msg: [BaseElement; DIGEST_SIZE],
         proof: Proof,
     ) -> Result<(), VerifierError> {
+        // we make sure that the parameters used in generating the proof match the expected ones
         if *proof.options() != self.options {
             return Err(VerifierError::UnacceptableProofOptions);
         }

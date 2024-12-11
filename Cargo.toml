@@ -51,8 +51,8 @@ clap = { version = "4.5", optional = true, features = ["derive"] }
 num = { version = "0.4", default-features = false, features = ["alloc", "libm"] }
 num-complex = { version = "0.4", default-features = false }
 rand = { version = "0.8", default-features = false }
+rand_chacha = { version = "0.3", default-features = false }
 rand_core = { version = "0.6", default-features = false }
-#rand-utils = { version = "0.11", package = "winter-rand-utils", optional = true }
 rayon = { version = "1.10", optional = true }
 serde = { version = "1.0", default-features = false, optional = true, features = ["derive"] }
 sha3 = { version = "0.10", default-features = false }
@@ -65,10 +65,7 @@ winter-math = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk
 winter-fri = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 winter-maybe-async = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 winter-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk', optional = true }
-#winter-rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk', optional = true }
 rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', package = "winter-rand-utils" , branch = 'al-zk', optional = true }
-winterfell = {git = 'https://github.com/Al-Kindi-0/winterfell/', branch = 'al-zk' }
-rand_chacha = { version = "0.3", default-features = false }
 
 [dev-dependencies]
 assert_matches = { version = "1.5", default-features = false }
@@ -76,8 +73,6 @@ criterion = { version = "0.5", features = ["html_reports"] }
 getrandom = { version = "0.2", features = ["js"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 proptest = "1.5"
-rand_chacha = { version = "0.3", default-features = false }
-#rand-utils = { version = "0.10", package = "winter-rand-utils" }
 rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', package = "winter-rand-utils" , branch = 'al-zk' }
 seq-macro = { version = "0.3" }
 

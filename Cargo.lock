@@ -556,7 +556,6 @@ dependencies = [
  "winter-rand-utils",
  "winter-utils",
  "winter-verifier",
- "winterfell",
 ]
 
 [[package]]
@@ -1308,16 +1307,6 @@ dependencies = [
  "winter-fri",
  "winter-math",
  "winter-utils",
-]
-
-[[package]]
-name = "winterfell"
-version = "0.11.0"
-source = "git+https://github.com/Al-Kindi-0/winterfell?branch=al-zk#5bafedbc2ba00cf85c6182725754547f6cddafc3"
-dependencies = [
- "winter-air",
- "winter-prover",
- "winter-verifier",
 ]
 
 [[package]]

@@ -1,8 +1,8 @@
 use rand::{distributions::Uniform, prelude::Distribution, Rng};
+use winter_air::{FieldExtension, ProofOptions};
 use winter_math::{fields::f64::BaseElement, FieldElement, StarkField};
 use winter_prover::Proof;
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
-use winterfell::{FieldExtension, ProofOptions};
 
 use crate::{
     dsa::rpo_stark::stark::RpoSignatureScheme,

@@ -1,16 +1,15 @@
 use core::marker::PhantomData;
 
 use rand_chacha::ChaCha20Rng;
-use winter_air::ZkParameters;
+use winter_air::{
+    AuxRandElements, ConstraintCompositionCoefficients, PartitionOptions, ZkParameters,
+};
 use winter_crypto::{ElementHasher, SaltedMerkleTree};
 use winter_math::{fields::f64::BaseElement, FieldElement};
 use winter_prover::{
-    matrix::ColMatrix, DefaultConstraintEvaluator, DefaultTraceLde, ProofOptions, Prover,
-    StarkDomain, Trace, TraceInfo, TracePolyTable, TraceTable,
-};
-use winterfell::{
-    AuxRandElements, CompositionPoly, CompositionPolyTrace, ConstraintCompositionCoefficients,
-    DefaultConstraintCommitment, PartitionOptions,
+    matrix::ColMatrix, CompositionPoly, CompositionPolyTrace, DefaultConstraintCommitment,
+    DefaultConstraintEvaluator, DefaultTraceLde, ProofOptions, Prover, StarkDomain, Trace,
+    TraceInfo, TracePolyTable, TraceTable,
 };
 
 use super::air::{PublicInputs, RescueAir, HASH_CYCLE_LEN};
