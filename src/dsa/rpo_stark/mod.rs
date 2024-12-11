@@ -9,8 +9,8 @@ pub use stark::{PublicInputs, RescueAir};
 
 #[cfg(test)]
 mod tests {
-    use crate::Word;
     use super::SecretKey;
+    use crate::Word;
 
     #[test]
     fn test_signature() {

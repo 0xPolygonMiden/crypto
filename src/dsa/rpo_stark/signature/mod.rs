@@ -9,7 +9,6 @@ use crate::{
     hash::{rpo::Rpo256, DIGEST_SIZE},
     Word,
 };
-
 #[cfg(feature = "std")]
 use crate::{StarkField, ZERO};
 
