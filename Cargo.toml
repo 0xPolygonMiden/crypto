@@ -80,7 +80,7 @@ winter-verifier = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'a
 winter-math = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 winter-fri = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 winter-maybe-async = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
-winter-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk', optional = true }
+winter-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', package = "winter-rand-utils" , branch = 'al-zk', optional = true }
 
 [dev-dependencies]
