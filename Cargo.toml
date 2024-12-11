@@ -28,12 +28,27 @@ name = "smt"
 harness = false
 
 [[bench]]
+name = "smt-subtree"
+harness = false
+required-features = ["internal"]
+
+[[bench]]
+name = "merkle"
+harness = false
+
+[[bench]]
+name = "smt-with-entries"
+harness = false
+
+[[bench]]
 name = "store"
 harness = false
 
 [features]
-default = ["std"]
+concurrent = ["dep:rayon"]
+default = ["std", "concurrent"]
 executable = ["dep:clap", "dep:rand-utils", "std"]
+internal = []
 serde = ["dep:serde", "serde?/alloc", "winter-math/serde"]
 std = [
     "blake3/std",
