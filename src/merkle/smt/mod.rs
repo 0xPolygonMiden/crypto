@@ -1,5 +1,8 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 
+use num::Integer;
+use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
@@ -135,7 +138,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             if node_hash == *EmptySubtreeRoots::entry(DEPTH, node_depth) {
                 // If a subtree is empty, when can remove the inner node, since it's equal to the
                 // default value
-                self.remove_inner_node(index)
+                self.remove_inner_node(index);
             } else {
                 self.insert_inner_node(index, InnerNode { left, right });
             }
@@ -242,7 +245,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     }
 
     /// Apply the prospective mutations computed with [`SparseMerkleTree::compute_mutations()`] to
-    /// this tree.
+    /// this tree. Return reverse mutation set.
     ///
     /// # Errors
     /// If `mutations` was computed on a tree with a different root than this one, returns
@@ -252,7 +255,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     fn apply_mutations(
         &mut self,
         mutations: MutationSet<DEPTH, Self::Key, Self::Value>,
-    ) -> Result<(), MerkleError>
+    ) -> Result<MutationSet<DEPTH, Self::Key, Self::Value>, MerkleError>
     where
         Self: Sized,
     {
@@ -270,20 +273,41 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             return Err(MerkleError::ConflictingRoots(vec![old_root, self.root()]));
         }
 
+        let mut reverse_mutations = BTreeMap::new();
         for (index, mutation) in node_mutations {
             match mutation {
-                Removal => self.remove_inner_node(index),
-                Addition(node) => self.insert_inner_node(index, node),
+                Removal => {
+                    if let Some(node) = self.remove_inner_node(index) {
+                        reverse_mutations.insert(index, Addition(node));
+                    }
+                },
+                Addition(node) => {
+                    if let Some(old_node) = self.insert_inner_node(index, node) {
+                        reverse_mutations.insert(index, Addition(old_node));
+                    } else {
+                        reverse_mutations.insert(index, Removal);
+                    }
+                },
             }
         }
 
+        let mut reverse_pairs = BTreeMap::new();
         for (key, value) in new_pairs {
-            self.insert_value(key, value);
+            if let Some(old_value) = self.insert_value(key.clone(), value) {
+                reverse_pairs.insert(key, old_value);
+            } else {
+                reverse_pairs.insert(key, Self::EMPTY_VALUE);
+            }
         }
 
         self.set_root(new_root);
 
-        Ok(())
+        Ok(MutationSet {
+            old_root: new_root,
+            node_mutations: reverse_mutations,
+            new_pairs: reverse_pairs,
+            new_root: old_root,
+        })
     }
 
     // REQUIRED METHODS
@@ -299,10 +323,10 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode;
 
     /// Inserts an inner node at the given index
-    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode);
+    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) -> Option<InnerNode>;
 
     /// Removes an inner node at the given index
-    fn remove_inner_node(&mut self, index: NodeIndex);
+    fn remove_inner_node(&mut self, index: NodeIndex) -> Option<InnerNode>;
 
     /// Inserts a leaf node, and returns the value at the key if already exists
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
@@ -459,3 +483,78 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
         self.new_root
     }
 }
+
+// SERIALIZATION
+// ================================================================================================
+
+impl Serializable for InnerNode {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        self.left.write_into(target);
+        self.right.write_into(target);
+    }
+}
+
+impl Deserializable for InnerNode {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let left = source.read()?;
+        let right = source.read()?;
+
+        Ok(Self { left, right })
+    }
+}
+
+impl Serializable for NodeMutation {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        match self {
+            NodeMutation::Removal => target.write_bool(false),
+            NodeMutation::Addition(inner_node) => {
+                target.write_bool(true);
+                inner_node.write_into(target);
+            },
+        }
+    }
+}
+
+impl Deserializable for NodeMutation {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        if source.read_bool()? {
+            let inner_node = source.read()?;
+            return Ok(NodeMutation::Addition(inner_node));
+        }
+
+        Ok(NodeMutation::Removal)
+    }
+}
+
+impl<const DEPTH: u8, K: Serializable, V: Serializable> Serializable for MutationSet<DEPTH, K, V> {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write(self.old_root);
+        target.write(self.new_root);
+        self.node_mutations.write_into(target);
+        self.new_pairs.write_into(target);
+    }
+}
+
+impl<const DEPTH: u8, K: Deserializable + Ord, V: Deserializable> Deserializable
+    for MutationSet<DEPTH, K, V>
+{
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let old_root = source.read()?;
+        let new_root = source.read()?;
+        let node_mutations = source.read()?;
+        let new_pairs = source.read()?;
+
+        Ok(Self {
+            old_root,
+            node_mutations,
+            new_pairs,
+            new_root,
+        })
+    }
+}
+
+// TESTS
+// ================================================================================================
+
+#[cfg(test)]
+mod tests;
