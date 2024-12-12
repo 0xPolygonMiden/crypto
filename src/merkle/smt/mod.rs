@@ -588,7 +588,7 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
 /// [`MutationSet`] stores this type in relation to a [`NodeIndex`] to keep track of what changes
 /// need to occur at which node indices.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum NodeMutation {
+pub enum NodeMutation {
     /// Corresponds to [`SparseMerkleTree::remove_inner_node()`].
     Removal,
     /// Corresponds to [`SparseMerkleTree::insert_inner_node()`].
@@ -621,10 +621,26 @@ pub struct MutationSet<const DEPTH: u8, K, V> {
 }
 
 impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
-    /// Queries the root that was calculated during `SparseMerkleTree::compute_mutations()`. See
+    /// Returns the SMT root that was calculated during `SparseMerkleTree::compute_mutations()`. See
     /// that method for more information.
     pub fn root(&self) -> RpoDigest {
         self.new_root
+    }
+
+    /// Returns the SMT root before the mutations were applied.
+    pub fn old_root(&self) -> RpoDigest {
+        self.old_root
+    }
+
+    /// Returns the set of inner nodes that need to be removed or added.
+    pub fn node_mutations(&self) -> &BTreeMap<NodeIndex, NodeMutation> {
+        &self.node_mutations
+    }
+
+    /// Returns the set of top-level key-value pairs that need to be added, updated or deleted
+    /// (i.e. set to `EMPTY_WORD`).
+    pub fn new_pairs(&self) -> &BTreeMap<K, V> {
+        &self.new_pairs
     }
 }
 
