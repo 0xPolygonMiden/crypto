@@ -266,7 +266,7 @@ impl Smt {
     pub fn apply_mutations(
         &mut self,
         mutations: MutationSet<SMT_DEPTH, RpoDigest, Word>,
-    ) -> Result<(), MerkleError> {
+    ) -> Result<MutationSet<SMT_DEPTH, RpoDigest, Word>, MerkleError> {
         <Self as SparseMerkleTree<SMT_DEPTH>>::apply_mutations(self, mutations)
     }
 
@@ -344,12 +344,12 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
             .unwrap_or_else(|| EmptySubtreeRoots::get_inner_node(SMT_DEPTH, index.depth()))
     }
 
-    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
-        self.inner_nodes.insert(index, inner_node);
+    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) -> Option<InnerNode> {
+        self.inner_nodes.insert(index, inner_node)
     }
 
-    fn remove_inner_node(&mut self, index: NodeIndex) {
-        let _ = self.inner_nodes.remove(&index);
+    fn remove_inner_node(&mut self, index: NodeIndex) -> Option<InnerNode> {
+        self.inner_nodes.remove(&index)
     }
 
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
