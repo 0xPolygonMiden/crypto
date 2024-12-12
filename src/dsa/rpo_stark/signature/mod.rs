@@ -84,7 +84,6 @@ impl SecretKey {
     }
 
     /// Generates a secret_key using the provided random number generator `Rng`.
-    #[cfg(feature = "std")]
     pub fn with_rng<R: Rng>(rng: &mut R) -> Self {
         let mut sk = [ZERO; 4];
         let uni_dist = Uniform::from(0..BaseElement::MODULUS);

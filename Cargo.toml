@@ -58,7 +58,6 @@ std = [
     "winter-crypto/std",
     "winter-math/std",
     "winter-utils/std",
-    "getrandom/js",
 ]
 
 [dependencies]
