@@ -7,10 +7,8 @@ use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError,
 use crate::{
     dsa::rpo_stark::stark::RpoSignatureScheme,
     hash::{rpo::Rpo256, DIGEST_SIZE},
-    Word,
+    StarkField, Word, ZERO,
 };
-#[cfg(feature = "std")]
-use crate::{StarkField, ZERO};
 
 // CONSTANTS
 // ================================================================================================
