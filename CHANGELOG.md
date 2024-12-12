@@ -1,3 +1,7 @@
+# TBD
+
+- Generate reverse mutations set on applying of mutations set, implemented serialization of `MutationsSet` (#355).
+
 ## 0.13.0 (2024-11-24)
 
 - Fixed a bug in the implementation of `draw_integers` for `RpoRandomCoin` (#343).
