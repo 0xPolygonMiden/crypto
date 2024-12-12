@@ -1,5 +1,4 @@
-use alloc::vec::Vec;
-use std::collections::BTreeMap;
+use alloc::{collections::BTreeMap, vec::Vec};
 
 use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
 use crate::{
