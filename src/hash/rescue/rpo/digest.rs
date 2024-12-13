@@ -1,6 +1,10 @@
 use alloc::string::String;
 use core::{cmp::Ordering, fmt::Display, ops::Deref, slice};
 
+use rand::{
+    distributions::{Standard, Uniform},
+    prelude::Distribution,
+};
 use thiserror::Error;
 
 use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
@@ -123,6 +127,18 @@ impl Randomizable for RpoDigest {
         } else {
             None
         }
+    }
+}
+
+impl Distribution<RpoDigest> for Standard {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> RpoDigest {
+        let mut res = [ZERO; DIGEST_SIZE];
+        let uni_dist = Uniform::from(0..Felt::MODULUS);
+        for r in res.iter_mut() {
+            let sampled_integer = uni_dist.sample(rng);
+            *r = Felt::new(sampled_integer);
+        }
+        RpoDigest::new(res)
     }
 }
 

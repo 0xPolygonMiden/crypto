@@ -1,12 +1,12 @@
 [package]
 name = "miden-crypto"
-version = "0.13.0"
+version = "0.14.0"
 description = "Miden Cryptographic primitives"
 authors = ["miden contributors"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
-documentation = "https://docs.rs/miden-crypto/0.13.0"
+documentation = "https://docs.rs/miden-crypto/0.14.0"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
@@ -18,6 +18,10 @@ path = "src/main.rs"
 bench = false
 doctest = false
 required-features = ["executable"]
+
+[[bench]]
+name = "dsa"
+harness = false
 
 [[bench]]
 name = "hash"
@@ -63,27 +67,30 @@ std = [
 [dependencies]
 blake3 = { version = "1.5", default-features = false }
 clap = { version = "4.5", optional = true, features = ["derive"] }
+getrandom = { version = "0.2", features = ["js"] }
 num = { version = "0.4", default-features = false, features = ["alloc", "libm"] }
 num-complex = { version = "0.4", default-features = false }
 rand = { version = "0.8", default-features = false }
+rand_chacha = { version = "0.3", default-features = false }
 rand_core = { version = "0.6", default-features = false }
-rand-utils = { version = "0.11", package = "winter-rand-utils", optional = true }
+rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', package = "winter-rand-utils" , branch = 'al-zk', optional = true }
 rayon = { version = "1.10", optional = true }
 serde = { version = "1.0", default-features = false, optional = true, features = ["derive"] }
 sha3 = { version = "0.10", default-features = false }
 thiserror = { version = "2.0", default-features = false }
-winter-crypto = { version = "0.11", default-features = false }
-winter-math = { version = "0.11", default-features = false }
-winter-utils = { version = "0.11", default-features = false }
+winter-air = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
+winter-crypto = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
+winter-prover = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
+winter-verifier = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
+winter-math = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
+winter-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 
 [dev-dependencies]
 assert_matches = { version = "1.5", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
-getrandom = { version = "0.2", features = ["js"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 proptest = "1.5"
-rand_chacha = { version = "0.3", default-features = false }
-rand-utils = { version = "0.11", package = "winter-rand-utils" }
+rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', package = "winter-rand-utils" , branch = 'al-zk' }
 seq-macro = { version = "0.3" }
 
 [build-dependencies]

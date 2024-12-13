@@ -5,6 +5,7 @@ use super::{CubeExtension, Felt, FieldElement, StarkField, ZERO};
 pub mod blake;
 
 mod rescue;
+pub(crate) use rescue::{ARK1, ARK2, DIGEST_SIZE, MDS, STATE_WIDTH};
 pub mod rpo {
     pub use super::rescue::{Rpo256, RpoDigest, RpoDigestError};
 }
