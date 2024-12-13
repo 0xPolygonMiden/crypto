@@ -7,10 +7,8 @@ use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError,
 use crate::{
     dsa::rpo_stark::stark::RpoSignatureScheme,
     hash::{rpo::Rpo256, DIGEST_SIZE},
-    Word,
+    StarkField, Word, ZERO,
 };
-#[cfg(feature = "std")]
-use crate::{StarkField, ZERO};
 
 // CONSTANTS
 // ================================================================================================
@@ -84,7 +82,6 @@ impl SecretKey {
     }
 
     /// Generates a secret_key using the provided random number generator `Rng`.
-    #[cfg(feature = "std")]
     pub fn with_rng<R: Rng>(rng: &mut R) -> Self {
         let mut sk = [ZERO; 4];
         let uni_dist = Uniform::from(0..BaseElement::MODULUS);

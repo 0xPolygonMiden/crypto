@@ -551,7 +551,6 @@ dependencies = [
  "winter-crypto",
  "winter-fri",
  "winter-math",
- "winter-maybe-async",
  "winter-prover",
  "winter-rand-utils",
  "winter-utils",

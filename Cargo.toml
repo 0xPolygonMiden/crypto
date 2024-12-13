@@ -82,8 +82,6 @@ winter-crypto = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-
 winter-prover = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 winter-verifier = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 winter-math = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
-winter-fri = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
-winter-maybe-async = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 winter-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', branch = 'al-zk' }
 rand-utils = {git = 'https://github.com/Al-Kindi-0/winterfell', package = "winter-rand-utils" , branch = 'al-zk', optional = true }
 getrandom = { version = "0.2", features = ["js"] }
