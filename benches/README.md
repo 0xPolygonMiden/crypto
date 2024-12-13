@@ -75,20 +75,23 @@ We make use of the following digital signature algorithms (DSA) in the Miden VM:
 
 ##### Key Generation
 
-| DSA                 |  RPO-Falcon512   |    RPO-STARK   |
-| ------------------- | ---------------- | -------------- |
-| Intel Core i5-8279U |      585 ms      |     10 µs      |
+| DSA                 | RPO-Falcon512 | RPO-STARK |
+| ------------------- | :-----------: | :-------: |
+| Apple M1 Pro        |   590 ms      |  6 µs     |
+| Intel Core i5-8279U |   585 ms      |  10 µs    |
 
 ##### Signature Generation
 
 | DSA                 | RPO-Falcon512 | RPO-STARK |
-| ------------------- | ------------- | --------- |
+| ------------------- | :-----------: | :-------: |
+| Apple M1 Pro        |     1.5 ms    |  78 ms    |
 | Intel Core i5-8279U |     1.8 ms    |  130 ms   |
 
 ##### Signature Verification
 
 | DSA                 | RPO-Falcon512 | RPO-STARK |
-| ------------------- | ------------- | --------- |
+| ------------------- | :-----------: | :-------: |
+| Apple M1 Pro        |     0.7 ms    |  4.5 ms   |
 | Intel Core i5-8279U |     1.2 ms    |  7.9 ms   |
 
 #### Instructions
