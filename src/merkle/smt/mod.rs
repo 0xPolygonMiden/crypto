@@ -40,7 +40,7 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 /// Every key maps to one leaf. If there are as many keys as there are leaves, then
 /// [Self::Leaf] should be the same type as [Self::Value], as is the case with
 /// [crate::merkle::SimpleSmt]. However, if there are more keys than leaves, then [`Self::Leaf`]
-/// must accomodate all keys that map to the same leaf.
+/// must accommodate all keys that map to the same leaf.
 ///
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
 pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
@@ -133,7 +133,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             node_hash = Rpo256::merge(&[left, right]);
 
             if node_hash == *EmptySubtreeRoots::entry(DEPTH, node_depth) {
-                // If a subtree is empty, when can remove the inner node, since it's equal to the
+                // If a subtree is empty, then can remove the inner node, since it's equal to the
                 // default value
                 self.remove_inner_node(index)
             } else {
