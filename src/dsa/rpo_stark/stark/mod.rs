@@ -1,11 +1,21 @@
 use core::marker::PhantomData;
 
 use prover::RpoSignatureProver;
-use rand::{distributions::Standard, prelude::Distribution, thread_rng, RngCore, SeedableRng};
+use rand::{distributions::Standard, prelude::Distribution};
 use rand_chacha::ChaCha20Rng;
+use rfc6979::{consts::U32, ByteArray, HmacDrbg};
+use sha3::{
+    digest::{
+        core_api::BlockSizeUser,
+        generic_array::{ArrayLength, GenericArray},
+        Digest as GenericDigest, FixedOutput, FixedOutputReset,
+    },
+    Sha3_256,
+};
 use winter_crypto::{ElementHasher, Hasher, SaltedMerkleTree};
 use winter_math::fields::f64::BaseElement;
 use winter_prover::{Proof, ProofOptions, Prover};
+use winter_utils::Serializable;
 use winter_verifier::{verify, AcceptableOptions, VerifierError};
 
 use crate::{
@@ -40,9 +50,7 @@ where
         let trace = prover.build_trace(sk);
 
         // generate the initial seed for the PRNG used for zero-knowledge
-        let mut seed = <ChaCha20Rng as SeedableRng>::Seed::default();
-        let mut rng = thread_rng();
-        rng.fill_bytes(&mut seed);
+        let seed: [u8; 32] = generate_seed::<Sha3_256, U32>(sk, msg).into();
 
         // generate the proof
         prover.prove(trace, Some(seed)).expect("failed to generate the signature")
@@ -66,4 +74,37 @@ where
             &acceptable_options,
         )
     }
+}
+
+/// Deterministically generates a seed for seeding the PRNG used for zero-knowledge.
+///
+/// This uses the Algorithm described in [RFC 6979](https://tools.ietf.org/html/rfc6979#section-3) § 3.2.
+/// The direct approach would be to just use the concatentation of the secret key and the message as
+/// the value of the seed but we opt instead to use it as the seed of an `HMAC_DRBG` PRNG similar
+/// to how it is used in `RFC 6979` to generate the value `k`.
+///
+/// Note that in `RFC 6979` the hash function used in the `HMAC_DRBG` PRNG is chosen to be the same
+/// hash function used in hashing the message. In Section 3.6., however, a variant allowing
+/// different hash functions is discussed and the overall security is claimed to be limited by
+/// the weaker of the two.
+#[inline]
+pub fn generate_seed<D, N>(
+    sk: [BaseElement; DIGEST_SIZE],
+    msg: [BaseElement; DIGEST_SIZE],
+) -> ByteArray<N>
+where
+    D: GenericDigest + BlockSizeUser + FixedOutput<OutputSize = N> + FixedOutputReset,
+    N: ArrayLength<u8>,
+{
+    let sk_bytes = sk.to_bytes();
+    let sk_byte_array: &GenericArray<u8, N> = ByteArray::from_slice(&sk_bytes);
+    let msg_bytes = msg.to_bytes();
+    let msg_byte_array: &GenericArray<u8, N> = ByteArray::from_slice(&msg_bytes);
+
+    let mut hmac_drbg = HmacDrbg::<D>::new(sk_byte_array, msg_byte_array, &[]);
+
+    let mut seed = ByteArray::<N>::default();
+    hmac_drbg.fill_bytes(&mut seed);
+
+    seed
 }
