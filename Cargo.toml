@@ -28,6 +28,10 @@ name = "smt"
 harness = false
 
 [[bench]]
+name = "smt-mutations"
+harness = false
+
+[[bench]]
 name = "smt-subtree"
 harness = false
 required-features = ["internal"]
@@ -79,7 +83,6 @@ winter-utils = { version = "0.11", default-features = false }
 [dev-dependencies]
 assert_matches = { version = "1.5", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
-getrandom = { version = "0.2", features = ["js"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 proptest = "1.5"
 rand_chacha = { version = "0.3", default-features = false }
@@ -88,4 +91,3 @@ seq-macro = { version = "0.3" }
 
 [build-dependencies]
 cc = { version = "1.2", optional = true, features = ["parallel"] }
-glob = "0.3"
