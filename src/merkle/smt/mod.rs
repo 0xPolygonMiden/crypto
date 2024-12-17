@@ -256,8 +256,9 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         }
     }
 
-    /// Apply the prospective mutations computed with [`SparseMerkleTree::compute_mutations()`] to
-    /// this tree. Return reverse mutation set.
+    /// Applies the prospective mutations computed with [`SparseMerkleTree::compute_mutations()`] to
+    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
+    /// updated tree will revert the changes.
     ///
     /// # Errors
     /// If `mutations` was computed on a tree with a different root than this one, returns
