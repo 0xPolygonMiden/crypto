@@ -1,4 +1,4 @@
-## 0.12.1 (Unreleased)
+## Unreleased
 
 - Generate reverse mutations set on applying of mutations set, implemented serialization of `MutationsSet` (#355).
 
