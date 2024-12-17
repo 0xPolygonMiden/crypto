@@ -28,6 +28,10 @@ name = "smt"
 harness = false
 
 [[bench]]
+name = "smt-mutations"
+harness = false
+
+[[bench]]
 name = "store"
 harness = false
 
