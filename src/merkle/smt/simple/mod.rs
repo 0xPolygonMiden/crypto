@@ -221,7 +221,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         <Self as SparseMerkleTree<DEPTH>>::compute_mutations(self, kv_pairs)
     }
 
-    /// Applies the prospective mutations computed with [`SparseMerkleTree::compute_mutations()`] to
+    /// Applies the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to
     /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
     /// updated tree will revert the changes.
     ///
