@@ -87,7 +87,7 @@ We use [semver](https://semver.org/) naming convention.
 2. Commit messages and code style follow conventions.
 3. Tests added for new functionality.
 4. Documentation/comments updated for all changes according to our documentation convention.
-5. Clippy and Rustfmt linting passed.
+5. Clippy and Rustfmt linting has passed.
 6. New branch rebased from `next`.
 
 &nbsp;
