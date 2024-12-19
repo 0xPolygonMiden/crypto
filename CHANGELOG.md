@@ -1,6 +1,7 @@
 ## Unreleased
 
 - Generate reverse mutations set on applying of mutations set, implemented serialization of `MutationsSet` (#355).
+- Added getters for `MutationSet` fields access (#356).
 
 ## 0.13.0 (2024-11-24)
 
