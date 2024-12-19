@@ -1,5 +1,6 @@
 use alloc::string::String;
 use core::{cmp::Ordering, fmt::Display, ops::Deref, slice};
+use std::hash::{Hash, Hasher};
 
 use thiserror::Error;
 
@@ -52,6 +53,12 @@ impl RpoDigest {
     /// Returns hexadecimal representation of this digest prefixed with `0x`.
     pub fn to_hex(&self) -> String {
         bytes_to_hex_string(self.as_bytes())
+    }
+}
+
+impl Hash for RpoDigest {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write(&self.as_bytes());
     }
 }
 

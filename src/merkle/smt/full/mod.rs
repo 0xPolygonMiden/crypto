@@ -1,8 +1,6 @@
-use alloc::{
-    collections::{BTreeMap, BTreeSet},
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{collections::BTreeSet, string::ToString, vec::Vec};
+
+use hashbrown::HashMap;
 
 use super::{
     EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
@@ -43,8 +41,8 @@ pub const SMT_DEPTH: u8 = 64;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Smt {
     root: RpoDigest,
-    leaves: BTreeMap<u64, SmtLeaf>,
-    inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+    inner_nodes: HashMap<NodeIndex, InnerNode>,
+    leaves: HashMap<u64, SmtLeaf>,
 }
 
 impl Smt {
@@ -64,8 +62,8 @@ impl Smt {
 
         Self {
             root,
-            leaves: BTreeMap::new(),
-            inner_nodes: BTreeMap::new(),
+            inner_nodes: Default::default(),
+            leaves: Default::default(),
         }
     }
 
@@ -149,8 +147,8 @@ impl Smt {
     /// With debug assertions on, this function panics if `root` does not match the root node in
     /// `inner_nodes`.
     pub fn from_raw_parts(
-        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
-        leaves: BTreeMap<u64, SmtLeaf>,
+        inner_nodes: HashMap<NodeIndex, InnerNode>,
+        leaves: HashMap<u64, SmtLeaf>,
         root: RpoDigest,
     ) -> Self {
         // Our particular implementation of `from_raw_parts()` never returns `Err`.
@@ -317,8 +315,8 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     const EMPTY_ROOT: RpoDigest = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
 
     fn from_raw_parts(
-        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
-        leaves: BTreeMap<u64, SmtLeaf>,
+        inner_nodes: HashMap<NodeIndex, InnerNode>,
+        leaves: HashMap<u64, SmtLeaf>,
         root: RpoDigest,
     ) -> Result<Self, MerkleError> {
         if cfg!(debug_assertions) {

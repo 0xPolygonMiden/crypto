@@ -1,7 +1,10 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 use core::mem;
+use std::hash::Hash;
 
+use hashbrown::HashMap;
 use num::Integer;
+use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
 use crate::{
@@ -48,7 +51,7 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
 pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a key
-    type Key: Clone + Ord;
+    type Key: Clone + Ord + Eq + Hash;
     /// The type for a value
     type Value: Clone + PartialEq;
     /// The type for a leaf
@@ -172,8 +175,8 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         use NodeMutation::*;
 
         let mut new_root = self.root();
-        let mut new_pairs: BTreeMap<Self::Key, Self::Value> = Default::default();
-        let mut node_mutations: BTreeMap<NodeIndex, NodeMutation> = Default::default();
+        let mut new_pairs: HashMap<Self::Key, Self::Value> = Default::default();
+        let mut node_mutations: HashMap<NodeIndex, NodeMutation> = Default::default();
 
         for (key, value) in kv_pairs {
             // If the old value and the new value are the same, there is nothing to update.
@@ -309,8 +312,8 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Construct this type from already computed leaves and nodes. The caller ensures passed
     /// arguments are correct and consistent with each other.
     fn from_raw_parts(
-        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
-        leaves: BTreeMap<u64, Self::Leaf>,
+        inner_nodes: HashMap<NodeIndex, InnerNode>,
+        leaves: HashMap<u64, Self::Leaf>,
         root: RpoDigest,
     ) -> Result<Self, MerkleError>
     where
@@ -441,7 +444,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     #[cfg(feature = "concurrent")]
     fn build_subtrees(
         mut entries: Vec<(Self::Key, Self::Value)>,
-    ) -> (BTreeMap<NodeIndex, InnerNode>, BTreeMap<u64, Self::Leaf>) {
+    ) -> (HashMap<NodeIndex, InnerNode>, HashMap<u64, Self::Leaf>) {
         entries.sort_by_key(|item| {
             let index = Self::key_to_leaf_index(&item.0);
             index.value()
@@ -456,10 +459,10 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     #[cfg(feature = "concurrent")]
     fn build_subtrees_from_sorted_entries(
         entries: Vec<(Self::Key, Self::Value)>,
-    ) -> (BTreeMap<NodeIndex, InnerNode>, BTreeMap<u64, Self::Leaf>) {
+    ) -> (HashMap<NodeIndex, InnerNode>, HashMap<u64, Self::Leaf>) {
         use rayon::prelude::*;
 
-        let mut accumulated_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
+        let mut accumulated_nodes: HashMap<NodeIndex, InnerNode> = Default::default();
 
         let PairComputations {
             leaves: mut leaf_subtrees,
@@ -576,7 +579,7 @@ pub(crate) enum NodeMutation {
 /// Represents a group of prospective mutations to a `SparseMerkleTree`, created by
 /// `SparseMerkleTree::compute_mutations()`, and that can be applied with
 /// `SparseMerkleTree::apply_mutations()`.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct MutationSet<const DEPTH: u8, K, V> {
     /// The root of the Merkle tree this MutationSet is for, recorded at the time
     /// [`SparseMerkleTree::compute_mutations()`] was called. Exists to guard against applying
@@ -587,12 +590,12 @@ pub struct MutationSet<const DEPTH: u8, K, V> {
     /// index overlayed, if any. Each [`NodeMutation::Addition`] corresponds to a
     /// [`SparseMerkleTree::insert_inner_node()`] call, and each [`NodeMutation::Removal`]
     /// corresponds to a [`SparseMerkleTree::remove_inner_node()`] call.
-    node_mutations: BTreeMap<NodeIndex, NodeMutation>,
+    node_mutations: HashMap<NodeIndex, NodeMutation>,
     /// The set of top-level key-value pairs we're prospectively adding to the tree, including
     /// adding empty values. The "effective" value for a key is the value in this BTreeMap, falling
     /// back to the existing value in the Merkle tree. Each entry corresponds to a
     /// [`SparseMerkleTree::insert_value()`] call.
-    new_pairs: BTreeMap<K, V>,
+    new_pairs: HashMap<K, V>,
     /// The calculated root for the Merkle tree, given these mutations. Publicly retrievable with
     /// [`MutationSet::root()`]. Corresponds to a [`SparseMerkleTree::set_root()`]. call.
     new_root: RpoDigest,
@@ -603,6 +606,114 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
     /// that method for more information.
     pub fn root(&self) -> RpoDigest {
         self.new_root
+    }
+}
+
+// SERIALIZATION
+// ================================================================================================
+
+impl Serializable for InnerNode {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write(self.left);
+        target.write(self.right);
+    }
+}
+
+impl Deserializable for InnerNode {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let left = source.read()?;
+        let right = source.read()?;
+
+        Ok(Self { left, right })
+    }
+}
+
+impl Serializable for NodeMutation {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        match self {
+            NodeMutation::Removal => target.write_bool(false),
+            NodeMutation::Addition(inner_node) => {
+                target.write_bool(true);
+                inner_node.write_into(target);
+            },
+        }
+    }
+}
+
+impl Deserializable for NodeMutation {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        if source.read_bool()? {
+            let inner_node = source.read()?;
+            return Ok(NodeMutation::Addition(inner_node));
+        }
+
+        Ok(NodeMutation::Removal)
+    }
+}
+
+impl<const DEPTH: u8, K: Serializable, V: Serializable> Serializable for MutationSet<DEPTH, K, V> {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write(self.old_root);
+        target.write(self.new_root);
+
+        let removals: Vec<_> = self
+            .node_mutations
+            .iter()
+            .filter(|(_, value)| matches!(value, NodeMutation::Removal))
+            .map(|(key, _)| key)
+            .collect();
+        let additions: Vec<_> = self
+            .node_mutations
+            .iter()
+            .filter_map(|(key, value)| match value {
+                NodeMutation::Addition(node) => Some((key, node)),
+                _ => None,
+            })
+            .collect();
+
+        target.write_u16(
+            removals.len().try_into().expect("Number of items to remove must fit in u16"),
+        );
+        target.write_many(removals);
+
+        target
+            .write_u16(additions.len().try_into().expect("Number of items to add must fit in u16"));
+        target.write_many(additions);
+
+        target.write_u16(self.new_pairs.len() as u16);
+        target.write_many(&self.new_pairs);
+    }
+}
+
+impl<const DEPTH: u8, K: Deserializable + Hash + Eq, V: Deserializable> Deserializable
+    for MutationSet<DEPTH, K, V>
+{
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let old_root = source.read()?;
+        let new_root = source.read()?;
+
+        let num_removals = source.read_u16()? as usize;
+        let removals: Vec<NodeIndex> = source.read_many(num_removals)?;
+
+        let num_additions = source.read_u16()? as usize;
+        let additions: Vec<(NodeIndex, InnerNode)> = source.read_many(num_additions)?;
+
+        let node_mutations = HashMap::from_iter(
+            removals.into_iter().map(|index| (index, NodeMutation::Removal)).chain(
+                additions.into_iter().map(|(index, node)| (index, NodeMutation::Addition(node))),
+            ),
+        );
+
+        let num_new_pairs = source.read_u16()? as usize;
+        let new_pairs = source.read_many(num_new_pairs)?;
+        let new_pairs = HashMap::from_iter(new_pairs);
+
+        Ok(Self {
+            old_root,
+            node_mutations,
+            new_pairs,
+            new_root,
+        })
     }
 }
 
@@ -627,10 +738,10 @@ pub struct SubtreeLeaf {
 }
 
 /// Helper struct to organize the return value of [`SparseMerkleTree::sorted_pairs_to_leaves()`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct PairComputations<K, L> {
     /// Literal leaves to be added to the sparse Merkle tree's internal mapping.
-    pub nodes: BTreeMap<K, L>,
+    pub nodes: HashMap<K, L>,
     /// "Conceptual" leaves that will be used for computations.
     pub leaves: Vec<Vec<SubtreeLeaf>>,
 }

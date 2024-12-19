@@ -63,6 +63,7 @@ std = [
 [dependencies]
 blake3 = { version = "1.5", default-features = false }
 clap = { version = "4.5", optional = true, features = ["derive"] }
+hashbrown = { version = "0.15", features = ["serde"] }
 num = { version = "0.4", default-features = false, features = ["alloc", "libm"] }
 num-complex = { version = "0.4", default-features = false }
 rand = { version = "0.8", default-features = false }

@@ -1,7 +1,6 @@
-use alloc::{
-    collections::{BTreeMap, BTreeSet},
-    vec::Vec,
-};
+use alloc::{collections::BTreeSet, vec::Vec};
+
+use hashbrown::HashMap;
 
 use super::{
     super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
@@ -22,8 +21,8 @@ mod tests;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SimpleSmt<const DEPTH: u8> {
     root: RpoDigest,
-    leaves: BTreeMap<u64, Word>,
-    inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+    inner_nodes: HashMap<NodeIndex, InnerNode>,
+    leaves: HashMap<u64, Word>,
 }
 
 impl<const DEPTH: u8> SimpleSmt<DEPTH> {
@@ -54,8 +53,8 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
         Ok(Self {
             root,
-            leaves: BTreeMap::new(),
-            inner_nodes: BTreeMap::new(),
+            inner_nodes: Default::default(),
+            leaves: Default::default(),
         })
     }
 
@@ -109,8 +108,8 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// With debug assertions on, this function panics if `root` does not match the root node in
     /// `inner_nodes`.
     pub fn from_raw_parts(
-        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
-        leaves: BTreeMap<u64, Word>,
+        inner_nodes: HashMap<NodeIndex, InnerNode>,
+        leaves: HashMap<u64, Word>,
         root: RpoDigest,
     ) -> Self {
         // Our particular implementation of `from_raw_parts()` never returns `Err`.
@@ -327,8 +326,8 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     const EMPTY_ROOT: RpoDigest = *EmptySubtreeRoots::entry(DEPTH, 0);
 
     fn from_raw_parts(
-        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
-        leaves: BTreeMap<u64, Word>,
+        inner_nodes: HashMap<NodeIndex, InnerNode>,
+        leaves: HashMap<u64, Word>,
         root: RpoDigest,
     ) -> Result<Self, MerkleError> {
         if cfg!(debug_assertions) {
