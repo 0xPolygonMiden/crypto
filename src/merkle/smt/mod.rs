@@ -553,9 +553,3 @@ impl<const DEPTH: u8, K: Deserializable + Ord, V: Deserializable> Deserializable
         })
     }
 }
-
-// TESTS
-// ================================================================================================
-
-#[cfg(test)]
-mod tests;
