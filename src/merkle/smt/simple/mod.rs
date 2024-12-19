@@ -241,8 +241,9 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         <Self as SparseMerkleTree<DEPTH>>::compute_mutations(self, kv_pairs)
     }
 
-    /// Apply the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to this
-    /// tree.
+    /// Applies the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to
+    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
+    /// updated tree will revert the changes.
     ///
     /// # Errors
     /// If `mutations` was computed on a tree with a different root than this one, returns
@@ -252,7 +253,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     pub fn apply_mutations(
         &mut self,
         mutations: MutationSet<DEPTH, LeafIndex<DEPTH>, Word>,
-    ) -> Result<(), MerkleError> {
+    ) -> Result<MutationSet<DEPTH, LeafIndex<DEPTH>, Word>, MerkleError> {
         <Self as SparseMerkleTree<DEPTH>>::apply_mutations(self, mutations)
     }
 
@@ -354,12 +355,12 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
             .unwrap_or_else(|| EmptySubtreeRoots::get_inner_node(DEPTH, index.depth()))
     }
 
-    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
-        self.inner_nodes.insert(index, inner_node);
+    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) -> Option<InnerNode> {
+        self.inner_nodes.insert(index, inner_node)
     }
 
-    fn remove_inner_node(&mut self, index: NodeIndex) {
-        let _ = self.inner_nodes.remove(&index);
+    fn remove_inner_node(&mut self, index: NodeIndex) -> Option<InnerNode> {
+        self.inner_nodes.remove(&index)
     }
 
     fn insert_value(&mut self, key: LeafIndex<DEPTH>, value: Word) -> Option<Word> {
