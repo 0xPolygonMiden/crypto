@@ -499,21 +499,21 @@ fn test_smt_get_value() {
 /// Tests that `entries()` works as expected
 #[test]
 fn test_smt_entries() {
-    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
-    let key_2: RpoDigest = RpoDigest::from([2_u32, 2_u32, 2_u32, 2_u32]);
+    let key_1 = RpoDigest::from([ONE, ONE, ONE, ONE]);
+    let key_2 = RpoDigest::from([2_u32, 2_u32, 2_u32, 2_u32]);
 
     let value_1 = [ONE; WORD_SIZE];
     let value_2 = [2_u32.into(); WORD_SIZE];
+    let entries = [(key_1, value_1), (key_2, value_2)];
 
-    let smt = Smt::with_entries([(key_1, value_1), (key_2, value_2)]).unwrap();
+    let smt = Smt::with_entries(entries).unwrap();
 
-    let mut entries = smt.entries();
+    let mut expected = Vec::from_iter(entries);
+    expected.sort_by_key(|(k, _)| *k);
+    let mut actual: Vec<_> = smt.entries().cloned().collect();
+    actual.sort_by_key(|(k, _)| *k);
 
-    // Note: for simplicity, we assume the order `(k1,v1), (k2,v2)`. If a new implementation
-    // switches the order, it is OK to modify the order here as well.
-    assert_eq!(&(key_1, value_1), entries.next().unwrap());
-    assert_eq!(&(key_2, value_2), entries.next().unwrap());
-    assert!(entries.next().is_none());
+    assert_eq!(actual, expected);
 }
 
 /// Tests that `EMPTY_ROOT` constant generated in the `Smt` equals to the root of the empty tree of

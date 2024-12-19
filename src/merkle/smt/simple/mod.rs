@@ -1,10 +1,8 @@
 use alloc::{collections::BTreeSet, vec::Vec};
 
-use hashbrown::HashMap;
-
 use super::{
-    super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
-    MerklePath, MutationSet, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
+    super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex,
+    MerkleError, MerklePath, MutationSet, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
     SMT_MAX_DEPTH, SMT_MIN_DEPTH,
 };
 
@@ -14,6 +12,8 @@ mod tests;
 // SPARSE MERKLE TREE
 // ================================================================================================
 
+type Leaves = super::Leaves<Word>;
+
 /// A sparse Merkle tree with 64-bit keys and 4-element leaf values, without compaction.
 ///
 /// The root of the tree is recomputed on each new leaf update.
@@ -21,8 +21,8 @@ mod tests;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SimpleSmt<const DEPTH: u8> {
     root: RpoDigest,
-    inner_nodes: HashMap<NodeIndex, InnerNode>,
-    leaves: HashMap<u64, Word>,
+    inner_nodes: InnerNodes,
+    leaves: Leaves,
 }
 
 impl<const DEPTH: u8> SimpleSmt<DEPTH> {
@@ -107,11 +107,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// # Panics
     /// With debug assertions on, this function panics if `root` does not match the root node in
     /// `inner_nodes`.
-    pub fn from_raw_parts(
-        inner_nodes: HashMap<NodeIndex, InnerNode>,
-        leaves: HashMap<u64, Word>,
-        root: RpoDigest,
-    ) -> Self {
+    pub fn from_raw_parts(inner_nodes: InnerNodes, leaves: Leaves, root: RpoDigest) -> Self {
         // Our particular implementation of `from_raw_parts()` never returns `Err`.
         <Self as SparseMerkleTree<DEPTH>>::from_raw_parts(inner_nodes, leaves, root).unwrap()
     }
@@ -326,8 +322,8 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     const EMPTY_ROOT: RpoDigest = *EmptySubtreeRoots::entry(DEPTH, 0);
 
     fn from_raw_parts(
-        inner_nodes: HashMap<NodeIndex, InnerNode>,
-        leaves: HashMap<u64, Word>,
+        inner_nodes: InnerNodes,
+        leaves: Leaves,
         root: RpoDigest,
     ) -> Result<Self, MerkleError> {
         if cfg!(debug_assertions) {
