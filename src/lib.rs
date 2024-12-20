@@ -26,14 +26,6 @@ pub use winter_math::{
 /// A group of four field elements in the Miden base field.
 pub type Word = [Felt; WORD_SIZE];
 
-/// A map whose keys are not guarantied to be ordered.
-#[cfg(feature = "hashmaps")]
-type UnorderedMap<K, V> = hashbrown::HashMap<K, V>;
-
-/// A map whose keys are not guarantied to be ordered.
-#[cfg(not(feature = "hashmaps"))]
-type UnorderedMap<K, V> = alloc::collections::BTreeMap<K, V>;
-
 // CONSTANTS
 // ================================================================================================
 

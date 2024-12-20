@@ -2,8 +2,8 @@ use alloc::{collections::BTreeMap, vec::Vec};
 use core::mem;
 use std::hash::Hash;
 
-use constrains::KeyConstrains;
 use num::Integer;
+use types::{KeyConstrains, UnorderedMap};
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
@@ -30,23 +30,29 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 // SPARSE MERKLE TREE
 // ================================================================================================
 
-type InnerNodes = crate::UnorderedMap<NodeIndex, InnerNode>;
-type Leaves<T> = crate::UnorderedMap<u64, T>;
-type NodeMutations = crate::UnorderedMap<NodeIndex, NodeMutation>;
-
-#[cfg(feature = "hashmaps")]
-mod constrains {
+#[cfg(feature = "smt_hashmaps")]
+mod types {
     use core::hash::Hash;
+
+    /// A map whose keys are not guarantied to be ordered.
+    pub type UnorderedMap<K, V> = hashbrown::HashMap<K, V>;
 
     pub trait KeyConstrains: Hash + Eq {}
     impl<T: Hash + Eq> KeyConstrains for T {}
 }
 
-#[cfg(not(feature = "hashmaps"))]
-mod constrains {
+#[cfg(not(feature = "smt_hashmaps"))]
+mod types {
+    /// A map whose keys are not guarantied to be ordered.
+    pub type UnorderedMap<K, V> = alloc::collections::BTreeMap<K, V>;
+
     pub trait KeyConstrains: Ord {}
     impl<T: Ord> KeyConstrains for T {}
 }
+
+type InnerNodes = UnorderedMap<NodeIndex, InnerNode>;
+type Leaves<T> = UnorderedMap<u64, T>;
+type NodeMutations = UnorderedMap<NodeIndex, NodeMutation>;
 
 /// An abstract description of a sparse Merkle tree.
 ///
@@ -193,7 +199,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         use NodeMutation::*;
 
         let mut new_root = self.root();
-        let mut new_pairs: crate::UnorderedMap<Self::Key, Self::Value> = Default::default();
+        let mut new_pairs: UnorderedMap<Self::Key, Self::Value> = Default::default();
         let mut node_mutations: NodeMutations = Default::default();
 
         for (key, value) in kv_pairs {
@@ -613,7 +619,7 @@ pub struct MutationSet<const DEPTH: u8, K, V> {
     /// adding empty values. The "effective" value for a key is the value in this BTreeMap, falling
     /// back to the existing value in the Merkle tree. Each entry corresponds to a
     /// [`SparseMerkleTree::insert_value()`] call.
-    new_pairs: crate::UnorderedMap<K, V>,
+    new_pairs: UnorderedMap<K, V>,
     /// The calculated root for the Merkle tree, given these mutations. Publicly retrievable with
     /// [`MutationSet::root()`]. Corresponds to a [`SparseMerkleTree::set_root()`]. call.
     new_root: RpoDigest,
@@ -724,7 +730,7 @@ impl<const DEPTH: u8, K: Deserializable + KeyConstrains, V: Deserializable> Dese
 
         let num_new_pairs = source.read_u16()? as usize;
         let new_pairs = source.read_many(num_new_pairs)?;
-        let new_pairs = crate::UnorderedMap::from_iter(new_pairs);
+        let new_pairs = UnorderedMap::from_iter(new_pairs);
 
         Ok(Self {
             old_root,
@@ -759,7 +765,7 @@ pub struct SubtreeLeaf {
 #[derive(Debug, Clone)]
 pub(crate) struct PairComputations<K, L> {
     /// Literal leaves to be added to the sparse Merkle tree's internal mapping.
-    pub nodes: crate::UnorderedMap<K, L>,
+    pub nodes: UnorderedMap<K, L>,
     /// "Conceptual" leaves that will be used for computations.
     pub leaves: Vec<Vec<SubtreeLeaf>>,
 }
@@ -787,7 +793,7 @@ impl<'s> SubtreeLeavesIter<'s> {
         Self { leaves: leaves.drain(..).peekable() }
     }
 }
-impl core::iter::Iterator for SubtreeLeavesIter<'_> {
+impl Iterator for SubtreeLeavesIter<'_> {
     type Item = Vec<SubtreeLeaf>;
 
     /// Each `next()` collects an entire subtree.
