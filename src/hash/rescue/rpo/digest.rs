@@ -1,6 +1,11 @@
 use alloc::string::String;
-use core::{cmp::Ordering, fmt::Display, ops::Deref, slice};
-use std::hash::{Hash, Hasher};
+use core::{
+    cmp::Ordering,
+    fmt::Display,
+    hash::{Hash, Hasher},
+    ops::Deref,
+    slice,
+};
 
 use thiserror::Error;
 

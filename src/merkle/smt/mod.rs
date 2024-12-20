@@ -1,6 +1,5 @@
 use alloc::{collections::BTreeMap, vec::Vec};
-use core::mem;
-use std::hash::Hash;
+use core::{hash::Hash, mem};
 
 use num::Integer;
 use types::{KeyConstrains, UnorderedMap};
