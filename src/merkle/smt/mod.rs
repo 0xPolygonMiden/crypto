@@ -244,6 +244,58 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     }
 
     /// Applies the prospective mutations computed with [`SparseMerkleTree::compute_mutations()`] to
+    /// this tree.
+    ///
+    /// # Errors
+    /// If `mutations` was computed on a tree with a different root than this one, returns
+    /// [`MerkleError::ConflictingRoots`] with a two-item [`Vec`]. The first item is the root hash
+    /// the `mutations` were computed against, and the second item is the actual current root of
+    /// this tree.
+    fn apply_mutations(
+        &mut self,
+        mutations: MutationSet<DEPTH, Self::Key, Self::Value>,
+    ) -> Result<(), MerkleError>
+    where
+        Self: Sized,
+    {
+        use NodeMutation::*;
+        let MutationSet {
+            old_root,
+            node_mutations,
+            new_pairs,
+            new_root,
+        } = mutations;
+
+        // Guard against accidentally trying to apply mutations that were computed against a
+        // different tree, including a stale version of this tree.
+        if old_root != self.root() {
+            return Err(MerkleError::ConflictingRoots {
+                expected_root: self.root(),
+                actual_root: old_root,
+            });
+        }
+
+        for (index, mutation) in node_mutations {
+            match mutation {
+                Removal => {
+                    self.remove_inner_node(index);
+                },
+                Addition(node) => {
+                    self.insert_inner_node(index, node);
+                },
+            }
+        }
+
+        for (key, value) in new_pairs {
+            self.insert_value(key, value);
+        }
+
+        self.set_root(new_root);
+
+        Ok(())
+    }
+
+    /// Applies the prospective mutations computed with [`SparseMerkleTree::compute_mutations()`] to
     /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
     /// updated tree will revert the changes.
     ///
@@ -252,7 +304,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// [`MerkleError::ConflictingRoots`] with a two-item [`Vec`]. The first item is the root hash
     /// the `mutations` were computed against, and the second item is the actual current root of
     /// this tree.
-    fn apply_mutations(
+    fn apply_mutations_with_reversion(
         &mut self,
         mutations: MutationSet<DEPTH, Self::Key, Self::Value>,
     ) -> Result<MutationSet<DEPTH, Self::Key, Self::Value>, MerkleError>

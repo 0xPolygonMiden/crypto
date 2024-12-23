@@ -414,7 +414,7 @@ fn test_prospective_insertion() {
 
     let mutations = smt.compute_mutations(vec![(key_1, value_1)]);
     assert_eq!(mutations.root(), root_1, "prospective root 1 did not match actual root 1");
-    let revert = smt.apply_mutations(mutations).unwrap();
+    let revert = smt.apply_mutations_with_reversion(mutations).unwrap();
     assert_eq!(smt.root(), root_1, "mutations before and after apply did not match");
     assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
     assert_eq!(revert.root(), root_empty, "reverse mutations new root did not match");
@@ -435,7 +435,7 @@ fn test_prospective_insertion() {
         smt.compute_mutations(vec![(key_3, EMPTY_WORD), (key_2, value_2), (key_3, value_3)]);
     assert_eq!(mutations.root(), root_3, "mutations before and after apply did not match");
     let old_root = smt.root();
-    let revert = smt.apply_mutations(mutations).unwrap();
+    let revert = smt.apply_mutations_with_reversion(mutations).unwrap();
     assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
     assert_eq!(revert.root(), old_root, "reverse mutations new root did not match");
     assert_eq!(
@@ -448,7 +448,7 @@ fn test_prospective_insertion() {
     let mutations = smt.compute_mutations(vec![(key_3, EMPTY_WORD), (key_3, value_3)]);
     assert_eq!(mutations.root(), root_3);
     let old_root = smt.root();
-    let revert = smt.apply_mutations(mutations).unwrap();
+    let revert = smt.apply_mutations_with_reversion(mutations).unwrap();
     assert_eq!(smt.root(), root_3);
     assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
     assert_eq!(revert.root(), old_root, "reverse mutations new root did not match");
@@ -468,7 +468,7 @@ fn test_prospective_insertion() {
         "prospective root for batch removal did not match actual root",
     );
     let old_root = smt.root();
-    let revert = smt.apply_mutations(mutations).unwrap();
+    let revert = smt.apply_mutations_with_reversion(mutations).unwrap();
     assert_eq!(smt.root(), root_empty, "mutations before and after apply did not match");
     assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
     assert_eq!(revert.root(), old_root, "reverse mutations new root did not match");
@@ -507,7 +507,7 @@ fn test_mutations_revert() {
 
     let original = smt.clone();
 
-    let revert = smt.apply_mutations(mutations).unwrap();
+    let revert = smt.apply_mutations_with_reversion(mutations).unwrap();
     assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
     assert_eq!(revert.root(), original.root(), "reverse mutations new root did not match");
 
@@ -542,7 +542,7 @@ fn test_mutation_set_serialization() {
 
     assert_eq!(deserialized, mutations, "deserialized mutations did not match original");
 
-    let revert = smt.apply_mutations(mutations).unwrap();
+    let revert = smt.apply_mutations_with_reversion(mutations).unwrap();
 
     let serialized = revert.to_bytes();
     let deserialized =

@@ -221,9 +221,8 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         <Self as SparseMerkleTree<DEPTH>>::compute_mutations(self, kv_pairs)
     }
 
-    /// Applies the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to
-    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
-    /// updated tree will revert the changes.
+    /// Applies the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to this
+    /// tree.
     ///
     /// # Errors
     /// If `mutations` was computed on a tree with a different root than this one, returns
@@ -233,8 +232,24 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     pub fn apply_mutations(
         &mut self,
         mutations: MutationSet<DEPTH, LeafIndex<DEPTH>, Word>,
-    ) -> Result<MutationSet<DEPTH, LeafIndex<DEPTH>, Word>, MerkleError> {
+    ) -> Result<(), MerkleError> {
         <Self as SparseMerkleTree<DEPTH>>::apply_mutations(self, mutations)
+    }
+
+    /// Applies the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to
+    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
+    /// updated tree will revert the changes.
+    ///
+    /// # Errors
+    /// If `mutations` was computed on a tree with a different root than this one, returns
+    /// [`MerkleError::ConflictingRoots`] with a two-item [`alloc::vec::Vec`]. The first item is the
+    /// root hash the `mutations` were computed against, and the second item is the actual
+    /// current root of this tree.
+    pub fn apply_mutations_with_reversion(
+        &mut self,
+        mutations: MutationSet<DEPTH, LeafIndex<DEPTH>, Word>,
+    ) -> Result<MutationSet<DEPTH, LeafIndex<DEPTH>, Word>, MerkleError> {
+        <Self as SparseMerkleTree<DEPTH>>::apply_mutations_with_reversion(self, mutations)
     }
 
     /// Inserts a subtree at the specified index. The depth at which the subtree is inserted is

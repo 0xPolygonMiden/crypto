@@ -200,9 +200,7 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
     }
 
-    /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to
-    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
-    /// updated tree will revert the changes.
+    /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to this tree.
     ///
     /// # Errors
     /// If `mutations` was computed on a tree with a different root than this one, returns
@@ -212,8 +210,24 @@ impl Smt {
     pub fn apply_mutations(
         &mut self,
         mutations: MutationSet<SMT_DEPTH, RpoDigest, Word>,
-    ) -> Result<MutationSet<SMT_DEPTH, RpoDigest, Word>, MerkleError> {
+    ) -> Result<(), MerkleError> {
         <Self as SparseMerkleTree<SMT_DEPTH>>::apply_mutations(self, mutations)
+    }
+
+    /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to
+    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
+    /// updated tree will revert the changes.
+    ///
+    /// # Errors
+    /// If `mutations` was computed on a tree with a different root than this one, returns
+    /// [`MerkleError::ConflictingRoots`] with a two-item [`Vec`]. The first item is the root hash
+    /// the `mutations` were computed against, and the second item is the actual current root of
+    /// this tree.
+    pub fn apply_mutations_with_reversion(
+        &mut self,
+        mutations: MutationSet<SMT_DEPTH, RpoDigest, Word>,
+    ) -> Result<MutationSet<SMT_DEPTH, RpoDigest, Word>, MerkleError> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::apply_mutations_with_reversion(self, mutations)
     }
 
     // HELPERS
