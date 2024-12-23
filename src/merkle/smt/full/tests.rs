@@ -425,7 +425,7 @@ fn test_prospective_insertion() {
     );
     assert_eq!(
         revert.node_mutations,
-        smt.inner_nodes.iter().map(|(key, _)| (*key, NodeMutation::Removal)).collect(),
+        smt.inner_nodes.keys().map(|key| (*key, NodeMutation::Removal)).collect(),
         "reverse mutations inner nodes did not match"
     );
 

@@ -1,6 +1,5 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 
-use num::Integer;
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
@@ -374,7 +373,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct InnerNode {
+pub struct InnerNode {
     pub left: RpoDigest,
     pub right: RpoDigest,
 }
