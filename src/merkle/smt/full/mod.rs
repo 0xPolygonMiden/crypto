@@ -114,6 +114,11 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::root(self)
     }
 
+    /// Returns the number of non-empty leaves in this tree.
+    pub fn num_leaves(&self) -> usize {
+        self.leaves.len()
+    }
+
     /// Returns the leaf to which `key` maps
     pub fn get_leaf(&self, key: &RpoDigest) -> SmtLeaf {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
