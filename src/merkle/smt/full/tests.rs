@@ -511,7 +511,7 @@ fn test_mutations_revert() {
     assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
     assert_eq!(revert.root(), original.root(), "reverse mutations new root did not match");
 
-    let _ = smt.apply_mutations(revert).unwrap();
+    smt.apply_mutations(revert).unwrap();
 
     assert_eq!(smt, original, "SMT with applied revert mutations did not match original SMT");
 }

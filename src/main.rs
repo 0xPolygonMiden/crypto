@@ -216,7 +216,7 @@ pub fn proof_generation(tree: &mut Smt) -> Result<(), MerkleError> {
 
     println!(
         "An average proving time measured by {NUM_PROOFS} value proofs in an SMT with {size} \
-            key-value pairs in {:.3} microseconds",
+            leaves in {:.3} microseconds",
         // calculate the average
         insertion_times.iter().sum::<u128>() as f64 / (NUM_PROOFS as f64),
     );
