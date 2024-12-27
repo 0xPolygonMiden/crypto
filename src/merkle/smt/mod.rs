@@ -322,7 +322,10 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         // Guard against accidentally trying to apply mutations that were computed against a
         // different tree, including a stale version of this tree.
         if old_root != self.root() {
-            return Err(MerkleError::ConflictingRoots(vec![old_root, self.root()]));
+            return Err(MerkleError::ConflictingRoots {
+                expected_root: self.root(),
+                actual_root: old_root,
+            });
         }
 
         let mut reverse_mutations = BTreeMap::new();
