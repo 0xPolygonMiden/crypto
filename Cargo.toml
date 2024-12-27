@@ -1,12 +1,12 @@
 [package]
 name = "miden-crypto"
-version = "0.13.0"
+version = "0.13.1"
 description = "Miden Cryptographic primitives"
 authors = ["miden contributors"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
-documentation = "https://docs.rs/miden-crypto/0.13.0"
+documentation = "https://docs.rs/miden-crypto/0.13.1"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
@@ -83,7 +83,7 @@ assert_matches = { version = "1.5", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 getrandom = { version = "0.2", features = ["js"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
-proptest = "1.5"
+proptest = "1.6"
 rand_chacha = { version = "0.3", default-features = false }
 rand-utils = { version = "0.11", package = "winter-rand-utils" }
 seq-macro = { version = "0.3" }

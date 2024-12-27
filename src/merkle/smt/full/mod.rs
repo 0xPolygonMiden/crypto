@@ -164,6 +164,11 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::root(self)
     }
 
+    /// Returns the number of non-empty leaves in this tree.
+    pub fn num_leaves(&self) -> usize {
+        self.leaves.len()
+    }
+
     /// Returns the leaf to which `key` maps
     pub fn get_leaf(&self, key: &RpoDigest) -> SmtLeaf {
         <Self as SparseMerkleTree<SMT_DEPTH>>::get_leaf(self, key)
@@ -250,7 +255,7 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
     }
 
-    /// Apply the prospective mutations computed with [`Smt::compute_mutations()`] to this tree.
+    /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to this tree.
     ///
     /// # Errors
     /// If `mutations` was computed on a tree with a different root than this one, returns
@@ -262,6 +267,23 @@ impl Smt {
         mutations: MutationSet<SMT_DEPTH, RpoDigest, Word>,
     ) -> Result<(), MerkleError> {
         <Self as SparseMerkleTree<SMT_DEPTH>>::apply_mutations(self, mutations)
+    }
+
+    /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to this tree
+    /// and returns the reverse mutation set.
+    ///
+    /// Applying the reverse mutation sets to the updated tree will revert the changes.
+    ///
+    /// # Errors
+    /// If `mutations` was computed on a tree with a different root than this one, returns
+    /// [`MerkleError::ConflictingRoots`] with a two-item [`Vec`]. The first item is the root hash
+    /// the `mutations` were computed against, and the second item is the actual current root of
+    /// this tree.
+    pub fn apply_mutations_with_reversion(
+        &mut self,
+        mutations: MutationSet<SMT_DEPTH, RpoDigest, Word>,
+    ) -> Result<MutationSet<SMT_DEPTH, RpoDigest, Word>, MerkleError> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::apply_mutations_with_reversion(self, mutations)
     }
 
     // HELPERS
@@ -338,12 +360,12 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
             .unwrap_or_else(|| EmptySubtreeRoots::get_inner_node(SMT_DEPTH, index.depth()))
     }
 
-    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) {
-        self.inner_nodes.insert(index, inner_node);
+    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) -> Option<InnerNode> {
+        self.inner_nodes.insert(index, inner_node)
     }
 
-    fn remove_inner_node(&mut self, index: NodeIndex) {
-        let _ = self.inner_nodes.remove(&index);
+    fn remove_inner_node(&mut self, index: NodeIndex) -> Option<InnerNode> {
+        self.inner_nodes.remove(&index)
     }
 
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {

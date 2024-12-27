@@ -1,12 +1,14 @@
-use alloc::vec::Vec;
+use alloc::{collections::BTreeMap, vec::Vec};
 
 use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
 use crate::{
-    merkle::{smt::SparseMerkleTree, EmptySubtreeRoots, MerkleStore},
+    merkle::{
+        smt::{NodeMutation, SparseMerkleTree},
+        EmptySubtreeRoots, MerkleStore, MutationSet,
+    },
     utils::{Deserializable, Serializable},
     Word, ONE, WORD_SIZE,
 };
-
 // SMT
 // --------------------------------------------------------------------------------------------
 
@@ -412,21 +414,49 @@ fn test_prospective_insertion() {
 
     let mutations = smt.compute_mutations(vec![(key_1, value_1)]);
     assert_eq!(mutations.root(), root_1, "prospective root 1 did not match actual root 1");
-    smt.apply_mutations(mutations).unwrap();
+    let revert = apply_mutations(&mut smt, mutations);
     assert_eq!(smt.root(), root_1, "mutations before and after apply did not match");
+    assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
+    assert_eq!(revert.root(), root_empty, "reverse mutations new root did not match");
+    assert_eq!(
+        revert.new_pairs,
+        BTreeMap::from_iter([(key_1, EMPTY_WORD)]),
+        "reverse mutations pairs did not match"
+    );
+    assert_eq!(
+        revert.node_mutations,
+        smt.inner_nodes.keys().map(|key| (*key, NodeMutation::Removal)).collect(),
+        "reverse mutations inner nodes did not match"
+    );
 
     let mutations = smt.compute_mutations(vec![(key_2, value_2)]);
     assert_eq!(mutations.root(), root_2, "prospective root 2 did not match actual root 2");
     let mutations =
         smt.compute_mutations(vec![(key_3, EMPTY_WORD), (key_2, value_2), (key_3, value_3)]);
     assert_eq!(mutations.root(), root_3, "mutations before and after apply did not match");
-    smt.apply_mutations(mutations).unwrap();
+    let old_root = smt.root();
+    let revert = apply_mutations(&mut smt, mutations);
+    assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
+    assert_eq!(revert.root(), old_root, "reverse mutations new root did not match");
+    assert_eq!(
+        revert.new_pairs,
+        BTreeMap::from_iter([(key_2, EMPTY_WORD), (key_3, EMPTY_WORD)]),
+        "reverse mutations pairs did not match"
+    );
 
     // Edge case: multiple values at the same key, where a later pair restores the original value.
     let mutations = smt.compute_mutations(vec![(key_3, EMPTY_WORD), (key_3, value_3)]);
     assert_eq!(mutations.root(), root_3);
-    smt.apply_mutations(mutations).unwrap();
+    let old_root = smt.root();
+    let revert = apply_mutations(&mut smt, mutations);
     assert_eq!(smt.root(), root_3);
+    assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
+    assert_eq!(revert.root(), old_root, "reverse mutations new root did not match");
+    assert_eq!(
+        revert.new_pairs,
+        BTreeMap::from_iter([(key_3, value_3)]),
+        "reverse mutations pairs did not match"
+    );
 
     // Test batch updates, and that the order doesn't matter.
     let pairs =
@@ -437,14 +467,88 @@ fn test_prospective_insertion() {
         root_empty,
         "prospective root for batch removal did not match actual root",
     );
-    smt.apply_mutations(mutations).unwrap();
+    let old_root = smt.root();
+    let revert = apply_mutations(&mut smt, mutations);
     assert_eq!(smt.root(), root_empty, "mutations before and after apply did not match");
+    assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
+    assert_eq!(revert.root(), old_root, "reverse mutations new root did not match");
+    assert_eq!(
+        revert.new_pairs,
+        BTreeMap::from_iter([(key_1, value_1), (key_2, value_2), (key_3, value_3)]),
+        "reverse mutations pairs did not match"
+    );
 
     let pairs = vec![(key_3, value_3), (key_1, value_1), (key_2, value_2)];
     let mutations = smt.compute_mutations(pairs);
     assert_eq!(mutations.root(), root_3);
     smt.apply_mutations(mutations).unwrap();
     assert_eq!(smt.root(), root_3);
+}
+
+#[test]
+fn test_mutations_revert() {
+    let mut smt = Smt::default();
+
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(1)]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), Felt::new(2)]);
+    let key_3: RpoDigest =
+        RpoDigest::from([0_u32.into(), 0_u32.into(), 0_u32.into(), Felt::new(3)]);
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
+    let value_3 = [3_u32.into(); WORD_SIZE];
+
+    smt.insert(key_1, value_1);
+    smt.insert(key_2, value_2);
+
+    let mutations =
+        smt.compute_mutations(vec![(key_1, EMPTY_WORD), (key_2, value_1), (key_3, value_3)]);
+
+    let original = smt.clone();
+
+    let revert = smt.apply_mutations_with_reversion(mutations).unwrap();
+    assert_eq!(revert.old_root, smt.root(), "reverse mutations old root did not match");
+    assert_eq!(revert.root(), original.root(), "reverse mutations new root did not match");
+
+    smt.apply_mutations(revert).unwrap();
+
+    assert_eq!(smt, original, "SMT with applied revert mutations did not match original SMT");
+}
+
+#[test]
+fn test_mutation_set_serialization() {
+    let mut smt = Smt::default();
+
+    let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, Felt::new(1)]);
+    let key_2: RpoDigest =
+        RpoDigest::from([2_u32.into(), 2_u32.into(), 2_u32.into(), Felt::new(2)]);
+    let key_3: RpoDigest =
+        RpoDigest::from([0_u32.into(), 0_u32.into(), 0_u32.into(), Felt::new(3)]);
+
+    let value_1 = [ONE; WORD_SIZE];
+    let value_2 = [2_u32.into(); WORD_SIZE];
+    let value_3 = [3_u32.into(); WORD_SIZE];
+
+    smt.insert(key_1, value_1);
+    smt.insert(key_2, value_2);
+
+    let mutations =
+        smt.compute_mutations(vec![(key_1, EMPTY_WORD), (key_2, value_1), (key_3, value_3)]);
+
+    let serialized = mutations.to_bytes();
+    let deserialized =
+        MutationSet::<SMT_DEPTH, RpoDigest, Word>::read_from_bytes(&serialized).unwrap();
+
+    assert_eq!(deserialized, mutations, "deserialized mutations did not match original");
+
+    let revert = smt.apply_mutations_with_reversion(mutations).unwrap();
+
+    let serialized = revert.to_bytes();
+    let deserialized =
+        MutationSet::<SMT_DEPTH, RpoDigest, Word>::read_from_bytes(&serialized).unwrap();
+
+    assert_eq!(deserialized, revert, "deserialized mutations did not match original");
 }
 
 /// Tests that 2 key-value pairs stored in the same leaf have the same path
@@ -601,4 +705,20 @@ fn build_multiple_leaf_node(kv_pairs: &[(RpoDigest, Word)]) -> RpoDigest {
         .collect();
 
     Rpo256::hash_elements(&elements)
+}
+
+/// Applies mutations with and without reversion to the given SMT, comparing resulting SMTs,
+/// returning mutation set for reversion.
+fn apply_mutations(
+    smt: &mut Smt,
+    mutation_set: MutationSet<SMT_DEPTH, RpoDigest, Word>,
+) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
+    let mut smt2 = smt.clone();
+
+    let reversion = smt.apply_mutations_with_reversion(mutation_set.clone()).unwrap();
+    smt2.apply_mutations(mutation_set).unwrap();
+
+    assert_eq!(&smt2, smt);
+
+    reversion
 }

@@ -303,7 +303,7 @@ impl PartialMmr {
 
         if leaf_pos + 1 == self.forest
             && path.depth() == 0
-            && self.peaks.last().map_or(false, |v| *v == leaf)
+            && self.peaks.last().is_some_and(|v| *v == leaf)
         {
             self.track_latest = true;
             return Ok(());
