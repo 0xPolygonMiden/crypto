@@ -75,7 +75,7 @@ pub fn insertion(tree: &mut Smt) -> Result<(), MerkleError> {
     }
 
     println!(
-        "An average insertion time measured by {NUM_INSERTIONS} inserts into an SMT with {size} leaves is {} μs\n",
+        "An average insertion time measured by {NUM_INSERTIONS} inserts into an SMT with {size} leaves is {:.0} μs\n",
         // calculate the average
         insertion_times.iter().sum::<u128>() as f64 / (NUM_INSERTIONS as f64),
     );
@@ -107,13 +107,13 @@ pub fn batched_insertion(tree: &mut Smt) -> Result<(), MerkleError> {
     let apply_elapsed = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
 
     println!(
-        "An average insert-batch computation time measured by a {NUM_INSERTIONS}-batch into an SMT with {size} leaves over {:.1} ms is {} μs",
+        "An average insert-batch computation time measured by a {NUM_INSERTIONS}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
         compute_elapsed,
         compute_elapsed * 1000_f64 / NUM_INSERTIONS as f64, // time in μs
     );
 
     println!(
-        "An average insert-batch application time measured by a {NUM_INSERTIONS}-batch into an SMT with {size} leaves over {:.1} ms is {} μs",
+        "An average insert-batch application time measured by a {NUM_INSERTIONS}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
         apply_elapsed,
         apply_elapsed * 1000_f64 / NUM_INSERTIONS as f64, // time in μs
     );
@@ -163,13 +163,13 @@ pub fn batched_update(tree: &mut Smt, entries: Vec<(RpoDigest, Word)>) -> Result
     let apply_elapsed = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
 
     println!(
-        "An average update-batch computation time measured by a {NUM_UPDATES}-batch into an SMT with {size} leaves over {:.1} ms is {} μs",
+        "An average update-batch computation time measured by a {NUM_UPDATES}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
         compute_elapsed,
         compute_elapsed * 1000_f64 / NUM_UPDATES as f64, // time in μs
     );
 
     println!(
-        "An average update-batch application time measured by a {NUM_UPDATES}-batch into an SMT with {size} leaves over {:.1} ms is {} μs",
+        "An average update-batch application time measured by a {NUM_UPDATES}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
         apply_elapsed,
         apply_elapsed * 1000_f64 / NUM_UPDATES as f64, // time in μs
     );
@@ -205,7 +205,7 @@ pub fn proof_generation(tree: &mut Smt) -> Result<(), MerkleError> {
     }
 
     println!(
-        "An average proving time measured by {NUM_PROOFS} value proofs in an SMT with {size} leaves in {} μs",
+        "An average proving time measured by {NUM_PROOFS} value proofs in an SMT with {size} leaves in {:.0} μs",
         // calculate the average
         insertion_times.iter().sum::<u128>() as f64 / (NUM_PROOFS as f64),
     );
