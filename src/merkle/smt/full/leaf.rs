@@ -31,10 +31,12 @@ impl SmtLeaf {
             1 => {
                 let (key, value) = entries[0];
 
-                if LeafIndex::<SMT_DEPTH>::from(key) != leaf_index {
-                    return Err(SmtLeafError::SingleKeyInconsistentWithLeafIndex {
+                let computed_index = LeafIndex::<SMT_DEPTH>::from(key);
+                if computed_index != leaf_index {
+                    return Err(SmtLeafError::InconsistentSingleLeafIndices {
                         key,
-                        leaf_index,
+                        expected_leaf_index: leaf_index,
+                        actual_leaf_index: computed_index,
                     });
                 }
 
@@ -46,7 +48,7 @@ impl SmtLeaf {
                 // `new_multiple()` checked that all keys map to the same leaf index. We still need
                 // to ensure that that leaf index is `leaf_index`.
                 if leaf.index() != leaf_index {
-                    Err(SmtLeafError::MultipleKeysInconsistentWithLeafIndex {
+                    Err(SmtLeafError::InconsistentMultipleLeafIndices {
                         leaf_index_from_keys: leaf.index(),
                         leaf_index_supplied: leaf_index,
                     })
@@ -75,7 +77,7 @@ impl SmtLeaf {
     ///   - Returns an error if 2 keys in `entries` map to a different leaf index
     pub fn new_multiple(entries: Vec<(RpoDigest, Word)>) -> Result<Self, SmtLeafError> {
         if entries.len() < 2 {
-            return Err(SmtLeafError::InvalidNumEntriesForMultiple(entries.len()));
+            return Err(SmtLeafError::MultipleLeafRequiresTwoEntries(entries.len()));
         }
 
         // Check that all keys map to the same leaf index
@@ -89,8 +91,7 @@ impl SmtLeaf {
                 let next_leaf_index: LeafIndex<SMT_DEPTH> = next_key.into();
 
                 if next_leaf_index != first_leaf_index {
-                    return Err(SmtLeafError::InconsistentKeys {
-                        entries,
+                    return Err(SmtLeafError::InconsistentMultipleLeafKeys {
                         key_1: first_key,
                         key_2: next_key,
                     });

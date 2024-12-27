@@ -81,7 +81,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
         for (idx, (key, value)) in entries.into_iter().enumerate() {
             if idx >= max_num_entries {
-                return Err(MerkleError::InvalidNumEntries(max_num_entries));
+                return Err(MerkleError::TooManyEntries(max_num_entries));
             }
 
             let old_value = tree.insert(LeafIndex::<DEPTH>::new(key)?, value);
@@ -262,7 +262,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         subtree: SimpleSmt<SUBTREE_DEPTH>,
     ) -> Result<RpoDigest, MerkleError> {
         if SUBTREE_DEPTH > DEPTH {
-            return Err(MerkleError::InvalidSubtreeDepth {
+            return Err(MerkleError::SubtreeDepthExceedsDepth {
                 subtree_depth: SUBTREE_DEPTH,
                 tree_depth: DEPTH,
             });

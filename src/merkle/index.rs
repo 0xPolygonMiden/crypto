@@ -38,7 +38,7 @@ impl NodeIndex {
     /// Returns an error if the `value` is greater than or equal to 2^{depth}.
     pub const fn new(depth: u8, value: u64) -> Result<Self, MerkleError> {
         if (64 - value.leading_zeros()) > depth as u32 {
-            Err(MerkleError::InvalidIndex { depth, value })
+            Err(MerkleError::InvalidNodeIndex { depth, value })
         } else {
             Ok(Self { depth, value })
         }
@@ -182,6 +182,7 @@ impl Deserializable for NodeIndex {
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
     use proptest::prelude::*;
 
     use super::*;
@@ -190,19 +191,19 @@ mod tests {
     fn test_node_index_value_too_high() {
         assert_eq!(NodeIndex::new(0, 0).unwrap(), NodeIndex { depth: 0, value: 0 });
         let err = NodeIndex::new(0, 1).unwrap_err();
-        assert_eq!(err, MerkleError::InvalidIndex { depth: 0, value: 1 });
+        assert_matches!(err, MerkleError::InvalidNodeIndex { depth: 0, value: 1 });
 
         assert_eq!(NodeIndex::new(1, 1).unwrap(), NodeIndex { depth: 1, value: 1 });
         let err = NodeIndex::new(1, 2).unwrap_err();
-        assert_eq!(err, MerkleError::InvalidIndex { depth: 1, value: 2 });
+        assert_matches!(err, MerkleError::InvalidNodeIndex { depth: 1, value: 2 });
 
         assert_eq!(NodeIndex::new(2, 3).unwrap(), NodeIndex { depth: 2, value: 3 });
         let err = NodeIndex::new(2, 4).unwrap_err();
-        assert_eq!(err, MerkleError::InvalidIndex { depth: 2, value: 4 });
+        assert_matches!(err, MerkleError::InvalidNodeIndex { depth: 2, value: 4 });
 
         assert_eq!(NodeIndex::new(3, 7).unwrap(), NodeIndex { depth: 3, value: 7 });
         let err = NodeIndex::new(3, 8).unwrap_err();
-        assert_eq!(err, MerkleError::InvalidIndex { depth: 3, value: 8 });
+        assert_matches!(err, MerkleError::InvalidNodeIndex { depth: 3, value: 8 });
     }
 
     #[test]

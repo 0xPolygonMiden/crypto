@@ -99,7 +99,7 @@ impl Mmr {
     pub fn open_at(&self, pos: usize, forest: usize) -> Result<MmrProof, MmrError> {
         // find the target tree responsible for the MMR position
         let tree_bit =
-            leaf_to_corresponding_tree(pos, forest).ok_or(MmrError::InvalidPosition(pos))?;
+            leaf_to_corresponding_tree(pos, forest).ok_or(MmrError::PositionNotFound(pos))?;
 
         // isolate the trees before the target
         let forest_before = forest & high_bitmask(tree_bit + 1);
@@ -126,7 +126,7 @@ impl Mmr {
     pub fn get(&self, pos: usize) -> Result<RpoDigest, MmrError> {
         // find the target tree responsible for the MMR position
         let tree_bit =
-            leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::InvalidPosition(pos))?;
+            leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::PositionNotFound(pos))?;
 
         // isolate the trees before the target
         let forest_before = self.forest & high_bitmask(tree_bit + 1);
@@ -174,7 +174,10 @@ impl Mmr {
     /// Returns an error if the specified `forest` value is not valid for this MMR.
     pub fn peaks_at(&self, forest: usize) -> Result<MmrPeaks, MmrError> {
         if forest > self.forest {
-            return Err(MmrError::InvalidPeaks);
+            return Err(MmrError::InvalidPeaks(format!(
+                "requested forest {forest} exceeds current forest {}",
+                self.forest
+            )));
         }
 
         let peaks: Vec<RpoDigest> = TrueBitPositionIterator::new(forest)
@@ -199,7 +202,7 @@ impl Mmr {
     /// that have been merged together, followed by the new peaks of the [Mmr].
     pub fn get_delta(&self, from_forest: usize, to_forest: usize) -> Result<MmrDelta, MmrError> {
         if to_forest > self.forest || from_forest > to_forest {
-            return Err(MmrError::InvalidPeaks);
+            return Err(MmrError::InvalidPeaks(format!("to_forest {to_forest} exceeds the current forest {} or from_forest {from_forest} exceeds to_forest", self.forest)));
         }
 
         if from_forest == to_forest {

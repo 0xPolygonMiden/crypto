@@ -42,7 +42,7 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 /// Every key maps to one leaf. If there are as many keys as there are leaves, then
 /// [Self::Leaf] should be the same type as [Self::Value], as is the case with
 /// [crate::merkle::SimpleSmt]. However, if there are more keys than leaves, then [`Self::Leaf`]
-/// must accomodate all keys that map to the same leaf.
+/// must accommodate all keys that map to the same leaf.
 ///
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
 pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
@@ -135,7 +135,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             node_hash = Rpo256::merge(&[left, right]);
 
             if node_hash == *EmptySubtreeRoots::entry(DEPTH, node_depth) {
-                // If a subtree is empty, when can remove the inner node, since it's equal to the
+                // If a subtree is empty, then can remove the inner node, since it's equal to the
                 // default value
                 self.remove_inner_node(index);
             } else {
@@ -269,7 +269,10 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         // Guard against accidentally trying to apply mutations that were computed against a
         // different tree, including a stale version of this tree.
         if old_root != self.root() {
-            return Err(MerkleError::ConflictingRoots(vec![old_root, self.root()]));
+            return Err(MerkleError::ConflictingRoots {
+                expected_root: self.root(),
+                actual_root: old_root,
+            });
         }
 
         for (index, mutation) in node_mutations {
@@ -476,7 +479,7 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
 
     fn try_from(node_index: NodeIndex) -> Result<Self, Self::Error> {
         if node_index.depth() != DEPTH {
-            return Err(MerkleError::InvalidDepth {
+            return Err(MerkleError::InvalidNodeIndexDepth {
                 expected: DEPTH,
                 provided: node_index.depth(),
             });
