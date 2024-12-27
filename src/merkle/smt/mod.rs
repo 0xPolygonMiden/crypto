@@ -2,7 +2,6 @@ use alloc::{collections::BTreeMap, vec::Vec};
 use core::mem;
 
 use num::Integer;
-
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
