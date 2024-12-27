@@ -70,7 +70,7 @@ impl SmtLeaf {
         Self::Single((key, value))
     }
 
-    /// Returns a new single leaf with the specified entry. The leaf index is derived from the
+    /// Returns a new multiple leaf with the specified entries. The leaf index is derived from the
     /// entries' keys.
     ///
     /// # Errors

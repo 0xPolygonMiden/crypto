@@ -1,5 +1,7 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 
+use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
 use crate::{
     hash::rpo::{Rpo256, RpoDigest},
@@ -135,7 +137,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             if node_hash == *EmptySubtreeRoots::entry(DEPTH, node_depth) {
                 // If a subtree is empty, then can remove the inner node, since it's equal to the
                 // default value
-                self.remove_inner_node(index)
+                self.remove_inner_node(index);
             } else {
                 self.insert_inner_node(index, InnerNode { left, right });
             }
@@ -241,7 +243,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         }
     }
 
-    /// Apply the prospective mutations computed with [`SparseMerkleTree::compute_mutations()`] to
+    /// Applies the prospective mutations computed with [`SparseMerkleTree::compute_mutations()`] to
     /// this tree.
     ///
     /// # Errors
@@ -275,8 +277,12 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
         for (index, mutation) in node_mutations {
             match mutation {
-                Removal => self.remove_inner_node(index),
-                Addition(node) => self.insert_inner_node(index, node),
+                Removal => {
+                    self.remove_inner_node(index);
+                },
+                Addition(node) => {
+                    self.insert_inner_node(index, node);
+                },
             }
         }
 
@@ -287,6 +293,76 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         self.set_root(new_root);
 
         Ok(())
+    }
+
+    /// Applies the prospective mutations computed with [`SparseMerkleTree::compute_mutations()`] to
+    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
+    /// updated tree will revert the changes.
+    ///
+    /// # Errors
+    /// If `mutations` was computed on a tree with a different root than this one, returns
+    /// [`MerkleError::ConflictingRoots`] with a two-item [`Vec`]. The first item is the root hash
+    /// the `mutations` were computed against, and the second item is the actual current root of
+    /// this tree.
+    fn apply_mutations_with_reversion(
+        &mut self,
+        mutations: MutationSet<DEPTH, Self::Key, Self::Value>,
+    ) -> Result<MutationSet<DEPTH, Self::Key, Self::Value>, MerkleError>
+    where
+        Self: Sized,
+    {
+        use NodeMutation::*;
+        let MutationSet {
+            old_root,
+            node_mutations,
+            new_pairs,
+            new_root,
+        } = mutations;
+
+        // Guard against accidentally trying to apply mutations that were computed against a
+        // different tree, including a stale version of this tree.
+        if old_root != self.root() {
+            return Err(MerkleError::ConflictingRoots {
+                expected_root: self.root(),
+                actual_root: old_root,
+            });
+        }
+
+        let mut reverse_mutations = BTreeMap::new();
+        for (index, mutation) in node_mutations {
+            match mutation {
+                Removal => {
+                    if let Some(node) = self.remove_inner_node(index) {
+                        reverse_mutations.insert(index, Addition(node));
+                    }
+                },
+                Addition(node) => {
+                    if let Some(old_node) = self.insert_inner_node(index, node) {
+                        reverse_mutations.insert(index, Addition(old_node));
+                    } else {
+                        reverse_mutations.insert(index, Removal);
+                    }
+                },
+            }
+        }
+
+        let mut reverse_pairs = BTreeMap::new();
+        for (key, value) in new_pairs {
+            if let Some(old_value) = self.insert_value(key.clone(), value) {
+                reverse_pairs.insert(key, old_value);
+            } else {
+                reverse_pairs.insert(key, Self::EMPTY_VALUE);
+            }
+        }
+
+        self.set_root(new_root);
+
+        Ok(MutationSet {
+            old_root: new_root,
+            node_mutations: reverse_mutations,
+            new_pairs: reverse_pairs,
+            new_root: old_root,
+        })
     }
 
     // REQUIRED METHODS
@@ -302,10 +378,10 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode;
 
     /// Inserts an inner node at the given index
-    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode);
+    fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) -> Option<InnerNode>;
 
     /// Removes an inner node at the given index
-    fn remove_inner_node(&mut self, index: NodeIndex);
+    fn remove_inner_node(&mut self, index: NodeIndex) -> Option<InnerNode>;
 
     /// Inserts a leaf node, and returns the value at the key if already exists
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value>;
@@ -352,7 +428,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub(crate) struct InnerNode {
+pub struct InnerNode {
     pub left: RpoDigest,
     pub right: RpoDigest,
 }
@@ -423,7 +499,7 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
 /// [`MutationSet`] stores this type in relation to a [`NodeIndex`] to keep track of what changes
 /// need to occur at which node indices.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum NodeMutation {
+pub enum NodeMutation {
     /// Corresponds to [`SparseMerkleTree::remove_inner_node()`].
     Removal,
     /// Corresponds to [`SparseMerkleTree::insert_inner_node()`].
@@ -456,9 +532,94 @@ pub struct MutationSet<const DEPTH: u8, K, V> {
 }
 
 impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
-    /// Queries the root that was calculated during `SparseMerkleTree::compute_mutations()`. See
+    /// Returns the SMT root that was calculated during `SparseMerkleTree::compute_mutations()`. See
     /// that method for more information.
     pub fn root(&self) -> RpoDigest {
         self.new_root
+    }
+
+    /// Returns the SMT root before the mutations were applied.
+    pub fn old_root(&self) -> RpoDigest {
+        self.old_root
+    }
+
+    /// Returns the set of inner nodes that need to be removed or added.
+    pub fn node_mutations(&self) -> &BTreeMap<NodeIndex, NodeMutation> {
+        &self.node_mutations
+    }
+
+    /// Returns the set of top-level key-value pairs that need to be added, updated or deleted
+    /// (i.e. set to `EMPTY_WORD`).
+    pub fn new_pairs(&self) -> &BTreeMap<K, V> {
+        &self.new_pairs
+    }
+}
+
+// SERIALIZATION
+// ================================================================================================
+
+impl Serializable for InnerNode {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        self.left.write_into(target);
+        self.right.write_into(target);
+    }
+}
+
+impl Deserializable for InnerNode {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let left = source.read()?;
+        let right = source.read()?;
+
+        Ok(Self { left, right })
+    }
+}
+
+impl Serializable for NodeMutation {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        match self {
+            NodeMutation::Removal => target.write_bool(false),
+            NodeMutation::Addition(inner_node) => {
+                target.write_bool(true);
+                inner_node.write_into(target);
+            },
+        }
+    }
+}
+
+impl Deserializable for NodeMutation {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        if source.read_bool()? {
+            let inner_node = source.read()?;
+            return Ok(NodeMutation::Addition(inner_node));
+        }
+
+        Ok(NodeMutation::Removal)
+    }
+}
+
+impl<const DEPTH: u8, K: Serializable, V: Serializable> Serializable for MutationSet<DEPTH, K, V> {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        target.write(self.old_root);
+        target.write(self.new_root);
+        self.node_mutations.write_into(target);
+        self.new_pairs.write_into(target);
+    }
+}
+
+impl<const DEPTH: u8, K: Deserializable + Ord, V: Deserializable> Deserializable
+    for MutationSet<DEPTH, K, V>
+{
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        let old_root = source.read()?;
+        let new_root = source.read()?;
+        let node_mutations = source.read()?;
+        let new_pairs = source.read()?;
+
+        Ok(Self {
+            old_root,
+            node_mutations,
+            new_pairs,
+            new_root,
+        })
     }
 }

@@ -128,7 +128,7 @@ impl NodeIndex {
         self.value
     }
 
-    /// Returns true if the current instance points to a right sibling node.
+    /// Returns `true` if the current instance points to a right sibling node.
     pub const fn is_value_odd(&self) -> bool {
         (self.value & 1) == 1
     }
