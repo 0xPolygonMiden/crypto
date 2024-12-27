@@ -46,12 +46,9 @@ pub fn construction(entries: Vec<(RpoDigest, Word)>, size: usize) -> Result<Smt,
     println!("Running a construction benchmark:");
     let now = Instant::now();
     let tree = Smt::with_entries(entries)?;
-    let elapsed = now.elapsed();
-    println!(
-        "Constructed a SMT with {size} key-value pairs in {:.3} seconds",
-        elapsed.as_secs_f32(),
-    );
+    let elapsed = now.elapsed().as_secs_f32();
 
+    println!("Constructed a SMT with {size} key-value pairs in {elapsed:.1} seconds");
     println!("Number of leaf nodes: {}\n", tree.leaves().count());
 
     Ok(tree)
@@ -78,8 +75,7 @@ pub fn insertion(tree: &mut Smt) -> Result<(), MerkleError> {
     }
 
     println!(
-        "An average insertion time measured by {NUM_INSERTIONS} inserts into an SMT with {size} \
-            leaves is {:.3} microseconds\n",
+        "An average insertion time measured by {NUM_INSERTIONS} inserts into an SMT with {size} leaves is {:.1} μs\n",
         // calculate the average
         insertion_times.iter().sum::<u128>() as f64 / (NUM_INSERTIONS as f64),
     );
@@ -88,7 +84,7 @@ pub fn insertion(tree: &mut Smt) -> Result<(), MerkleError> {
 }
 
 pub fn batched_insertion(tree: &mut Smt) -> Result<(), MerkleError> {
-    const NUM_INSERTIONS: usize = 10_000;
+    const NUM_INSERTIONS: usize = 1_000;
 
     println!("Running a batched insertion benchmark:");
 
@@ -104,30 +100,27 @@ pub fn batched_insertion(tree: &mut Smt) -> Result<(), MerkleError> {
 
     let now = Instant::now();
     let mutations = tree.compute_mutations(new_pairs);
-    let compute_elapsed = now.elapsed();
+    let compute_elapsed = now.elapsed().as_secs_f64() * 1000_f64;
 
     let now = Instant::now();
     tree.apply_mutations(mutations)?;
-    let apply_elapsed = now.elapsed();
+    let apply_elapsed = now.elapsed().as_secs_f64() * 1000_f64;
 
     println!(
-        "An average insert-batch computation time measured by a {NUM_INSERTIONS}-batch into an SMT \
-            with {size} leaves over {:.3} milliseconds is {:.3} milliseconds",
-        compute_elapsed.as_secs_f64() * 1000.0,
-        compute_elapsed.as_secs_f64() * 1000.0 / NUM_INSERTIONS as f64,
+        "An average insert-batch computation time measured by a {NUM_INSERTIONS}-batch into an SMT with {size} leaves over {:.1} ms is {:.1} ms",
+        compute_elapsed,
+        compute_elapsed / NUM_INSERTIONS as f64,
     );
 
     println!(
-        "An average insert-batch application time measured by a {NUM_INSERTIONS}-batch into an SMT \
-            with {size} leaves over {:.3} milliseconds is {:.3} milliseconds",
-        apply_elapsed.as_secs_f64() * 1000.0,
-        apply_elapsed.as_secs_f64() * 1000.0 / NUM_INSERTIONS as f64,
+        "An average insert-batch application time measured by a {NUM_INSERTIONS}-batch into an SMT with {size} leaves over {:.1} ms is {:.1} ms",
+        apply_elapsed,
+        apply_elapsed / NUM_INSERTIONS as f64,
     );
 
     println!(
-        "An average batch insertion time measured by a 10k-batch into an SMT with {size} leaves \
-            totals to {:.3} milliseconds",
-        (compute_elapsed + apply_elapsed).as_secs_f64() * 1000.0,
+        "An average batch insertion time measured by a 1k-batch into an SMT with {size} leaves totals to {:.1} ms",
+        (compute_elapsed + apply_elapsed),
     );
 
     println!();
@@ -136,7 +129,7 @@ pub fn batched_insertion(tree: &mut Smt) -> Result<(), MerkleError> {
 }
 
 pub fn batched_update(tree: &mut Smt, entries: Vec<(RpoDigest, Word)>) -> Result<(), MerkleError> {
-    const NUM_UPDATES: usize = 10_000;
+    const NUM_UPDATES: usize = 1_000;
     const REMOVAL_PROBABILITY: f64 = 0.2;
 
     println!("Running a batched update benchmark:");
@@ -163,30 +156,27 @@ pub fn batched_update(tree: &mut Smt, entries: Vec<(RpoDigest, Word)>) -> Result
 
     let now = Instant::now();
     let mutations = tree.compute_mutations(new_pairs);
-    let compute_elapsed = now.elapsed();
+    let compute_elapsed = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
 
     let now = Instant::now();
     tree.apply_mutations(mutations)?;
-    let apply_elapsed = now.elapsed();
+    let apply_elapsed = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
 
     println!(
-        "An average update-batch computation time measured by a {NUM_UPDATES}-batch into an SMT \
-            with {size} leaves over {:.3} milliseconds is {:.3} milliseconds",
-        compute_elapsed.as_secs_f64() * 1000.0,
-        compute_elapsed.as_secs_f64() * 1000.0 / NUM_UPDATES as f64,
+        "An average update-batch computation time measured by a {NUM_UPDATES}-batch into an SMT with {size} leaves over {:.1} ms is {:.1} ms",
+        compute_elapsed,
+        compute_elapsed / NUM_UPDATES as f64,
     );
 
     println!(
-        "An average update-batch application time measured by a {NUM_UPDATES}-batch into an SMT with \
-            {size} leaves over {:.3} milliseconds is {:.3} milliseconds",
-        apply_elapsed.as_secs_f64() * 1000.0,
-        apply_elapsed.as_secs_f64() * 1000.0 / NUM_UPDATES as f64,
+        "An average update-batch application time measured by a {NUM_UPDATES}-batch into an SMT with {size} leaves over {:.1} ms is {:.1} ms",
+        apply_elapsed,
+        apply_elapsed / NUM_UPDATES as f64,
     );
 
     println!(
-        "An average batch update time measured by a 10k-batch into an SMT with {size} leaves \
-            totals to {:.3} milliseconds",
-        (compute_elapsed + apply_elapsed).as_secs_f64() * 1000.0,
+        "An average batch update time measured by a 1k-batch into an SMT with {size} leaves totals to {:.1} ms",
+        (compute_elapsed + apply_elapsed),
     );
 
     println!();
@@ -196,7 +186,7 @@ pub fn batched_update(tree: &mut Smt, entries: Vec<(RpoDigest, Word)>) -> Result
 
 /// Runs the proof generation benchmark for the [`Smt`].
 pub fn proof_generation(tree: &mut Smt) -> Result<(), MerkleError> {
-    const NUM_PROOFS: usize = 20;
+    const NUM_PROOFS: usize = 100;
 
     println!("Running a proof generation benchmark:");
 
@@ -204,7 +194,7 @@ pub fn proof_generation(tree: &mut Smt) -> Result<(), MerkleError> {
 
     let size = tree.num_leaves();
 
-    for i in 0..20 {
+    for i in 0..NUM_PROOFS {
         let test_key = Rpo256::hash(&rand_value::<u64>().to_be_bytes());
         let test_value = [ONE, ONE, ONE, Felt::new((size + i) as u64)];
         tree.insert(test_key, test_value);
@@ -215,8 +205,7 @@ pub fn proof_generation(tree: &mut Smt) -> Result<(), MerkleError> {
     }
 
     println!(
-        "An average proving time measured by {NUM_PROOFS} value proofs in an SMT with {size} \
-            leaves in {:.3} microseconds",
+        "An average proving time measured by {NUM_PROOFS} value proofs in an SMT with {size} leaves in {:.1} μs",
         // calculate the average
         insertion_times.iter().sum::<u128>() as f64 / (NUM_PROOFS as f64),
     );

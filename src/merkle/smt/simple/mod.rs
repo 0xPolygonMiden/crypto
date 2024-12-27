@@ -237,8 +237,9 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     }
 
     /// Applies the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to
-    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
-    /// updated tree will revert the changes.
+    /// this tree and returns the reverse mutation set.
+    ///
+    /// Applying the reverse mutation sets to the updated tree will revert the changes.
     ///
     /// # Errors
     /// If `mutations` was computed on a tree with a different root than this one, returns

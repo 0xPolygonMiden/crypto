@@ -219,9 +219,10 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::apply_mutations(self, mutations)
     }
 
-    /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to
-    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
-    /// updated tree will revert the changes.
+    /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to this tree
+    /// and returns the reverse mutation set.
+    ///
+    /// Applying the reverse mutation sets to the updated tree will revert the changes.
     ///
     /// # Errors
     /// If `mutations` was computed on a tree with a different root than this one, returns
