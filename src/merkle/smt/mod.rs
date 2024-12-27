@@ -366,7 +366,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             });
         }
 
-        let mut reverse_mutations = BTreeMap::new();
+        let mut reverse_mutations = NodeMutations::new();
         for (index, mutation) in node_mutations {
             match mutation {
                 Removal => {
@@ -384,7 +384,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             }
         }
 
-        let mut reverse_pairs = BTreeMap::new();
+        let mut reverse_pairs = UnorderedMap::new();
         for (key, value) in new_pairs {
             if let Some(old_value) = self.insert_value(key.clone(), value) {
                 reverse_pairs.insert(key, old_value);
@@ -711,85 +711,27 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
     }
 
     /// Returns the set of inner nodes that need to be removed or added.
-    pub fn node_mutations(&self) -> &BTreeMap<NodeIndex, NodeMutation> {
+    pub fn node_mutations(&self) -> &NodeMutations {
         &self.node_mutations
     }
 
     /// Returns the set of top-level key-value pairs that need to be added, updated or deleted
     /// (i.e. set to `EMPTY_WORD`).
-    pub fn new_pairs(&self) -> &BTreeMap<K, V> {
+    pub fn new_pairs(&self) -> &UnorderedMap<K, V> {
         &self.new_pairs
     }
 }
 
-// SERIALIZATION
-// ================================================================================================
-
-impl Serializable for InnerNode {
-    fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        self.left.write_into(target);
-        self.right.write_into(target);
+impl<const DEPTH: u8, K: KeyConstrains, V: PartialEq> PartialEq for MutationSet<DEPTH, K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.old_root == other.old_root
+            && self.node_mutations == other.node_mutations
+            && self.new_pairs == other.new_pairs
+            && self.new_root == other.new_root
     }
 }
 
-impl Deserializable for InnerNode {
-    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        let left = source.read()?;
-        let right = source.read()?;
-
-        Ok(Self { left, right })
-    }
-}
-
-impl Serializable for NodeMutation {
-    fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        match self {
-            NodeMutation::Removal => target.write_bool(false),
-            NodeMutation::Addition(inner_node) => {
-                target.write_bool(true);
-                inner_node.write_into(target);
-            },
-        }
-    }
-}
-
-impl Deserializable for NodeMutation {
-    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        if source.read_bool()? {
-            let inner_node = source.read()?;
-            return Ok(NodeMutation::Addition(inner_node));
-        }
-
-        Ok(NodeMutation::Removal)
-    }
-}
-
-impl<const DEPTH: u8, K: Serializable, V: Serializable> Serializable for MutationSet<DEPTH, K, V> {
-    fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        target.write(self.old_root);
-        target.write(self.new_root);
-        self.node_mutations.write_into(target);
-        self.new_pairs.write_into(target);
-    }
-}
-
-impl<const DEPTH: u8, K: Deserializable + Ord, V: Deserializable> Deserializable
-    for MutationSet<DEPTH, K, V>
-{
-    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        let old_root = source.read()?;
-        let new_root = source.read()?;
-        let node_mutations = source.read()?;
-        let new_pairs = source.read()?;
-
-        Ok(Self {
-            old_root,
-            node_mutations,
-            new_pairs,
-            new_root,
-        })
-    }
-}
+impl<const DEPTH: u8, K: KeyConstrains, V: PartialEq> Eq for MutationSet<DEPTH, K, V> {}
 
 // SERIALIZATION
 // ================================================================================================
@@ -901,6 +843,7 @@ impl<const DEPTH: u8, K: Deserializable + KeyConstrains, V: Deserializable> Dese
 
 // SUBTREES
 // ================================================================================================
+
 /// A subtree is of depth 8.
 const SUBTREE_DEPTH: u8 = 8;
 

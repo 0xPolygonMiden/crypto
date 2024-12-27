@@ -1,9 +1,9 @@
-use alloc::{collections::BTreeMap, vec::Vec};
+use alloc::vec::Vec;
 
 use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
 use crate::{
     merkle::{
-        smt::{NodeMutation, SparseMerkleTree},
+        smt::{types::UnorderedMap, NodeMutation, SparseMerkleTree},
         EmptySubtreeRoots, MerkleStore, MutationSet,
     },
     utils::{Deserializable, Serializable},
@@ -420,7 +420,7 @@ fn test_prospective_insertion() {
     assert_eq!(revert.root(), root_empty, "reverse mutations new root did not match");
     assert_eq!(
         revert.new_pairs,
-        BTreeMap::from_iter([(key_1, EMPTY_WORD)]),
+        UnorderedMap::from_iter([(key_1, EMPTY_WORD)]),
         "reverse mutations pairs did not match"
     );
     assert_eq!(
@@ -440,7 +440,7 @@ fn test_prospective_insertion() {
     assert_eq!(revert.root(), old_root, "reverse mutations new root did not match");
     assert_eq!(
         revert.new_pairs,
-        BTreeMap::from_iter([(key_2, EMPTY_WORD), (key_3, EMPTY_WORD)]),
+        UnorderedMap::from_iter([(key_2, EMPTY_WORD), (key_3, EMPTY_WORD)]),
         "reverse mutations pairs did not match"
     );
 
@@ -454,7 +454,7 @@ fn test_prospective_insertion() {
     assert_eq!(revert.root(), old_root, "reverse mutations new root did not match");
     assert_eq!(
         revert.new_pairs,
-        BTreeMap::from_iter([(key_3, value_3)]),
+        UnorderedMap::from_iter([(key_3, value_3)]),
         "reverse mutations pairs did not match"
     );
 
@@ -474,7 +474,7 @@ fn test_prospective_insertion() {
     assert_eq!(revert.root(), old_root, "reverse mutations new root did not match");
     assert_eq!(
         revert.new_pairs,
-        BTreeMap::from_iter([(key_1, value_1), (key_2, value_2), (key_3, value_3)]),
+        UnorderedMap::from_iter([(key_1, value_1), (key_2, value_2), (key_3, value_3)]),
         "reverse mutations pairs did not match"
     );
 
