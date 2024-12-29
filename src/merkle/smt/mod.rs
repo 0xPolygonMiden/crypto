@@ -2,7 +2,7 @@ use alloc::{collections::BTreeMap, vec::Vec};
 use core::{hash::Hash, mem};
 
 use num::Integer;
-use types::{KeyConstrains, UnorderedMap};
+use types::{KeyConstraints, UnorderedMap};
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
@@ -36,8 +36,8 @@ mod types {
     /// A map whose keys are not guarantied to be ordered.
     pub type UnorderedMap<K, V> = hashbrown::HashMap<K, V>;
 
-    pub trait KeyConstrains: Hash + Eq {}
-    impl<T: Hash + Eq> KeyConstrains for T {}
+    pub trait KeyConstraints: Hash + Eq {}
+    impl<T: Hash + Eq> KeyConstraints for T {}
 }
 
 #[cfg(not(feature = "smt_hashmaps"))]
@@ -45,8 +45,8 @@ mod types {
     /// A map whose keys are not guarantied to be ordered.
     pub type UnorderedMap<K, V> = alloc::collections::BTreeMap<K, V>;
 
-    pub trait KeyConstrains: Ord {}
-    impl<T: Ord> KeyConstrains for T {}
+    pub trait KeyConstraints: Ord {}
+    impl<T: Ord> KeyConstraints for T {}
 }
 
 type InnerNodes = UnorderedMap<NodeIndex, InnerNode>;
@@ -74,7 +74,7 @@ type NodeMutations = UnorderedMap<NodeIndex, NodeMutation>;
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
 pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a key
-    type Key: Clone + KeyConstrains;
+    type Key: Clone + KeyConstraints;
     /// The type for a value
     type Value: Clone + PartialEq;
     /// The type for a leaf
@@ -722,7 +722,7 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
     }
 }
 
-impl<const DEPTH: u8, K: KeyConstrains, V: PartialEq> PartialEq for MutationSet<DEPTH, K, V> {
+impl<const DEPTH: u8, K: KeyConstraints, V: PartialEq> PartialEq for MutationSet<DEPTH, K, V> {
     fn eq(&self, other: &Self) -> bool {
         self.old_root == other.old_root
             && self.node_mutations == other.node_mutations
@@ -731,7 +731,7 @@ impl<const DEPTH: u8, K: KeyConstrains, V: PartialEq> PartialEq for MutationSet<
     }
 }
 
-impl<const DEPTH: u8, K: KeyConstrains, V: PartialEq> Eq for MutationSet<DEPTH, K, V> {}
+impl<const DEPTH: u8, K: KeyConstraints, V: PartialEq> Eq for MutationSet<DEPTH, K, V> {}
 
 // SERIALIZATION
 // ================================================================================================
@@ -809,7 +809,7 @@ impl<const DEPTH: u8, K: Serializable, V: Serializable> Serializable for Mutatio
     }
 }
 
-impl<const DEPTH: u8, K: Deserializable + KeyConstrains, V: Deserializable> Deserializable
+impl<const DEPTH: u8, K: Deserializable + KeyConstraints, V: Deserializable> Deserializable
     for MutationSet<DEPTH, K, V>
 {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
