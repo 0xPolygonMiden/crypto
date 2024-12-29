@@ -795,25 +795,13 @@ impl<const DEPTH: u8, K: Serializable, V: Serializable> Serializable for Mutatio
             })
             .collect();
 
-        target.write_u32(
-            inner_removals
-                .len()
-                .try_into()
-                .expect("Number of items to remove must fit in `u32`"),
-        );
+        target.write_usize(inner_removals.len());
         target.write_many(inner_removals);
 
-        target.write_u32(
-            inner_additions
-                .len()
-                .try_into()
-                .expect("Number of items to add must fit in `u32`"),
-        );
+        target.write_usize(inner_additions.len());
         target.write_many(inner_additions);
 
-        target.write_u32(
-            self.new_pairs.len().try_into().expect("Number of new pairs must fit in `u32`"),
-        );
+        target.write_usize(self.new_pairs.len());
         target.write_many(&self.new_pairs);
     }
 }
@@ -825,10 +813,10 @@ impl<const DEPTH: u8, K: Deserializable + KeyConstraints, V: Deserializable> Des
         let old_root = source.read()?;
         let new_root = source.read()?;
 
-        let num_removals = source.read_u32()? as usize;
+        let num_removals = source.read_usize()?;
         let inner_removals: Vec<NodeIndex> = source.read_many(num_removals)?;
 
-        let num_additions = source.read_u32()? as usize;
+        let num_additions = source.read_usize()?;
         let inner_additions: Vec<(NodeIndex, InnerNode)> = source.read_many(num_additions)?;
 
         let node_mutations = NodeMutations::from_iter(
@@ -839,7 +827,7 @@ impl<const DEPTH: u8, K: Deserializable + KeyConstraints, V: Deserializable> Des
             ),
         );
 
-        let num_new_pairs = source.read_u32()? as usize;
+        let num_new_pairs = source.read_usize()?;
         let new_pairs = source.read_many(num_new_pairs)?;
         let new_pairs = UnorderedMap::from_iter(new_pairs);
 
