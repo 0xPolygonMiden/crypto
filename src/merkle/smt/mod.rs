@@ -770,11 +770,8 @@ impl<const DEPTH: u8, K: Serializable + Eq + Hash, V: Serializable> Serializable
             })
             .collect();
 
-        target.write_usize(inner_removals.len());
-        target.write_many(inner_removals);
-
-        target.write_usize(inner_additions.len());
-        target.write_many(inner_additions);
+        target.write(inner_removals);
+        target.write(inner_additions);
 
         target.write_usize(self.new_pairs.len());
         target.write_many(&self.new_pairs);
@@ -788,11 +785,8 @@ impl<const DEPTH: u8, K: Deserializable + Ord + Eq + Hash, V: Deserializable> De
         let old_root = source.read()?;
         let new_root = source.read()?;
 
-        let num_removals = source.read_usize()?;
-        let inner_removals: Vec<NodeIndex> = source.read_many(num_removals)?;
-
-        let num_additions = source.read_usize()?;
-        let inner_additions: Vec<(NodeIndex, InnerNode)> = source.read_many(num_additions)?;
+        let inner_removals: Vec<NodeIndex> = source.read()?;
+        let inner_additions: Vec<(NodeIndex, InnerNode)> = source.read()?;
 
         let node_mutations = NodeMutations::from_iter(
             inner_removals.into_iter().map(|index| (index, NodeMutation::Removal)).chain(
