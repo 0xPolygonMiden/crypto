@@ -2,7 +2,6 @@ use alloc::{collections::BTreeMap, vec::Vec};
 use core::{hash::Hash, mem};
 
 use num::Integer;
-use types::{KeyConstraints, UnorderedMap};
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
@@ -29,26 +28,11 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 // SPARSE MERKLE TREE
 // ================================================================================================
 
+/// A map whose keys are not guarantied to be ordered.
 #[cfg(feature = "smt_hashmaps")]
-mod types {
-    use core::hash::Hash;
-
-    /// A map whose keys are not guarantied to be ordered.
-    pub type UnorderedMap<K, V> = hashbrown::HashMap<K, V>;
-
-    pub trait KeyConstraints: Hash + Eq {}
-    impl<T: Hash + Eq> KeyConstraints for T {}
-}
-
+type UnorderedMap<K, V> = hashbrown::HashMap<K, V>;
 #[cfg(not(feature = "smt_hashmaps"))]
-mod types {
-    /// A map whose keys are not guarantied to be ordered.
-    pub type UnorderedMap<K, V> = alloc::collections::BTreeMap<K, V>;
-
-    pub trait KeyConstraints: Ord {}
-    impl<T: Ord> KeyConstraints for T {}
-}
-
+type UnorderedMap<K, V> = alloc::collections::BTreeMap<K, V>;
 type InnerNodes = UnorderedMap<NodeIndex, InnerNode>;
 type Leaves<T> = UnorderedMap<u64, T>;
 type NodeMutations = UnorderedMap<NodeIndex, NodeMutation>;
@@ -74,7 +58,7 @@ type NodeMutations = UnorderedMap<NodeIndex, NodeMutation>;
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
 pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a key
-    type Key: Clone + KeyConstraints;
+    type Key: Clone + Ord + Eq + Hash;
     /// The type for a value
     type Value: Clone + PartialEq;
     /// The type for a leaf
@@ -676,8 +660,8 @@ pub enum NodeMutation {
 /// Represents a group of prospective mutations to a `SparseMerkleTree`, created by
 /// `SparseMerkleTree::compute_mutations()`, and that can be applied with
 /// `SparseMerkleTree::apply_mutations()`.
-#[derive(Debug, Clone, Default)]
-pub struct MutationSet<const DEPTH: u8, K, V> {
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct MutationSet<const DEPTH: u8, K: Eq + Hash, V> {
     /// The root of the Merkle tree this MutationSet is for, recorded at the time
     /// [`SparseMerkleTree::compute_mutations()`] was called. Exists to guard against applying
     /// mutations to the wrong tree or applying stale mutations to a tree that has since changed.
@@ -698,7 +682,7 @@ pub struct MutationSet<const DEPTH: u8, K, V> {
     new_root: RpoDigest,
 }
 
-impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
+impl<const DEPTH: u8, K: Eq + Hash, V> MutationSet<DEPTH, K, V> {
     /// Returns the SMT root that was calculated during `SparseMerkleTree::compute_mutations()`. See
     /// that method for more information.
     pub fn root(&self) -> RpoDigest {
@@ -721,17 +705,6 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
         &self.new_pairs
     }
 }
-
-impl<const DEPTH: u8, K: KeyConstraints, V: PartialEq> PartialEq for MutationSet<DEPTH, K, V> {
-    fn eq(&self, other: &Self) -> bool {
-        self.old_root == other.old_root
-            && self.node_mutations == other.node_mutations
-            && self.new_pairs == other.new_pairs
-            && self.new_root == other.new_root
-    }
-}
-
-impl<const DEPTH: u8, K: KeyConstraints, V: PartialEq> Eq for MutationSet<DEPTH, K, V> {}
 
 // SERIALIZATION
 // ================================================================================================
@@ -775,7 +748,9 @@ impl Deserializable for NodeMutation {
     }
 }
 
-impl<const DEPTH: u8, K: Serializable, V: Serializable> Serializable for MutationSet<DEPTH, K, V> {
+impl<const DEPTH: u8, K: Serializable + Eq + Hash, V: Serializable> Serializable
+    for MutationSet<DEPTH, K, V>
+{
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write(self.old_root);
         target.write(self.new_root);
@@ -806,7 +781,7 @@ impl<const DEPTH: u8, K: Serializable, V: Serializable> Serializable for Mutatio
     }
 }
 
-impl<const DEPTH: u8, K: Deserializable + KeyConstraints, V: Deserializable> Deserializable
+impl<const DEPTH: u8, K: Deserializable + Ord + Eq + Hash, V: Deserializable> Deserializable
     for MutationSet<DEPTH, K, V>
 {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {

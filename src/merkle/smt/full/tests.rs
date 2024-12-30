@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
 use crate::{
     merkle::{
-        smt::{types::UnorderedMap, NodeMutation, SparseMerkleTree},
+        smt::{NodeMutation, SparseMerkleTree, UnorderedMap},
         EmptySubtreeRoots, MerkleStore, MutationSet,
     },
     utils::{Deserializable, Serializable},
