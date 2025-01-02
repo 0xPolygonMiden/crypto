@@ -1,12 +1,8 @@
-use alloc::{
-    collections::{BTreeMap, BTreeSet},
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{collections::BTreeSet, string::ToString, vec::Vec};
 
 use super::{
-    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
-    MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
+    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex, MerkleError,
+    MerklePath, MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
 
 mod error;
@@ -30,6 +26,8 @@ pub const SMT_DEPTH: u8 = 64;
 // SMT
 // ================================================================================================
 
+type Leaves = super::Leaves<SmtLeaf>;
+
 /// Sparse Merkle tree mapping 256-bit keys to 256-bit values. Both keys and values are represented
 /// by 4 field elements.
 ///
@@ -43,8 +41,8 @@ pub const SMT_DEPTH: u8 = 64;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Smt {
     root: RpoDigest,
-    leaves: BTreeMap<u64, SmtLeaf>,
-    inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+    inner_nodes: InnerNodes,
+    leaves: Leaves,
 }
 
 impl Smt {
@@ -64,8 +62,8 @@ impl Smt {
 
         Self {
             root,
-            leaves: BTreeMap::new(),
-            inner_nodes: BTreeMap::new(),
+            inner_nodes: Default::default(),
+            leaves: Default::default(),
         }
     }
 
@@ -148,11 +146,7 @@ impl Smt {
     /// # Panics
     /// With debug assertions on, this function panics if `root` does not match the root node in
     /// `inner_nodes`.
-    pub fn from_raw_parts(
-        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
-        leaves: BTreeMap<u64, SmtLeaf>,
-        root: RpoDigest,
-    ) -> Self {
+    pub fn from_raw_parts(inner_nodes: InnerNodes, leaves: Leaves, root: RpoDigest) -> Self {
         // Our particular implementation of `from_raw_parts()` never returns `Err`.
         <Self as SparseMerkleTree<SMT_DEPTH>>::from_raw_parts(inner_nodes, leaves, root).unwrap()
     }
@@ -339,8 +333,8 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     const EMPTY_ROOT: RpoDigest = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
 
     fn from_raw_parts(
-        inner_nodes: BTreeMap<NodeIndex, InnerNode>,
-        leaves: BTreeMap<u64, SmtLeaf>,
+        inner_nodes: InnerNodes,
+        leaves: Leaves,
         root: RpoDigest,
     ) -> Result<Self, MerkleError> {
         if cfg!(debug_assertions) {

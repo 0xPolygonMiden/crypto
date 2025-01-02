@@ -141,12 +141,15 @@ fn test_inner_node_iterator() -> Result<(), MerkleError> {
     let l2n2 = tree.get_node(NodeIndex::make(2, 2))?;
     let l2n3 = tree.get_node(NodeIndex::make(2, 3))?;
 
-    let nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
-    let expected = vec![
+    let mut nodes: Vec<InnerNodeInfo> = tree.inner_nodes().collect();
+    let mut expected = [
         InnerNodeInfo { value: root, left: l1n0, right: l1n1 },
         InnerNodeInfo { value: l1n0, left: l2n0, right: l2n1 },
         InnerNodeInfo { value: l1n1, left: l2n2, right: l2n3 },
     ];
+    nodes.sort();
+    expected.sort();
+
     assert_eq!(nodes, expected);
 
     Ok(())
