@@ -46,6 +46,9 @@ doc: ## Generate and check documentation
 test-default: ## Run tests with default features
 	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile default --release --all-features
 
+.PHONY: test-smt-hashmaps
+test-smt-hashmaps: ## Run tests with `smt_hashmaps` feature enabled
+	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile default --release --features smt_hashmaps
 
 .PHONY: test-no-std
 test-no-std: ## Run tests with `no-default-features` (std)
@@ -53,7 +56,7 @@ test-no-std: ## Run tests with `no-default-features` (std)
 
 
 .PHONY: test
-test: test-default test-no-std ## Run all tests
+test: test-default test-smt-hashmaps test-no-std ## Run all tests
 
 # --- checking ------------------------------------------------------------------------------------
 
