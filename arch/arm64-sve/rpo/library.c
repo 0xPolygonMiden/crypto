@@ -1,7 +1,8 @@
 #include <stddef.h>
 #include <arm_sve.h>
 #include "library.h"
-#include "rpo_hash.h"
+#include "rpo_hash_128bit.h"
+#include "rpo_hash_256bit.h"
 
 // The STATE_WIDTH of RPO hash is 12x u64 elements.
 // The current generation of SVE-enabled processors - Neoverse V1
@@ -31,48 +32,24 @@
 
 bool add_constants_and_apply_sbox(uint64_t state[STATE_WIDTH], uint64_t constants[STATE_WIDTH]) {
     const uint64_t vl = svcntd();   // number of u64 numbers in one SVE vector
-
-    if (vl != 4) {
+    
+    if (vl == 2) {
+        return add_constants_and_apply_sbox_128(state, constants);
+    } else if (vl == 4) {
+        return add_constants_and_apply_sbox_256(state, constants);
+    } else {
         return false;
     }
-
-    svbool_t ptrue = svptrue_b64();
-
-    svuint64_t state1 = svld1(ptrue, state + 0*vl);
-    svuint64_t state2 = svld1(ptrue, state + 1*vl);
-
-    svuint64_t const1 = svld1(ptrue, constants + 0*vl);
-    svuint64_t const2 = svld1(ptrue, constants + 1*vl);
-
-    add_constants(ptrue, &state1, &const1, &state2, &const2, state+8, constants+8);
-    apply_sbox(ptrue, &state1, &state2, state+8);
-
-    svst1(ptrue, state + 0*vl, state1);
-    svst1(ptrue, state + 1*vl, state2);
-
-    return true;
 }
 
 bool add_constants_and_apply_inv_sbox(uint64_t state[STATE_WIDTH], uint64_t constants[STATE_WIDTH]) {
     const uint64_t vl = svcntd();   // number of u64 numbers in one SVE vector
 
-    if (vl != 4) {
+    if (vl == 2) {
+        return add_constants_and_apply_inv_sbox_128(state, constants);
+    } else if (vl == 4) {
+        return add_constants_and_apply_inv_sbox_256(state, constants);
+    } else {
         return false;
     }
-
-    svbool_t ptrue = svptrue_b64();
-
-    svuint64_t state1 = svld1(ptrue, state + 0 * vl);
-    svuint64_t state2 = svld1(ptrue, state + 1 * vl);
-
-    svuint64_t const1 = svld1(ptrue, constants + 0 * vl);
-    svuint64_t const2 = svld1(ptrue, constants + 1 * vl);
-
-    add_constants(ptrue, &state1, &const1, &state2, &const2, state + 8, constants + 8);
-    apply_inv_sbox(ptrue, &state1, &state2, state + 8);
-
-    svst1(ptrue, state + 0 * vl, state1);
-    svst1(ptrue, state + 1 * vl, state2);
-
-    return true;
 }
