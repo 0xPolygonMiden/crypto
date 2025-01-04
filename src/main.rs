@@ -61,7 +61,6 @@ pub fn insertion(tree: &mut Smt) -> Result<(), MerkleError> {
     println!("Running an insertion benchmark:");
 
     let size = tree.num_leaves();
-
     let mut insertion_times = Vec::new();
 
     for i in 0..NUM_INSERTIONS {
@@ -191,7 +190,6 @@ pub fn proof_generation(tree: &mut Smt) -> Result<(), MerkleError> {
     println!("Running a proof generation benchmark:");
 
     let mut insertion_times = Vec::new();
-
     let size = tree.num_leaves();
 
     for i in 0..NUM_PROOFS {
