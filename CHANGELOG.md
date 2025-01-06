@@ -5,6 +5,7 @@
 - [BREAKING] Updated Winterfell dependency to v0.11 (#346).
 - Added RPO-STARK based DSA (#349).
 - Added benchmarks for DSA implementations (#354).
+- Implemented deterministic RPO-STARK based DSA (#358).
 
 ## 0.12.0 (2024-10-30)
 

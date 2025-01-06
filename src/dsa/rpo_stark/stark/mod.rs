@@ -2,9 +2,8 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use prover::RpoSignatureProver;
-use rand::{distributions::Standard, prelude::Distribution};
 use rand_chacha::ChaCha20Rng;
-use winter_crypto::{ElementHasher, Hasher, SaltedMerkleTree};
+use winter_crypto::{ElementHasher, SaltedMerkleTree};
 use winter_math::fields::f64::BaseElement;
 use winter_prover::{Proof, ProofOptions, Prover};
 use winter_utils::Serializable;
@@ -26,10 +25,7 @@ pub struct RpoSignatureScheme<H: ElementHasher> {
     _h: PhantomData<H>,
 }
 
-impl<H: ElementHasher<BaseField = BaseElement> + Sync> RpoSignatureScheme<H>
-where
-    Standard: Distribution<<H as Hasher>::Digest>,
-{
+impl<H: ElementHasher<BaseField = BaseElement> + Sync> RpoSignatureScheme<H> {
     pub fn new(options: ProofOptions) -> Self {
         RpoSignatureScheme { options, _h: PhantomData }
     }
