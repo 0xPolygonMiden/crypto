@@ -1,4 +1,4 @@
-use alloc::{collections::BTreeMap, vec::Vec};
+use alloc::vec::Vec;
 use core::{hash::Hash, mem};
 
 use num::Integer;
@@ -36,6 +36,7 @@ type UnorderedMap<K, V> = alloc::collections::BTreeMap<K, V>;
 type InnerNodes = UnorderedMap<NodeIndex, InnerNode>;
 type Leaves<T> = UnorderedMap<u64, T>;
 type NodeMutations = UnorderedMap<NodeIndex, NodeMutation>;
+type MutatedLeavesResult<K, V> = (Vec<Vec<SubtreeLeaf>>, UnorderedMap<K, V>);
 
 /// An abstract description of a sparse Merkle tree.
 ///
@@ -178,6 +179,25 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     fn compute_mutations(
         &self,
         kv_pairs: impl IntoIterator<Item = (Self::Key, Self::Value)>,
+    ) -> MutationSet<DEPTH, Self::Key, Self::Value>
+    where
+        Self: Sized + Sync,
+    {
+        #[cfg(feature = "concurrent")]
+        {
+            self.compute_mutations_subtree(kv_pairs)
+        }
+        #[cfg(not(feature = "concurrent"))]
+        {
+            self.compute_mutations_sequential(kv_pairs)
+        }
+    }
+
+    /// Sequential version of [`SparseMerkleTree::compute_mutations()`].
+    /// This is the default implementation.
+    fn compute_mutations_sequential(
+        &self,
+        kv_pairs: impl IntoIterator<Item = (Self::Key, Self::Value)>,
     ) -> MutationSet<DEPTH, Self::Key, Self::Value> {
         use NodeMutation::*;
 
@@ -260,6 +280,60 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         MutationSet {
             old_root: self.root(),
             new_root,
+            node_mutations,
+            new_pairs,
+        }
+    }
+
+    /// Parallel implementation of [`SparseMerkleTree::compute_mutations()`].
+    ///
+    /// This method recursively tracks mutations across 8-depth subtrees from the bottom up,  
+    /// ultimately reconstructing the complete mutation set for the entire tree.
+    ///
+    /// The implementation is similar to [`SparseMerkleTree::build_subtrees_from_sorted_entries()`],
+    /// sharing the same constraint that the depth must be a multiple of 8.
+    #[cfg(feature = "concurrent")]
+    fn compute_mutations_subtree(
+        &self,
+        kv_pairs: impl IntoIterator<Item = (Self::Key, Self::Value)>,
+    ) -> MutationSet<DEPTH, Self::Key, Self::Value>
+    where
+        Self: Sized + Sync,
+    {
+        use rayon::prelude::*;
+
+        // Collect and sort key-value pairs by their corresponding leaf index
+        let mut sorted_kv_pairs: Vec<_> = kv_pairs.into_iter().collect();
+        sorted_kv_pairs.sort_unstable_by_key(|(key, _)| Self::key_to_leaf_index(key).value());
+
+        // Convert sorted pairs into mutated leaves and capture any new pairs
+        let (mut subtree_leaves, new_pairs) = self.sorted_pairs_to_mutated_leaves(sorted_kv_pairs);
+        let mut node_mutations = NodeMutations::default();
+
+        // Process each depth level in reverse, stepping by the subtree depth
+        for depth in (SUBTREE_DEPTH..=DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+            // Parallel processing of each subtree to generate mutations and roots
+            let (mutations_per_subtree, mut subtree_roots): (Vec<_>, Vec<_>) = subtree_leaves
+                .into_par_iter()
+                .map(|subtree| {
+                    debug_assert!(subtree.is_sorted() && !subtree.is_empty());
+                    self.build_subtree_mutations(subtree, DEPTH, depth)
+                })
+                .unzip();
+
+            // Prepare leaves for the next depth level
+            subtree_leaves = SubtreeLeavesIter::from_leaves(&mut subtree_roots).collect();
+
+            // Aggregate all node mutations
+            node_mutations.extend(mutations_per_subtree.into_iter().flatten());
+
+            debug_assert!(!subtree_leaves.is_empty());
+        }
+
+        // Finalize the mutation set with updated roots and mutations
+        MutationSet {
+            old_root: self.root(),
+            new_root: subtree_leaves[0][0].hash,
             node_mutations,
             new_pairs,
         }
@@ -446,6 +520,149 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         value: &Self::Value,
     ) -> Self::Leaf;
 
+    /// Computes leaves from a set of key-value pairs and current leaf values.
+    /// Deried from `sorted_pairs_to_leaves`
+    ///
+    /// TODO: refactor and merge functionality with `sorted_pairs_to_leaves`?
+    fn sorted_pairs_to_mutated_leaves(
+        &self,
+        pairs: Vec<(Self::Key, Self::Value)>,
+    ) -> MutatedLeavesResult<Self::Key, Self::Value> {
+        debug_assert!(pairs.is_sorted_by_key(|(key, _)| Self::key_to_leaf_index(key).value()));
+
+        let mut accumulated_leaves = Vec::with_capacity(pairs.len() / 2);
+        let mut new_pairs = UnorderedMap::new();
+        let mut current_leaf_buffer = Vec::new();
+
+        let mut iter = pairs.into_iter().peekable();
+        while let Some((key, value)) = iter.next() {
+            let col = Self::key_to_leaf_index(&key).index.value();
+
+            if let Some((next_key, _)) = iter.peek() {
+                let next_col = Self::key_to_leaf_index(next_key).index.value();
+                debug_assert!(next_col >= col);
+            }
+
+            current_leaf_buffer.push((key.clone(), value));
+
+            // If the next pair is the same column, continue accumulating
+            if iter
+                .peek()
+                .is_some_and(|(next_key, _)| Self::key_to_leaf_index(next_key).index.value() == col)
+            {
+                continue;
+            }
+
+            // Process buffered pairs
+            let leaf_pairs = mem::take(&mut current_leaf_buffer);
+            let mut leaf = self.get_leaf(&key);
+
+            for (key, value) in leaf_pairs {
+                match new_pairs.get(&key) {
+                    Some(existing_value) if existing_value == &value => continue,
+                    _ => {
+                        leaf = self.construct_prospective_leaf(leaf, &key, &value);
+                        new_pairs.insert(key, value);
+                    },
+                }
+            }
+
+            let hash = Self::hash_leaf(&leaf);
+            accumulated_leaves.push(SubtreeLeaf { col, hash });
+
+            debug_assert!(current_leaf_buffer.is_empty());
+        }
+
+        let leaves = SubtreeLeavesIter::from_leaves(&mut accumulated_leaves).collect();
+        (leaves, new_pairs)
+    }
+
+    // Computes the node mutations and the root of a subtree
+    fn build_subtree_mutations(
+        &self,
+        mut leaves: Vec<SubtreeLeaf>,
+        tree_depth: u8,
+        bottom_depth: u8,
+    ) -> (NodeMutations, SubtreeLeaf)
+    where
+        Self: Sized,
+    {
+        debug_assert!(bottom_depth <= tree_depth);
+        debug_assert!(Integer::is_multiple_of(&bottom_depth, &SUBTREE_DEPTH));
+        debug_assert!(leaves.len() <= usize::pow(2, SUBTREE_DEPTH as u32));
+
+        let subtree_root_depth = bottom_depth - SUBTREE_DEPTH;
+        let mut node_mutations: NodeMutations = Default::default();
+        let mut next_leaves: Vec<SubtreeLeaf> = Vec::with_capacity(leaves.len() / 2);
+
+        for current_depth in (subtree_root_depth..bottom_depth).rev() {
+            debug_assert!(current_depth <= bottom_depth);
+
+            let next_depth = current_depth + 1;
+            let mut iter = leaves.drain(..).peekable();
+
+            while let Some(first_leaf) = iter.next() {
+                let parent_index = NodeIndex::new_unchecked(next_depth, first_leaf.col).parent();
+                let parent_node = self.get_inner_node(parent_index);
+                let (left, right) = Self::fetch_sibling_pair(&mut iter, first_leaf, parent_node);
+
+                let combined_node = InnerNode { left: left.hash, right: right.hash };
+                let combined_hash = combined_node.hash();
+
+                let &empty_hash = EmptySubtreeRoots::entry(tree_depth, current_depth);
+
+                // Add the parent node even if it is empty for proper upward updates
+                next_leaves.push(SubtreeLeaf {
+                    col: parent_index.value(),
+                    hash: combined_hash,
+                });
+
+                node_mutations.insert(
+                    parent_index,
+                    if combined_hash != empty_hash {
+                        NodeMutation::Addition(combined_node)
+                    } else {
+                        NodeMutation::Removal
+                    },
+                );
+            }
+            drop(iter);
+            leaves = mem::take(&mut next_leaves);
+        }
+
+        debug_assert_eq!(leaves.len(), 1);
+        let root_leaf = leaves.pop().unwrap();
+        (node_mutations, root_leaf)
+    }
+
+    // Returns the sibling pair based on the first leaf and the current depth
+    //
+    // This is a helper function that is used to build the subtree mutations
+    // The first leaf is the leaf that we are currently processing
+    // The current depth is the depth of the current subtree
+    fn fetch_sibling_pair(
+        iter: &mut core::iter::Peekable<alloc::vec::Drain<SubtreeLeaf>>,
+        first_leaf: SubtreeLeaf,
+        parent_node: InnerNode,
+    ) -> (SubtreeLeaf, SubtreeLeaf) {
+        let is_right_node = first_leaf.col.is_odd();
+
+        if is_right_node {
+            let left_leaf = SubtreeLeaf {
+                col: first_leaf.col - 1,
+                hash: parent_node.left,
+            };
+            (left_leaf, first_leaf)
+        } else {
+            let right_col = first_leaf.col + 1;
+            let right_leaf = match iter.peek().copied() {
+                Some(SubtreeLeaf { col, .. }) if col == right_col => iter.next().unwrap(),
+                _ => SubtreeLeaf { col: right_col, hash: parent_node.right },
+            };
+            (first_leaf, right_leaf)
+        }
+    }
+
     /// Maps a key to a leaf index
     fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
 
@@ -551,16 +768,16 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         } = Self::sorted_pairs_to_leaves(entries);
 
         for current_depth in (SUBTREE_DEPTH..=DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
-            let (nodes, mut subtree_roots): (Vec<BTreeMap<_, _>>, Vec<SubtreeLeaf>) = leaf_subtrees
-                .into_par_iter()
-                .map(|subtree| {
-                    debug_assert!(subtree.is_sorted());
-                    debug_assert!(!subtree.is_empty());
-
-                    let (nodes, subtree_root) = build_subtree(subtree, DEPTH, current_depth);
-                    (nodes, subtree_root)
-                })
-                .unzip();
+            let (nodes, mut subtree_roots): (Vec<UnorderedMap<_, _>>, Vec<SubtreeLeaf>) =
+                leaf_subtrees
+                    .into_par_iter()
+                    .map(|subtree| {
+                        debug_assert!(subtree.is_sorted());
+                        debug_assert!(!subtree.is_empty());
+                        let (nodes, subtree_root) = build_subtree(subtree, DEPTH, current_depth);
+                        (nodes, subtree_root)
+                    })
+                    .unzip();
 
             leaf_subtrees = SubtreeLeavesIter::from_leaves(&mut subtree_roots).collect();
             accumulated_nodes.extend(nodes.into_iter().flatten());
@@ -919,12 +1136,12 @@ fn build_subtree(
     mut leaves: Vec<SubtreeLeaf>,
     tree_depth: u8,
     bottom_depth: u8,
-) -> (BTreeMap<NodeIndex, InnerNode>, SubtreeLeaf) {
+) -> (UnorderedMap<NodeIndex, InnerNode>, SubtreeLeaf) {
     debug_assert!(bottom_depth <= tree_depth);
     debug_assert!(Integer::is_multiple_of(&bottom_depth, &SUBTREE_DEPTH));
     debug_assert!(leaves.len() <= usize::pow(2, SUBTREE_DEPTH as u32));
     let subtree_root = bottom_depth - SUBTREE_DEPTH;
-    let mut inner_nodes: BTreeMap<NodeIndex, InnerNode> = Default::default();
+    let mut inner_nodes: UnorderedMap<NodeIndex, InnerNode> = Default::default();
     let mut next_leaves: Vec<SubtreeLeaf> = Vec::with_capacity(leaves.len() / 2);
     for next_depth in (subtree_root..bottom_depth).rev() {
         debug_assert!(next_depth <= bottom_depth);
@@ -995,7 +1212,7 @@ pub fn build_subtree_for_bench(
     leaves: Vec<SubtreeLeaf>,
     tree_depth: u8,
     bottom_depth: u8,
-) -> (BTreeMap<NodeIndex, InnerNode>, SubtreeLeaf) {
+) -> (UnorderedMap<NodeIndex, InnerNode>, SubtreeLeaf) {
     build_subtree(leaves, tree_depth, bottom_depth)
 }
 

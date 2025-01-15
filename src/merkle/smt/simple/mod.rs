@@ -233,7 +233,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         &self,
         kv_pairs: impl IntoIterator<Item = (LeafIndex<DEPTH>, Word)>,
     ) -> MutationSet<DEPTH, LeafIndex<DEPTH>, Word> {
-        <Self as SparseMerkleTree<DEPTH>>::compute_mutations(self, kv_pairs)
+        <Self as SparseMerkleTree<DEPTH>>::compute_mutations_sequential(self, kv_pairs)
     }
 
     /// Applies the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to this

@@ -1,13 +1,15 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 
+use rand::{prelude::IteratorRandom, thread_rng, Rng};
+
 use super::{
-    build_subtree, InnerNode, LeafIndex, NodeIndex, PairComputations, SmtLeaf, SparseMerkleTree,
-    SubtreeLeaf, SubtreeLeavesIter, COLS_PER_SUBTREE, SUBTREE_DEPTH,
+    build_subtree, InnerNode, LeafIndex, NodeIndex, NodeMutations, PairComputations, SmtLeaf,
+    SparseMerkleTree, SubtreeLeaf, SubtreeLeavesIter, COLS_PER_SUBTREE, SUBTREE_DEPTH,
 };
 use crate::{
     hash::rpo::RpoDigest,
-    merkle::{Smt, SMT_DEPTH},
-    Felt, Word, ONE,
+    merkle::{smt::UnorderedMap, Smt, SMT_DEPTH},
+    Felt, Word, EMPTY_WORD, ONE,
 };
 
 fn smtleaf_to_subtree_leaf(leaf: &SmtLeaf) -> SubtreeLeaf {
@@ -107,6 +109,28 @@ fn generate_entries(pair_count: u64) -> Vec<(RpoDigest, Word)> {
             (key, value)
         })
         .collect()
+}
+
+fn generate_updates(entries: Vec<(RpoDigest, Word)>, updates: usize) -> Vec<(RpoDigest, Word)> {
+    const REMOVAL_PROBABILITY: f64 = 0.2;
+    let mut rng = thread_rng();
+
+    let mut sorted_entries: Vec<(RpoDigest, Word)> = entries
+        .into_iter()
+        .choose_multiple(&mut rng, updates)
+        .into_iter()
+        .map(|(key, _)| {
+            let value = if rng.gen_bool(REMOVAL_PROBABILITY) {
+                EMPTY_WORD
+            } else {
+                [ONE, ONE, ONE, Felt::new(rng.gen())]
+            };
+
+            (key, value)
+        })
+        .collect();
+    sorted_entries.sort_by_key(|(key, _)| Smt::key_to_leaf_index(key).value());
+    sorted_entries
 }
 
 #[test]
@@ -222,7 +246,7 @@ fn test_singlethreaded_subtrees() {
 
     for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
         // There's no flat_map_unzip(), so this is the best we can do.
-        let (nodes, mut subtree_roots): (Vec<BTreeMap<_, _>>, Vec<SubtreeLeaf>) = leaf_subtrees
+        let (nodes, mut subtree_roots): (Vec<UnorderedMap<_, _>>, Vec<SubtreeLeaf>) = leaf_subtrees
             .into_iter()
             .enumerate()
             .map(|(i, subtree)| {
@@ -324,7 +348,7 @@ fn test_multithreaded_subtrees() {
     } = Smt::sorted_pairs_to_leaves(entries);
 
     for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
-        let (nodes, mut subtree_roots): (Vec<BTreeMap<_, _>>, Vec<SubtreeLeaf>) = leaf_subtrees
+        let (nodes, mut subtree_roots): (Vec<UnorderedMap<_, _>>, Vec<SubtreeLeaf>) = leaf_subtrees
             .into_par_iter()
             .enumerate()
             .map(|(i, subtree)| {
@@ -414,4 +438,96 @@ fn test_with_entries_parallel() {
     let smt = Smt::with_entries(entries.clone()).unwrap();
     assert_eq!(smt.root(), control.root());
     assert_eq!(smt, control);
+}
+
+#[test]
+fn test_singlethreaded_subtree_mutations() {
+    const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
+
+    let entries = generate_entries(PAIR_COUNT);
+    let updates = generate_updates(entries.clone(), 1000);
+
+    let tree = Smt::with_entries_sequential(entries.clone()).unwrap();
+    let control = tree.compute_mutations_sequential(updates.clone());
+
+    let mut node_mutations = NodeMutations::default();
+
+    let (mut subtree_leaves, new_pairs) = tree.sorted_pairs_to_mutated_leaves(updates);
+
+    for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+        // There's no flat_map_unzip(), so this is the best we can do.
+        let (mutations_per_subtree, mut subtree_roots): (Vec<_>, Vec<_>) = subtree_leaves
+            .into_iter()
+            .enumerate()
+            .map(|(i, subtree)| {
+                // Pre-assertions.
+                assert!(
+                    subtree.is_sorted(),
+                    "subtree {i} at bottom-depth {current_depth} is not sorted",
+                );
+                assert!(
+                    !subtree.is_empty(),
+                    "subtree {i} at bottom-depth {current_depth} is empty!",
+                );
+
+                // Calculate the mutations for this subtree.
+                let (mutations_per_subtree, subtree_root) =
+                    tree.build_subtree_mutations(subtree, SMT_DEPTH, current_depth);
+
+                // Check that the mutations match the control tree.
+                for (&index, mutation) in mutations_per_subtree.iter() {
+                    let control_mutation = control.node_mutations().get(&index).unwrap();
+                    assert_eq!(
+                        control_mutation, mutation,
+                        "depth {} subtree {}: mutation does not match control at index {:?}",
+                        current_depth, i, index,
+                    );
+                }
+
+                (mutations_per_subtree, subtree_root)
+            })
+            .unzip();
+
+        subtree_leaves = SubtreeLeavesIter::from_leaves(&mut subtree_roots).collect();
+        node_mutations.extend(mutations_per_subtree.into_iter().flatten());
+
+        assert!(!subtree_leaves.is_empty(), "on depth {current_depth}");
+    }
+
+    let [subtree]: [Vec<_>; 1] = subtree_leaves.try_into().unwrap();
+    let [root_leaf]: [SubtreeLeaf; 1] = subtree.try_into().unwrap();
+    // Check that the new root matches the control.
+    assert_eq!(control.new_root, root_leaf.hash);
+
+    // Check that the node mutations match the control.
+    assert_eq!(control.node_mutations().len(), node_mutations.len());
+    for (&index, mutation) in control.node_mutations().iter() {
+        let test_mutation = node_mutations.get(&index).unwrap();
+        assert_eq!(test_mutation, mutation);
+    }
+    // Check that the new pairs match the control
+    assert_eq!(control.new_pairs.len(), new_pairs.len());
+    for (&key, &value) in control.new_pairs.iter() {
+        let test_value = new_pairs.get(&key).unwrap();
+        assert_eq!(test_value, &value);
+    }
+}
+
+#[test]
+#[cfg(feature = "concurrent")]
+fn test_compute_mutations_parallel() {
+    const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
+
+    let entries = generate_entries(PAIR_COUNT);
+    let tree = Smt::with_entries(entries.clone()).unwrap();
+
+    let updates = generate_updates(entries, 1000);
+
+    let control = tree.compute_mutations_sequential(updates.clone());
+    let mutations = tree.compute_mutations(updates);
+
+    assert_eq!(mutations.root(), control.root());
+    assert_eq!(mutations.old_root(), control.old_root());
+    assert_eq!(mutations.node_mutations(), control.node_mutations());
+    assert_eq!(mutations.new_pairs(), control.new_pairs());
 }

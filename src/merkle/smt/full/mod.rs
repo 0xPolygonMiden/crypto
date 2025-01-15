@@ -255,7 +255,17 @@ impl Smt {
         <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
     }
 
-    /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to this tree.
+    /// Sequential implementation of [`Smt::compute_mutations()`].
+    pub fn compute_mutations_sequential(
+        &self,
+        kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations_sequential(self, kv_pairs)
+    }
+
+    /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to
+    /// this tree and returns the reverse mutation set. Applying the reverse mutation sets to the
+    /// updated tree will revert the changes.
     ///
     /// # Errors
     /// If `mutations` was computed on a tree with a different root than this one, returns
