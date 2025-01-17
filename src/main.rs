@@ -34,7 +34,7 @@ pub fn benchmark_smt() {
     let insertions = args.insertions;
     let updates = args.updates;
 
-    assert!(updates <= insertions + tree_size, "Cannot update more than insertions + size");
+    assert!(updates <= tree_size, "Cannot update more than `size`");
     // prepare the `leaves` vector for tree creation
     let mut entries = Vec::new();
     for i in 0..tree_size {
@@ -44,30 +44,19 @@ pub fn benchmark_smt() {
     }
 
     let mut tree = construction(entries.clone(), tree_size).unwrap();
-    insertion(&mut tree, insertions).unwrap();
-    batched_insertion(&mut tree, insertions).unwrap();
-    batched_update(&mut tree, entries, updates).unwrap();
+    insertion(&mut tree.clone(), insertions).unwrap();
+    batched_insertion(&mut tree.clone(), insertions).unwrap();
+    batched_update(&mut tree.clone(), entries, updates).unwrap();
     proof_generation(&mut tree).unwrap();
 }
 
 /// Runs the construction benchmark for [`Smt`], returning the constructed tree.
 pub fn construction(entries: Vec<(RpoDigest, Word)>, size: usize) -> Result<Smt, MerkleError> {
-    let cloned_entries = entries.clone();
     println!("Running a construction benchmark:");
     let now = Instant::now();
-    let tree = Smt::with_entries(cloned_entries)?;
+    let tree = Smt::with_entries(entries)?;
     let elapsed = now.elapsed().as_secs_f32();
-
     println!("Constructed a SMT with {size} key-value pairs in {elapsed:.1} seconds");
-
-    let now = Instant::now();
-    let tree_sequential = Smt::with_entries_sequential(entries)?;
-    let compute_elapsed_sequential = now.elapsed().as_secs_f32();
-
-    assert_eq!(tree.root(), tree_sequential.root());
-    println!("Constructed a SMT sequentially with {size} key-value pairs in {elapsed:.1} seconds");
-    let factor = compute_elapsed_sequential / elapsed;
-    println!("Parallel implementation is {factor}x times faster.");
     Ok(tree)
 }
 
@@ -110,39 +99,22 @@ pub fn batched_insertion(tree: &mut Smt, insertions: usize) -> Result<(), Merkle
         })
         .collect();
 
-    let cloned_new_pairs = new_pairs.clone();
     let now = Instant::now();
-    let mutations = tree.compute_mutations(cloned_new_pairs);
+    let mutations = tree.compute_mutations(new_pairs);
     let compute_elapsed = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
 
-    let now = Instant::now();
-    let mutations_sequential = tree.compute_mutations_sequential(new_pairs);
-    let compute_elapsed_sequential = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
-
-    assert_eq!(mutations.root(), mutations_sequential.root());
-    assert_eq!(mutations.node_mutations(), mutations_sequential.node_mutations());
-    assert_eq!(mutations.new_pairs(), mutations_sequential.new_pairs());
-
     println!(
-        "An average insert-batch computation time measured by a {insertions}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
+        "An average insert-batch computation time measured by a 1k-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
         compute_elapsed,
         compute_elapsed * 1000_f64 / insertions as f64, // time in μs
     );
-
-    println!(
-        "An average insert-batch sequential computation time measured by a {insertions}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
-        compute_elapsed_sequential,
-        compute_elapsed_sequential * 1000_f64 / insertions as f64, // time in μs
-    );
-    let parallel_factor = compute_elapsed_sequential / compute_elapsed;
-    println!("Parallel implementation is {parallel_factor}x times faster.");
 
     let now = Instant::now();
     tree.apply_mutations(mutations)?;
     let apply_elapsed = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
 
     println!(
-        "An average insert-batch application time measured by a {insertions}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
+        "An average insert-batch application time measured by a 1k-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
         apply_elapsed,
         apply_elapsed * 1000_f64 / insertions as f64, // time in μs
     );
@@ -186,40 +158,22 @@ pub fn batched_update(
 
     assert_eq!(new_pairs.len(), updates);
 
-    let cloned_new_pairs = new_pairs.clone();
     let now = Instant::now();
-    let mutations = tree.compute_mutations(cloned_new_pairs);
+    let mutations = tree.compute_mutations(new_pairs);
     let compute_elapsed = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
-
-    let now = Instant::now();
-    let mutations_sequential = tree.compute_mutations_sequential(new_pairs);
-    let compute_elapsed_sequential = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
-
-    assert_eq!(mutations.root(), mutations_sequential.root());
-    assert_eq!(mutations.node_mutations(), mutations_sequential.node_mutations());
-    assert_eq!(mutations.new_pairs(), mutations_sequential.new_pairs());
 
     let now = Instant::now();
     tree.apply_mutations(mutations)?;
     let apply_elapsed = now.elapsed().as_secs_f64() * 1000_f64; // time in ms
 
     println!(
-        "An average update-batch computation time measured by a {updates}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
+        "An average update-batch computation time measured by a 1k-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
         compute_elapsed,
         compute_elapsed * 1000_f64 / updates as f64, // time in μs
     );
 
     println!(
-        "An average update-batch sequential computation time measured by a {updates}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
-        compute_elapsed_sequential,
-        compute_elapsed_sequential * 1000_f64 / updates as f64, // time in μs
-    );
-
-    let factor = compute_elapsed_sequential / compute_elapsed;
-    println!("Parallel implementaton is {factor}x times faster.");
-
-    println!(
-        "An average update-batch application time measured by a {updates}-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
+        "An average update-batch application time measured by a 1k-batch into an SMT with {size} leaves over {:.1} ms is {:.0} μs",
         apply_elapsed,
         apply_elapsed * 1000_f64 / updates as f64, // time in μs
     );
