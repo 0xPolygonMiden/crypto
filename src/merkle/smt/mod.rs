@@ -492,6 +492,18 @@ impl<const DEPTH: u8> TryFrom<NodeIndex> for LeafIndex<DEPTH> {
     }
 }
 
+impl<const DEPTH: u8> Serializable for LeafIndex<DEPTH> {
+    fn write_into<W: ByteWriter>(&self, target: &mut W) {
+        self.index.write_into(target);
+    }
+}
+
+impl<const DEPTH: u8> Deserializable for LeafIndex<DEPTH> {
+    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
+        Ok(Self { index: source.read()? })
+    }
+}
+
 // MUTATIONS
 // ================================================================================================
 
