@@ -602,6 +602,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             let mut iter = leaves.drain(..).peekable();
 
             while let Some(first_leaf) = iter.next() {
+                /// This constructs a valid index because next_depth will never exceed the depth of the tree.
                 let parent_index = NodeIndex::new_unchecked(next_depth, first_leaf.col).parent();
                 let parent_node = self.get_inner_node(parent_index);
                 let (left, right) = Self::fetch_sibling_pair(&mut iter, first_leaf, parent_node);
