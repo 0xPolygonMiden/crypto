@@ -1,4 +1,7 @@
-use alloc::{collections::BTreeMap, vec::Vec};
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    vec::Vec,
+};
 
 use rand::{prelude::IteratorRandom, thread_rng, Rng};
 
@@ -114,6 +117,17 @@ fn generate_entries(pair_count: u64) -> Vec<(RpoDigest, Word)> {
 fn generate_updates(entries: Vec<(RpoDigest, Word)>, updates: usize) -> Vec<(RpoDigest, Word)> {
     const REMOVAL_PROBABILITY: f64 = 0.2;
     let mut rng = thread_rng();
+
+    // Assertion to ensure input keys are unique
+    assert!(
+        entries
+            .iter()
+            .map(|(key, _)| key)
+            .collect::<BTreeSet<_>>()
+            .len()
+            == entries.len(),
+        "Input entries contain duplicate keys!"
+    );
 
     let mut sorted_entries: Vec<(RpoDigest, Word)> = entries
         .into_iter()
@@ -452,7 +466,7 @@ fn test_singlethreaded_subtree_mutations() {
 
     let mut node_mutations = NodeMutations::default();
 
-    let (mut subtree_leaves, new_pairs) = tree.sorted_pairs_to_mutated_leaves(updates);
+    let (mut subtree_leaves, new_pairs) = tree.sorted_pairs_to_mutated_subtree_leaves(updates);
 
     for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
         // There's no flat_map_unzip(), so this is the best we can do.

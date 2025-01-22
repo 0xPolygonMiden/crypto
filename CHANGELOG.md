@@ -1,6 +1,7 @@
 ## 0.13.1 (2024-12-26)
 
 - Generate reverse mutations set on applying of mutations set, implemented serialization of `MutationsSet` (#355).
+- Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
 
 ## 0.13.0 (2024-11-24)
 
