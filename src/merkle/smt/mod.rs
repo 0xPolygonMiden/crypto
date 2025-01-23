@@ -621,8 +621,8 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
     /// Constructs an `InnerNode` representing the sibling pair of which `first_leaf` is a part:
     /// - If `first_leaf` is a right child, the left child is copied from the `parent_node`.
-    /// - If `first_leaf` is a left child, the right child is taken from `iter` if it was also mutated
-    ///   or copied from the `parent_node`.
+    /// - If `first_leaf` is a left child, the right child is taken from `iter` if it was also
+    ///   mutated or copied from the `parent_node`.
     ///
     /// Returns the `InnerNode` containing the hashes of the sibling pair.
     fn fetch_sibling_pair(

@@ -120,12 +120,7 @@ fn generate_updates(entries: Vec<(RpoDigest, Word)>, updates: usize) -> Vec<(Rpo
 
     // Assertion to ensure input keys are unique
     assert!(
-        entries
-            .iter()
-            .map(|(key, _)| key)
-            .collect::<BTreeSet<_>>()
-            .len()
-            == entries.len(),
+        entries.iter().map(|(key, _)| key).collect::<BTreeSet<_>>().len() == entries.len(),
         "Input entries contain duplicate keys!"
     );
 
