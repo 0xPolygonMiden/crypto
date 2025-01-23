@@ -1,3 +1,7 @@
+## 0.14.0 (TBD)
+
+- [BREAKING] Increment minimum supported Rust version to 1.84.
+
 ## 0.13.1 (2024-12-26)
 
 - Generate reverse mutations set on applying of mutations set, implemented serialization of `MutationsSet` (#355).

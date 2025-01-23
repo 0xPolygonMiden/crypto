@@ -270,7 +270,7 @@ pub fn path_to_text(path: &MerklePath) -> Result<String, fmt::Error> {
     }
 
     // remove the last ", "
-    if path.len() != 0 {
+    if !path.is_empty() {
         s.pop();
         s.pop();
     }
