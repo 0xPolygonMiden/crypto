@@ -289,9 +289,9 @@ impl Deserializable for SignaturePoly {
                 }
                 m += 128;
                 if m >= 2048 {
-                    return Err(DeserializationError::InvalidValue(
-                        "Failed to decode signature: high bits {m} exceed 2048".to_string(),
-                    ));
+                    return Err(DeserializationError::InvalidValue(format!(
+                        "Failed to decode signature: high bits {m} exceed 2048",
+                    )));
                 }
             }
             if s != 0 && m == 0 {
