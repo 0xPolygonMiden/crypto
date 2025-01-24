@@ -507,14 +507,14 @@ impl<const DEPTH: u8> Deserializable for LeafIndex<DEPTH> {
 // MUTATIONS
 // ================================================================================================
 
-/// A change to an inner node of a [`SparseMerkleTree`] that hasn't yet been applied.
+/// A change to an inner node of a sparse Merkle tree that hasn't yet been applied.
 /// [`MutationSet`] stores this type in relation to a [`NodeIndex`] to keep track of what changes
 /// need to occur at which node indices.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeMutation {
-    /// Corresponds to [`SparseMerkleTree::remove_inner_node()`].
+    /// Node needs to be removed.
     Removal,
-    /// Corresponds to [`SparseMerkleTree::insert_inner_node()`].
+    /// Node needs to be inserted.
     Addition(InnerNode),
 }
 
