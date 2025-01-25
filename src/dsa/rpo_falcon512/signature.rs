@@ -97,7 +97,7 @@ impl Signature {
         }
 
         let c = hash_to_point_rpo256(message, &self.nonce);
-        h_digest == pubkey_com && verify_helper(&c, &self.s2, self.pk_poly())
+        verify_helper(&c, &self.s2, self.pk_poly())
     }
 }
 
