@@ -1,3 +1,7 @@
+## 0.13.2 (2025-01-24)
+
+- Made `InnerNode` and `NodeMutation` public. Implemented (de)serialization of `LeafIndex` (#367).
+
 ## 0.13.1 (2024-12-26)
 
 - Generate reverse mutations set on applying of mutations set, implemented serialization of `MutationsSet` (#355).
