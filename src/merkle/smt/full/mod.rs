@@ -1,12 +1,8 @@
-use alloc::{
-    collections::{BTreeMap, BTreeSet},
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{collections::BTreeSet, string::ToString, vec::Vec};
 
 use super::{
-    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, LeafIndex, MerkleError, MerklePath,
-    MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
+    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex, MerkleError,
+    MerklePath, MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
 };
 
 mod error;
@@ -30,6 +26,8 @@ pub const SMT_DEPTH: u8 = 64;
 // SMT
 // ================================================================================================
 
+type Leaves = super::Leaves<SmtLeaf>;
+
 /// Sparse Merkle tree mapping 256-bit keys to 256-bit values. Both keys and values are represented
 /// by 4 field elements.
 ///
@@ -43,8 +41,8 @@ pub const SMT_DEPTH: u8 = 64;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Smt {
     root: RpoDigest,
-    leaves: BTreeMap<u64, SmtLeaf>,
-    inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+    inner_nodes: InnerNodes,
+    leaves: Leaves,
 }
 
 impl Smt {
@@ -64,18 +62,57 @@ impl Smt {
 
         Self {
             root,
-            leaves: BTreeMap::new(),
-            inner_nodes: BTreeMap::new(),
+            inner_nodes: Default::default(),
+            leaves: Default::default(),
         }
     }
 
     /// Returns a new [Smt] instantiated with leaves set as specified by the provided entries.
+    ///
+    /// If the `concurrent` feature is enabled, this function uses a parallel implementation to
+    /// process the entries efficiently, otherwise it defaults to the sequential implementation.
     ///
     /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
     ///
     /// # Errors
     /// Returns an error if the provided entries contain multiple values for the same key.
     pub fn with_entries(
+        entries: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> Result<Self, MerkleError> {
+        #[cfg(feature = "concurrent")]
+        {
+            let mut seen_keys = BTreeSet::new();
+            let entries: Vec<_> = entries
+                .into_iter()
+                .map(|(key, value)| {
+                    if seen_keys.insert(key) {
+                        Ok((key, value))
+                    } else {
+                        Err(MerkleError::DuplicateValuesForIndex(
+                            LeafIndex::<SMT_DEPTH>::from(key).value(),
+                        ))
+                    }
+                })
+                .collect::<Result<_, _>>()?;
+            if entries.is_empty() {
+                return Ok(Self::default());
+            }
+            <Self as SparseMerkleTree<SMT_DEPTH>>::with_entries_par(entries)
+        }
+        #[cfg(not(feature = "concurrent"))]
+        {
+            Self::with_entries_sequential(entries)
+        }
+    }
+
+    /// Returns a new [Smt] instantiated with leaves set as specified by the provided entries.
+    ///
+    /// This sequential implementation processes entries one at a time to build the tree.
+    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
+    ///
+    /// # Errors
+    /// Returns an error if the provided entries contain multiple values for the same key.
+    pub fn with_entries_sequential(
         entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
         // create an empty tree
@@ -99,6 +136,19 @@ impl Smt {
             };
         }
         Ok(tree)
+    }
+
+    /// Returns a new [`Smt`] instantiated from already computed leaves and nodes.
+    ///
+    /// This function performs minimal consistency checking. It is the caller's responsibility to
+    /// ensure the passed arguments are correct and consistent with each other.
+    ///
+    /// # Panics
+    /// With debug assertions on, this function panics if `root` does not match the root node in
+    /// `inner_nodes`.
+    pub fn from_raw_parts(inner_nodes: InnerNodes, leaves: Leaves, root: RpoDigest) -> Self {
+        // Our particular implementation of `from_raw_parts()` never returns `Err`.
+        <Self as SparseMerkleTree<SMT_DEPTH>>::from_raw_parts(inner_nodes, leaves, root).unwrap()
     }
 
     // PUBLIC ACCESSORS
@@ -282,6 +332,19 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
     const EMPTY_ROOT: RpoDigest = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
 
+    fn from_raw_parts(
+        inner_nodes: InnerNodes,
+        leaves: Leaves,
+        root: RpoDigest,
+    ) -> Result<Self, MerkleError> {
+        if cfg!(debug_assertions) {
+            let root_node = inner_nodes.get(&NodeIndex::root()).unwrap();
+            assert_eq!(root_node.hash(), root);
+        }
+
+        Ok(Self { root, inner_nodes, leaves })
+    }
+
     fn root(&self) -> RpoDigest {
         self.root
     }
@@ -365,6 +428,23 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
 
     fn path_and_leaf_to_opening(path: MerklePath, leaf: SmtLeaf) -> SmtProof {
         SmtProof::new_unchecked(path, leaf)
+    }
+
+    fn pairs_to_leaf(mut pairs: Vec<(RpoDigest, Word)>) -> SmtLeaf {
+        assert!(!pairs.is_empty());
+
+        if pairs.len() > 1 {
+            SmtLeaf::new_multiple(pairs).unwrap()
+        } else {
+            let (key, value) = pairs.pop().unwrap();
+            // TODO: should we ever be constructing empty leaves from pairs?
+            if value == Self::EMPTY_VALUE {
+                let index = Self::key_to_leaf_index(&key);
+                SmtLeaf::new_empty(index)
+            } else {
+                SmtLeaf::new_single(key, value)
+            }
+        }
     }
 }
 

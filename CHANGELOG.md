@@ -1,6 +1,12 @@
+## 0.14.0 (TBD)
+
+- [BREAKING] Increment minimum supported Rust version to 1.84.
+- Removed duplicated check in RpoFalcon512 verification (#368).
+
 ## 0.13.2 (2025-01-24)
 
 - Made `InnerNode` and `NodeMutation` public. Implemented (de)serialization of `LeafIndex` (#367).
+
 
 ## 0.13.1 (2024-12-26)
 
@@ -11,11 +17,13 @@
 - Fixed a bug in the implementation of `draw_integers` for `RpoRandomCoin` (#343).
 - [BREAKING] Refactor error messages and use `thiserror` to derive errors (#344).
 - [BREAKING] Updated Winterfell dependency to v0.11 (#346).
+- Added support for hashmaps in `Smt` and `SimpleSmt` which gives up to 10x boost in some operations (#363).
 
 
 ## 0.12.0 (2024-10-30)
 
 - [BREAKING] Updated Winterfell dependency to v0.10 (#338).
+- Added parallel implementation of `Smt::with_entries()` with significantly better performance when the `concurrent` feature is enabled (#341).
 
 ## 0.11.0 (2024-10-17)
 

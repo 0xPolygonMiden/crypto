@@ -1,38 +1,40 @@
-#ifndef RPO_SVE_RPO_HASH_H
-#define RPO_SVE_RPO_HASH_H
+#ifndef RPO_SVE_RPO_HASH_256_H
+#define RPO_SVE_RPO_HASH_256_H
 
 #include <arm_sve.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#define COPY(NAME, VIN1, VIN2, SIN3)                \
+#define STATE_WIDTH 12
+
+#define COPY_256(NAME, VIN1, VIN2, SIN3)                \
     svuint64_t NAME ## _1 = VIN1;                   \
     svuint64_t NAME ## _2 = VIN2;                   \
     uint64_t NAME ## _3[4];                         \
     memcpy(NAME ## _3, SIN3, 4 * sizeof(uint64_t))
 
-#define MULTIPLY(PRED, DEST, OP)                    \
-    mul(PRED, &DEST ## _1, &OP ## _1, &DEST ## _2, &OP ## _2, DEST ## _3, OP ## _3)
+#define MULTIPLY_256(PRED, DEST, OP)                    \
+    mul_256(PRED, &DEST ## _1, &OP ## _1, &DEST ## _2, &OP ## _2, DEST ## _3, OP ## _3)
 
-#define SQUARE(PRED, NAME)                          \
-    sq(PRED, &NAME ## _1, &NAME ## _2, NAME ## _3)
+#define SQUARE_256(PRED, NAME)                          \
+    sq_256(PRED, &NAME ## _1, &NAME ## _2, NAME ## _3)
 
-#define SQUARE_DEST(PRED, DEST, SRC)                \
-    COPY(DEST, SRC ## _1, SRC ## _2, SRC ## _3);    \
-    SQUARE(PRED, DEST);
+#define SQUARE_DEST_256(PRED, DEST, SRC)                \
+    COPY_256(DEST, SRC ## _1, SRC ## _2, SRC ## _3);    \
+    SQUARE_256(PRED, DEST);
 
 #define POW_ACC(PRED, NAME, CNT, TAIL)              \
     for (size_t i = 0; i < CNT; i++) {              \
-        SQUARE(PRED, NAME);                         \
+        SQUARE_256(PRED, NAME);                         \
     }                                               \
-    MULTIPLY(PRED, NAME, TAIL);
+    MULTIPLY_256(PRED, NAME, TAIL);
 
-#define POW_ACC_DEST(PRED, DEST, CNT, HEAD, TAIL)   \
-    COPY(DEST, HEAD ## _1, HEAD ## _2, HEAD ## _3); \
+#define POW_ACC_DEST_256(PRED, DEST, CNT, HEAD, TAIL)   \
+    COPY_256(DEST, HEAD ## _1, HEAD ## _2, HEAD ## _3); \
     POW_ACC(PRED, DEST, CNT, TAIL)
 
-extern inline void add_constants(
+extern inline void add_constants_256(
     svbool_t pg,
     svuint64_t *state1,
     svuint64_t *const1,
@@ -73,7 +75,7 @@ extern inline void add_constants(
     *state2 = svsub_m(pt2, x2, (uint32_t)-1);
 }
 
-extern inline void mul(
+extern inline void mul_256(
     svbool_t pg,
     svuint64_t *r1,
     const svuint64_t *op1,
@@ -163,59 +165,97 @@ extern inline void mul(
     r3[3] = r_4 - (uint64_t)minus1_4;
 }
 
-extern inline void sq(svbool_t pg, svuint64_t *a, svuint64_t *b, uint64_t *c) {
-    mul(pg, a, a, b, b, c, c);
+extern inline void sq_256(svbool_t pg, svuint64_t *a, svuint64_t *b, uint64_t *c) {
+    mul_256(pg, a, a, b, b, c, c);
 }
 
-extern inline void apply_sbox(
+extern inline void apply_sbox_256(
     svbool_t pg,
     svuint64_t *state1,
     svuint64_t *state2,
     uint64_t *state3
 ) {
-    COPY(x, *state1, *state2, state3);                // copy input to x
-    SQUARE(pg, x);                                    // x contains input^2
-    mul(pg, state1, &x_1, state2, &x_2, state3, x_3); // state contains input^3
-    SQUARE(pg, x);                                    // x contains input^4
-    mul(pg, state1, &x_1, state2, &x_2, state3, x_3); // state contains input^7
+    COPY_256(x, *state1, *state2, state3);                // copy input to x
+    SQUARE_256(pg, x);                                    // x contains input^2
+    mul_256(pg, state1, &x_1, state2, &x_2, state3, x_3); // state contains input^3
+    SQUARE_256(pg, x);                                    // x contains input^4
+    mul_256(pg, state1, &x_1, state2, &x_2, state3, x_3); // state contains input^7
 }
 
-extern inline void apply_inv_sbox(
+extern inline void apply_inv_sbox_256(
     svbool_t pg,
     svuint64_t *state_1,
     svuint64_t *state_2,
     uint64_t *state_3
 ) {
     // base^10
-    COPY(t1, *state_1, *state_2, state_3);
-    SQUARE(pg, t1);
+    COPY_256(t1, *state_1, *state_2, state_3);
+    SQUARE_256(pg, t1);
 
     // base^100
-    SQUARE_DEST(pg, t2, t1);
+    SQUARE_DEST_256(pg, t2, t1);
 
     // base^100100
-    POW_ACC_DEST(pg, t3, 3, t2, t2);
+    POW_ACC_DEST_256(pg, t3, 3, t2, t2);
 
     // base^100100100100
-    POW_ACC_DEST(pg, t4, 6, t3, t3);
+    POW_ACC_DEST_256(pg, t4, 6, t3, t3);
 
     // compute base^100100100100100100100100
-    POW_ACC_DEST(pg, t5, 12, t4, t4);
+    POW_ACC_DEST_256(pg, t5, 12, t4, t4);
 
     // compute base^100100100100100100100100100100
-    POW_ACC_DEST(pg, t6, 6, t5, t3);
+    POW_ACC_DEST_256(pg, t6, 6, t5, t3);
 
     // compute base^1001001001001001001001001001000100100100100100100100100100100
-    POW_ACC_DEST(pg, t7, 31, t6, t6);
+    POW_ACC_DEST_256(pg, t7, 31, t6, t6);
 
     // compute base^1001001001001001001001001001000110110110110110110110110110110111
-    SQUARE(pg, t7);
-    MULTIPLY(pg, t7, t6);
-    SQUARE(pg, t7);
-    SQUARE(pg, t7);
-    MULTIPLY(pg, t7, t1);
-    MULTIPLY(pg, t7, t2);
-    mul(pg, state_1, &t7_1, state_2, &t7_2, state_3, t7_3);
+    SQUARE_256(pg, t7);
+    MULTIPLY_256(pg, t7, t6);
+    SQUARE_256(pg, t7);
+    SQUARE_256(pg, t7);
+    MULTIPLY_256(pg, t7, t1);
+    MULTIPLY_256(pg, t7, t2);
+    mul_256(pg, state_1, &t7_1, state_2, &t7_2, state_3, t7_3);
 }
 
-#endif //RPO_SVE_RPO_HASH_H
+bool add_constants_and_apply_sbox_256(uint64_t state[STATE_WIDTH], uint64_t constants[STATE_WIDTH]) {
+    const uint64_t vl = 4;   // number of u64 numbers in one 128 bit SVE vector
+    svbool_t ptrue = svptrue_b64();
+
+    svuint64_t state1 = svld1(ptrue, state + 0 * vl);
+    svuint64_t state2 = svld1(ptrue, state + 1 * vl);
+
+    svuint64_t const1 = svld1(ptrue, constants + 0 * vl);
+    svuint64_t const2 = svld1(ptrue, constants + 1 * vl);
+
+    add_constants_256(ptrue, &state1, &const1, &state2, &const2, state + 8, constants + 8);
+    apply_sbox_256(ptrue, &state1, &state2, state + 8);
+
+    svst1(ptrue, state + 0 * vl, state1);
+    svst1(ptrue, state + 1 * vl, state2);
+
+    return true;
+}
+
+bool add_constants_and_apply_inv_sbox_256(uint64_t state[STATE_WIDTH], uint64_t constants[STATE_WIDTH]) {
+    const uint64_t vl = 4;   // number of u64 numbers in one 128 bit SVE vector
+    svbool_t ptrue = svptrue_b64();
+
+    svuint64_t state1 = svld1(ptrue, state + 0 * vl);
+    svuint64_t state2 = svld1(ptrue, state + 1 * vl);
+
+    svuint64_t const1 = svld1(ptrue, constants + 0 * vl);
+    svuint64_t const2 = svld1(ptrue, constants + 1 * vl);
+
+    add_constants_256(ptrue, &state1, &const1, &state2, &const2, state + 8, constants + 8);
+    apply_inv_sbox_256(ptrue, &state1, &state2, state + 8);
+
+    svst1(ptrue, state + 0 * vl, state1);
+    svst1(ptrue, state + 1 * vl, state2);
+
+    return true;
+}
+
+#endif //RPO_SVE_RPO_HASH_256_H

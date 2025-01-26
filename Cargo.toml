@@ -1,16 +1,16 @@
 [package]
 name = "miden-crypto"
-version = "0.13.2"
+version = "0.14.0"
 description = "Miden Cryptographic primitives"
 authors = ["miden contributors"]
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
-documentation = "https://docs.rs/miden-crypto/0.13.1"
+documentation = "https://docs.rs/miden-crypto/0.14.0"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.84"
 
 [[bin]]
 name = "miden-crypto"
@@ -28,12 +28,28 @@ name = "smt"
 harness = false
 
 [[bench]]
+name = "smt-subtree"
+harness = false
+required-features = ["internal"]
+
+[[bench]]
+name = "merkle"
+harness = false
+
+[[bench]]
+name = "smt-with-entries"
+harness = false
+
+[[bench]]
 name = "store"
 harness = false
 
 [features]
-default = ["std"]
+concurrent = ["dep:rayon"]
+default = ["std", "concurrent"]
 executable = ["dep:clap", "dep:rand-utils", "std"]
+smt_hashmaps = ["dep:hashbrown"]
+internal = []
 serde = ["dep:serde", "serde?/alloc", "winter-math/serde"]
 std = [
     "blake3/std",
@@ -48,11 +64,13 @@ std = [
 [dependencies]
 blake3 = { version = "1.5", default-features = false }
 clap = { version = "4.5", optional = true, features = ["derive"] }
+hashbrown = { version = "0.15", optional = true, features = ["serde"] }
 num = { version = "0.4", default-features = false, features = ["alloc", "libm"] }
 num-complex = { version = "0.4", default-features = false }
 rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false }
 rand-utils = { version = "0.11", package = "winter-rand-utils", optional = true }
+rayon = { version = "1.10", optional = true }
 serde = { version = "1.0", default-features = false, optional = true, features = ["derive"] }
 sha3 = { version = "0.10", default-features = false }
 thiserror = { version = "2.0", default-features = false }
