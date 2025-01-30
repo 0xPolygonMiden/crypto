@@ -13,13 +13,13 @@ use rand_utils::rand_value;
 #[clap(name = "Benchmark", about = "SMT benchmark", version, rename_all = "kebab-case")]
 pub struct BenchmarkCmd {
     /// Size of the tree
-    #[clap(short = 's', long = "size", default_value = "10000")]
+    #[clap(short = 's', long = "size", default_value = "1000000")]
     size: usize,
     /// Number of insertions
-    #[clap(short = 'i', long = "insertions", default_value = "10000")]
+    #[clap(short = 'i', long = "insertions", default_value = "1000")]
     insertions: usize,
     /// Number of updates
-    #[clap(short = 'u', long = "updates", default_value = "10000")]
+    #[clap(short = 'u', long = "updates", default_value = "1000")]
     updates: usize,
 }
 
