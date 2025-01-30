@@ -218,6 +218,10 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// [`SimpleSmt::apply_mutations()`] can be called in order to commit these changes to the
     /// Merkle tree, or [`drop()`] to discard them.
     ///
+    /// **Note:** Parallel computation is only supported for trees whose depth is a multiple of 8.
+    /// Since `SimpleSmt` can have a depth that isn't a multiple of 8, this method defaults to the
+    /// sequential implementation.
+    ///
     /// # Example
     /// ```
     /// # use miden_crypto::{hash::rpo::RpoDigest, Felt, Word};
@@ -233,7 +237,7 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
         &self,
         kv_pairs: impl IntoIterator<Item = (LeafIndex<DEPTH>, Word)>,
     ) -> MutationSet<DEPTH, LeafIndex<DEPTH>, Word> {
-        <Self as SparseMerkleTree<DEPTH>>::compute_mutations(self, kv_pairs)
+        <Self as SparseMerkleTree<DEPTH>>::compute_mutations_sequential(self, kv_pairs)
     }
 
     /// Applies the prospective mutations computed with [`SimpleSmt::compute_mutations()`] to this
