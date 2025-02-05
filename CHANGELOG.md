@@ -1,6 +1,12 @@
 ## 0.14.0 (TBD)
 
 - [BREAKING] Increment minimum supported Rust version to 1.84.
+- Removed duplicated check in RpoFalcon512 verification (#368).
+
+## 0.13.2 (2025-01-24)
+
+- Made `InnerNode` and `NodeMutation` public. Implemented (de)serialization of `LeafIndex` (#367).
+
 
 ## 0.13.1 (2024-12-26)
 
