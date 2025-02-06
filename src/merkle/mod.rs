@@ -22,9 +22,7 @@ pub use path::{MerklePath, RootPath, ValuePath};
 
 mod smt;
 #[cfg(feature = "internal")]
-pub use smt::build_subtree_for_bench;
-#[cfg(feature = "internal")]
-pub use smt::SubtreeLeaf;
+pub use smt::{build_subtree_for_bench, SubtreeLeaf};
 pub use smt::{
     InnerNode, LeafIndex, MutationSet, NodeMutation, SimpleSmt, Smt, SmtLeaf, SmtLeafError,
     SmtProof, SmtProofError, SMT_DEPTH, SMT_MAX_DEPTH, SMT_MIN_DEPTH,

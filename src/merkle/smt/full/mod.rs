@@ -15,6 +15,12 @@ mod proof;
 pub use proof::SmtProof;
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
+// Concurrent implementation
+#[cfg(feature = "concurrent")]
+mod concurrent;
+#[cfg(feature = "internal")]
+pub use concurrent::{build_subtree_for_bench, SubtreeLeaf};
+
 #[cfg(test)]
 mod tests;
 
@@ -316,14 +322,6 @@ impl Smt {
         }
     }
 }
-
-// Concurrent implementation
-#[cfg(feature = "concurrent")]
-mod concurrent;
-#[cfg(feature = "internal")]
-pub use concurrent::build_subtree_for_bench;
-#[cfg(feature = "internal")]
-pub use concurrent::SubtreeLeaf;
 
 impl SparseMerkleTree<SMT_DEPTH> for Smt {
     type Key = RpoDigest;

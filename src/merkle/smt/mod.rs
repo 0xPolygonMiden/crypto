@@ -11,9 +11,7 @@ use crate::{
 
 mod full;
 #[cfg(feature = "internal")]
-pub use full::build_subtree_for_bench;
-#[cfg(feature = "internal")]
-pub use full::SubtreeLeaf;
+pub use full::{build_subtree_for_bench, SubtreeLeaf};
 pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};
 
 mod simple;
