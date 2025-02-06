@@ -202,7 +202,7 @@ mod tests {
             kv_pairs.push((key, value));
         }
 
-        let mut full = Smt::with_entries_par(kv_pairs).unwrap();
+        let mut full = Smt::with_entries(kv_pairs).unwrap();
 
         // Constructing a partial SMT from proofs succeeds.
         // ----------------------------------------------------------------------------------------
