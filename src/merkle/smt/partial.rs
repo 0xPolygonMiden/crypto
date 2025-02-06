@@ -105,9 +105,10 @@ impl PartialSmt {
     ///
     /// Returns an error if:
     /// - the new root after the insertion of the leaf and the path does not match the existing root
-    ///   (unless the tree was empty).
+    ///   (except if the tree was previously empty). If an error is returned, the tree is left in an
+    ///   inconsistent state.
     pub fn add_path(&mut self, leaf: SmtLeaf, path: MerklePath) -> Result<(), MerkleError> {
-        let mut index = leaf.index().index;
+        let mut current_index = leaf.index().index;
 
         let mut node_hash_at_current_index = leaf.hash();
 
@@ -119,28 +120,38 @@ impl PartialSmt {
         //   PartialSmt::insert, this will not error for such empty leaves whose merkle path was
         //   added, but will error for otherwise non-existent leaves whose paths were not added,
         //   which is what we want.
-        self.0.leaves.insert(index.value(), leaf);
+        self.0.leaves.insert(current_index.value(), leaf);
 
         for sibling_hash in path {
-            let is_current_right = index.is_value_odd();
-            index.move_up();
+            // Find the index of the sibling node and compute whether it is a left or right child.
+            let is_sibling_right = current_index.sibling().is_value_odd();
 
-            let new_parent_node = if is_current_right {
-                InnerNode {
-                    left: sibling_hash,
-                    right: node_hash_at_current_index,
-                }
-            } else {
+            // Move the index up so it points to the parent of the current index and the sibling.
+            current_index.move_up();
+
+            // Construct the new parent node from the child that was updated and the sibling from
+            // the merkle path.
+            let new_parent_node = if is_sibling_right {
                 InnerNode {
                     left: node_hash_at_current_index,
                     right: sibling_hash,
                 }
+            } else {
+                InnerNode {
+                    left: sibling_hash,
+                    right: node_hash_at_current_index,
+                }
             };
 
-            self.0.insert_inner_node(index, new_parent_node);
-            node_hash_at_current_index = self.0.get_inner_node(index).hash();
+            self.0.insert_inner_node(current_index, new_parent_node);
+
+            node_hash_at_current_index = self.0.get_inner_node(current_index).hash();
         }
 
+        // Check the newly added merkle path is consistent with the existing tree. If not, the
+        // merkle path was invalid or computed from another tree.
+        // We skip this check if the root is empty since this indicates we're adding the first
+        // merkle path in which case we have to update the tree root to the root from the path.
         if self.root() != Smt::EMPTY_ROOT && self.root() != node_hash_at_current_index {
             return Err(MerkleError::ConflictingRoots {
                 expected_root: self.root(),
@@ -158,7 +169,7 @@ impl PartialSmt {
     /// In particular, this returns true for keys whose value was empty **but** their merkle paths
     /// were added, while it returns false if the merkle paths were **not** added.
     fn is_leaf_tracked(&self, key: RpoDigest) -> bool {
-        self.0.leaves.get(&Smt::key_to_leaf_index(&key).value()).is_some()
+        self.0.leaves.contains_key(&Smt::key_to_leaf_index(&key).value())
     }
 }
 
