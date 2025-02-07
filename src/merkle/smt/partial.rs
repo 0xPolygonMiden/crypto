@@ -1,7 +1,7 @@
 use crate::{
     hash::rpo::RpoDigest,
     merkle::{smt::SparseMerkleTree, InnerNode, MerkleError, MerklePath, Smt, SmtLeaf, SmtProof},
-    Word,
+    Word, EMPTY_WORD,
 };
 
 /// A partial version of an [`Smt`].
@@ -62,13 +62,21 @@ impl PartialSmt {
     }
 
     /// Returns the leaf to which `key` maps
-    pub fn get_leaf(&self, key: &RpoDigest) -> SmtLeaf {
-        self.0.get_leaf(key)
+    pub fn get_leaf(&self, key: &RpoDigest) -> Result<SmtLeaf, MerkleError> {
+        if !self.is_leaf_tracked(key) {
+            return Err(MerkleError::UntrackedKey(*key));
+        }
+
+        Ok(self.0.get_leaf(key))
     }
 
     /// Returns the value associated with `key`.
-    pub fn get_value(&self, key: &RpoDigest) -> Word {
-        self.0.get_value(key)
+    pub fn get_value(&self, key: &RpoDigest) -> Result<Word, MerkleError> {
+        if !self.is_leaf_tracked(key) {
+            return Err(MerkleError::UntrackedKey(*key));
+        }
+
+        Ok(self.0.get_value(key))
     }
 
     // STATE MUTATORS
@@ -88,11 +96,21 @@ impl PartialSmt {
     ///   this [`PartialSmt`], which means it is almost certainly incorrect to update its value. If
     ///   an error is returned the tree is in the same state as before.
     pub fn insert(&mut self, key: RpoDigest, value: Word) -> Result<Word, MerkleError> {
-        if !self.is_leaf_tracked(key) {
+        if !self.is_leaf_tracked(&key) {
             return Err(MerkleError::UntrackedKey(key));
         }
 
-        Ok(self.0.insert(key, value))
+        let previous_value = self.0.insert(key, value);
+
+        // If the value was removed the SmtLeaf was removed as well by the underlying Smt
+        // implementation. However, we still want to consider that leaf tracked so it can be
+        // read and written to, so we reinsert an empty SmtLeaf.
+        if value == EMPTY_WORD {
+            let leaf_index = Smt::key_to_leaf_index(&key);
+            self.0.leaves.insert(leaf_index.value(), SmtLeaf::Empty(leaf_index));
+        }
+
+        Ok(previous_value)
     }
 
     /// Adds a leaf and its merkle path to this [`PartialSmt`] and returns the value that
@@ -168,8 +186,8 @@ impl PartialSmt {
     /// sensibly updated to a new value.
     /// In particular, this returns true for keys whose value was empty **but** their merkle paths
     /// were added, while it returns false if the merkle paths were **not** added.
-    fn is_leaf_tracked(&self, key: RpoDigest) -> bool {
-        self.0.leaves.contains_key(&Smt::key_to_leaf_index(&key).value())
+    fn is_leaf_tracked(&self, key: &RpoDigest) -> bool {
+        self.0.leaves.contains_key(&Smt::key_to_leaf_index(key).value())
     }
 }
 
@@ -227,9 +245,10 @@ mod tests {
         let mut partial = PartialSmt::from_proofs([proof0, proof2, proof_empty]).unwrap();
 
         assert_eq!(full.root(), partial.root());
-        assert_eq!(partial.get_value(&key0), value0);
-        assert_eq!(partial.get_value(&key1), EMPTY_WORD);
-        assert_eq!(partial.get_value(&key2), value2);
+        assert_eq!(partial.get_value(&key0).unwrap(), value0);
+        let error = partial.get_value(&key1).unwrap_err();
+        assert_matches!(error, MerkleError::UntrackedKey(_));
+        assert_eq!(partial.get_value(&key2).unwrap(), value2);
 
         // Insert new values for added keys with empty and non-empty values.
         // ----------------------------------------------------------------------------------------
@@ -249,9 +268,9 @@ mod tests {
         partial.insert(key_empty, new_value_empty_key).unwrap();
 
         assert_eq!(full.root(), partial.root());
-        assert_eq!(partial.get_value(&key0), new_value0);
-        assert_eq!(partial.get_value(&key2), new_value2);
-        assert_eq!(partial.get_value(&key_empty), new_value_empty_key);
+        assert_eq!(partial.get_value(&key0).unwrap(), new_value0);
+        assert_eq!(partial.get_value(&key2).unwrap(), new_value2);
+        assert_eq!(partial.get_value(&key_empty).unwrap(), new_value_empty_key);
 
         // Remove an added key.
         // ----------------------------------------------------------------------------------------
@@ -260,7 +279,7 @@ mod tests {
         partial.insert(key0, EMPTY_WORD).unwrap();
 
         assert_eq!(full.root(), partial.root());
-        assert_eq!(partial.get_value(&key0), EMPTY_WORD);
+        assert_eq!(partial.get_value(&key0).unwrap(), EMPTY_WORD);
 
         // Attempting to update a key whose merkle path was not added is an error.
         // ----------------------------------------------------------------------------------------
@@ -298,9 +317,9 @@ mod tests {
 
         assert_eq!(partial.root(), full.root());
 
-        assert_eq!(partial.get_leaf(&key0), full.get_leaf(&key0));
+        assert_eq!(partial.get_leaf(&key0).unwrap(), full.get_leaf(&key0));
         // key1 is present in the partial tree because it is part of the proof of key0.
-        assert_eq!(partial.get_leaf(&key1), full.get_leaf(&key1));
-        assert_eq!(partial.get_leaf(&key2), full.get_leaf(&key2));
+        assert_eq!(partial.get_leaf(&key1).unwrap(), full.get_leaf(&key1));
+        assert_eq!(partial.get_leaf(&key2).unwrap(), full.get_leaf(&key2));
     }
 }
