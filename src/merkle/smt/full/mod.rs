@@ -438,6 +438,9 @@ impl Deserializable for Smt {
     }
 }
 
+// TESTS
+// ================================================================================================
+
 #[test]
 fn test_smt_serialization_deserialization() {
     // Smt for default types (empty map)
