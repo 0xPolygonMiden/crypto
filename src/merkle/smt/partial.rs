@@ -1,6 +1,6 @@
 use crate::{
     hash::rpo::RpoDigest,
-    merkle::{smt::SparseMerkleTree, InnerNode, MerkleError, MerklePath, Smt, SmtLeaf},
+    merkle::{smt::SparseMerkleTree, InnerNode, MerkleError, MerklePath, Smt, SmtLeaf, SmtProof},
     Word,
 };
 
@@ -40,13 +40,13 @@ impl PartialSmt {
     /// Returns an error if:
     /// - the new root after the insertion of a (leaf, path) tuple does not match the existing root
     ///   (except if the tree was previously empty).
-    pub fn from_merkle_paths<I>(paths: I) -> Result<Self, MerkleError>
+    pub fn from_proofs<I>(paths: I) -> Result<Self, MerkleError>
     where
-        I: IntoIterator<Item = (MerklePath, SmtLeaf)>,
+        I: IntoIterator<Item = SmtProof>,
     {
         let mut partial_smt = Self::new();
 
-        for (leaf, path) in paths {
+        for (leaf, path) in paths.into_iter().map(SmtProof::into_parts) {
             partial_smt.add_path(path, leaf)?;
         }
 
@@ -224,12 +224,7 @@ mod tests {
 
         assert!(proof_empty.leaf().is_empty());
 
-        let mut partial = PartialSmt::from_merkle_paths([
-            proof0.into_parts(),
-            proof2.into_parts(),
-            proof_empty.into_parts(),
-        ])
-        .unwrap();
+        let mut partial = PartialSmt::from_proofs([proof0, proof2, proof_empty]).unwrap();
 
         assert_eq!(full.root(), partial.root());
         assert_eq!(partial.get_value(&key0), value0);
@@ -299,8 +294,7 @@ mod tests {
         let proof0 = full.open(&key0);
         let proof2 = full.open(&key2);
 
-        let partial =
-            PartialSmt::from_merkle_paths([proof0.into_parts(), proof2.into_parts()]).unwrap();
+        let partial = PartialSmt::from_proofs([proof0, proof2]).unwrap();
 
         assert_eq!(partial.root(), full.root());
 
