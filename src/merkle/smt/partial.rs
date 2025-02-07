@@ -61,7 +61,27 @@ impl PartialSmt {
         self.0.root()
     }
 
+    /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
+    /// path to the leaf, as well as the leaf itself.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - the key is not tracked by this partial SMT.
+    pub fn open(&self, key: &RpoDigest) -> Result<SmtProof, MerkleError> {
+        if !self.is_leaf_tracked(key) {
+            return Err(MerkleError::UntrackedKey(*key));
+        }
+
+        Ok(self.0.open(key))
+    }
+
     /// Returns the leaf to which `key` maps
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - the key is not tracked by this partial SMT.
     pub fn get_leaf(&self, key: &RpoDigest) -> Result<SmtLeaf, MerkleError> {
         if !self.is_leaf_tracked(key) {
             return Err(MerkleError::UntrackedKey(*key));
@@ -71,6 +91,11 @@ impl PartialSmt {
     }
 
     /// Returns the value associated with `key`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - the key is not tracked by this partial SMT.
     pub fn get_value(&self, key: &RpoDigest) -> Result<Word, MerkleError> {
         if !self.is_leaf_tracked(key) {
             return Err(MerkleError::UntrackedKey(*key));
@@ -280,6 +305,14 @@ mod tests {
 
         assert_eq!(full.root(), partial.root());
         assert_eq!(partial.get_value(&key0).unwrap(), EMPTY_WORD);
+
+        // Check if returned openings are the same in partial and full SMT.
+        // ----------------------------------------------------------------------------------------
+
+        // This is a key whose value is empty since it was removed.
+        assert_eq!(full.open(&key0), partial.open(&key0).unwrap());
+        // This is a key whose value is non-empty.
+        assert_eq!(full.open(&key2), partial.open(&key2).unwrap());
 
         // Attempting to update a key whose merkle path was not added is an error.
         // ----------------------------------------------------------------------------------------
