@@ -34,6 +34,7 @@ fn test_sorted_pairs_to_leaves() {
         // Subtree 2. Another normal leaf.
         (RpoDigest::new([ONE, ONE, ONE, Felt::new(1024)]), [ONE; 4]),
     ];
+
     let control = Smt::with_entries_sequential(entries.clone()).unwrap();
     let control_leaves: Vec<SmtLeaf> = {
         let mut entries_iter = entries.iter().cloned();
@@ -52,6 +53,7 @@ fn test_sorted_pairs_to_leaves() {
         assert_eq!(entries_iter.next(), None);
         control_leaves
     };
+
     let control_subtree_leaves: Vec<Vec<SubtreeLeaf>> = {
         let mut control_leaves_iter = control_leaves.iter();
         let mut next_leaf = || control_leaves_iter.next().unwrap();
@@ -68,6 +70,7 @@ fn test_sorted_pairs_to_leaves() {
         assert_eq!(control_leaves_iter.next(), None);
         control_subtree_leaves
     };
+
     let subtrees: PairComputations<u64, SmtLeaf> = Smt::sorted_pairs_to_leaves(entries);
     // This will check that the hashes, columns, and subtree assignments all match.
     assert_eq!(subtrees.leaves, control_subtree_leaves);
@@ -80,6 +83,7 @@ fn test_sorted_pairs_to_leaves() {
         .leaves()
         .map(|(index, value)| (index.index.value(), value.clone()))
         .collect();
+
     for (column, test_leaf) in subtrees.nodes {
         if test_leaf.is_empty() {
             continue;
@@ -90,6 +94,7 @@ fn test_sorted_pairs_to_leaves() {
         assert_eq!(control_leaf, &test_leaf);
     }
 }
+
 // Helper for the below tests.
 fn generate_entries(pair_count: u64) -> Vec<(RpoDigest, Word)> {
     (0..pair_count)
@@ -101,6 +106,7 @@ fn generate_entries(pair_count: u64) -> Vec<(RpoDigest, Word)> {
         })
         .collect()
 }
+
 fn generate_updates(entries: Vec<(RpoDigest, Word)>, updates: usize) -> Vec<(RpoDigest, Word)> {
     const REMOVAL_PROBABILITY: f64 = 0.2;
     let mut rng = thread_rng();
@@ -125,6 +131,7 @@ fn generate_updates(entries: Vec<(RpoDigest, Word)>, updates: usize) -> Vec<(Rpo
     sorted_entries.sort_by_key(|(key, _)| Smt::key_to_leaf_index(key).value());
     sorted_entries
 }
+
 #[test]
 fn test_single_subtree() {
     // A single subtree's worth of leaves.
@@ -154,6 +161,7 @@ fn test_single_subtree() {
         "Subtree-computed root at index {control_root_index:?} does not match control"
     );
 }
+
 // Test that not just can we compute a subtree correctly, but we can feed the results of one
 // subtree into computing another. In other words, test that `build_subtree()` is correctly
 // composable.
@@ -201,6 +209,7 @@ fn test_two_subtrees() {
     let control_root = control.get_inner_node(index).hash();
     assert_eq!(control_root, root_leaf.hash, "Root mismatch");
 }
+
 #[test]
 fn test_singlethreaded_subtrees() {
     const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
@@ -282,6 +291,7 @@ fn test_singlethreaded_subtrees() {
     // And of course the root we got from each place should match.
     assert_eq!(control.root(), root_leaf.hash);
 }
+
 /// The parallel version of `test_singlethreaded_subtree()`.
 #[test]
 fn test_multithreaded_subtrees() {
@@ -361,6 +371,7 @@ fn test_multithreaded_subtrees() {
     // And of course the root we got from each place should match.
     assert_eq!(control.root(), root_leaf.hash);
 }
+
 #[test]
 fn test_with_entries_concurrent() {
     const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
@@ -370,6 +381,7 @@ fn test_with_entries_concurrent() {
     assert_eq!(smt.root(), control.root());
     assert_eq!(smt, control);
 }
+
 /// Concurrent mutations
 #[test]
 fn test_singlethreaded_subtree_mutations() {
@@ -431,6 +443,7 @@ fn test_singlethreaded_subtree_mutations() {
         assert_eq!(test_value, &value);
     }
 }
+
 #[test]
 fn test_compute_mutations_parallel() {
     const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
