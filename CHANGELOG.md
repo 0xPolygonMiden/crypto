@@ -11,6 +11,8 @@
 ## 0.13.1 (2024-12-26)
 
 - Generate reverse mutations set on applying of mutations set, implemented serialization of `MutationsSet` (#355).
+- Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
+- Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).
 
 ## 0.13.0 (2024-11-24)
 

@@ -1,4 +1,4 @@
-use alloc::{collections::BTreeSet, string::ToString, vec::Vec};
+use alloc::{string::ToString, vec::Vec};
 
 use super::{
     EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex, MerkleError,
@@ -14,6 +14,12 @@ pub use leaf::SmtLeaf;
 mod proof;
 pub use proof::SmtProof;
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
+
+// Concurrent implementation
+#[cfg(feature = "concurrent")]
+mod concurrent;
+#[cfg(feature = "internal")]
+pub use concurrent::{build_subtree_for_bench, SubtreeLeaf};
 
 #[cfg(test)]
 mod tests;
@@ -81,23 +87,7 @@ impl Smt {
     ) -> Result<Self, MerkleError> {
         #[cfg(feature = "concurrent")]
         {
-            let mut seen_keys = BTreeSet::new();
-            let entries: Vec<_> = entries
-                .into_iter()
-                .map(|(key, value)| {
-                    if seen_keys.insert(key) {
-                        Ok((key, value))
-                    } else {
-                        Err(MerkleError::DuplicateValuesForIndex(
-                            LeafIndex::<SMT_DEPTH>::from(key).value(),
-                        ))
-                    }
-                })
-                .collect::<Result<_, _>>()?;
-            if entries.is_empty() {
-                return Ok(Self::default());
-            }
-            <Self as SparseMerkleTree<SMT_DEPTH>>::with_entries_par(entries)
+            Self::with_entries_concurrent(entries)
         }
         #[cfg(not(feature = "concurrent"))]
         {
@@ -112,9 +102,12 @@ impl Smt {
     ///
     /// # Errors
     /// Returns an error if the provided entries contain multiple values for the same key.
-    pub fn with_entries_sequential(
+    #[cfg(any(not(feature = "concurrent"), test))]
+    fn with_entries_sequential(
         entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
+        use alloc::collections::BTreeSet;
+
         // create an empty tree
         let mut tree = Self::new();
 
@@ -252,7 +245,14 @@ impl Smt {
         &self,
         kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
+        #[cfg(feature = "concurrent")]
+        {
+            self.compute_mutations_concurrent(kv_pairs)
+        }
+        #[cfg(not(feature = "concurrent"))]
+        {
+            <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
+        }
     }
 
     /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to this tree.
