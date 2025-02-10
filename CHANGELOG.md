@@ -4,6 +4,7 @@
 - Removed duplicated check in RpoFalcon512 verification (#368).
 - Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
 - Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).
+- [BREAKING] Updated Winterfell dependency to v0.12 (#374).
 
 ## 0.13.2 (2025-01-24)
 
