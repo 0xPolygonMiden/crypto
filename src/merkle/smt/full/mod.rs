@@ -43,7 +43,8 @@ pub const SMT_DEPTH: u8 = 64;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Smt {
     root: RpoDigest,
-    leaves: BTreeMap<u64, SmtLeaf>,
+    // pub(super) for use in PartialSmt.
+    pub(super) leaves: BTreeMap<u64, SmtLeaf>,
     inner_nodes: BTreeMap<NodeIndex, InnerNode>,
 }
 
@@ -436,6 +437,9 @@ impl Deserializable for Smt {
             .map_err(|err| DeserializationError::InvalidValue(err.to_string()))
     }
 }
+
+// TESTS
+// ================================================================================================
 
 #[test]
 fn test_smt_serialization_deserialization() {

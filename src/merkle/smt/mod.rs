@@ -14,6 +14,9 @@ pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};
 mod simple;
 pub use simple::SimpleSmt;
 
+mod partial;
+pub use partial::PartialSmt;
+
 // CONSTANTS
 // ================================================================================================
 

@@ -1,3 +1,7 @@
+## 0.13.3 (tbd)
+
+- Implement `PartialSmt` (#372).
+
 ## 0.13.2 (2025-01-24)
 
 - Made `InnerNode` and `NodeMutation` public. Implemented (de)serialization of `LeafIndex` (#367).
