@@ -32,8 +32,8 @@ impl PartialSmt {
         Self(Smt::new())
     }
 
-    /// Instantiates a new [`PartialSmt`] by calling [`PartialSmt::add_path`] for all [`MerklePath`]
-    /// and [`SmtLeaf`] pairs in the provided iterator.
+    /// Instantiates a new [`PartialSmt`] by calling [`PartialSmt::add_path`] for all [`SmtProof`]s
+    /// in the provided iterator.
     ///
     /// # Errors
     ///
