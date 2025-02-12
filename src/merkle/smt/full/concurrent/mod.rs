@@ -478,6 +478,15 @@ fn build_subtree(
     tree_depth: u8,
     bottom_depth: u8,
 ) -> (UnorderedMap<NodeIndex, InnerNode>, SubtreeLeaf) {
+    #[cfg(debug_assertions)]
+    {
+        let mut seen_cols = BTreeSet::new();
+        for leaf in &leaves {
+            if !seen_cols.insert(leaf.col) {
+                panic!("Duplicate column found in subtree: {}", leaf.col);
+            }
+        }
+    }
     debug_assert!(bottom_depth <= tree_depth);
     debug_assert!(Integer::is_multiple_of(&bottom_depth, &SUBTREE_DEPTH));
     debug_assert!(leaves.len() <= usize::pow(2, SUBTREE_DEPTH as u32));
