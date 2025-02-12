@@ -3,6 +3,7 @@ use alloc::{
     vec::Vec,
 };
 
+use proptest::prelude::*;
 use rand::{prelude::IteratorRandom, thread_rng, Rng};
 
 use super::{
@@ -10,7 +11,7 @@ use super::{
     Smt, SmtLeaf, SparseMerkleTree, SubtreeLeaf, SubtreeLeavesIter, UnorderedMap, COLS_PER_SUBTREE,
     SMT_DEPTH, SUBTREE_DEPTH,
 };
-use crate::{merkle::smt::Felt, Word, EMPTY_WORD, ONE};
+use crate::{merkle::smt::Felt, Word, EMPTY_WORD, ONE, ZERO};
 
 fn smtleaf_to_subtree_leaf(leaf: &SmtLeaf) -> SubtreeLeaf {
     SubtreeLeaf {
@@ -375,7 +376,15 @@ fn test_multithreaded_subtrees() {
 #[test]
 fn test_with_entries_concurrent() {
     const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
-    let entries = generate_entries(PAIR_COUNT);
+    let mut entries = generate_entries(PAIR_COUNT);
+    let mut rng = rand::thread_rng();
+
+    // Set 10% of the entries to have empty words as their values.
+    for _ in 0..PAIR_COUNT / 10 {
+        let random_index = rng.gen_range(0..PAIR_COUNT);
+        entries[random_index as usize].1 = EMPTY_WORD;
+    }
+
     let control = Smt::with_entries_sequential(entries.clone()).unwrap();
     let smt = Smt::with_entries(entries.clone()).unwrap();
     assert_eq!(smt.root(), control.root());
@@ -456,4 +465,124 @@ fn test_compute_mutations_parallel() {
     assert_eq!(mutations.old_root(), control.old_root());
     assert_eq!(mutations.node_mutations(), control.node_mutations());
     assert_eq!(mutations.new_pairs(), control.new_pairs());
+}
+
+fn arb_felt() -> impl Strategy<Value = Felt> {
+    prop_oneof![
+        any::<u64>().prop_map(Felt::new),
+        Just(ZERO),
+        Just(ONE),
+    ]
+}
+
+/// Generate entries that are guaranteed to be in different subtrees
+fn generate_cross_subtree_entries() -> impl Strategy<Value = Vec<(RpoDigest, Word)>> {
+    let subtree_offsets = prop::collection::vec(0..(COLS_PER_SUBTREE * 4), 1..4);
+    
+    subtree_offsets.prop_map(|offsets| {
+        offsets.into_iter().map(|base_col| {
+            let key = RpoDigest::new([ONE, ONE, ONE, Felt::new(base_col)]);
+            let value = [ONE, ONE, ONE, Felt::new(base_col)];
+            (key, value)
+        }).collect()
+    })
+}
+
+fn arb_entries() -> impl Strategy<Value = Vec<(RpoDigest, Word)>> {
+    // Combine random entries with guaranteed cross-subtree entries
+    prop_oneof![
+        // Original random entry generation
+        prop::collection::vec(
+            prop_oneof![
+                // Random values case
+                (
+                    prop::array::uniform4(arb_felt()).prop_map(RpoDigest::new),
+                    prop::array::uniform4(arb_felt())
+                ),
+                // Edge case values
+                (
+                    Just(RpoDigest::new([ONE, ONE, ONE, Felt::new(0)])),
+                    Just([ONE, ONE, ONE, Felt::new(u64::MAX)])
+                )
+            ],
+            1..1000,
+        ),
+        // Guaranteed cross-subtree entries
+        generate_cross_subtree_entries(),
+        // Mix of both (combine random and cross-subtree entries)
+        (
+            generate_cross_subtree_entries(),
+            prop::collection::vec(
+                (
+                    prop::array::uniform4(arb_felt()).prop_map(RpoDigest::new),
+                    prop::array::uniform4(arb_felt())
+                ),
+                1..100,
+            )
+        )
+            .prop_map(|(mut cross_subtree, mut random)| {
+                cross_subtree.append(&mut random);
+                cross_subtree
+            })
+    ]
+    .prop_map(|entries| {
+        // Filter for uniqueness
+        let mut used_indices = BTreeSet::new();
+        let mut used_keys = BTreeSet::new();
+        let mut result = Vec::new();
+
+        for (key, value) in entries {
+            let leaf_index = LeafIndex::<SMT_DEPTH>::from(key).value();
+            if used_indices.insert(leaf_index) && used_keys.insert(key) {
+                result.push((key, value));
+            }
+        }
+        result
+    })
+}
+
+proptest! {
+    #[test]
+    fn test_with_entries_consistency(entries in arb_entries()) {
+        let sequential = Smt::with_entries_sequential(entries.clone()).unwrap();
+        let concurrent = Smt::with_entries(entries.clone()).unwrap();
+        prop_assert_eq!(concurrent, sequential);
+    }
+
+    #[test]
+    fn test_compute_mutations_consistency(
+        initial_entries in arb_entries(),
+        update_entries in arb_entries().prop_filter(
+            "Update must not be empty and must differ from initial entries",
+            |updates| !updates.is_empty()
+        )
+    ) {
+        let tree = Smt::with_entries_sequential(initial_entries.clone()).unwrap();
+
+        let has_real_changes = update_entries.iter().any(|(key, value)| {
+            match initial_entries.iter().find(|(init_key, _)| init_key == key) {
+                Some((_, init_value)) => init_value != value,
+                None => true,
+            }
+        });
+
+        let sequential = tree.compute_mutations_sequential(update_entries.clone());
+        let concurrent = tree.compute_mutations(update_entries.clone());
+
+        // If there are real changes, the root should change
+        if has_real_changes {
+            let sequential_changed = sequential.old_root != sequential.new_root;
+            let concurrent_changed = concurrent.old_root != concurrent.new_root;
+
+            prop_assert!(
+                sequential_changed || concurrent_changed,
+                "Root should have changed"
+            );
+        }
+
+        prop_assert_eq!(sequential.old_root, concurrent.old_root);
+        prop_assert_eq!(sequential.new_root, concurrent.new_root);
+        prop_assert_eq!(sequential.node_mutations(), concurrent.node_mutations());
+        prop_assert_eq!(sequential.new_pairs.len(), concurrent.new_pairs.len());
+    }
 }
