@@ -1,4 +1,12 @@
-## 0.13.3 (tbd)
+## 0.14.0 (TBD)
+
+- [BREAKING] Increment minimum supported Rust version to 1.84.
+- Removed duplicated check in RpoFalcon512 verification (#368).
+- Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
+- Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).
+- [BREAKING] Updated Winterfell dependency to v0.12 (#374).
+
+## 0.13.3 (2025-02-12)
 
 - Implement `PartialSmt` (#372).
 
@@ -15,11 +23,12 @@
 - Fixed a bug in the implementation of `draw_integers` for `RpoRandomCoin` (#343).
 - [BREAKING] Refactor error messages and use `thiserror` to derive errors (#344).
 - [BREAKING] Updated Winterfell dependency to v0.11 (#346).
-
+- Added support for hashmaps in `Smt` and `SimpleSmt` which gives up to 10x boost in some operations (#363).
 
 ## 0.12.0 (2024-10-30)
 
 - [BREAKING] Updated Winterfell dependency to v0.10 (#338).
+- Added parallel implementation of `Smt::with_entries()` with significantly better performance when the `concurrent` feature is enabled (#341).
 
 ## 0.11.0 (2024-10-17)
 

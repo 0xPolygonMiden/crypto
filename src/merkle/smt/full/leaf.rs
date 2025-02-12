@@ -46,7 +46,7 @@ impl SmtLeaf {
                 let leaf = Self::new_multiple(entries)?;
 
                 // `new_multiple()` checked that all keys map to the same leaf index. We still need
-                // to ensure that that leaf index is `leaf_index`.
+                // to ensure that leaf index is `leaf_index`.
                 if leaf.index() != leaf_index {
                     Err(SmtLeafError::InconsistentMultipleLeafIndices {
                         leaf_index_from_keys: leaf.index(),
