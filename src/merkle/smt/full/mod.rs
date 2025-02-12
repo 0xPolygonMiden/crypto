@@ -47,8 +47,9 @@ type Leaves = super::Leaves<SmtLeaf>;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Smt {
     root: RpoDigest,
+    // pub(super) for use in PartialSmt.
+    pub(super) leaves: Leaves,
     inner_nodes: InnerNodes,
-    leaves: Leaves,
 }
 
 impl Smt {
@@ -516,6 +517,9 @@ impl Deserializable for Smt {
             .map_err(|err| DeserializationError::InvalidValue(err.to_string()))
     }
 }
+
+// TESTS
+// ================================================================================================
 
 #[test]
 fn test_smt_serialization_deserialization() {

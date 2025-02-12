@@ -6,6 +6,10 @@
 - Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).
 - [BREAKING] Updated Winterfell dependency to v0.12 (#374).
 
+## 0.13.3 (2025-02-12)
+
+- Implement `PartialSmt` (#372).
+
 ## 0.13.2 (2025-01-24)
 
 - Made `InnerNode` and `NodeMutation` public. Implemented (de)serialization of `LeafIndex` (#367).
@@ -20,7 +24,6 @@
 - [BREAKING] Refactor error messages and use `thiserror` to derive errors (#344).
 - [BREAKING] Updated Winterfell dependency to v0.11 (#346).
 - Added support for hashmaps in `Smt` and `SimpleSmt` which gives up to 10x boost in some operations (#363).
-
 
 ## 0.12.0 (2024-10-30)
 
