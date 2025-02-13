@@ -100,6 +100,7 @@ fn smt_subtree_random(c: &mut Criterion) {
                         })
                         .collect();
                     leaves.sort();
+                    leaves.dedup_by_key(|leaf| leaf.col);
                     leaves
                 },
                 |leaves| {
