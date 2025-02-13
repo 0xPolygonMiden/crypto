@@ -480,11 +480,14 @@ fn build_subtree(
 ) -> (UnorderedMap<NodeIndex, InnerNode>, SubtreeLeaf) {
     #[cfg(debug_assertions)]
     {
+        // Ensure that all leaves have unique column indices within this subtree.
+        // In normal usage via public APIs, this should never happen because leaf
+        // construction enforces uniqueness. However, when testing or benchmarking
+        // `build_subtree()` in isolation, duplicate columns can appear if input
+        // constraints are not enforced.
         let mut seen_cols = BTreeSet::new();
         for leaf in &leaves {
-            if !seen_cols.insert(leaf.col) {
-                panic!("Duplicate column found in subtree: {}", leaf.col);
-            }
+            assert!(seen_cols.insert(leaf.col), "Duplicate column found in subtree: {}", leaf.col);
         }
     }
     debug_assert!(bottom_depth <= tree_depth);

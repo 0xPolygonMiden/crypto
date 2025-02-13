@@ -5,6 +5,7 @@
 - Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
 - Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).
 - [BREAKING] Updated Winterfell dependency to v0.12 (#374).
+- Added debug-only duplicate column check in `build_subtree` (#378).
 
 ## 0.13.3 (2025-02-12)
 
