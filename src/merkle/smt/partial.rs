@@ -138,17 +138,25 @@ impl PartialSmt {
         Ok(previous_value)
     }
 
-    /// Adds a leaf and its merkle path to this [`PartialSmt`] and returns the value that
-    /// was previously present at this key, if any.
+    /// Adds an [`SmtProof`] to this [`PartialSmt`].
     ///
-    /// If this function was called, the `key` can subsequently be updated to a new value and
-    /// produce a correct new tree root.
+    /// This is a convenience method which calls [`Self::add_path`] on the proof. See its
+    /// documentation for details on errors.
+    pub fn add_proof(&mut self, proof: SmtProof) -> Result<(), MerkleError> {
+        let (path, leaf) = proof.into_parts();
+        self.add_path(leaf, path)
+    }
+
+    /// Adds a leaf and its merkle path to this [`PartialSmt`].
+    ///
+    /// If this function was called, any key that is part of the `leaf` can subsequently be updated
+    /// to a new value and produce a correct new tree root.
     ///
     /// # Errors
     ///
     /// Returns an error if:
     /// - the new root after the insertion of the leaf and the path does not match the existing root
-    ///   (except if the tree was previously empty). If an error is returned, the tree is left in an
+    ///   (except when the first leaf is added). If an error is returned, the tree is left in an
     ///   inconsistent state.
     pub fn add_path(&mut self, leaf: SmtLeaf, path: MerklePath) -> Result<(), MerkleError> {
         let mut current_index = leaf.index().index;
@@ -193,9 +201,10 @@ impl PartialSmt {
 
         // Check the newly added merkle path is consistent with the existing tree. If not, the
         // merkle path was invalid or computed from another tree.
-        // We skip this check if the root is empty since this indicates we're adding the first
-        // merkle path in which case we have to update the tree root to the root from the path.
-        if self.root() != Smt::EMPTY_ROOT && self.root() != node_hash_at_current_index {
+        //
+        // We skip this check if we have just inserted the first leaf since we assume that leaf's
+        // root is correct and all subsequent leaves that will be added must have the same root.
+        if self.0.num_leaves() != 1 && self.root() != node_hash_at_current_index {
             return Err(MerkleError::ConflictingRoots {
                 expected_root: self.root(),
                 actual_root: node_hash_at_current_index,
@@ -357,5 +366,69 @@ mod tests {
         // key1 is present in the partial tree because it is part of the proof of key0.
         assert_eq!(partial.get_leaf(&key1).unwrap(), full.get_leaf(&key1));
         assert_eq!(partial.get_leaf(&key2).unwrap(), full.get_leaf(&key2));
+    }
+
+    /// Tests that adding proofs to a partial SMT whose roots are not the same will result in an
+    /// error.
+    ///
+    /// This test uses only empty values in the partial SMT.
+    #[test]
+    fn partial_smt_root_mismatch_on_empty_values() {
+        let key0 = RpoDigest::from(Word::from(rand_array()));
+        let key1 = RpoDigest::from(Word::from(rand_array()));
+        let key2 = RpoDigest::from(Word::from(rand_array()));
+
+        let value0 = EMPTY_WORD;
+        let value1 = Word::from(rand_array());
+        let value2 = EMPTY_WORD;
+
+        let kv_pairs = vec![(key0, value0)];
+
+        let mut full = Smt::with_entries(kv_pairs).unwrap();
+        // This proof will be stale after we insert another value.
+        let stale_proof0 = full.open(&key0);
+
+        // Insert a non-empty value so the root actually changes.
+        full.insert(key1, value1);
+        full.insert(key2, value2);
+
+        let proof2 = full.open(&key2);
+
+        let mut partial = PartialSmt::new();
+
+        partial.add_proof(stale_proof0).unwrap();
+        let err = partial.add_proof(proof2).unwrap_err();
+        assert_matches!(err, MerkleError::ConflictingRoots { .. });
+    }
+
+    /// Tests that adding proofs to a partial SMT whose roots are not the same will result in an
+    /// error.
+    ///
+    /// This test uses only non-empty values in the partial SMT.
+    #[test]
+    fn partial_smt_root_mismatch_on_non_empty_values() {
+        let key0 = RpoDigest::from(Word::from(rand_array()));
+        let key1 = RpoDigest::from(Word::from(rand_array()));
+        let key2 = RpoDigest::from(Word::from(rand_array()));
+
+        let value0 = Word::from(rand_array());
+        let value1 = Word::from(rand_array());
+        let value2 = Word::from(rand_array());
+
+        let kv_pairs = vec![(key0, value0), (key1, value1)];
+
+        let mut full = Smt::with_entries(kv_pairs).unwrap();
+        // This proof will be stale after we insert another value.
+        let stale_proof0 = full.open(&key0);
+
+        full.insert(key2, value2);
+
+        let proof2 = full.open(&key2);
+
+        let mut partial = PartialSmt::new();
+
+        partial.add_proof(stale_proof0).unwrap();
+        let err = partial.add_proof(proof2).unwrap_err();
+        assert_matches!(err, MerkleError::ConflictingRoots { .. });
     }
 }
