@@ -453,6 +453,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
     /// Constructs a single leaf from an arbitrary amount of key-value pairs.
     /// Those pairs must all have the same leaf index.
+    #[cfg_attr(not(feature = "concurrent"), expect(dead_code))]
     fn pairs_to_leaf(pairs: Vec<(Self::Key, Self::Value)>) -> Self::Leaf;
 
     /// Maps a (MerklePath, Self::Leaf) to an opening.
