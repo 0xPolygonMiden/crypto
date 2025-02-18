@@ -1,6 +1,7 @@
 ## 0.13.3 (tbd)
 
 - Implement `PartialSmt` (#372, #381).
+- Fix panic in `PartialMmr::untrack` (#382).
 
 ## 0.13.2 (2025-01-24)
 
