@@ -7,9 +7,10 @@
 - [BREAKING] Updated Winterfell dependency to v0.12 (#374).
 - Added debug-only duplicate column check in `build_subtree` (#378).
 
-## 0.13.3 (2025-02-12)
+## 0.13.3 (2025-02-18)
 
-- Implement `PartialSmt` (#372).
+- Implement `PartialSmt` (#372, #381).
+- Fix panic in `PartialMmr::untrack` (#382).
 
 ## 0.13.2 (2025-01-24)
 
