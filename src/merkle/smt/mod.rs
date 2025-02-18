@@ -1,4 +1,5 @@
-use alloc::{collections::BTreeMap, vec::Vec};
+use alloc::vec::Vec;
+use core::hash::Hash;
 
 use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
@@ -9,6 +10,8 @@ use crate::{
 };
 
 mod full;
+#[cfg(feature = "internal")]
+pub use full::{build_subtree_for_bench, SubtreeLeaf};
 pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};
 
 mod simple;
@@ -28,6 +31,15 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 
 // SPARSE MERKLE TREE
 // ================================================================================================
+
+/// A map whose keys are not guarantied to be ordered.
+#[cfg(feature = "smt_hashmaps")]
+type UnorderedMap<K, V> = hashbrown::HashMap<K, V>;
+#[cfg(not(feature = "smt_hashmaps"))]
+type UnorderedMap<K, V> = alloc::collections::BTreeMap<K, V>;
+type InnerNodes = UnorderedMap<NodeIndex, InnerNode>;
+type Leaves<T> = UnorderedMap<u64, T>;
+type NodeMutations = UnorderedMap<NodeIndex, NodeMutation>;
 
 /// An abstract description of a sparse Merkle tree.
 ///
@@ -50,7 +62,7 @@ pub const SMT_MAX_DEPTH: u8 = 64;
 /// [SparseMerkleTree] currently doesn't support optimizations that compress Merkle proofs.
 pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// The type for a key
-    type Key: Clone + Ord;
+    type Key: Clone + Ord + Eq + Hash;
     /// The type for a value
     type Value: Clone + PartialEq;
     /// The type for a leaf
@@ -160,11 +172,20 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
         &self,
         kv_pairs: impl IntoIterator<Item = (Self::Key, Self::Value)>,
     ) -> MutationSet<DEPTH, Self::Key, Self::Value> {
+        self.compute_mutations_sequential(kv_pairs)
+    }
+
+    /// Sequential version of [`SparseMerkleTree::compute_mutations()`].
+    /// This is the default implementation.
+    fn compute_mutations_sequential(
+        &self,
+        kv_pairs: impl IntoIterator<Item = (Self::Key, Self::Value)>,
+    ) -> MutationSet<DEPTH, Self::Key, Self::Value> {
         use NodeMutation::*;
 
         let mut new_root = self.root();
-        let mut new_pairs: BTreeMap<Self::Key, Self::Value> = Default::default();
-        let mut node_mutations: BTreeMap<NodeIndex, NodeMutation> = Default::default();
+        let mut new_pairs: UnorderedMap<Self::Key, Self::Value> = Default::default();
+        let mut node_mutations: NodeMutations = Default::default();
 
         for (key, value) in kv_pairs {
             // If the old value and the new value are the same, there is nothing to update.
@@ -331,7 +352,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             });
         }
 
-        let mut reverse_mutations = BTreeMap::new();
+        let mut reverse_mutations = NodeMutations::new();
         for (index, mutation) in node_mutations {
             match mutation {
                 Removal => {
@@ -349,7 +370,7 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
             }
         }
 
-        let mut reverse_pairs = BTreeMap::new();
+        let mut reverse_pairs = UnorderedMap::new();
         for (key, value) in new_pairs {
             if let Some(old_value) = self.insert_value(key.clone(), value) {
                 reverse_pairs.insert(key, old_value);
@@ -370,6 +391,16 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 
     // REQUIRED METHODS
     // ---------------------------------------------------------------------------------------------
+
+    /// Construct this type from already computed leaves and nodes. The caller ensures passed
+    /// arguments are correct and consistent with each other.
+    fn from_raw_parts(
+        inner_nodes: InnerNodes,
+        leaves: Leaves<Self::Leaf>,
+        root: RpoDigest,
+    ) -> Result<Self, MerkleError>
+    where
+        Self: Sized;
 
     /// The root of the tree
     fn root(&self) -> RpoDigest;
@@ -420,6 +451,10 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     /// Maps a key to a leaf index
     fn key_to_leaf_index(key: &Self::Key) -> LeafIndex<DEPTH>;
 
+    /// Constructs a single leaf from an arbitrary amount of key-value pairs.
+    /// Those pairs must all have the same leaf index.
+    fn pairs_to_leaf(pairs: Vec<(Self::Key, Self::Value)>) -> Self::Leaf;
+
     /// Maps a (MerklePath, Self::Leaf) to an opening.
     ///
     /// The length `path` is guaranteed to be equal to `DEPTH`
@@ -429,6 +464,9 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
 // INNER NODE
 // ================================================================================================
 
+/// This struct is public so functions returning it can be used in `benches/`, but is otherwise not
+/// part of the public API.
+#[doc(hidden)]
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct InnerNode {
@@ -524,8 +562,8 @@ pub enum NodeMutation {
 /// Represents a group of prospective mutations to a `SparseMerkleTree`, created by
 /// `SparseMerkleTree::compute_mutations()`, and that can be applied with
 /// `SparseMerkleTree::apply_mutations()`.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct MutationSet<const DEPTH: u8, K, V> {
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct MutationSet<const DEPTH: u8, K: Eq + Hash, V> {
     /// The root of the Merkle tree this MutationSet is for, recorded at the time
     /// [`SparseMerkleTree::compute_mutations()`] was called. Exists to guard against applying
     /// mutations to the wrong tree or applying stale mutations to a tree that has since changed.
@@ -535,18 +573,18 @@ pub struct MutationSet<const DEPTH: u8, K, V> {
     /// index overlayed, if any. Each [`NodeMutation::Addition`] corresponds to a
     /// [`SparseMerkleTree::insert_inner_node()`] call, and each [`NodeMutation::Removal`]
     /// corresponds to a [`SparseMerkleTree::remove_inner_node()`] call.
-    node_mutations: BTreeMap<NodeIndex, NodeMutation>,
+    node_mutations: NodeMutations,
     /// The set of top-level key-value pairs we're prospectively adding to the tree, including
     /// adding empty values. The "effective" value for a key is the value in this BTreeMap, falling
     /// back to the existing value in the Merkle tree. Each entry corresponds to a
     /// [`SparseMerkleTree::insert_value()`] call.
-    new_pairs: BTreeMap<K, V>,
+    new_pairs: UnorderedMap<K, V>,
     /// The calculated root for the Merkle tree, given these mutations. Publicly retrievable with
     /// [`MutationSet::root()`]. Corresponds to a [`SparseMerkleTree::set_root()`]. call.
     new_root: RpoDigest,
 }
 
-impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
+impl<const DEPTH: u8, K: Eq + Hash, V> MutationSet<DEPTH, K, V> {
     /// Returns the SMT root that was calculated during `SparseMerkleTree::compute_mutations()`. See
     /// that method for more information.
     pub fn root(&self) -> RpoDigest {
@@ -559,13 +597,13 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
     }
 
     /// Returns the set of inner nodes that need to be removed or added.
-    pub fn node_mutations(&self) -> &BTreeMap<NodeIndex, NodeMutation> {
+    pub fn node_mutations(&self) -> &NodeMutations {
         &self.node_mutations
     }
 
     /// Returns the set of top-level key-value pairs that need to be added, updated or deleted
     /// (i.e. set to `EMPTY_WORD`).
-    pub fn new_pairs(&self) -> &BTreeMap<K, V> {
+    pub fn new_pairs(&self) -> &UnorderedMap<K, V> {
         &self.new_pairs
     }
 }
@@ -575,8 +613,8 @@ impl<const DEPTH: u8, K, V> MutationSet<DEPTH, K, V> {
 
 impl Serializable for InnerNode {
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        self.left.write_into(target);
-        self.right.write_into(target);
+        target.write(self.left);
+        target.write(self.right);
     }
 }
 
@@ -612,23 +650,57 @@ impl Deserializable for NodeMutation {
     }
 }
 
-impl<const DEPTH: u8, K: Serializable, V: Serializable> Serializable for MutationSet<DEPTH, K, V> {
+impl<const DEPTH: u8, K: Serializable + Eq + Hash, V: Serializable> Serializable
+    for MutationSet<DEPTH, K, V>
+{
     fn write_into<W: ByteWriter>(&self, target: &mut W) {
         target.write(self.old_root);
         target.write(self.new_root);
-        self.node_mutations.write_into(target);
-        self.new_pairs.write_into(target);
+
+        let inner_removals: Vec<_> = self
+            .node_mutations
+            .iter()
+            .filter(|(_, value)| matches!(value, NodeMutation::Removal))
+            .map(|(key, _)| key)
+            .collect();
+        let inner_additions: Vec<_> = self
+            .node_mutations
+            .iter()
+            .filter_map(|(key, value)| match value {
+                NodeMutation::Addition(node) => Some((key, node)),
+                _ => None,
+            })
+            .collect();
+
+        target.write(inner_removals);
+        target.write(inner_additions);
+
+        target.write_usize(self.new_pairs.len());
+        target.write_many(&self.new_pairs);
     }
 }
 
-impl<const DEPTH: u8, K: Deserializable + Ord, V: Deserializable> Deserializable
+impl<const DEPTH: u8, K: Deserializable + Ord + Eq + Hash, V: Deserializable> Deserializable
     for MutationSet<DEPTH, K, V>
 {
     fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
         let old_root = source.read()?;
         let new_root = source.read()?;
-        let node_mutations = source.read()?;
-        let new_pairs = source.read()?;
+
+        let inner_removals: Vec<NodeIndex> = source.read()?;
+        let inner_additions: Vec<(NodeIndex, InnerNode)> = source.read()?;
+
+        let node_mutations = NodeMutations::from_iter(
+            inner_removals.into_iter().map(|index| (index, NodeMutation::Removal)).chain(
+                inner_additions
+                    .into_iter()
+                    .map(|(index, node)| (index, NodeMutation::Addition(node))),
+            ),
+        );
+
+        let num_new_pairs = source.read_usize()?;
+        let new_pairs = source.read_many(num_new_pairs)?;
+        let new_pairs = UnorderedMap::from_iter(new_pairs);
 
         Ok(Self {
             old_root,

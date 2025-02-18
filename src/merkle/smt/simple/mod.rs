@@ -1,8 +1,8 @@
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::{collections::BTreeSet, vec::Vec};
 
 use super::{
-    super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, LeafIndex, MerkleError,
-    MerklePath, MutationSet, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
+    super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex,
+    MerkleError, MerklePath, MutationSet, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
     SMT_MAX_DEPTH, SMT_MIN_DEPTH,
 };
 
@@ -12,6 +12,8 @@ mod tests;
 // SPARSE MERKLE TREE
 // ================================================================================================
 
+type Leaves = super::Leaves<Word>;
+
 /// A sparse Merkle tree with 64-bit keys and 4-element leaf values, without compaction.
 ///
 /// The root of the tree is recomputed on each new leaf update.
@@ -19,8 +21,8 @@ mod tests;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct SimpleSmt<const DEPTH: u8> {
     root: RpoDigest,
-    leaves: BTreeMap<u64, Word>,
-    inner_nodes: BTreeMap<NodeIndex, InnerNode>,
+    inner_nodes: InnerNodes,
+    leaves: Leaves,
 }
 
 impl<const DEPTH: u8> SimpleSmt<DEPTH> {
@@ -51,8 +53,8 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
 
         Ok(Self {
             root,
-            leaves: BTreeMap::new(),
-            inner_nodes: BTreeMap::new(),
+            inner_nodes: Default::default(),
+            leaves: Default::default(),
         })
     }
 
@@ -95,6 +97,19 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
             };
         }
         Ok(tree)
+    }
+
+    /// Returns a new [`SimpleSmt`] instantiated from already computed leaves and nodes.
+    ///
+    /// This function performs minimal consistency checking. It is the caller's responsibility to
+    /// ensure the passed arguments are correct and consistent with each other.
+    ///
+    /// # Panics
+    /// With debug assertions on, this function panics if `root` does not match the root node in
+    /// `inner_nodes`.
+    pub fn from_raw_parts(inner_nodes: InnerNodes, leaves: Leaves, root: RpoDigest) -> Self {
+        // Our particular implementation of `from_raw_parts()` never returns `Err`.
+        <Self as SparseMerkleTree<DEPTH>>::from_raw_parts(inner_nodes, leaves, root).unwrap()
     }
 
     /// Wrapper around [`SimpleSmt::with_leaves`] which inserts leaves at contiguous indices
@@ -323,6 +338,19 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
     const EMPTY_VALUE: Self::Value = EMPTY_WORD;
     const EMPTY_ROOT: RpoDigest = *EmptySubtreeRoots::entry(DEPTH, 0);
 
+    fn from_raw_parts(
+        inner_nodes: InnerNodes,
+        leaves: Leaves,
+        root: RpoDigest,
+    ) -> Result<Self, MerkleError> {
+        if cfg!(debug_assertions) {
+            let root_node = inner_nodes.get(&NodeIndex::root()).unwrap();
+            assert_eq!(root_node.hash(), root);
+        }
+
+        Ok(Self { root, inner_nodes, leaves })
+    }
+
     fn root(&self) -> RpoDigest {
         self.root
     }
@@ -386,5 +414,12 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
 
     fn path_and_leaf_to_opening(path: MerklePath, leaf: Word) -> ValuePath {
         (path, leaf).into()
+    }
+
+    fn pairs_to_leaf(mut pairs: Vec<(LeafIndex<DEPTH>, Word)>) -> Word {
+        // SimpleSmt can't have more than one value per key.
+        assert_eq!(pairs.len(), 1);
+        let (_key, value) = pairs.pop().unwrap();
+        value
     }
 }
