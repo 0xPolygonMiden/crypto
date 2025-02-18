@@ -7,7 +7,10 @@ use super::{
     EmptySubtreeRoots, InnerNode, InnerNodes, LeafIndex, Leaves, MerkleError, MutationSet,
     NodeIndex, RpoDigest, Smt, SmtLeaf, SparseMerkleTree, Word, SMT_DEPTH,
 };
-use crate::merkle::smt::{NodeMutation, NodeMutations, UnorderedMap};
+use crate::{
+    merkle::smt::{NodeMutation, NodeMutations, UnorderedMap},
+    EMPTY_WORD,
+};
 
 #[cfg(test)]
 mod tests;
@@ -39,6 +42,8 @@ impl Smt {
         let mut seen_keys = BTreeSet::new();
         let entries: Vec<_> = entries
             .into_iter()
+            // Filter out key-value pairs whose value is empty.
+            .filter(|(_key, value)| *value != EMPTY_WORD)
             .map(|(key, value)| {
                 if seen_keys.insert(key) {
                     Ok((key, value))
