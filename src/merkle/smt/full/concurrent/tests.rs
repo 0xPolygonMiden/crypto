@@ -375,7 +375,15 @@ fn test_multithreaded_subtrees() {
 #[test]
 fn test_with_entries_concurrent() {
     const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
-    let entries = generate_entries(PAIR_COUNT);
+    let mut entries = generate_entries(PAIR_COUNT);
+    let mut rng = rand::thread_rng();
+
+    // Set 10% of the entries to have empty words as their values.
+    for _ in 0..PAIR_COUNT / 10 {
+        let random_index = rng.gen_range(0..PAIR_COUNT);
+        entries[random_index as usize].1 = EMPTY_WORD;
+    }
+
     let control = Smt::with_entries_sequential(entries.clone()).unwrap();
     let smt = Smt::with_entries(entries.clone()).unwrap();
     assert_eq!(smt.root(), control.root());

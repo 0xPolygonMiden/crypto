@@ -39,6 +39,8 @@ impl Smt {
         let mut seen_keys = BTreeSet::new();
         let entries: Vec<_> = entries
             .into_iter()
+            // Filter out key-value pairs whose value is empty.
+            .filter(|(_key, value)| *value != Self::EMPTY_VALUE)
             .map(|(key, value)| {
                 if seen_keys.insert(key) {
                     Ok((key, value))
