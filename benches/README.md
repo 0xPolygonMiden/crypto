@@ -44,6 +44,30 @@ Notes:
 - On Graviton 3 and 4, RPO256 and RPX256 are run with SVE acceleration enabled.
 - On AMD EPYC 9R14, RPO256 and RPX256 are run with AVX2 acceleration enabled.
 
+### Data Structure Benchmarks
+We build cryptographic data structures incorporating these hash functions.
+What follows are benchmarks of operations on sparse Merkle trees (SMTs) which use the above `RPO_256` hash function.
+We perform a batched modification of 1,000 values in a tree with 1,000,000 leaves (with the `smt_hashmaps` feature to use the `hashbrown` crate).
+
+Times are given as a per-operation average.
+
+#### Scenario 1: SMT Batched Insertion
+
+| Function          | Sequential | Concurrent |
+| ----------------- | ---------- | ---------- |
+| AMD Ryzen 9 7950X | 205 µs     |  19 µs     |
+| Apple M1 Air      | 785 µs     | 450 µs     |
+
+#### Scenario 2: SMT Batched Update
+
+| Function          | Sequential | Concurrent |
+| ----------------- | ---------- | ---------- |
+| AMD Ryzen 9 7950X | 208 µs     |  19 µs     |
+| Apple M1 Air      | 678 µs     | 304 µs     |
+
+Notes:
+- On AMD Ryzen 9 7950X, benchmarks are run with AVX2 acceleration enabled.
+
 ### Instructions
 Before you can run the benchmarks, you'll need to make sure you have Rust [installed](https://www.rust-lang.org/tools/install). After that, to run the benchmarks for RPO and BLAKE3, clone the current repository, and from the root directory of the repo run the following:
 
@@ -56,3 +80,18 @@ To run the benchmarks for Rescue Prime, Poseidon and SHA3, clone the following [
 ```
 cargo bench hash
 ```
+
+To run the benchmarks for SMT operations, run the binary target with the `executable` feature:
+
+```
+cargo run --features=executable
+```
+
+The `concurrent` feature enables the concurrent benchmark, and is enabled by default. To run a sequential benchmark,
+disable the crate's default features:
+
+```
+cargo run --no-default-features --features=executable,smt_hashmaps
+```
+
+The benchmark parameters may also be customized with the `-s`/`--size`, `-i`/`--insertions`, and `-u`/`--updates` options.
