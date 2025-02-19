@@ -91,3 +91,9 @@ bench: ## Run crypto benchmarks
 .PHONY: bench-smt-concurrent
 bench-smt-concurrent: ## Run SMT benchmarks with concurrent feature
 	cargo run --release --features concurrent,executable -- --size 1000000
+
+# --- fuzzing --------------------------------------------------------------------------------
+
+.PHONY: fuzz-smt
+fuzz-smt: ## Run fuzzing for SMT
+	cargo +nightly fuzz run smt --release -- -max_len=10485760

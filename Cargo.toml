@@ -91,3 +91,6 @@ seq-macro = { version = "0.3" }
 [build-dependencies]
 cc = { version = "1.2", optional = true, features = ["parallel"] }
 glob = "0.3"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }

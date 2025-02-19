@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use super::{NodeIndex, RpoDigest};
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum MerkleError {
     #[error("expected merkle root {expected_root} found {actual_root}")]
     ConflictingRoots {
