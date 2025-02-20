@@ -468,23 +468,22 @@ fn test_compute_mutations_parallel() {
 }
 
 fn arb_felt() -> impl Strategy<Value = Felt> {
-    prop_oneof![
-        any::<u64>().prop_map(Felt::new),
-        Just(ZERO),
-        Just(ONE),
-    ]
+    prop_oneof![any::<u64>().prop_map(Felt::new), Just(ZERO), Just(ONE),]
 }
 
 /// Generate entries that are guaranteed to be in different subtrees
 fn generate_cross_subtree_entries() -> impl Strategy<Value = Vec<(RpoDigest, Word)>> {
     let subtree_offsets = prop::collection::vec(0..(COLS_PER_SUBTREE * 4), 1..4);
-    
+
     subtree_offsets.prop_map(|offsets| {
-        offsets.into_iter().map(|base_col| {
-            let key = RpoDigest::new([ONE, ONE, ONE, Felt::new(base_col)]);
-            let value = [ONE, ONE, ONE, Felt::new(base_col)];
-            (key, value)
-        }).collect()
+        offsets
+            .into_iter()
+            .map(|base_col| {
+                let key = RpoDigest::new([ONE, ONE, ONE, Felt::new(base_col)]);
+                let value = [ONE, ONE, ONE, Felt::new(base_col)];
+                (key, value)
+            })
+            .collect()
     })
 }
 
