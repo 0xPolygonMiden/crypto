@@ -39,6 +39,8 @@ impl Smt {
         let mut seen_keys = BTreeSet::new();
         let entries: Vec<_> = entries
             .into_iter()
+            // Filter out key-value pairs whose value is empty.
+            .filter(|(_key, value)| *value != Self::EMPTY_VALUE)
             .map(|(key, value)| {
                 if seen_keys.insert(key) {
                     Ok((key, value))
@@ -478,6 +480,18 @@ fn build_subtree(
     tree_depth: u8,
     bottom_depth: u8,
 ) -> (UnorderedMap<NodeIndex, InnerNode>, SubtreeLeaf) {
+    #[cfg(debug_assertions)]
+    {
+        // Ensure that all leaves have unique column indices within this subtree.
+        // In normal usage via public APIs, this should never happen because leaf
+        // construction enforces uniqueness. However, when testing or benchmarking
+        // `build_subtree()` in isolation, duplicate columns can appear if input
+        // constraints are not enforced.
+        let mut seen_cols = BTreeSet::new();
+        for leaf in &leaves {
+            assert!(seen_cols.insert(leaf.col), "Duplicate column found in subtree: {}", leaf.col);
+        }
+    }
     debug_assert!(bottom_depth <= tree_depth);
     debug_assert!(Integer::is_multiple_of(&bottom_depth, &SUBTREE_DEPTH));
     debug_assert!(leaves.len() <= usize::pow(2, SUBTREE_DEPTH as u32));

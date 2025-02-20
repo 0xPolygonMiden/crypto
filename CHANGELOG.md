@@ -5,10 +5,13 @@
 - Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
 - Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).
 - [BREAKING] Updated Winterfell dependency to v0.12 (#374).
+- Added debug-only duplicate column check in `build_subtree` (#378).
+- Filter out empty values in concurrent version of `Smt::with_entries` to fix a panic (#383).
 
-## 0.13.3 (2025-02-12)
+## 0.13.3 (2025-02-18)
 
-- Implement `PartialSmt` (#372).
+- Implement `PartialSmt` (#372, #381).
+- Fix panic in `PartialMmr::untrack` (#382).
 
 ## 0.13.2 (2025-01-24)
 
