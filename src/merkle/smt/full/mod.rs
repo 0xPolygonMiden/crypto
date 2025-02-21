@@ -435,6 +435,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         assert!(!pairs.is_empty());
 
         if pairs.len() > 1 {
+            pairs.sort_by(|(key_1, _), (key_2, _)| leaf::cmp_keys(*key_1, *key_2));
             SmtLeaf::new_multiple(pairs).unwrap()
         } else {
             let (key, value) = pairs.pop().unwrap();
