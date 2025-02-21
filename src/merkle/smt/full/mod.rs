@@ -103,7 +103,7 @@ impl Smt {
     ///
     /// # Errors
     /// Returns an error if the provided entries contain multiple values for the same key.
-    #[cfg(any(not(feature = "concurrent"), test))]
+    #[cfg(any(not(feature = "concurrent"), fuzzing, test))]
     fn with_entries_sequential(
         entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
@@ -435,6 +435,7 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
         assert!(!pairs.is_empty());
 
         if pairs.len() > 1 {
+            pairs.sort_by(|(key_1, _), (key_2, _)| leaf::cmp_keys(*key_1, *key_2));
             SmtLeaf::new_multiple(pairs).unwrap()
         } else {
             let (key, value) = pairs.pop().unwrap();
@@ -515,6 +516,25 @@ impl Deserializable for Smt {
 
         Self::with_entries(entries)
             .map_err(|err| DeserializationError::InvalidValue(err.to_string()))
+    }
+}
+
+// FUZZING
+// ================================================================================================
+
+#[cfg(fuzzing)]
+impl Smt {
+    pub fn fuzz_with_entries_sequential(
+        entries: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> Result<Smt, MerkleError> {
+        Self::with_entries_sequential(entries)
+    }
+
+    pub fn fuzz_compute_mutations_sequential(
+        &self,
+        kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
+        <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
     }
 }
 

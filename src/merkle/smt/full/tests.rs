@@ -486,6 +486,20 @@ fn test_prospective_insertion() {
 }
 
 #[test]
+fn test_mutations_no_mutations() {
+    let key = RpoDigest::from([ONE, ONE, ONE, ONE]);
+    let value = [ONE; WORD_SIZE];
+    let entries = [(key, value)];
+
+    let tree = Smt::with_entries(entries).unwrap();
+    let mutations = tree.compute_mutations(entries);
+
+    assert_eq!(mutations.root(), mutations.old_root(), "Root should not change");
+    assert!(mutations.node_mutations().is_empty(), "Node mutations should be empty");
+    assert!(mutations.new_pairs().is_empty(), "There should be no new pairs");
+}
+
+#[test]
 fn test_mutations_revert() {
     let mut smt = Smt::default();
 

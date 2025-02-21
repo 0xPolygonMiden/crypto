@@ -7,6 +7,9 @@
 - [BREAKING] Updated Winterfell dependency to v0.12 (#374).
 - Added debug-only duplicate column check in `build_subtree` (#378).
 - Filter out empty values in concurrent version of `Smt::with_entries` to fix a panic (#383).
+- Added property-based testing (proptest) and fuzzing for `Smt::with_entries` and `Smt::compute_mutations` (#385).
+- Sort keys in a leaf in the concurrent implementation of `Smt::with_entries`, ensuring consistency with the sequential version (#385).
+- Skip unchanged leaves in the concurrent implementation of `Smt::compute_mutations` (#385).
 
 ## 0.13.3 (2025-02-18)
 
