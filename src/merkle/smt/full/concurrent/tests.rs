@@ -467,6 +467,18 @@ fn test_compute_mutations_parallel() {
     assert_eq!(mutations.new_pairs(), control.new_pairs());
 }
 
+#[test]
+fn test_smt_construction_with_entries_unsorted() {
+    let entries = [
+        (RpoDigest::new([ONE, ONE, Felt::new(2_u64), ONE]), [ONE; 4]),
+        (RpoDigest::new([ONE; 4]), [ONE; 4]),
+    ];
+    let control = Smt::with_entries_sequential(entries.clone()).unwrap();
+    let smt = Smt::with_entries(entries).unwrap();
+    assert_eq!(smt.root(), control.root());
+    assert_eq!(smt, control);
+}
+
 fn arb_felt() -> impl Strategy<Value = Felt> {
     prop_oneof![any::<u64>().prop_map(Felt::new), Just(ZERO), Just(ONE),]
 }
