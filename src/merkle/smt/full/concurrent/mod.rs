@@ -284,12 +284,12 @@ impl Smt {
                 }
             }
 
-            if !leaf_changed {
-                // Return None if leaf hasn't changed
-                None
-            } else {
+            if leaf_changed {
                 // Only return the leaf if it actually changed
                 Some(leaf)
+            } else {
+                // Return None if leaf hasn't changed
+                None
             }
         });
         (accumulator.leaves, new_pairs)

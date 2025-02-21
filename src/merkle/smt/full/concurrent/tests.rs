@@ -473,7 +473,7 @@ fn test_smt_construction_with_entries_unsorted() {
         (RpoDigest::new([ONE, ONE, Felt::new(2_u64), ONE]), [ONE; 4]),
         (RpoDigest::new([ONE; 4]), [ONE; 4]),
     ];
-    let control = Smt::with_entries_sequential(entries.clone()).unwrap();
+    let control = Smt::with_entries_sequential(entries).unwrap();
     let smt = Smt::with_entries(entries).unwrap();
     assert_eq!(smt.root(), control.root());
     assert_eq!(smt, control);
@@ -485,7 +485,7 @@ fn arb_felt() -> impl Strategy<Value = Felt> {
 
 /// Generate entries that are guaranteed to be in different subtrees
 fn generate_cross_subtree_entries() -> impl Strategy<Value = Vec<(RpoDigest, Word)>> {
-    let subtree_offsets = prop::collection::vec(0..(COLS_PER_SUBTREE * 4), 1..4);
+    let subtree_offsets = prop::collection::vec(0..(COLS_PER_SUBTREE * 4), 1..100);
 
     subtree_offsets.prop_map(|offsets| {
         offsets
@@ -528,7 +528,7 @@ fn arb_entries() -> impl Strategy<Value = Vec<(RpoDigest, Word)>> {
                     prop::array::uniform4(arb_felt()).prop_map(RpoDigest::new),
                     prop::array::uniform4(arb_felt())
                 ),
-                1..100,
+                1..1000,
             )
         )
             .prop_map(|(mut cross_subtree, mut random)| {
