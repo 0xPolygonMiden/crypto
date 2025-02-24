@@ -93,4 +93,5 @@ cc = { version = "1.2", optional = true, features = ["parallel"] }
 glob = "0.3"
 
 [lints.rust]
+# Suppress warnings about `cfg(fuzzing)`, which is automatically set when using `cargo-fuzz`.
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }

@@ -109,14 +109,17 @@ impl Smt {
             node_mutations.extend(mutations_per_subtree.into_iter().flatten());
         }
 
+        // If no mutations occurred, the new root is the same as the old root
+        let new_root = if node_mutations.is_empty() {
+            self.root()
+        } else {
+            subtree_leaves[0][0].hash
+        };
+
         // Create mutation set - if no mutations occurred, all fields should indicate no changes
         let mutation_set = MutationSet {
             old_root: self.root(),
-            new_root: if node_mutations.is_empty() {
-                self.root()
-            } else {
-                subtree_leaves[0][0].hash
-            },
+            new_root,
             node_mutations,
             new_pairs,
         };

@@ -68,7 +68,11 @@ fn run_fuzz_smt(fuzz_input: FuzzInput) {
             assert_eq!(sequential_mutations.new_pairs(), parallel_mutations.new_pairs(), "New pairs mismatch!");
         }
         (Err(e1), Err(e2)) => {
-            assert_eq!(e1, e2, "Different errors returned: sequential={:?}, parallel={:?}", e1, e2);
+            assert_eq!(
+                format!("{:?}", e1),
+                format!("{:?}", e2),
+                "Different errors returned"
+            );
         }
         (Ok(_), Err(e)) => panic!("Sequential succeeded but parallel failed with: {:?}", e),
         (Err(e), Ok(_)) => panic!("Parallel succeeded but sequential failed with: {:?}", e),
