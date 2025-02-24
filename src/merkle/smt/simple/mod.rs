@@ -1,4 +1,4 @@
-use alloc::{collections::BTreeSet, vec::Vec};
+use alloc::collections::BTreeSet;
 
 use super::{
     super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex,
@@ -414,12 +414,5 @@ impl<const DEPTH: u8> SparseMerkleTree<DEPTH> for SimpleSmt<DEPTH> {
 
     fn path_and_leaf_to_opening(path: MerklePath, leaf: Word) -> ValuePath {
         (path, leaf).into()
-    }
-
-    fn pairs_to_leaf(mut pairs: Vec<(LeafIndex<DEPTH>, Word)>) -> Word {
-        // SimpleSmt can't have more than one value per key.
-        assert_eq!(pairs.len(), 1);
-        let (_key, value) = pairs.pop().unwrap();
-        value
     }
 }

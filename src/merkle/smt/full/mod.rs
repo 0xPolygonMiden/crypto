@@ -430,23 +430,6 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     fn path_and_leaf_to_opening(path: MerklePath, leaf: SmtLeaf) -> SmtProof {
         SmtProof::new_unchecked(path, leaf)
     }
-
-    fn pairs_to_leaf(mut pairs: Vec<(RpoDigest, Word)>) -> SmtLeaf {
-        assert!(!pairs.is_empty());
-
-        if pairs.len() > 1 {
-            SmtLeaf::new_multiple(pairs).unwrap()
-        } else {
-            let (key, value) = pairs.pop().unwrap();
-            // TODO: should we ever be constructing empty leaves from pairs?
-            if value == Self::EMPTY_VALUE {
-                let index = Self::key_to_leaf_index(&key);
-                SmtLeaf::new_empty(index)
-            } else {
-                SmtLeaf::new_single(key, value)
-            }
-        }
-    }
 }
 
 impl Default for Smt {
