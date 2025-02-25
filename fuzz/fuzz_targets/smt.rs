@@ -53,7 +53,7 @@ fuzz_target!(|data: &[u8]| {
 });
 
 fn run_fuzz_smt(fuzz_input: FuzzInput) {
-    let sequential_result = Smt::with_entries(fuzz_input.entries.clone());
+    let sequential_result = Smt::fuzz_with_entries_sequential(fuzz_input.entries.clone());
     let parallel_result = Smt::with_entries(fuzz_input.entries);
 
     match (sequential_result, parallel_result) {

@@ -537,7 +537,8 @@ fn arb_entries() -> impl Strategy<Value = Vec<(RpoDigest, Word)>> {
             })
     ]
     .prop_map(|entries| {
-        // Filter for uniqueness
+        // Ensure uniqueness of entries as `Smt::with_entries` returns an error if multiple values
+        // exist for the same key.
         let mut used_indices = BTreeSet::new();
         let mut used_keys = BTreeSet::new();
         let mut result = Vec::new();
