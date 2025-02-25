@@ -54,9 +54,12 @@ test-smt-hashmaps: ## Run tests with `smt_hashmaps` feature enabled
 test-no-std: ## Run tests with `no-default-features` (std)
 	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile default --release --no-default-features
 
+.PHONY: test-smt-concurrent
+test-smt-concurrent: ## Run only concurrent SMT tests
+	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile smt-concurrent --release --all-features
 
 .PHONY: test
-test: test-default test-smt-hashmaps test-no-std ## Run all tests
+test: test-default test-smt-hashmaps test-no-std ## Run all tests except concurrent SMT tests
 
 # --- checking ------------------------------------------------------------------------------------
 
