@@ -4,7 +4,7 @@ use core::mem;
 use num::Integer;
 
 use super::{
-    EmptySubtreeRoots, InnerNode, InnerNodes, LeafIndex, Leaves, MerkleError, MutationSet,
+    leaf, EmptySubtreeRoots, InnerNode, InnerNodes, LeafIndex, Leaves, MerkleError, MutationSet,
     NodeIndex, RpoDigest, Smt, SmtLeaf, SparseMerkleTree, Word, SMT_DEPTH,
 };
 use crate::merkle::smt::{NodeMutation, NodeMutations, UnorderedMap};
@@ -259,6 +259,26 @@ impl Smt {
         Self::process_sorted_pairs_to_leaves(pairs, |leaf_pairs| {
             Some(Self::pairs_to_leaf(leaf_pairs))
         })
+    }
+
+    /// Constructs a single leaf from an arbitrary amount of key-value pairs.
+    /// Those pairs must all have the same leaf index.
+    fn pairs_to_leaf(mut pairs: Vec<(RpoDigest, Word)>) -> SmtLeaf {
+        assert!(!pairs.is_empty());
+
+        if pairs.len() > 1 {
+            pairs.sort_by(|(key_1, _), (key_2, _)| leaf::cmp_keys(*key_1, *key_2));
+            SmtLeaf::new_multiple(pairs).unwrap()
+        } else {
+            let (key, value) = pairs.pop().unwrap();
+            // TODO: should we ever be constructing empty leaves from pairs?
+            if value == Self::EMPTY_VALUE {
+                let index = Self::key_to_leaf_index(&key);
+                SmtLeaf::new_empty(index)
+            } else {
+                SmtLeaf::new_single(key, value)
+            }
+        }
     }
 
     /// Computes leaves from a set of key-value pairs and current leaf values.
