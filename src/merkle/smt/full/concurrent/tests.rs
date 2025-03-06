@@ -7,11 +7,14 @@ use proptest::prelude::*;
 use rand::{prelude::IteratorRandom, thread_rng, Rng};
 
 use super::{
-    build_subtree, InnerNode, LeafIndex, NodeIndex, NodeMutations, PairComputations, RpoDigest,
-    Smt, SmtLeaf, SparseMerkleTree, SubtreeLeaf, SubtreeLeavesIter, UnorderedMap, COLS_PER_SUBTREE,
-    SMT_DEPTH, SUBTREE_DEPTH,
+    build_subtree, InnerNode, NodeIndex, NodeMutations, PairComputations, RpoDigest, Smt, SmtLeaf,
+    SparseMerkleTree, SubtreeLeaf, SubtreeLeavesIter, UnorderedMap, COLS_PER_SUBTREE, SMT_DEPTH,
+    SUBTREE_DEPTH,
 };
-use crate::{merkle::smt::Felt, Word, EMPTY_WORD, ONE, ZERO};
+use crate::{
+    merkle::{smt::Felt, LeafIndex, MerkleError},
+    Word, EMPTY_WORD, ONE, ZERO,
+};
 
 fn smtleaf_to_subtree_leaf(leaf: &SmtLeaf) -> SubtreeLeaf {
     SubtreeLeaf {
@@ -72,7 +75,7 @@ fn test_sorted_pairs_to_leaves() {
         control_subtree_leaves
     };
 
-    let subtrees: PairComputations<u64, SmtLeaf> = Smt::sorted_pairs_to_leaves(entries);
+    let subtrees: PairComputations<u64, SmtLeaf> = Smt::sorted_pairs_to_leaves(entries).unwrap();
     // This will check that the hashes, columns, and subtree assignments all match.
     assert_eq!(subtrees.leaves, control_subtree_leaves);
     // Flattening and re-separating out the leaves into subtrees should have the same result.
@@ -140,7 +143,7 @@ fn test_single_subtree() {
     let entries = generate_entries(PAIR_COUNT);
     let control = Smt::with_entries_sequential(entries.clone()).unwrap();
     // `entries` should already be sorted by nature of how we constructed it.
-    let leaves = Smt::sorted_pairs_to_leaves(entries).leaves;
+    let leaves = Smt::sorted_pairs_to_leaves(entries).unwrap().leaves;
     let leaves = leaves.into_iter().next().unwrap();
     let (first_subtree, subtree_root) = build_subtree(leaves, SMT_DEPTH, SMT_DEPTH);
     assert!(!first_subtree.is_empty());
@@ -172,7 +175,7 @@ fn test_two_subtrees() {
     const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 2;
     let entries = generate_entries(PAIR_COUNT);
     let control = Smt::with_entries_sequential(entries.clone()).unwrap();
-    let PairComputations { leaves, .. } = Smt::sorted_pairs_to_leaves(entries);
+    let PairComputations { leaves, .. } = Smt::sorted_pairs_to_leaves(entries).unwrap();
     // With two subtrees' worth of leaves, we should have exactly two subtrees.
     let [first, second]: [Vec<_>; 2] = leaves.try_into().unwrap();
     assert_eq!(first.len() as u64, PAIR_COUNT / 2);
@@ -220,7 +223,7 @@ fn test_singlethreaded_subtrees() {
     let PairComputations {
         leaves: mut leaf_subtrees,
         nodes: test_leaves,
-    } = Smt::sorted_pairs_to_leaves(entries);
+    } = Smt::sorted_pairs_to_leaves(entries).unwrap();
     for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
         // There's no flat_map_unzip(), so this is the best we can do.
         let (nodes, mut subtree_roots): (Vec<UnorderedMap<_, _>>, Vec<SubtreeLeaf>) = leaf_subtrees
@@ -304,7 +307,7 @@ fn test_multithreaded_subtrees() {
     let PairComputations {
         leaves: mut leaf_subtrees,
         nodes: test_leaves,
-    } = Smt::sorted_pairs_to_leaves(entries);
+    } = Smt::sorted_pairs_to_leaves(entries).unwrap();
     for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
         let (nodes, mut subtree_roots): (Vec<UnorderedMap<_, _>>, Vec<SubtreeLeaf>) = leaf_subtrees
             .into_par_iter()
@@ -400,7 +403,8 @@ fn test_singlethreaded_subtree_mutations() {
     let tree = Smt::with_entries_sequential(entries.clone()).unwrap();
     let control = tree.compute_mutations_sequential(updates.clone());
     let mut node_mutations = NodeMutations::default();
-    let (mut subtree_leaves, new_pairs) = tree.sorted_pairs_to_mutated_subtree_leaves(updates);
+    let (mut subtree_leaves, new_pairs) =
+        tree.sorted_pairs_to_mutated_subtree_leaves(updates).unwrap();
     for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
         // There's no flat_map_unzip(), so this is the best we can do.
         let (mutations_per_subtree, mut subtree_roots): (Vec<_>, Vec<_>) = subtree_leaves
@@ -477,6 +481,67 @@ fn test_smt_construction_with_entries_unsorted() {
     let smt = Smt::with_entries(entries).unwrap();
     assert_eq!(smt.root(), control.root());
     assert_eq!(smt, control);
+}
+
+#[test]
+fn test_smt_construction_with_entries_duplicate_keys() {
+    let entries = [
+        (RpoDigest::new([ONE, ONE, ONE, Felt::new(16)]), [ONE; 4]),
+        (RpoDigest::new([ONE; 4]), [ONE; 4]),
+        (RpoDigest::new([ONE, ONE, ONE, Felt::new(16)]), [ONE; 4]),
+    ];
+    let result = Smt::with_entries(entries);
+    assert!(matches!(result, Err(MerkleError::DuplicateValuesForIndex(_))));
+
+    if let Err(MerkleError::DuplicateValuesForIndex(col)) = result {
+        let expected_col = Smt::key_to_leaf_index(&entries[0].0).index.value();
+        assert_eq!(col, expected_col);
+    }
+}
+
+#[test]
+fn test_smt_construction_with_mixed_empty_values() {
+    let entries = [
+        (RpoDigest::new([ONE, ONE, ONE, ONE]), Smt::EMPTY_VALUE),
+        (RpoDigest::new([ONE, ONE, ONE, Felt::new(2)]), [ONE; 4]),
+    ];
+
+    let result = Smt::with_entries(entries);
+    assert!(result.is_ok(), "SMT construction failed with mixed empty values");
+
+    let smt = result.unwrap();
+    let control = Smt::with_entries_sequential(entries).unwrap();
+
+    assert_eq!(smt.root(), control.root(), "Root hashes do not match");
+    assert_eq!(smt, control, "SMTs are not equal");
+}
+
+#[test]
+fn test_smt_construction_with_all_empty_values() {
+    let entries = [(RpoDigest::new([ONE, ONE, ONE, ONE]), Smt::EMPTY_VALUE)];
+
+    let result = Smt::with_entries(entries);
+    assert!(result.is_ok(), "SMT construction failed with all empty values");
+
+    let smt = result.unwrap();
+
+    assert_eq!(
+        smt.root(),
+        Smt::default().root(),
+        "SMT with all empty values should have the same root as the default SMT"
+    );
+    assert_eq!(smt, Smt::default(), "SMT with all empty values should be empty");
+}
+
+#[test]
+fn test_smt_construction_with_no_entries() {
+    let entries: [(RpoDigest, Word); 0] = [];
+
+    let result = Smt::with_entries(entries);
+    assert!(result.is_ok(), "SMT construction failed with no entries");
+
+    let smt = result.unwrap();
+    assert_eq!(smt, Smt::default(), "SMT with no entries should be empty");
 }
 
 fn arb_felt() -> impl Strategy<Value = Felt> {
