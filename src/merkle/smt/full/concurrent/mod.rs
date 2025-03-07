@@ -37,14 +37,12 @@ impl Smt {
     pub(crate) fn with_entries_concurrent(
         entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
-        let mut entries_iter = entries.into_iter().peekable();
+        let entries: Vec<(RpoDigest, Word)> = entries.into_iter().collect();
 
-        // Early return if the iterator is empty
-        if entries_iter.peek().is_none() {
+        if entries.is_empty() {
             return Ok(Self::default());
         }
 
-        let entries: Vec<(RpoDigest, Word)> = entries_iter.collect();
         let (inner_nodes, leaves) = Self::build_subtrees(entries)?;
 
         // All the leaves are empty
@@ -83,7 +81,7 @@ impl Smt {
 
         // Convert sorted pairs into mutated leaves and capture any new pairs
         let (mut subtree_leaves, new_pairs) =
-            self.sorted_pairs_to_mutated_subtree_leaves(sorted_kv_pairs).unwrap();
+            self.sorted_pairs_to_mutated_subtree_leaves(sorted_kv_pairs);
         let mut node_mutations = NodeMutations::default();
 
         // Process each depth level in reverse, stepping by the subtree depth
@@ -270,7 +268,9 @@ impl Smt {
 
         if pairs.len() > 1 {
             pairs.sort_by(|(key_1, _), (key_2, _)| leaf::cmp_keys(*key_1, *key_2));
+            // Check for duplicates in a sorted list by comparing adjacent pairs
             if let Some(window) = pairs.windows(2).find(|w| w[0].0 == w[1].0) {
+                // If we find a duplicate, return an error
                 let col = Self::key_to_leaf_index(&window[0].0).index.value();
                 return Err(MerkleError::DuplicateValuesForIndex(col));
             }
@@ -290,7 +290,7 @@ impl Smt {
     fn sorted_pairs_to_mutated_subtree_leaves(
         &self,
         pairs: Vec<(RpoDigest, Word)>,
-    ) -> Result<(MutatedSubtreeLeaves, UnorderedMap<RpoDigest, Word>), MerkleError> {
+    ) -> (MutatedSubtreeLeaves, UnorderedMap<RpoDigest, Word>) {
         // Map to track new key-value pairs for mutated leaves
         let mut new_pairs = UnorderedMap::new();
 
@@ -318,8 +318,14 @@ impl Smt {
                 // Return None if leaf hasn't changed
                 Ok(None)
             }
-        })?;
-        Ok((accumulator.leaves, new_pairs))
+        });
+        // The closure is the only possible source of errors.
+        // Since it never returns an error - only `Ok(Some(_))` or `Ok(None)` - we can safely assume
+        // `accumulator` is always `Some(_)`.
+        (
+            accumulator.expect("process_sorted_pairs_to_leaves never fails").leaves,
+            new_pairs,
+        )
     }
 
     /// Processes sorted key-value pairs to compute leaves for a subtree.
@@ -384,8 +390,14 @@ impl Smt {
             let leaf_pairs = mem::take(&mut current_leaf_buffer);
 
             // Process leaf and propagate any errors
-            if let Some(leaf) = process_leaf(leaf_pairs)? {
-                accumulator.nodes.insert(col, leaf);
+            match process_leaf(leaf_pairs) {
+                Ok(Some(leaf)) => {
+                    accumulator.nodes.insert(col, leaf);
+                },
+                Ok(None) => {
+                    // `None` means this leaf should be skipped, which is expected.
+                },
+                Err(e) => return Err(e),
             }
 
             debug_assert!(current_leaf_buffer.is_empty());
