@@ -403,8 +403,7 @@ fn test_singlethreaded_subtree_mutations() {
     let tree = Smt::with_entries_sequential(entries.clone()).unwrap();
     let control = tree.compute_mutations_sequential(updates.clone());
     let mut node_mutations = NodeMutations::default();
-    let (mut subtree_leaves, new_pairs) =
-        tree.sorted_pairs_to_mutated_subtree_leaves(updates).unwrap();
+    let (mut subtree_leaves, new_pairs) = tree.sorted_pairs_to_mutated_subtree_leaves(updates);
     for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
         // There's no flat_map_unzip(), so this is the best we can do.
         let (mutations_per_subtree, mut subtree_roots): (Vec<_>, Vec<_>) = subtree_leaves
