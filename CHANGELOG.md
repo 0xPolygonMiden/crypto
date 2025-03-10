@@ -7,6 +7,7 @@
 - [BREAKING] Updated Winterfell dependency to v0.12 (#374).
 - Added debug-only duplicate column check in `build_subtree` (#378).
 - Filter out empty values in concurrent version of `Smt::with_entries` to fix a panic (#383).
+- Add range checks to `ntru_gen` for Falcon DSA (#391).
 
 ## 0.13.3 (2025-02-18)
 
