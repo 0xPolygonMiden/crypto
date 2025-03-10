@@ -4,7 +4,7 @@ use core::mem;
 use num::Integer;
 
 use super::{
-    EmptySubtreeRoots, InnerNode, InnerNodes, LeafIndex, Leaves, MerkleError, MutationSet,
+    leaf, EmptySubtreeRoots, InnerNode, InnerNodes, LeafIndex, Leaves, MerkleError, MutationSet,
     NodeIndex, RpoDigest, Smt, SmtLeaf, SparseMerkleTree, Word, SMT_DEPTH,
 };
 use crate::merkle::smt::{NodeMutation, NodeMutations, UnorderedMap};
@@ -89,6 +89,17 @@ impl Smt {
         // Convert sorted pairs into mutated leaves and capture any new pairs
         let (mut subtree_leaves, new_pairs) =
             self.sorted_pairs_to_mutated_subtree_leaves(sorted_kv_pairs);
+
+        // If no mutations, return an empty mutation set
+        if subtree_leaves.is_empty() {
+            return MutationSet {
+                old_root: self.root(),
+                new_root: self.root(),
+                node_mutations: NodeMutations::default(),
+                new_pairs,
+            };
+        }
+
         let mut node_mutations = NodeMutations::default();
 
         // Process each depth level in reverse, stepping by the subtree depth
@@ -111,13 +122,22 @@ impl Smt {
             debug_assert!(!subtree_leaves.is_empty());
         }
 
-        // Finalize the mutation set with updated roots and mutations
-        MutationSet {
+        let new_root = subtree_leaves[0][0].hash;
+
+        // Create mutation set
+        let mutation_set = MutationSet {
             old_root: self.root(),
-            new_root: subtree_leaves[0][0].hash,
+            new_root,
             node_mutations,
             new_pairs,
-        }
+        };
+
+        // There should be mutations and new pairs at this point
+        debug_assert!(
+            !mutation_set.node_mutations().is_empty() && !mutation_set.new_pairs().is_empty()
+        );
+
+        mutation_set
     }
 
     // SUBTREE MUTATION
@@ -244,7 +264,9 @@ impl Smt {
     /// With debug assertions on, this function panics if it detects that `pairs` is not correctly
     /// sorted. Without debug assertions, the returned computations will be incorrect.
     fn sorted_pairs_to_leaves(pairs: Vec<(RpoDigest, Word)>) -> PairComputations<u64, SmtLeaf> {
-        Self::process_sorted_pairs_to_leaves(pairs, Self::pairs_to_leaf)
+        Self::process_sorted_pairs_to_leaves(pairs, |leaf_pairs| {
+            Some(Self::pairs_to_leaf(leaf_pairs))
+        })
     }
 
     /// Constructs a single leaf from an arbitrary amount of key-value pairs.
@@ -253,6 +275,7 @@ impl Smt {
         assert!(!pairs.is_empty());
 
         if pairs.len() > 1 {
+            pairs.sort_by(|(key_1, _), (key_2, _)| leaf::cmp_keys(*key_1, *key_2));
             SmtLeaf::new_multiple(pairs).unwrap()
         } else {
             let (key, value) = pairs.pop().unwrap();
@@ -278,22 +301,32 @@ impl Smt {
         let accumulator = Self::process_sorted_pairs_to_leaves(pairs, |leaf_pairs| {
             let mut leaf = self.get_leaf(&leaf_pairs[0].0);
 
+            let mut leaf_changed = false;
             for (key, value) in leaf_pairs {
                 // Check if the value has changed
-                let old_value =
-                    new_pairs.get(&key).cloned().unwrap_or_else(|| self.get_value(&key));
+                let old_value = new_pairs.get(&key).cloned().unwrap_or_else(|| {
+                    // Safe to unwrap: `leaf_pairs` contains keys all belonging to this leaf.
+                    // `SmtLeaf::get_value()` only returns `None` if the key does not belong to the
+                    // leaf, which cannot happen due to the sorting/grouping
+                    // logic in `process_sorted_pairs_to_leaves()`.
+                    leaf.get_value(&key).unwrap()
+                });
 
-                // Skip if the value hasn't changed
-                if value == old_value {
-                    continue;
+                if value != old_value {
+                    // Update the leaf and track the new key-value pair
+                    leaf = self.construct_prospective_leaf(leaf, &key, &value);
+                    new_pairs.insert(key, value);
+                    leaf_changed = true;
                 }
-
-                // Otherwise, update the leaf and track the new key-value pair
-                leaf = self.construct_prospective_leaf(leaf, &key, &value);
-                new_pairs.insert(key, value);
             }
 
-            leaf
+            if leaf_changed {
+                // Only return the leaf if it actually changed
+                Some(leaf)
+            } else {
+                // Return None if leaf hasn't changed
+                None
+            }
         });
         (accumulator.leaves, new_pairs)
     }
@@ -326,7 +359,7 @@ impl Smt {
         mut process_leaf: F,
     ) -> PairComputations<u64, SmtLeaf>
     where
-        F: FnMut(Vec<(RpoDigest, Word)>) -> SmtLeaf,
+        F: FnMut(Vec<(RpoDigest, Word)>) -> Option<SmtLeaf>,
     {
         use rayon::prelude::*;
         debug_assert!(pairs.is_sorted_by_key(|(key, _)| Self::key_to_leaf_index(key).value()));
@@ -359,9 +392,9 @@ impl Smt {
             // Otherwise, the next pair is a different column, or there is no next pair. Either way
             // it's time to swap out our buffer.
             let leaf_pairs = mem::take(&mut current_leaf_buffer);
-            let leaf = process_leaf(leaf_pairs);
-
-            accumulator.nodes.insert(col, leaf);
+            if let Some(leaf) = process_leaf(leaf_pairs) {
+                accumulator.nodes.insert(col, leaf);
+            }
 
             debug_assert!(current_leaf_buffer.is_empty());
         }
