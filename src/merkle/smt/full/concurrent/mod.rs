@@ -132,9 +132,9 @@ impl Smt {
             new_pairs,
         };
 
-        // Assert that when there are no mutations, there are also no new pairs
+        // There should be mutations and new pairs at this point
         debug_assert!(
-            !mutation_set.node_mutations().is_empty() || mutation_set.new_pairs().is_empty()
+            !mutation_set.node_mutations().is_empty() && !mutation_set.new_pairs().is_empty()
         );
 
         mutation_set
