@@ -22,8 +22,8 @@ use crate::dsa::rpo_falcon512::{
 // CONSTANTS
 // ================================================================================================
 
-const WIDTH_BIG_POLY_COEFFICIENT: usize = 8;
-const WIDTH_SMALL_POLY_COEFFICIENT: usize = 6;
+pub(crate) const WIDTH_BIG_POLY_COEFFICIENT: usize = 8;
+pub(crate) const WIDTH_SMALL_POLY_COEFFICIENT: usize = 6;
 
 // SECRET KEY
 // ================================================================================================
