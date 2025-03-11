@@ -598,6 +598,20 @@ impl Polynomial<FalconFelt> {
     }
 }
 
+impl Polynomial<Felt> {
+    /// Returns the coefficients of this polynomial as Miden field elements.
+    pub fn to_elements(&self) -> Vec<Felt> {
+        self.coefficients.to_vec()
+    }
+}
+
+impl Polynomial<i16> {
+    /// Returns the balanced values of the coefficients of this polynomial.
+    pub fn to_balanced_values(&self) -> Vec<i16> {
+        self.coefficients.iter().map(|c| FalconFelt::new(*c).balanced_value()).collect()
+    }
+}
+
 // TESTS
 // ================================================================================================
 

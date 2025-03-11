@@ -82,6 +82,17 @@ impl Smt {
         // Convert sorted pairs into mutated leaves and capture any new pairs
         let (mut subtree_leaves, new_pairs) =
             self.sorted_pairs_to_mutated_subtree_leaves(sorted_kv_pairs);
+
+        // If no mutations, return an empty mutation set
+        if subtree_leaves.is_empty() {
+            return MutationSet {
+                old_root: self.root(),
+                new_root: self.root(),
+                node_mutations: NodeMutations::default(),
+                new_pairs,
+            };
+        }
+
         let mut node_mutations = NodeMutations::default();
 
         // Process each depth level in reverse, stepping by the subtree depth
@@ -100,16 +111,13 @@ impl Smt {
 
             // Aggregate all node mutations
             node_mutations.extend(mutations_per_subtree.into_iter().flatten());
+
+            debug_assert!(!subtree_leaves.is_empty());
         }
 
-        // If no mutations occurred, the new root is the same as the old root
-        let new_root = if node_mutations.is_empty() {
-            self.root()
-        } else {
-            subtree_leaves[0][0].hash
-        };
+        let new_root = subtree_leaves[0][0].hash;
 
-        // Create mutation set - if no mutations occurred, all fields should indicate no changes
+        // Create mutation set
         let mutation_set = MutationSet {
             old_root: self.root(),
             new_root,
@@ -117,9 +125,9 @@ impl Smt {
             new_pairs,
         };
 
-        // Assert that when there are no mutations, there are also no new pairs
+        // There should be mutations and new pairs at this point
         debug_assert!(
-            !mutation_set.node_mutations().is_empty() || mutation_set.new_pairs().is_empty()
+            !mutation_set.node_mutations().is_empty() && !mutation_set.new_pairs().is_empty()
         );
 
         mutation_set
@@ -300,8 +308,13 @@ impl Smt {
             let mut leaf_changed = false;
             for (key, value) in leaf_pairs {
                 // Check if the value has changed
-                let old_value =
-                    new_pairs.get(&key).cloned().unwrap_or_else(|| self.get_value(&key));
+                let old_value = new_pairs.get(&key).cloned().unwrap_or_else(|| {
+                    // Safe to unwrap: `leaf_pairs` contains keys all belonging to this leaf.
+                    // `SmtLeaf::get_value()` only returns `None` if the key does not belong to the
+                    // leaf, which cannot happen due to the sorting/grouping
+                    // logic in `process_sorted_pairs_to_leaves()`.
+                    leaf.get_value(&key).unwrap()
+                });
 
                 if value != old_value {
                     // Update the leaf and track the new key-value pair

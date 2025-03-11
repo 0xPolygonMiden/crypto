@@ -9,6 +9,7 @@ pub use public_key::{PubKeyPoly, PublicKey};
 
 mod secret_key;
 pub use secret_key::SecretKey;
+pub(crate) use secret_key::{WIDTH_BIG_POLY_COEFFICIENT, WIDTH_SMALL_POLY_COEFFICIENT};
 
 // TESTS
 // ================================================================================================
