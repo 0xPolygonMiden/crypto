@@ -105,6 +105,22 @@ We do that by enabling some special [flags](https://doc.rust-lang.org/cargo/refe
 RUSTFLAGS="-C debug-assertions -C overflow-checks -C debuginfo=2" cargo test --release
 ```
 
+## Fuzzing
+
+The `fuzz-smt` fuzz target is designed to test the `Smt` implementation. It generates random SMT entries and updates, and then compares the results of the sequential and parallel implementations.
+
+Before running the fuzz tests, ensure you have `cargo-fuzz` installed:
+
+```shell
+cargo install cargo-fuzz
+```
+
+To run the fuzz target, use:
+
+```shell
+make fuzz-smt
+```
+
 ## License
 
 This project is [MIT licensed](./LICENSE).
