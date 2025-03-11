@@ -5,7 +5,7 @@
 //! 1. The [reference](https://falcon-sign.info/impl/README.txt.html) implementation by Thomas
 //!    Pornin.
 //! 2. The [Rust](https://github.com/aszepieniec/falcon-rust) implementation by Alan Szepieniec.
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 use core::ops::MulAssign;
 
 #[cfg(not(feature = "std"))]
@@ -14,7 +14,10 @@ use num::{BigInt, FromPrimitive, One, Zero};
 use num_complex::Complex64;
 use rand::Rng;
 
-use super::MODULUS;
+use super::{
+    keys::{WIDTH_BIG_POLY_COEFFICIENT, WIDTH_SMALL_POLY_COEFFICIENT},
+    MODULUS,
+};
 
 mod fft;
 pub use fft::{CyclotomicFourier, FastFft};
@@ -30,6 +33,9 @@ use self::samplerz::sampler_z;
 
 mod polynomial;
 pub use polynomial::Polynomial;
+
+const MAX_SMALL_POLY_COEFFICENT_SIZE: i16 = (1 << (WIDTH_SMALL_POLY_COEFFICIENT - 1)) - 1;
+const MAX_BIG_POLY_COEFFICENT_SIZE: i16 = (1 << (WIDTH_BIG_POLY_COEFFICIENT - 1)) - 1;
 
 pub trait Inverse: Copy + Zero + MulAssign + One {
     /// Gets the inverse of a, or zero if it is zero.
@@ -85,6 +91,15 @@ pub(crate) fn ntru_gen<R: Rng>(n: usize, rng: &mut R) -> [Polynomial<i16>; 4] {
     loop {
         let f = gen_poly(n, rng);
         let g = gen_poly(n, rng);
+
+        // we do bound checks on the coefficients of the sampled polynomials in order to make sure
+        // that they will be encodable/decodable
+        if !(check_coefficients_bound(&f, MAX_SMALL_POLY_COEFFICENT_SIZE)
+            && check_coefficients_bound(&g, MAX_SMALL_POLY_COEFFICENT_SIZE))
+        {
+            continue;
+        }
+
         let f_ntt = f.map(|&i| FalconFelt::new(i)).fft();
         if f_ntt.coefficients.iter().any(|e| e.is_zero()) {
             continue;
@@ -97,12 +112,16 @@ pub(crate) fn ntru_gen<R: Rng>(n: usize, rng: &mut R) -> [Polynomial<i16>; 4] {
         if let Some((capital_f, capital_g)) =
             ntru_solve(&f.map(|&i| i.into()), &g.map(|&i| i.into()))
         {
-            return [
-                g,
-                -f,
-                capital_g.map(|i| i.try_into().unwrap()),
-                -capital_f.map(|i| i.try_into().unwrap()),
-            ];
+            // we do bound checks on the coefficients of the solution polynomials in order to make
+            // sure that they will be encodable/decodable
+            let capital_f = capital_f.map(|i| i.try_into().unwrap());
+            let capital_g = capital_g.map(|i| i.try_into().unwrap());
+            if !(check_coefficients_bound(&capital_f, MAX_BIG_POLY_COEFFICENT_SIZE)
+                && check_coefficients_bound(&capital_g, MAX_BIG_POLY_COEFFICENT_SIZE))
+            {
+                continue;
+            }
+            return [g, -f, capital_g, -capital_f];
         }
     }
 }
@@ -143,19 +162,7 @@ fn ntru_solve(
     let mut capital_f = (capital_f_prime_xsq.karatsuba(&g_minx)).reduce_by_cyclotomic(n);
     let mut capital_g = (capital_g_prime_xsq.karatsuba(&f_minx)).reduce_by_cyclotomic(n);
 
-    match babai_reduce(f, g, &mut capital_f, &mut capital_g) {
-        Ok(_) => Some((capital_f, capital_g)),
-        Err(_e) => {
-            #[cfg(test)]
-            {
-                panic!("{}", _e);
-            }
-            #[cfg(not(test))]
-            {
-                None
-            }
-        },
-    }
+    babai_reduce(f, g, &mut capital_f, &mut capital_g).map(|()| (capital_f, capital_g))
 }
 
 /// Generates a polynomial of degree at most n-1 whose coefficients are distributed according
@@ -216,7 +223,7 @@ fn babai_reduce(
     g: &Polynomial<BigInt>,
     capital_f: &mut Polynomial<BigInt>,
     capital_g: &mut Polynomial<BigInt>,
-) -> Result<(), String> {
+) -> Option<()> {
     let bitsize = |bi: &BigInt| (bi.bits() + 7) & (u64::MAX ^ 7);
     let n = f.coefficients.len();
     let size = [
@@ -282,20 +289,11 @@ fn babai_reduce(
 
         counter += 1;
         if counter > 1000 {
-            // If we get here, that means that (with high likelihood) we are in an
-            // infinite loop. We know it happens from time to time -- seldomly, but it
-            // does. It would be nice to fix that! But in order to fix it we need to be
-            // able to reproduce it, and for that we need test vectors. So print them
-            // and hope that one day they circle back to the implementor.
-            return Err(format!("Encountered infinite loop in babai_reduce of falcon-rust.\n\\
-            Please help the developer(s) fix it! You can do this by sending them the inputs to the function that caused the behavior:\n\\
-            f: {:?}\n\\
-            g: {:?}\n\\
-            capital_f: {:?}\n\\
-            capital_g: {:?}\n", f.coefficients, g.coefficients, capital_f.coefficients, capital_g.coefficients));
+            // If we get here, it means that (with high likelihood) we are in an infinite loop.
+            return None;
         }
     }
-    Ok(())
+    Some(())
 }
 
 /// Extended Euclidean algorithm for computing the greatest common divisor (g) and
@@ -319,4 +317,10 @@ fn xgcd(a: &BigInt, b: &BigInt) -> (BigInt, BigInt, BigInt) {
     }
 
     (old_r, old_s, old_t)
+}
+
+/// Asserts that the balanced values of the coefficients of a polynomial are within the interval
+/// [-bound, bound].
+fn check_coefficients_bound(polynomial: &Polynomial<i16>, bound: i16) -> bool {
+    polynomial.to_balanced_values().iter().all(|c| *c <= bound && *c >= -bound)
 }
