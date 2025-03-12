@@ -3,6 +3,7 @@ use alloc::{
     vec::Vec,
 };
 
+use assert_matches::assert_matches;
 use proptest::prelude::*;
 use rand::{prelude::IteratorRandom, thread_rng, Rng};
 
@@ -489,17 +490,13 @@ fn test_smt_construction_with_entries_duplicate_keys() {
         (RpoDigest::new([ONE; 4]), [ONE; 4]),
         (RpoDigest::new([ONE, ONE, ONE, Felt::new(16)]), [ONE; 4]),
     ];
-    let result = Smt::with_entries(entries);
-    assert!(matches!(result, Err(MerkleError::DuplicateValuesForIndex(_))));
-
-    if let Err(MerkleError::DuplicateValuesForIndex(col)) = result {
-        let expected_col = Smt::key_to_leaf_index(&entries[0].0).index.value();
-        assert_eq!(col, expected_col);
-    }
+    let expected_col = Smt::key_to_leaf_index(&entries[0].0).index.value();
+    let err = Smt::with_entries(entries).unwrap_err();
+    assert_matches!(err, MerkleError::DuplicateValuesForIndex(col) if col == expected_col);
 }
 
 #[test]
-fn test_smt_construction_with_mixed_empty_values() {
+fn test_smt_construction_with_some_empty_values() {
     let entries = [
         (RpoDigest::new([ONE, ONE, ONE, ONE]), Smt::EMPTY_VALUE),
         (RpoDigest::new([ONE, ONE, ONE, Felt::new(2)]), [ONE; 4]),
@@ -511,6 +508,7 @@ fn test_smt_construction_with_mixed_empty_values() {
     let smt = result.unwrap();
     let control = Smt::with_entries_sequential(entries).unwrap();
 
+    assert_eq!(smt.num_leaves(), 1);
     assert_eq!(smt.root(), control.root(), "Root hashes do not match");
     assert_eq!(smt, control, "SMTs are not equal");
 }

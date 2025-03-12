@@ -34,6 +34,9 @@ impl Smt {
     /// 3. These subtree roots are recursively merged to become the "leaves" for the next iteration,
     ///    which processes the next 8 levels up. This continues until the final root of the tree is
     ///    computed at depth 0.
+    ///
+    /// # Errors
+    /// Returns an error if the provided entries contain multiple values for the same key.
     pub(crate) fn with_entries_concurrent(
         entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
@@ -200,6 +203,9 @@ impl Smt {
     /// Computes the raw parts for a new sparse Merkle tree from a set of key-value pairs.
     ///
     /// `entries` need not be sorted. This function will sort them using parallel sorting.
+    ///
+    /// # Errors
+    /// Returns an error if the provided entries contain multiple values for the same key.
     fn build_subtrees(
         mut entries: Vec<(RpoDigest, Word)>,
     ) -> Result<(InnerNodes, Leaves), MerkleError> {
@@ -214,6 +220,9 @@ impl Smt {
     ///
     /// This function is mostly an implementation detail of
     /// [`Smt::with_entries_concurrent()`].
+    ///
+    /// # Errors
+    /// Returns an error if the provided entries contain multiple values for the same key.
     fn build_subtrees_from_sorted_entries(
         entries: Vec<(RpoDigest, Word)>,
     ) -> Result<(InnerNodes, Leaves), MerkleError> {
@@ -260,6 +269,9 @@ impl Smt {
     /// `pairs` *must* already be sorted **by leaf index column**, not simply sorted by key. If
     /// `pairs` is not correctly sorted, the returned computations will be incorrect.
     ///
+    /// # Errors
+    /// Returns an error if the provided pairs contain multiple values for the same key.
+    ///
     /// # Panics
     /// With debug assertions on, this function panics if it detects that `pairs` is not correctly
     /// sorted. Without debug assertions, the returned computations will be incorrect.
@@ -271,13 +283,21 @@ impl Smt {
 
     /// Constructs a single leaf from an arbitrary amount of key-value pairs.
     /// Those pairs must all have the same leaf index.
+    ///
+    /// # Errors
+    /// Returns a `MerkleError::DuplicateValuesForIndex` if the provided pairs contain multiple
+    /// values for the same key.
+    ///
+    /// # Returns
+    /// - `Ok(Some(SmtLeaf))` if a valid leaf is constructed.
+    /// - `Ok(None)` if the only provided value is `Self::EMPTY_VALUE`.
     fn pairs_to_leaf(mut pairs: Vec<(RpoDigest, Word)>) -> Result<Option<SmtLeaf>, MerkleError> {
         assert!(!pairs.is_empty());
 
         if pairs.len() > 1 {
             pairs.sort_by(|(key_1, _), (key_2, _)| leaf::cmp_keys(*key_1, *key_2));
             // Check for duplicates in a sorted list by comparing adjacent pairs
-            if let Some(window) = pairs.windows(2).find(|w| w[0].0 == w[1].0) {
+            if let Some(window) = pairs.windows(2).find(|window| window[0].0 == window[1].0) {
                 // If we find a duplicate, return an error
                 let col = Self::key_to_leaf_index(&window[0].0).index.value();
                 return Err(MerkleError::DuplicateValuesForIndex(col));
@@ -334,7 +354,7 @@ impl Smt {
         });
         // The closure is the only possible source of errors.
         // Since it never returns an error - only `Ok(Some(_))` or `Ok(None)` - we can safely assume
-        // `accumulator` is always `Some(_)`.
+        // `accumulator` is always `Ok(_)`.
         (
             accumulator.expect("process_sorted_pairs_to_leaves never fails").leaves,
             new_pairs,
@@ -361,6 +381,9 @@ impl Smt {
     /// - `nodes`: A mapping of column indices to the constructed leaves.
     /// - `leaves`: A collection of `SubtreeLeaf` structures representing the processed leaves. Each
     ///   `SubtreeLeaf` includes the column index and the hash of the corresponding leaf.
+    ///
+    /// # Errors
+    /// Returns an error if the `process_leaf` callback fails.
     ///
     /// # Panics
     /// This function will panic in debug mode if the input `pairs` are not sorted by column index.
@@ -408,7 +431,7 @@ impl Smt {
                     accumulator.nodes.insert(col, leaf);
                 },
                 Ok(None) => {
-                    // `None` means this leaf should be skipped, which is expected.
+                    // No leaf was constructed for this column. The column will be skipped.
                 },
                 Err(e) => return Err(e),
             }
