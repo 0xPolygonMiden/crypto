@@ -99,4 +99,4 @@ bench-smt-concurrent: ## Run SMT benchmarks with concurrent feature
 
 .PHONY: fuzz-smt
 fuzz-smt: ## Run fuzzing for SMT
-	cargo +nightly fuzz run smt --release -- -max_len=10485760
+	cargo +nightly fuzz run smt --release --fuzz-dir miden-crypto-fuzz -- -max_len=10485760

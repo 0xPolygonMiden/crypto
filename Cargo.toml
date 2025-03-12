@@ -1,97 +1,15 @@
-[package]
-name = "miden-crypto"
-version = "0.14.0"
-description = "Miden Cryptographic primitives"
+[workspace]
+members = [
+    "miden-crypto"
+]
+resolver = "2"  # Use the edition 2021 dependency resolver
+
+[workspace.package]
 authors = ["miden contributors"]
-readme = "README.md"
 license = "MIT"
 repository = "https://github.com/0xPolygonMiden/crypto"
-documentation = "https://docs.rs/miden-crypto/0.14.0"
+documentation = "https://docs.rs/miden-crypto"
 categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2021"
 rust-version = "1.84"
-
-[[bin]]
-name = "miden-crypto"
-path = "src/main.rs"
-bench = false
-doctest = false
-required-features = ["executable"]
-
-[[bench]]
-name = "hash"
-harness = false
-
-[[bench]]
-name = "smt"
-harness = false
-
-[[bench]]
-name = "smt-subtree"
-harness = false
-required-features = ["internal"]
-
-[[bench]]
-name = "merkle"
-harness = false
-
-[[bench]]
-name = "smt-with-entries"
-harness = false
-
-[[bench]]
-name = "store"
-harness = false
-
-[features]
-concurrent = ["dep:rayon", "hashbrown?/rayon"]
-default = ["std", "concurrent"]
-executable = ["dep:clap", "dep:rand-utils", "std"]
-smt_hashmaps = ["dep:hashbrown"]
-internal = []
-serde = ["dep:serde", "serde?/alloc", "winter-math/serde"]
-std = [
-    "blake3/std",
-    "dep:cc",
-    "rand/std",
-    "rand/std_rng",
-    "winter-crypto/std",
-    "winter-math/std",
-    "winter-utils/std",
-]
-
-[dependencies]
-blake3 = { version = "1.5", default-features = false }
-clap = { version = "4.5", optional = true, features = ["derive"] }
-hashbrown = { version = "0.15", optional = true, features = ["serde"] }
-num = { version = "0.4", default-features = false, features = ["alloc", "libm"] }
-num-complex = { version = "0.4", default-features = false }
-rand = { version = "0.8", default-features = false }
-rand_core = { version = "0.6", default-features = false }
-rand-utils = { version = "0.12", package = "winter-rand-utils", optional = true }
-rayon = { version = "1.10", optional = true }
-serde = { version = "1.0", default-features = false, optional = true, features = ["derive"] }
-sha3 = { version = "0.10", default-features = false }
-thiserror = { version = "2.0", default-features = false }
-winter-crypto = { version = "0.12", default-features = false }
-winter-math = { version = "0.12", default-features = false }
-winter-utils = { version = "0.12", default-features = false }
-
-[dev-dependencies]
-assert_matches = { version = "1.5", default-features = false }
-criterion = { version = "0.5", features = ["html_reports"] }
-getrandom = { version = "0.2", features = ["js"] }
-hex = { version = "0.4", default-features = false, features = ["alloc"] }
-proptest = "1.6"
-rand_chacha = { version = "0.3", default-features = false }
-rand-utils = { version = "0.12", package = "winter-rand-utils" }
-seq-macro = { version = "0.3" }
-
-[build-dependencies]
-cc = { version = "1.2", optional = true, features = ["parallel"] }
-glob = "0.3"
-
-[lints.rust]
-# Suppress warnings about `cfg(fuzzing)`, which is automatically set when using `cargo-fuzz`.
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }
