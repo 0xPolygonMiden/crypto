@@ -75,7 +75,7 @@ build: ## Build with default features enabled
 
 .PHONY: build-no-std
 build-no-std: ## Build without the standard library
-	cargo build --release --no-default-features --target wasm32-unknown-unknown
+	RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --release --no-default-features --target wasm32-unknown-unknown
 
 .PHONY: build-avx2
 build-avx2: ## Build with avx2 support
