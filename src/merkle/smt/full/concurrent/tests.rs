@@ -4,7 +4,7 @@ use alloc::{
 };
 
 use proptest::prelude::*;
-use rand::{prelude::IteratorRandom, thread_rng, Rng};
+use rand::{prelude::IteratorRandom, rng, Rng};
 
 use super::{
     build_subtree, InnerNode, LeafIndex, NodeIndex, NodeMutations, PairComputations, RpoDigest,
@@ -110,7 +110,7 @@ fn generate_entries(pair_count: u64) -> Vec<(RpoDigest, Word)> {
 
 fn generate_updates(entries: Vec<(RpoDigest, Word)>, updates: usize) -> Vec<(RpoDigest, Word)> {
     const REMOVAL_PROBABILITY: f64 = 0.2;
-    let mut rng = thread_rng();
+    let mut rng = rng();
     // Assertion to ensure input keys are unique
     assert!(
         entries.iter().map(|(key, _)| key).collect::<BTreeSet<_>>().len() == entries.len(),
@@ -121,10 +121,10 @@ fn generate_updates(entries: Vec<(RpoDigest, Word)>, updates: usize) -> Vec<(Rpo
         .choose_multiple(&mut rng, updates)
         .into_iter()
         .map(|(key, _)| {
-            let value = if rng.gen_bool(REMOVAL_PROBABILITY) {
+            let value = if rng.random_bool(REMOVAL_PROBABILITY) {
                 EMPTY_WORD
             } else {
-                [ONE, ONE, ONE, Felt::new(rng.gen())]
+                [ONE, ONE, ONE, Felt::new(rng.random())]
             };
             (key, value)
         })
@@ -377,11 +377,11 @@ fn test_multithreaded_subtrees() {
 fn test_with_entries_concurrent() {
     const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
     let mut entries = generate_entries(PAIR_COUNT);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Set 10% of the entries to have empty words as their values.
     for _ in 0..PAIR_COUNT / 10 {
-        let random_index = rng.gen_range(0..PAIR_COUNT);
+        let random_index = rng.random_range(0..PAIR_COUNT);
         entries[random_index as usize].1 = EMPTY_WORD;
     }
 
