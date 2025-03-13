@@ -10,7 +10,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 miden-crypto = { path = "..", features = ["concurrent"] }
-rand = { version = "0.8", default-features = false }
+rand = { version = "0.9", default-features = false }
 
 [[bin]]
 name = "smt"

@@ -68,7 +68,7 @@ impl SecretKey {
     pub fn new() -> Self {
         use rand::{rngs::StdRng, SeedableRng};
 
-        let mut rng = StdRng::from_entropy();
+        let mut rng = StdRng::from_os_rng();
         Self::with_rng(&mut rng)
     }
 
@@ -117,7 +117,7 @@ impl SecretKey {
     pub fn sign(&self, message: Word) -> Signature {
         use rand::{rngs::StdRng, SeedableRng};
 
-        let mut rng = StdRng::from_entropy();
+        let mut rng = StdRng::from_os_rng();
         self.sign_with_rng(message, &mut rng)
     }
 

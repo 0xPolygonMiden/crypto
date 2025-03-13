@@ -12,6 +12,7 @@
 - Skip unchanged leaves in the concurrent implementation of `Smt::compute_mutations` (#385).
 - Add range checks to `ntru_gen` for Falcon DSA (#391).
 - Optimized duplicate key detection in `Smt::with_entries_concurrent` (#395).
+- [BREAKING] Moved `rand` to version `0.9` removing the `try_fill_bytes` method (#398).
 
 ## 0.13.3 (2025-02-18)
 
