@@ -55,8 +55,6 @@ std = [
     "blake3/std",
     "dep:cc",
     "rand/std",
-    "rand/std_rng",
-    "rand/os_rng",
     "rand/thread_rng",
     "winter-crypto/std",
     "winter-math/std",
