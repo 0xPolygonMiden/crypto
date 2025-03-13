@@ -1,7 +1,7 @@
 use crate::{
+    Felt, Word, ZERO,
     hash::rpo::Rpo256,
     utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable},
-    Felt, Word, ZERO,
 };
 
 mod hash_to_point;

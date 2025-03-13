@@ -1,6 +1,6 @@
 ## 0.14.0 (TBD)
 
-- [BREAKING] Increment minimum supported Rust version to 1.84.
+- [BREAKING] Increment minimum supported Rust version to 1.85.
 - Removed duplicated check in RpoFalcon512 verification (#368).
 - Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
 - Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).

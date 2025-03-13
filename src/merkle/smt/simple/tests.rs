@@ -7,12 +7,12 @@ use super::{
     NodeIndex,
 };
 use crate::{
+    EMPTY_WORD, Word,
     hash::rpo::Rpo256,
     merkle::{
-        digests_to_words, int_to_leaf, int_to_node, smt::SparseMerkleTree, EmptySubtreeRoots,
-        InnerNodeInfo, LeafIndex, MerkleTree,
+        EmptySubtreeRoots, InnerNodeInfo, LeafIndex, MerkleTree, digests_to_words, int_to_leaf,
+        int_to_node, smt::SparseMerkleTree,
     },
-    Word, EMPTY_WORD,
 };
 
 // TEST DATA

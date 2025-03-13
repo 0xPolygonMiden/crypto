@@ -2,11 +2,11 @@ use std::time::Instant;
 
 use clap::Parser;
 use miden_crypto::{
+    EMPTY_WORD, Felt, ONE, Word,
     hash::rpo::{Rpo256, RpoDigest},
     merkle::{MerkleError, Smt},
-    Felt, Word, EMPTY_WORD, ONE,
 };
-use rand::{prelude::IteratorRandom, rng, Rng};
+use rand::{Rng, prelude::IteratorRandom, rng};
 use rand_utils::rand_value;
 
 #[derive(Parser, Debug)]

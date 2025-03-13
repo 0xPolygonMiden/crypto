@@ -5,16 +5,16 @@ use alloc::{
 
 use assert_matches::assert_matches;
 use proptest::prelude::*;
-use rand::{prelude::IteratorRandom, rng, Rng};
+use rand::{Rng, prelude::IteratorRandom, rng};
 
 use super::{
-    build_subtree, InnerNode, NodeIndex, NodeMutations, PairComputations, RpoDigest, Smt, SmtLeaf,
-    SparseMerkleTree, SubtreeLeaf, SubtreeLeavesIter, UnorderedMap, COLS_PER_SUBTREE, SMT_DEPTH,
-    SUBTREE_DEPTH,
+    COLS_PER_SUBTREE, InnerNode, NodeIndex, NodeMutations, PairComputations, RpoDigest, SMT_DEPTH,
+    SUBTREE_DEPTH, Smt, SmtLeaf, SparseMerkleTree, SubtreeLeaf, SubtreeLeavesIter, UnorderedMap,
+    build_subtree,
 };
 use crate::{
-    merkle::{smt::Felt, LeafIndex, MerkleError},
-    Word, EMPTY_WORD, ONE, ZERO,
+    EMPTY_WORD, ONE, Word, ZERO,
+    merkle::{LeafIndex, MerkleError, smt::Felt},
 };
 
 fn smtleaf_to_subtree_leaf(leaf: &SmtLeaf) -> SubtreeLeaf {

@@ -6,7 +6,7 @@ mod arch;
 pub use arch::optimized::{add_constants_and_apply_inv_sbox, add_constants_and_apply_sbox};
 
 mod mds;
-use mds::{apply_mds, MDS};
+use mds::{MDS, apply_mds};
 
 mod rpo;
 pub use rpo::{Rpo256, RpoDigest, RpoDigestError};

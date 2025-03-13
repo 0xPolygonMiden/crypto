@@ -7,8 +7,8 @@
 //! `benches/smt-subtree.rs`.
 use std::{hint, mem, time::Duration};
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
-use miden_crypto::{merkle::MerkleTree, Felt, Word, ONE};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use miden_crypto::{Felt, ONE, Word, merkle::MerkleTree};
 use rand_utils::prng_array;
 
 fn balanced_merkle_even(c: &mut Criterion) {

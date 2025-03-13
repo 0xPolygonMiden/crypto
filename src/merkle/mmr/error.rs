@@ -10,9 +10,7 @@ pub enum MmrError {
     PositionNotFound(usize),
     #[error("mmr peaks are invalid: {0}")]
     InvalidPeaks(String),
-    #[error(
-        "mmr peak does not match the computed merkle root of the provided authentication path"
-    )]
+    #[error("mmr peak does not match the computed merkle root of the provided authentication path")]
     PeakPathMismatch,
     #[error("requested peak index is {peak_idx} but the number of peaks is {peaks_len}")]
     PeakOutOfBounds { peak_idx: usize, peaks_len: usize },

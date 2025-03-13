@@ -1,13 +1,13 @@
 use alloc::vec::Vec;
 
-use super::{Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, Smt, SmtLeaf, EMPTY_WORD, SMT_DEPTH};
+use super::{EMPTY_WORD, Felt, LeafIndex, NodeIndex, Rpo256, RpoDigest, SMT_DEPTH, Smt, SmtLeaf};
 use crate::{
+    ONE, WORD_SIZE, Word,
     merkle::{
-        smt::{NodeMutation, SparseMerkleTree, UnorderedMap},
         EmptySubtreeRoots, MerkleStore, MutationSet,
+        smt::{NodeMutation, SparseMerkleTree, UnorderedMap},
     },
     utils::{Deserializable, Serializable},
-    Word, ONE, WORD_SIZE,
 };
 // SMT
 // --------------------------------------------------------------------------------------------
