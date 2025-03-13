@@ -1,7 +1,7 @@
 use alloc::{string::ToString, vec::Vec};
 use core::cmp::Ordering;
 
-use super::{Felt, LeafIndex, Rpo256, RpoDigest, SmtLeafError, Word, EMPTY_WORD, SMT_DEPTH};
+use super::{EMPTY_WORD, Felt, LeafIndex, Rpo256, RpoDigest, SMT_DEPTH, SmtLeafError, Word};
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 #[derive(Clone, Debug, PartialEq, Eq)]

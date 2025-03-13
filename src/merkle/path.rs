@@ -3,8 +3,8 @@ use core::ops::{Deref, DerefMut};
 
 use super::{InnerNodeInfo, MerkleError, NodeIndex, Rpo256, RpoDigest};
 use crate::{
-    utils::{ByteReader, Deserializable, DeserializationError, Serializable},
     Word,
+    utils::{ByteReader, Deserializable, DeserializationError, Serializable},
 };
 
 // MERKLE PATH
@@ -264,7 +264,7 @@ impl Deserializable for RootPath {
 
 #[cfg(test)]
 mod tests {
-    use crate::merkle::{int_to_node, MerklePath};
+    use crate::merkle::{MerklePath, int_to_node};
 
     #[test]
     fn test_inner_nodes() {

@@ -14,9 +14,9 @@ use alloc::vec::Vec;
 
 use super::{
     super::{InnerNodeInfo, MerklePath},
+    MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256, RpoDigest,
     bit::TrueBitPositionIterator,
-    leaf_to_corresponding_tree, nodes_in_forest, MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256,
-    RpoDigest,
+    leaf_to_corresponding_tree, nodes_in_forest,
 };
 
 // MMR
@@ -202,7 +202,10 @@ impl Mmr {
     /// that have been merged together, followed by the new peaks of the [Mmr].
     pub fn get_delta(&self, from_forest: usize, to_forest: usize) -> Result<MmrDelta, MmrError> {
         if to_forest > self.forest || from_forest > to_forest {
-            return Err(MmrError::InvalidPeaks(format!("to_forest {to_forest} exceeds the current forest {} or from_forest {from_forest} exceeds to_forest", self.forest)));
+            return Err(MmrError::InvalidPeaks(format!(
+                "to_forest {to_forest} exceeds the current forest {} or from_forest {from_forest} exceeds to_forest",
+                self.forest
+            )));
         }
 
         if from_forest == to_forest {
@@ -439,9 +442,5 @@ impl Iterator for MmrNodes<'_> {
 
 /// Return a bitmask for the bits including and above the given position.
 pub(crate) const fn high_bitmask(bit: u32) -> usize {
-    if bit > usize::BITS - 1 {
-        0
-    } else {
-        usize::MAX << bit
-    }
+    if bit > usize::BITS - 1 { 0 } else { usize::MAX << bit }
 }

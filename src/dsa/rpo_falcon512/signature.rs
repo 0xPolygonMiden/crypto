@@ -4,11 +4,11 @@ use core::ops::Deref;
 use num::Zero;
 
 use super::{
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, LOG_N, MODULUS, N, Nonce,
+    Rpo256, SIG_L2_BOUND, SIG_POLY_BYTE_LEN, Serializable, Word,
     hash_to_point::hash_to_point_rpo256,
     keys::PubKeyPoly,
     math::{FalconFelt, FastFft, Polynomial},
-    ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Nonce, Rpo256,
-    Serializable, Word, LOG_N, MODULUS, N, SIG_L2_BOUND, SIG_POLY_BYTE_LEN,
 };
 
 // FALCON SIGNATURE
@@ -162,9 +162,9 @@ impl Deserializable for SignatureHeader {
         }
 
         if log_n != LOG_N {
-            return Err(DeserializationError::InvalidValue(
-                format!("Failed to decode signature: only supported irreducible polynomial degree is 512, 2^{log_n} was provided")
-            ));
+            return Err(DeserializationError::InvalidValue(format!(
+                "Failed to decode signature: only supported irreducible polynomial degree is 512, 2^{log_n} was provided"
+            )));
         }
 
         Ok(Self(header))

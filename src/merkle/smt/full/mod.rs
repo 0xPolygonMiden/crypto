@@ -1,8 +1,8 @@
 use alloc::{string::ToString, vec::Vec};
 
 use super::{
-    EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex, MerkleError,
-    MerklePath, MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
+    EMPTY_WORD, EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex,
+    MerkleError, MerklePath, MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word,
 };
 
 mod error;
@@ -19,7 +19,7 @@ use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError,
 #[cfg(feature = "concurrent")]
 mod concurrent;
 #[cfg(feature = "internal")]
-pub use concurrent::{build_subtree_for_bench, SubtreeLeaf};
+pub use concurrent::{SubtreeLeaf, build_subtree_for_bench};
 
 #[cfg(test)]
 mod tests;

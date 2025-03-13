@@ -12,10 +12,10 @@ use super::{
     PartialMerkleTree, RecordingMerkleStore, Rpo256, RpoDigest,
 };
 use crate::{
+    Felt, ONE, WORD_SIZE, Word, ZERO,
     merkle::{
-        digests_to_words, int_to_leaf, int_to_node, LeafIndex, MerkleTree, SimpleSmt, SMT_MAX_DEPTH,
+        LeafIndex, MerkleTree, SMT_MAX_DEPTH, SimpleSmt, digests_to_words, int_to_leaf, int_to_node,
     },
-    Felt, Word, ONE, WORD_SIZE, ZERO,
 };
 
 // TEST DATA

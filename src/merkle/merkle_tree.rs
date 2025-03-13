@@ -290,8 +290,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        merkle::{digests_to_words, int_to_leaf, int_to_node},
         Felt, WORD_SIZE,
+        merkle::{digests_to_words, int_to_leaf, int_to_node},
     };
 
     const LEAVES4: [RpoDigest; WORD_SIZE] =

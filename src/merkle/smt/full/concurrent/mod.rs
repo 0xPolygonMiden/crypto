@@ -5,8 +5,8 @@ use num::Integer;
 use rayon::prelude::*;
 
 use super::{
-    leaf, EmptySubtreeRoots, InnerNode, InnerNodes, Leaves, MerkleError, MutationSet, NodeIndex,
-    RpoDigest, Smt, SmtLeaf, SparseMerkleTree, Word, SMT_DEPTH,
+    EmptySubtreeRoots, InnerNode, InnerNodes, Leaves, MerkleError, MutationSet, NodeIndex,
+    RpoDigest, SMT_DEPTH, Smt, SmtLeaf, SparseMerkleTree, Word, leaf,
 };
 use crate::merkle::smt::{NodeMutation, NodeMutations, UnorderedMap};
 

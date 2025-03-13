@@ -1,6 +1,6 @@
 use alloc::string::ToString;
 
-use super::{MerklePath, RpoDigest, SmtLeaf, SmtProofError, Word, SMT_DEPTH};
+use super::{MerklePath, RpoDigest, SMT_DEPTH, SmtLeaf, SmtProofError, Word};
 use crate::utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
 
 /// A proof which can be used to assert membership (or non-membership) of key-value pairs in a

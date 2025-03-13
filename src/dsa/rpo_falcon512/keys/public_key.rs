@@ -4,7 +4,7 @@ use core::ops::Deref;
 use num::Zero;
 
 use super::{
-    super::{Rpo256, LOG_N, N, PK_LEN},
+    super::{LOG_N, N, PK_LEN, Rpo256},
     ByteReader, ByteWriter, Deserializable, DeserializationError, FalconFelt, Felt, Polynomial,
     Serializable, Signature, Word,
 };

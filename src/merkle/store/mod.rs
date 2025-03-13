@@ -2,12 +2,12 @@ use alloc::{collections::BTreeMap, vec::Vec};
 use core::borrow::Borrow;
 
 use super::{
-    mmr::Mmr, EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerkleTree, NodeIndex,
-    PartialMerkleTree, RootPath, Rpo256, RpoDigest, SimpleSmt, Smt, ValuePath,
+    EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, MerkleTree, NodeIndex,
+    PartialMerkleTree, RootPath, Rpo256, RpoDigest, SimpleSmt, Smt, ValuePath, mmr::Mmr,
 };
 use crate::utils::{
-    collections::{KvMap, RecordingMap},
     ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
+    collections::{KvMap, RecordingMap},
 };
 
 #[cfg(test)]

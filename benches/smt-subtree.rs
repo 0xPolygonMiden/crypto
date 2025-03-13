@@ -1,10 +1,10 @@
 use std::{fmt::Debug, hint, mem, time::Duration};
 
-use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
+use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use miden_crypto::{
+    Felt, ONE, Word,
     hash::rpo::RpoDigest,
-    merkle::{build_subtree_for_bench, NodeIndex, SmtLeaf, SubtreeLeaf, SMT_DEPTH},
-    Felt, Word, ONE,
+    merkle::{NodeIndex, SMT_DEPTH, SmtLeaf, SubtreeLeaf, build_subtree_for_bench},
 };
 use rand_utils::prng_array;
 use winter_utils::Randomizable;

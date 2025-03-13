@@ -1,11 +1,11 @@
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 use miden_crypto::{
+    Felt,
     hash::{
         blake::Blake3_256,
         rpo::{Rpo256, RpoDigest},
         rpx::{Rpx256, RpxDigest},
     },
-    Felt,
 };
 use rand_utils::rand_value;
 use winter_crypto::Hasher;

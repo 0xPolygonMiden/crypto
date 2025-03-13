@@ -1,11 +1,11 @@
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
+use criterion::{BatchSize, BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use miden_crypto::{
+    Felt, Word,
     hash::rpo::RpoDigest,
     merkle::{
-        DefaultMerkleStore as MerkleStore, LeafIndex, MerkleTree, NodeIndex, SimpleSmt,
-        SMT_MAX_DEPTH,
+        DefaultMerkleStore as MerkleStore, LeafIndex, MerkleTree, NodeIndex, SMT_MAX_DEPTH,
+        SimpleSmt,
     },
-    Felt, Word,
 };
 use rand_utils::{rand_array, rand_value};
 

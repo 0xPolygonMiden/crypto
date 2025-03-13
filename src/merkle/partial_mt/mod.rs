@@ -6,11 +6,11 @@ use alloc::{
 use core::fmt;
 
 use super::{
-    InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, ValuePath, Word,
-    EMPTY_WORD,
+    EMPTY_WORD, InnerNodeInfo, MerkleError, MerklePath, NodeIndex, Rpo256, RpoDigest, ValuePath,
+    Word,
 };
 use crate::utils::{
-    word_to_hex, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable, word_to_hex,
 };
 
 #[cfg(test)]

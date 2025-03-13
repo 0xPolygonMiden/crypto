@@ -85,8 +85,8 @@ const fn ifft4_real(y: (i64, (i64, i64), i64)) -> [u64; 4] {
     // the MDS matrix constants.
     let z0 = y.0 + y.2;
     let z1 = y.0 - y.2;
-    let z2 = y.1 .0;
-    let z3 = -y.1 .1;
+    let z2 = y.1.0;
+    let z3 = -y.1.1;
 
     let [x0, x2] = ifft2_real([z0, z2]);
     let [x1, x3] = ifft2_real([z1, z3]);
@@ -161,7 +161,7 @@ const fn block3(x: [i64; 3], y: [i64; 3]) -> [i64; 3] {
 mod tests {
     use proptest::prelude::*;
 
-    use super::super::{apply_mds, Felt, MDS, ZERO};
+    use super::super::{Felt, MDS, ZERO, apply_mds};
 
     const STATE_WIDTH: usize = 12;
 

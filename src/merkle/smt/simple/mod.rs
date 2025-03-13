@@ -1,9 +1,9 @@
 use alloc::collections::BTreeSet;
 
 use super::{
-    super::ValuePath, EmptySubtreeRoots, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex,
-    MerkleError, MerklePath, MutationSet, NodeIndex, RpoDigest, SparseMerkleTree, Word, EMPTY_WORD,
-    SMT_MAX_DEPTH, SMT_MIN_DEPTH,
+    super::ValuePath, EMPTY_WORD, EmptySubtreeRoots, InnerNode, InnerNodeInfo, InnerNodes,
+    LeafIndex, MerkleError, MerklePath, MutationSet, NodeIndex, RpoDigest, SMT_MAX_DEPTH,
+    SMT_MIN_DEPTH, SparseMerkleTree, Word,
 };
 
 #[cfg(test)]

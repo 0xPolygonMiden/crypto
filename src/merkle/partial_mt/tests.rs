@@ -2,8 +2,8 @@ use alloc::{collections::BTreeMap, vec::Vec};
 
 use super::{
     super::{
-        digests_to_words, int_to_node, DefaultMerkleStore as MerkleStore, MerkleTree, NodeIndex,
-        PartialMerkleTree,
+        DefaultMerkleStore as MerkleStore, MerkleTree, NodeIndex, PartialMerkleTree,
+        digests_to_words, int_to_node,
     },
     Deserializable, InnerNodeInfo, RpoDigest, Serializable, ValuePath,
 };

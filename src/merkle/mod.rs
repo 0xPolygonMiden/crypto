@@ -1,8 +1,8 @@
 //! Data structures related to Merkle trees based on RPO256 hash function.
 
 use super::{
+    EMPTY_WORD, Felt, Word, ZERO,
     hash::rpo::{Rpo256, RpoDigest},
-    Felt, Word, EMPTY_WORD, ZERO,
 };
 
 // REEXPORTS
@@ -15,18 +15,18 @@ mod index;
 pub use index::NodeIndex;
 
 mod merkle_tree;
-pub use merkle_tree::{path_to_text, tree_to_text, MerkleTree};
+pub use merkle_tree::{MerkleTree, path_to_text, tree_to_text};
 
 mod path;
 pub use path::{MerklePath, RootPath, ValuePath};
 
 mod smt;
-#[cfg(feature = "internal")]
-pub use smt::{build_subtree_for_bench, SubtreeLeaf};
 pub use smt::{
-    InnerNode, LeafIndex, MutationSet, NodeMutation, PartialSmt, SimpleSmt, Smt, SmtLeaf,
-    SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH, SMT_MAX_DEPTH, SMT_MIN_DEPTH,
+    InnerNode, LeafIndex, MutationSet, NodeMutation, PartialSmt, SMT_DEPTH, SMT_MAX_DEPTH,
+    SMT_MIN_DEPTH, SimpleSmt, Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError,
 };
+#[cfg(feature = "internal")]
+pub use smt::{SubtreeLeaf, build_subtree_for_bench};
 
 mod mmr;
 pub use mmr::{InOrderIndex, Mmr, MmrDelta, MmrError, MmrPeaks, MmrProof, PartialMmr};

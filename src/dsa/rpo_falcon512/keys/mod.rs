@@ -1,7 +1,7 @@
 use super::{
-    math::{FalconFelt, Polynomial},
     ByteReader, ByteWriter, Deserializable, DeserializationError, Felt, Serializable, Signature,
     Word,
+    math::{FalconFelt, Polynomial},
 };
 
 mod public_key;
@@ -21,7 +21,7 @@ mod tests {
     use winter_math::FieldElement;
     use winter_utils::{Deserializable, Serializable};
 
-    use crate::{dsa::rpo_falcon512::SecretKey, Word, ONE};
+    use crate::{ONE, Word, dsa::rpo_falcon512::SecretKey};
 
     #[test]
     fn test_falcon_verification() {

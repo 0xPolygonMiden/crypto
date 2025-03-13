@@ -3,12 +3,12 @@ use core::{cmp::Ordering, fmt::Display, ops::Deref, slice};
 
 use thiserror::Error;
 
-use super::{Digest, Felt, StarkField, DIGEST_BYTES, DIGEST_SIZE, ZERO};
+use super::{DIGEST_BYTES, DIGEST_SIZE, Digest, Felt, StarkField, ZERO};
 use crate::{
     rand::Randomizable,
     utils::{
-        bytes_to_hex_string, hex_to_bytes, ByteReader, ByteWriter, Deserializable,
-        DeserializationError, HexParseError, Serializable,
+        ByteReader, ByteWriter, Deserializable, DeserializationError, HexParseError, Serializable,
+        bytes_to_hex_string, hex_to_bytes,
     },
 };
 
@@ -150,11 +150,7 @@ impl TryFrom<RpxDigest> for [bool; DIGEST_SIZE] {
 
     fn try_from(value: RpxDigest) -> Result<Self, Self::Error> {
         fn to_bool(v: u64) -> Option<bool> {
-            if v <= 1 {
-                Some(v == 1)
-            } else {
-                None
-            }
+            if v <= 1 { Some(v == 1) } else { None }
         }
 
         Ok([
@@ -516,7 +512,7 @@ mod tests {
 
     use rand_utils::rand_value;
 
-    use super::{Deserializable, Felt, RpxDigest, Serializable, DIGEST_BYTES, DIGEST_SIZE};
+    use super::{DIGEST_BYTES, DIGEST_SIZE, Deserializable, Felt, RpxDigest, Serializable};
     use crate::utils::SliceReader;
 
     #[test]

@@ -2,13 +2,14 @@ use alloc::vec::Vec;
 
 use super::{
     super::{InnerNodeInfo, Rpo256, RpoDigest},
+    Mmr, MmrPeaks, PartialMmr,
     bit::TrueBitPositionIterator,
     full::high_bitmask,
-    leaf_to_corresponding_tree, nodes_in_forest, Mmr, MmrPeaks, PartialMmr,
+    leaf_to_corresponding_tree, nodes_in_forest,
 };
 use crate::{
-    merkle::{int_to_node, InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex},
     Felt, Word,
+    merkle::{InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex, int_to_node},
 };
 
 #[test]
