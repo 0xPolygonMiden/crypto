@@ -11,6 +11,7 @@
 - Sort keys in a leaf in the concurrent implementation of `Smt::with_entries`, ensuring consistency with the sequential version (#385).
 - Skip unchanged leaves in the concurrent implementation of `Smt::compute_mutations` (#385).
 - Add range checks to `ntru_gen` for Falcon DSA (#391).
+- Optimized duplicate key detection in `Smt::with_entries_concurrent` (#395).
 - Changes folder structure (#397).
 
 ## 0.13.3 (2025-02-18)
