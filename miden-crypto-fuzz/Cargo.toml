@@ -1,5 +1,3 @@
-[workspace]
-
 [package]
 name = "miden-crypto-fuzz"
 version = "0.0.0"

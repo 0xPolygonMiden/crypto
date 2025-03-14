@@ -2,7 +2,10 @@
 members = [
     "miden-crypto"
 ]
-resolver = "2"  # Use the edition 2021 dependency resolver
+exclude = [
+    "miden-crypto-fuzz"
+]
+resolver = "3"  # Use the edition 2024 dependency resolver
 
 [workspace.package]
 authors = ["miden contributors"]
