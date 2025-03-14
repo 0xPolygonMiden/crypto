@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use super::{
     super::{InnerNodeInfo, Rpo256, RpoDigest},
     bit::TrueBitPositionIterator,
-    nodes_in_forest, Mmr, MmrPeaks, PartialMmr,
+    Mmr, MmrPeaks, PartialMmr,
 };
 use crate::{
     merkle::{int_to_node, mmr::forest::{high_bitmask, Forest}, InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex},
@@ -896,4 +896,10 @@ fn merge(l: RpoDigest, r: RpoDigest) -> RpoDigest {
 /// the position.
 fn leaf_to_corresponding_tree(pos: usize, forest: usize) -> Option<u32> {
     Forest(forest).leaf_to_corresponding_tree(pos)
+}
+
+
+/// Return the total number of nodes of a given forest
+const fn nodes_in_forest(forest: usize) -> usize {
+    Forest(forest).num_nodes()
 }
