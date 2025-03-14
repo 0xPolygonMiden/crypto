@@ -186,7 +186,7 @@ impl Mmr {
             .collect();
 
         // Safety: the invariant is maintained by the [Mmr]
-        let peaks = MmrPeaks::new(forest.0, peaks).unwrap();
+        let peaks = MmrPeaks::new(forest, peaks).unwrap();
 
         Ok(peaks)
     }
@@ -204,7 +204,7 @@ impl Mmr {
         }
 
         if from_forest == to_forest {
-            return Ok(MmrDelta { forest: to_forest.0, data: Vec::new() });
+            return Ok(MmrDelta { forest: to_forest, data: Vec::new() });
         }
 
         let mut result = Vec::new();
@@ -265,7 +265,7 @@ impl Mmr {
             new_peaks ^= target;
         }
 
-        Ok(MmrDelta { forest: to_forest.0, data: result })
+        Ok(MmrDelta { forest: to_forest, data: result })
     }
 
     /// An iterator over inner nodes in the MMR. The order of iteration is unspecified.

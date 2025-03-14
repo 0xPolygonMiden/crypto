@@ -1,12 +1,12 @@
 use alloc::vec::Vec;
 
-use super::super::RpoDigest;
+use super::{super::RpoDigest, forest::Forest};
 
 /// Container for the update data of a [super::PartialMmr]
 #[derive(Debug)]
 pub struct MmrDelta {
     /// The new version of the [super::Mmr]
-    pub forest: usize,
+    pub forest: Forest,
 
     /// Update data.
     ///
