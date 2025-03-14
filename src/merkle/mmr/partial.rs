@@ -7,7 +7,7 @@ use winter_utils::{Deserializable, Serializable};
 
 use super::{MmrDelta, MmrProof, Rpo256, RpoDigest};
 use crate::merkle::{
-    mmr::{leaf_to_corresponding_tree, nodes_in_forest},
+    mmr::{forest::Forest, leaf_to_corresponding_tree, nodes_in_forest},
     InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks,
 };
 
@@ -164,7 +164,7 @@ impl PartialMmr {
             Ok(None)
         } else {
             Ok(Some(MmrProof {
-                forest: self.forest,
+                forest: Forest(self.forest),
                 position: pos,
                 merkle_path: MerklePath::new(nodes),
             }))
