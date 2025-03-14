@@ -4,7 +4,7 @@ use proptest::prelude::*;
 use rand_utils::rand_value;
 
 use super::{Felt, Hasher, Rpx256, StarkField, ZERO};
-use crate::{hash::rescue::RpxDigest, ONE};
+use crate::{ONE, hash::rescue::RpxDigest};
 
 #[test]
 fn hash_elements_vs_merge() {

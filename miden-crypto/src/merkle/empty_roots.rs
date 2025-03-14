@@ -1,6 +1,6 @@
 use core::slice;
 
-use super::{smt::InnerNode, Felt, RpoDigest, EMPTY_WORD};
+use super::{EMPTY_WORD, Felt, RpoDigest, smt::InnerNode};
 
 // EMPTY NODES SUBTREES
 // ================================================================================================

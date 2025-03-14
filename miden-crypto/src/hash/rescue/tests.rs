@@ -1,6 +1,6 @@
 use rand_utils::rand_value;
 
-use super::{Felt, FieldElement, ALPHA, INV_ALPHA};
+use super::{ALPHA, Felt, FieldElement, INV_ALPHA};
 
 #[test]
 fn test_alphas() {

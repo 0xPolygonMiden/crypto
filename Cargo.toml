@@ -12,3 +12,4 @@ categories = ["cryptography", "no-std"]
 keywords = ["miden", "crypto", "hash", "merkle"]
 edition = "2024"
 rust-version = "1.85"
+

@@ -7,8 +7,8 @@ use core::{
 
 use super::{Digest, ElementHasher, Felt, FieldElement, Hasher};
 use crate::utils::{
-    bytes_to_hex_string, hex_to_bytes, ByteReader, ByteWriter, Deserializable,
-    DeserializationError, HexParseError, Serializable,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, HexParseError, Serializable,
+    bytes_to_hex_string, hex_to_bytes,
 };
 
 #[cfg(test)]

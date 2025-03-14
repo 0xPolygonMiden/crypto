@@ -7,8 +7,8 @@ use winter_utils::{Deserializable, Serializable};
 
 use super::{MmrDelta, MmrProof, Rpo256, RpoDigest};
 use crate::merkle::{
-    mmr::{leaf_to_corresponding_tree, nodes_in_forest},
     InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks,
+    mmr::{leaf_to_corresponding_tree, nodes_in_forest},
 };
 
 // TYPE ALIASES
@@ -645,10 +645,10 @@ mod tests {
     use winter_utils::{Deserializable, Serializable};
 
     use super::{
-        forest_to_rightmost_index, forest_to_root_index, InOrderIndex, MmrPeaks, PartialMmr,
-        RpoDigest,
+        InOrderIndex, MmrPeaks, PartialMmr, RpoDigest, forest_to_rightmost_index,
+        forest_to_root_index,
     };
-    use crate::merkle::{int_to_node, MerkleStore, Mmr, NodeIndex};
+    use crate::merkle::{MerkleStore, Mmr, NodeIndex, int_to_node};
 
     const LEAVES: [RpoDigest; 7] = [
         int_to_node(0),

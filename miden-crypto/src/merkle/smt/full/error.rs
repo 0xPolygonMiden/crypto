@@ -11,16 +11,20 @@ use crate::{
 #[derive(Debug, Error)]
 pub enum SmtLeafError {
     #[error(
-      "multiple leaf requires all keys to map to the same leaf index but key1 {key_1} and key2 {key_2} map to different indices"
+        "multiple leaf requires all keys to map to the same leaf index but key1 {key_1} and key2 {key_2} map to different indices"
     )]
     InconsistentMultipleLeafKeys { key_1: RpoDigest, key_2: RpoDigest },
-    #[error("single leaf key {key} maps to {actual_leaf_index:?} but was expected to map to {expected_leaf_index:?}")]
+    #[error(
+        "single leaf key {key} maps to {actual_leaf_index:?} but was expected to map to {expected_leaf_index:?}"
+    )]
     InconsistentSingleLeafIndices {
         key: RpoDigest,
         expected_leaf_index: LeafIndex<SMT_DEPTH>,
         actual_leaf_index: LeafIndex<SMT_DEPTH>,
     },
-    #[error("supplied leaf index {leaf_index_supplied:?} does not match {leaf_index_from_keys:?} for multiple leaf")]
+    #[error(
+        "supplied leaf index {leaf_index_supplied:?} does not match {leaf_index_from_keys:?} for multiple leaf"
+    )]
     InconsistentMultipleLeafIndices {
         leaf_index_from_keys: LeafIndex<SMT_DEPTH>,
         leaf_index_supplied: LeafIndex<SMT_DEPTH>,

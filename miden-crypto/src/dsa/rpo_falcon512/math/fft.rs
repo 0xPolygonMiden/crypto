@@ -9,7 +9,7 @@ use num::Float;
 use num::{One, Zero};
 use num_complex::Complex64;
 
-use super::{field::FalconFelt, polynomial::Polynomial, Inverse};
+use super::{Inverse, field::FalconFelt, polynomial::Polynomial};
 
 /// Implements Cyclotomic FFT without bitreversing the outputs, and using precomputed powers of the
 /// 2n-th primitive root of unity.

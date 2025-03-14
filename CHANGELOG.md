@@ -1,6 +1,5 @@
 ## 0.14.0 (TBD)
 
-- [BREAKING] Increment minimum supported Rust version to 1.84.
 - Removed duplicated check in RpoFalcon512 verification (#368).
 - Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
 - Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).
@@ -12,6 +11,8 @@
 - Skip unchanged leaves in the concurrent implementation of `Smt::compute_mutations` (#385).
 - Add range checks to `ntru_gen` for Falcon DSA (#391).
 - Optimized duplicate key detection in `Smt::with_entries_concurrent` (#395).
+- [BREAKING] Moved `rand` to version `0.9` removing the `try_fill_bytes` method (#398).
+- [BREAKING] Increment minimum supported Rust version to 1.85 (#399).
 
 ## 0.13.3 (2025-02-18)
 

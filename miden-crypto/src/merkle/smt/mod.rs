@@ -5,14 +5,14 @@ use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError,
 
 use super::{EmptySubtreeRoots, InnerNodeInfo, MerkleError, MerklePath, NodeIndex};
 use crate::{
+    EMPTY_WORD, Felt, Word,
     hash::rpo::{Rpo256, RpoDigest},
-    Felt, Word, EMPTY_WORD,
 };
 
 mod full;
+pub use full::{SMT_DEPTH, Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError};
 #[cfg(feature = "internal")]
-pub use full::{build_subtree_for_bench, SubtreeLeaf};
-pub use full::{Smt, SmtLeaf, SmtLeafError, SmtProof, SmtProofError, SMT_DEPTH};
+pub use full::{SubtreeLeaf, build_subtree_for_bench};
 
 mod simple;
 pub use simple::SimpleSmt;

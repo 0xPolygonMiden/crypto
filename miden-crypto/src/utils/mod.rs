@@ -13,8 +13,8 @@ mod kv_map;
 // ================================================================================================
 
 pub use winter_utils::{
-    uninit_vector, ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable,
-    SliceReader,
+    ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable, SliceReader,
+    uninit_vector,
 };
 
 pub mod collections {
@@ -50,9 +50,7 @@ pub fn bytes_to_hex_string<const N: usize>(data: [u8; N]) -> String {
 /// Defines errors which can occur during parsing of hexadecimal strings.
 #[derive(Debug, Error)]
 pub enum HexParseError {
-    #[error(
-        "expected hex data to have length {expected}, including the 0x prefix, found {actual}"
-    )]
+    #[error("expected hex data to have length {expected}, including the 0x prefix, found {actual}")]
     InvalidLength { expected: usize, actual: usize },
     #[error("hex encoded data must start with 0x prefix")]
     MissingPrefix,

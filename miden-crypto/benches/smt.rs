@@ -1,9 +1,9 @@
 use core::mem::swap;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use miden_crypto::{
-    merkle::{LeafIndex, SimpleSmt},
     Felt, Word,
+    merkle::{LeafIndex, SimpleSmt},
 };
 use rand_utils::prng_array;
 use seq_macro::seq;
