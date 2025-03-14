@@ -16,8 +16,8 @@ pub mod utils;
 // ================================================================================================
 
 pub use winter_math::{
-    fields::{f64::BaseElement as Felt, CubeExtension, QuadExtension},
     FieldElement, StarkField,
+    fields::{CubeExtension, QuadExtension, f64::BaseElement as Felt},
 };
 
 // TYPE ALIASES

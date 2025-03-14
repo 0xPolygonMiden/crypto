@@ -2,8 +2,8 @@ use alloc::vec::Vec;
 
 use super::{
     super::{InnerNodeInfo, Rpo256, RpoDigest},
-    bit::TrueBitPositionIterator,
     Mmr, MmrPeaks, PartialMmr,
+    bit::TrueBitPositionIterator,
 };
 use crate::{
     merkle::{int_to_node, mmr::forest::{high_bitmask, Forest}, InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex},

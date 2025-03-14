@@ -4,12 +4,12 @@ use proptest::prelude::*;
 use rand_utils::rand_value;
 
 use super::{
-    super::{apply_inv_sbox, apply_sbox, ALPHA, INV_ALPHA},
-    Felt, FieldElement, Hasher, Rpo256, RpoDigest, StarkField, STATE_WIDTH, ZERO,
+    super::{ALPHA, INV_ALPHA, apply_inv_sbox, apply_sbox},
+    Felt, FieldElement, Hasher, Rpo256, RpoDigest, STATE_WIDTH, StarkField, ZERO,
 };
 use crate::{
+    ONE, Word,
     hash::rescue::{BINARY_CHUNK_SIZE, CAPACITY_RANGE, RATE_WIDTH},
-    Word, ONE,
 };
 
 #[test]

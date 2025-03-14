@@ -8,15 +8,15 @@ use rand::Rng;
 
 use super::{
     super::{
-        math::{ffldl, ffsampling, gram, normalize_tree, FalconFelt, FastFft, LdlTree, Polynomial},
+        ByteReader, ByteWriter, Deserializable, DeserializationError, MODULUS, N, Nonce,
+        SIG_L2_BOUND, SIGMA, Serializable, ShortLatticeBasis, Signature, Word,
+        math::{FalconFelt, FastFft, LdlTree, Polynomial, ffldl, ffsampling, gram, normalize_tree},
         signature::SignaturePoly,
-        ByteReader, ByteWriter, Deserializable, DeserializationError, Nonce, Serializable,
-        ShortLatticeBasis, Signature, Word, MODULUS, N, SIGMA, SIG_L2_BOUND,
     },
     PubKeyPoly, PublicKey,
 };
 use crate::dsa::rpo_falcon512::{
-    hash_to_point::hash_to_point_rpo256, math::ntru_gen, SIG_NONCE_LEN, SK_LEN,
+    SIG_NONCE_LEN, SK_LEN, hash_to_point::hash_to_point_rpo256, math::ntru_gen,
 };
 
 // CONSTANTS
@@ -66,9 +66,9 @@ impl SecretKey {
     /// Generates a secret key from OS-provided randomness.
     #[cfg(feature = "std")]
     pub fn new() -> Self {
-        use rand::{rngs::StdRng, SeedableRng};
+        use rand::{SeedableRng, rngs::StdRng};
 
-        let mut rng = StdRng::from_entropy();
+        let mut rng = StdRng::from_os_rng();
         Self::with_rng(&mut rng)
     }
 
@@ -115,9 +115,9 @@ impl SecretKey {
     /// Signs a message with this secret key.
     #[cfg(feature = "std")]
     pub fn sign(&self, message: Word) -> Signature {
-        use rand::{rngs::StdRng, SeedableRng};
+        use rand::{SeedableRng, rngs::StdRng};
 
-        let mut rng = StdRng::from_entropy();
+        let mut rng = StdRng::from_os_rng();
         self.sign_with_rng(message, &mut rng)
     }
 

@@ -7,10 +7,10 @@ use core::{
 
 use num::{One, Zero};
 
-use super::{field::FalconFelt, Inverse};
+use super::{Inverse, field::FalconFelt};
 use crate::{
-    dsa::rpo_falcon512::{MODULUS, N},
     Felt,
+    dsa::rpo_falcon512::{MODULUS, N},
 };
 
 #[derive(Debug, Clone, Default)]
@@ -27,9 +27,8 @@ where
     }
 }
 
-impl<
-        F: Mul<Output = F> + Sub<Output = F> + AddAssign + Zero + Div<Output = F> + Clone + Inverse,
-    > Polynomial<F>
+impl<F: Mul<Output = F> + Sub<Output = F> + AddAssign + Zero + Div<Output = F> + Clone + Inverse>
+    Polynomial<F>
 {
     pub fn hadamard_mul(&self, other: &Self) -> Self {
         Polynomial::new(
@@ -84,16 +83,16 @@ impl<F: Zero + PartialEq + Clone> Polynomial<F> {
 /// The following implementations are specific to cyclotomic polynomial rings,
 /// i.e., F\[ X \] / <X^n + 1>, and are used extensively in Falcon.
 impl<
-        F: One
-            + Zero
-            + Clone
-            + Neg<Output = F>
-            + MulAssign
-            + AddAssign
-            + Div<Output = F>
-            + Sub<Output = F>
-            + PartialEq,
-    > Polynomial<F>
+    F: One
+        + Zero
+        + Clone
+        + Neg<Output = F>
+        + MulAssign
+        + AddAssign
+        + Div<Output = F>
+        + Sub<Output = F>
+        + PartialEq,
+> Polynomial<F>
 {
     /// Reduce the polynomial by X^n + 1.
     pub fn reduce_by_cyclotomic(&self, n: usize) -> Self {
@@ -617,7 +616,7 @@ impl Polynomial<i16> {
 
 #[cfg(test)]
 mod tests {
-    use super::{FalconFelt, Polynomial, N};
+    use super::{FalconFelt, N, Polynomial};
 
     #[test]
     fn test_negacyclic_reduction() {

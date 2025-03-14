@@ -2,11 +2,11 @@ use std::time::Instant;
 
 use clap::Parser;
 use miden_crypto::{
+    EMPTY_WORD, Felt, ONE, Word,
     hash::rpo::{Rpo256, RpoDigest},
     merkle::{MerkleError, Smt},
-    Felt, Word, EMPTY_WORD, ONE,
 };
-use rand::{prelude::IteratorRandom, thread_rng, Rng};
+use rand::{Rng, prelude::IteratorRandom, rng};
 use rand_utils::rand_value;
 
 #[derive(Parser, Debug)]
@@ -141,7 +141,7 @@ pub fn batched_update(
     println!("Running a batched update benchmark:");
 
     let size = tree.num_leaves();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     let new_pairs =
         entries
@@ -149,10 +149,10 @@ pub fn batched_update(
             .choose_multiple(&mut rng, updates)
             .into_iter()
             .map(|(key, _)| {
-                let value = if rng.gen_bool(REMOVAL_PROBABILITY) {
+                let value = if rng.random_bool(REMOVAL_PROBABILITY) {
                     EMPTY_WORD
                 } else {
-                    [ONE, ONE, ONE, Felt::new(rng.gen())]
+                    [ONE, ONE, ONE, Felt::new(rng.random())]
                 };
 
                 (key, value)

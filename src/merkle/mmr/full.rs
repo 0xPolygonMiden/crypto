@@ -197,7 +197,10 @@ impl Mmr {
     /// that have been merged together, followed by the new peaks of the [Mmr].
     pub fn get_delta(&self, from_forest: Forest, to_forest: Forest) -> Result<MmrDelta, MmrError> {
         if to_forest > self.forest || from_forest > to_forest {
-            return Err(MmrError::InvalidPeaks(format!("to_forest {to_forest} exceeds the current forest {} or from_forest {from_forest} exceeds to_forest", self.forest)));
+            return Err(MmrError::InvalidPeaks(format!(
+                "to_forest {to_forest} exceeds the current forest {} or from_forest {from_forest} exceeds to_forest",
+                self.forest
+            )));
         }
 
         if from_forest == to_forest {

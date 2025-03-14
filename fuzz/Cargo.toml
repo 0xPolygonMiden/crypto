@@ -2,7 +2,7 @@
 name = "miden-crypto-fuzz"
 version = "0.0.0"
 publish = false
-edition = "2021"
+edition = "2024"
 
 [package.metadata]
 cargo-fuzz = true
@@ -10,7 +10,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 miden-crypto = { path = "..", features = ["concurrent"] }
-rand = { version = "0.8", default-features = false }
+rand = { version = "0.9", default-features = false }
 
 [[bin]]
 name = "smt"

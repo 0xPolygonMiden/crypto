@@ -1,7 +1,7 @@
 use crate::{
+    EMPTY_WORD, Word,
     hash::rpo::RpoDigest,
-    merkle::{smt::SparseMerkleTree, InnerNode, MerkleError, MerklePath, Smt, SmtLeaf, SmtProof},
-    Word, EMPTY_WORD,
+    merkle::{InnerNode, MerkleError, MerklePath, Smt, SmtLeaf, SmtProof, smt::SparseMerkleTree},
 };
 
 /// A partial version of an [`Smt`].

@@ -3,7 +3,7 @@ use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAss
 
 use num::{One, Zero};
 
-use super::{fft::CyclotomicFourier, Inverse, MODULUS};
+use super::{Inverse, MODULUS, fft::CyclotomicFourier};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct FalconFelt(u32);

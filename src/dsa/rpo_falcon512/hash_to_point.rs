@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use num::Zero;
 
-use super::{math::FalconFelt, Nonce, Polynomial, Rpo256, Word, MODULUS, N, ZERO};
+use super::{MODULUS, N, Nonce, Polynomial, Rpo256, Word, ZERO, math::FalconFelt};
 
 // HASH-TO-POINT FUNCTIONS
 // ================================================================================================
@@ -43,8 +43,8 @@ pub fn hash_to_point_rpo256(message: Word, nonce: &Nonce) -> Polynomial<FalconFe
 #[allow(dead_code)]
 pub fn hash_to_point_shake256(message: &[u8], nonce: &Nonce) -> Polynomial<FalconFelt> {
     use sha3::{
-        digest::{ExtendableOutput, Update, XofReader},
         Shake256,
+        digest::{ExtendableOutput, Update, XofReader},
     };
 
     let mut data = vec![];

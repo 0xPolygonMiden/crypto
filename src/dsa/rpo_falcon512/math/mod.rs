@@ -15,8 +15,8 @@ use num_complex::Complex64;
 use rand::Rng;
 
 use super::{
-    keys::{WIDTH_BIG_POLY_COEFFICIENT, WIDTH_SMALL_POLY_COEFFICIENT},
     MODULUS,
+    keys::{WIDTH_BIG_POLY_COEFFICIENT, WIDTH_SMALL_POLY_COEFFICIENT},
 };
 
 mod fft;
@@ -26,7 +26,7 @@ mod field;
 pub use field::FalconFelt;
 
 mod ffsampling;
-pub use ffsampling::{ffldl, ffsampling, gram, normalize_tree, LdlTree};
+pub use ffsampling::{LdlTree, ffldl, ffsampling, gram, normalize_tree};
 
 mod samplerz;
 use self::samplerz::sampler_z;

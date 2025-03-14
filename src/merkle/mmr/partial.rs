@@ -646,8 +646,8 @@ mod tests {
     use winter_utils::{Deserializable, Serializable};
 
     use super::{
-        forest_to_rightmost_index, forest_to_root_index, InOrderIndex, MmrPeaks, PartialMmr,
-        RpoDigest,
+        InOrderIndex, MmrPeaks, PartialMmr, RpoDigest, forest_to_rightmost_index,
+        forest_to_root_index,
     };
     use crate::merkle::{int_to_node, mmr::forest::Forest, MerkleStore, Mmr, NodeIndex};
 
