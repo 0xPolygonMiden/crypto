@@ -6,8 +6,11 @@ use super::{
     bit::TrueBitPositionIterator,
 };
 use crate::{
-    merkle::{int_to_node, mmr::forest::{high_bitmask, Forest}, InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex},
     Felt, Word,
+    merkle::{
+        InOrderIndex, MerklePath, MerkleTree, MmrProof, NodeIndex, int_to_node,
+        mmr::forest::{Forest, high_bitmask},
+    },
 };
 
 #[test]
@@ -458,7 +461,11 @@ fn test_mmr_invariants() {
     for v in 1..=1028 {
         mmr.add(int_to_node(v));
         let accumulator = mmr.peaks();
-        assert_eq!(v as usize, mmr.forest().num_leaves(), "MMR leaf count must increase by one on every add");
+        assert_eq!(
+            v as usize,
+            mmr.forest().num_leaves(),
+            "MMR leaf count must increase by one on every add"
+        );
         assert_eq!(
             v as usize,
             accumulator.num_leaves(),
@@ -470,9 +477,8 @@ fn test_mmr_invariants() {
             "bits on leaves must match the number of peaks"
         );
 
-        let expected_nodes: usize = TrueBitPositionIterator::new(mmr.forest())
-            .map(|tree| tree.num_nodes())
-            .sum();
+        let expected_nodes: usize =
+            TrueBitPositionIterator::new(mmr.forest()).map(|tree| tree.num_nodes()).sum();
 
         assert_eq!(
             expected_nodes,
@@ -488,14 +494,38 @@ fn test_bit_position_iterator() {
     assert_eq!(TrueBitPositionIterator::new(Forest::empty()).count(), 0);
     assert_eq!(TrueBitPositionIterator::new(Forest::empty()).rev().count(), 0);
 
-    assert_eq!(TrueBitPositionIterator::new(Forest::with_leaves(1)).collect::<Vec<Forest>>(), vec![Forest::with_leaves(1)]);
-    assert_eq!(TrueBitPositionIterator::new(Forest::with_leaves(1)).rev().collect::<Vec<Forest>>(), vec![Forest::with_leaves(1)],);
+    assert_eq!(
+        TrueBitPositionIterator::new(Forest::with_leaves(1)).collect::<Vec<Forest>>(),
+        vec![Forest::with_leaves(1)]
+    );
+    assert_eq!(
+        TrueBitPositionIterator::new(Forest::with_leaves(1))
+            .rev()
+            .collect::<Vec<Forest>>(),
+        vec![Forest::with_leaves(1)],
+    );
 
-    assert_eq!(TrueBitPositionIterator::new(Forest::with_leaves(2)).collect::<Vec<Forest>>(), vec![Forest::with_leaves(2)]);
-    assert_eq!(TrueBitPositionIterator::new(Forest::with_leaves(2)).rev().collect::<Vec<Forest>>(), vec![Forest::with_leaves(2)],);
+    assert_eq!(
+        TrueBitPositionIterator::new(Forest::with_leaves(2)).collect::<Vec<Forest>>(),
+        vec![Forest::with_leaves(2)]
+    );
+    assert_eq!(
+        TrueBitPositionIterator::new(Forest::with_leaves(2))
+            .rev()
+            .collect::<Vec<Forest>>(),
+        vec![Forest::with_leaves(2)],
+    );
 
-    assert_eq!(TrueBitPositionIterator::new(Forest::with_leaves(3)).collect::<Vec<Forest>>(), vec![Forest::with_leaves(1), Forest::with_leaves(2)],);
-    assert_eq!(TrueBitPositionIterator::new(Forest::with_leaves(3)).rev().collect::<Vec<Forest>>(), vec![Forest::with_leaves(2), Forest::with_leaves(1)],);
+    assert_eq!(
+        TrueBitPositionIterator::new(Forest::with_leaves(3)).collect::<Vec<Forest>>(),
+        vec![Forest::with_leaves(1), Forest::with_leaves(2)],
+    );
+    assert_eq!(
+        TrueBitPositionIterator::new(Forest::with_leaves(3))
+            .rev()
+            .collect::<Vec<Forest>>(),
+        vec![Forest::with_leaves(2), Forest::with_leaves(1)],
+    );
 
     // TODO: convert
     // assert_eq!(
@@ -646,12 +676,19 @@ fn test_mmr_delta() {
 
     // if the number of elements is the same there is no change
     assert!(
-        mmr.get_delta(Forest::with_leaves(LEAVES.len()), mmr.forest()).unwrap().data.is_empty(),
+        mmr.get_delta(Forest::with_leaves(LEAVES.len()), mmr.forest())
+            .unwrap()
+            .data
+            .is_empty(),
         "There are no updates for the same Mmr version"
     );
 
     // missing the last element added, which is itself a tree peak
-    assert_eq!(mmr.get_delta(Forest::with_leaves(6), mmr.forest()).unwrap().data, vec![acc.peaks()[2]], "one peak");
+    assert_eq!(
+        mmr.get_delta(Forest::with_leaves(6), mmr.forest()).unwrap().data,
+        vec![acc.peaks()[2]],
+        "one peak"
+    );
 
     // missing the sibling to complete the tree of depth 2, and the last element
     assert_eq!(
@@ -688,7 +725,11 @@ fn test_mmr_delta() {
         "one sibling, two peaks"
     );
 
-    assert_eq!(&mmr.get_delta(Forest::empty(), mmr.forest()).unwrap().data, acc.peaks(), "all peaks");
+    assert_eq!(
+        &mmr.get_delta(Forest::empty(), mmr.forest()).unwrap().data,
+        acc.peaks(),
+        "all peaks"
+    );
 }
 
 #[test]
@@ -697,7 +738,10 @@ fn test_mmr_delta_old_forest() {
 
     // from_forest must be smaller-or-equal to to_forest
     for version in 1..=mmr.forest().num_leaves() {
-        assert!(mmr.get_delta(Forest::with_leaves(version + 1), Forest::with_leaves(version)).is_err());
+        assert!(
+            mmr.get_delta(Forest::with_leaves(version + 1), Forest::with_leaves(version))
+                .is_err()
+        );
     }
 
     // when from_forest and to_forest are equal, there are no updates
@@ -897,7 +941,6 @@ fn merge(l: RpoDigest, r: RpoDigest) -> RpoDigest {
 fn leaf_to_corresponding_tree(pos: usize, forest: usize) -> Option<u32> {
     Forest::with_leaves(forest).leaf_to_corresponding_tree(pos)
 }
-
 
 /// Return the total number of nodes of a given forest
 const fn nodes_in_forest(forest: usize) -> usize {

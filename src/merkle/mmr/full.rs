@@ -13,7 +13,10 @@
 use alloc::vec::Vec;
 
 use super::{
-    super::{InnerNodeInfo, MerklePath}, bit::TrueBitPositionIterator, forest::{high_bitmask, Forest}, MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256, RpoDigest
+    super::{InnerNodeInfo, MerklePath},
+    MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256, RpoDigest,
+    bit::TrueBitPositionIterator,
+    forest::{Forest, high_bitmask},
 };
 
 // MMR
@@ -51,7 +54,10 @@ impl Mmr {
 
     /// Constructor for an empty `Mmr`.
     pub fn new() -> Mmr {
-        Mmr { forest: Forest::empty(), nodes: Vec::new() }
+        Mmr {
+            forest: Forest::empty(),
+            nodes: Vec::new(),
+        }
     }
 
     // ACCESSORS
@@ -95,7 +101,8 @@ impl Mmr {
     /// - The specified `forest` value is not valid for this MMR.
     pub fn open_at(&self, pos: usize, forest: Forest) -> Result<MmrProof, MmrError> {
         // find the target tree responsible for the MMR position
-        let tree_bit = forest.leaf_to_corresponding_tree(pos).ok_or(MmrError::PositionNotFound(pos))?;
+        let tree_bit =
+            forest.leaf_to_corresponding_tree(pos).ok_or(MmrError::PositionNotFound(pos))?;
 
         // isolate the trees before the target
         let forest_before = forest & high_bitmask(tree_bit + 1);
@@ -121,7 +128,10 @@ impl Mmr {
     /// has position 0, the second position 1, and so on.
     pub fn get(&self, pos: usize) -> Result<RpoDigest, MmrError> {
         // find the target tree responsible for the MMR position
-        let tree_bit = self.forest.leaf_to_corresponding_tree(pos).ok_or(MmrError::PositionNotFound(pos))?;
+        let tree_bit = self
+            .forest
+            .leaf_to_corresponding_tree(pos)
+            .ok_or(MmrError::PositionNotFound(pos))?;
 
         // isolate the trees before the target
         let forest_before = self.forest & high_bitmask(tree_bit + 1);
@@ -210,7 +220,7 @@ impl Mmr {
         let mut result = Vec::new();
 
         // Find the largest tree in this [Mmr] which is new to `from_forest`.
-        let candidate_trees = to_forest ^ from_forest;  // xor remains the best description of the op
+        let candidate_trees = to_forest ^ from_forest; // xor remains the best description of the op
         let mut new_high = candidate_trees.highest_tree(); // TODO: largest tree (in number of leaves)
 
         // Collect authentication nodes used for tree merges

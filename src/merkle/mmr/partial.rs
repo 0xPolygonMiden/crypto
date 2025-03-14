@@ -7,8 +7,7 @@ use winter_utils::{Deserializable, Serializable};
 
 use super::{MmrDelta, MmrProof, Rpo256, RpoDigest};
 use crate::merkle::{
-    mmr::forest::Forest,
-    InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks,
+    InOrderIndex, InnerNodeInfo, MerklePath, MmrError, MmrPeaks, mmr::forest::Forest,
 };
 
 // TYPE ALIASES
@@ -145,8 +144,10 @@ impl PartialMmr {
     /// Returns an error if the specified position is greater-or-equal than the number of leaves
     /// in the underlying MMR.
     pub fn open(&self, pos: usize) -> Result<Option<MmrProof>, MmrError> {
-        let tree_bit =
-            self.forest.leaf_to_corresponding_tree(pos).ok_or(MmrError::PositionNotFound(pos))?;
+        let tree_bit = self
+            .forest
+            .leaf_to_corresponding_tree(pos)
+            .ok_or(MmrError::PositionNotFound(pos))?;
         let depth = tree_bit as usize;
 
         let mut nodes = Vec::with_capacity(depth);
@@ -649,7 +650,7 @@ mod tests {
         InOrderIndex, MmrPeaks, PartialMmr, RpoDigest, forest_to_rightmost_index,
         forest_to_root_index,
     };
-    use crate::merkle::{int_to_node, mmr::forest::Forest, MerkleStore, Mmr, NodeIndex};
+    use crate::merkle::{MerkleStore, Mmr, NodeIndex, int_to_node, mmr::forest::Forest};
 
     const LEAVES: [RpoDigest; 7] = [
         int_to_node(0),
@@ -694,7 +695,10 @@ mod tests {
         }
 
         for forest in 1..256 {
-            assert!(forest_to_rightmost_index(Forest::with_leaves(forest)).inner() % 2 == 1, "Leaves are always odd");
+            assert!(
+                forest_to_rightmost_index(Forest::with_leaves(forest)).inner() % 2 == 1,
+                "Leaves are always odd"
+            );
         }
 
         assert_eq!(forest_to_rightmost_index(Forest::with_leaves(0b0001)), idx(1));

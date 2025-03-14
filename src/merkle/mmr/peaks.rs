@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use super::{super::ZERO, forest::Forest, Felt, MmrError, MmrProof, Rpo256, RpoDigest, Word};
+use super::{super::ZERO, Felt, MmrError, MmrProof, Rpo256, RpoDigest, Word, forest::Forest};
 
 // MMR PEAKS
 // ================================================================================================
@@ -57,7 +57,7 @@ impl MmrPeaks {
 
     // ACCESSORS
     // --------------------------------------------------------------------------------------------
-    
+
     /// Returns the underlying forest.
     pub fn forest(&self) -> Forest {
         self.forest
