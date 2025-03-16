@@ -16,7 +16,7 @@ use super::{
     super::{InnerNodeInfo, MerklePath},
     MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256, RpoDigest,
     bit::TrueBitPositionIterator,
-    forest::{Forest, high_bitmask},
+    forest::Forest,
 };
 
 // MMR
@@ -105,7 +105,7 @@ impl Mmr {
             forest.leaf_to_corresponding_tree(pos).ok_or(MmrError::PositionNotFound(pos))?;
 
         // isolate the trees before the target
-        let forest_before = forest & high_bitmask(tree_bit + 1);
+        let forest_before = forest.trees_larger_than(tree_bit);
         let index_offset = forest_before.num_nodes();
 
         // update the value position from global to the target tree
@@ -134,7 +134,7 @@ impl Mmr {
             .ok_or(MmrError::PositionNotFound(pos))?;
 
         // isolate the trees before the target
-        let forest_before = self.forest & high_bitmask(tree_bit + 1);
+        let forest_before = self.forest.trees_larger_than(tree_bit);
         let index_offset = forest_before.num_nodes();
 
         // update the value position from global to the target tree
