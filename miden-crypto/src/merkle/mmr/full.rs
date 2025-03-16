@@ -16,7 +16,7 @@ use super::{
     super::{InnerNodeInfo, MerklePath},
     MmrDelta, MmrError, MmrPeaks, MmrProof, Rpo256, RpoDigest,
     bit::TrueBitPositionIterator,
-    leaf_to_corresponding_tree, nodes_in_forest,
+    forest::Forest,
 };
 
 // MMR
@@ -31,7 +31,7 @@ use super::{
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Mmr {
     /// Refer to the `forest` method documentation for details of the semantics of this value.
-    pub(super) forest: usize,
+    pub(super) forest: Forest,
 
     /// Contains every element of the forest.
     ///
@@ -54,7 +54,10 @@ impl Mmr {
 
     /// Constructor for an empty `Mmr`.
     pub fn new() -> Mmr {
-        Mmr { forest: 0, nodes: Vec::new() }
+        Mmr {
+            forest: Forest::empty(),
+            nodes: Vec::new(),
+        }
     }
 
     // ACCESSORS
@@ -66,7 +69,7 @@ impl Mmr {
     /// - its value is the number of elements in the forest
     /// - bit count corresponds to the number of trees in the forest
     /// - each true bit position determines the depth of a tree in the forest
-    pub const fn forest(&self) -> usize {
+    pub const fn forest(&self) -> Forest {
         self.forest
     }
 
@@ -96,17 +99,17 @@ impl Mmr {
     /// Returns an error if:
     /// - The specified leaf position is out of bounds for this MMR.
     /// - The specified `forest` value is not valid for this MMR.
-    pub fn open_at(&self, pos: usize, forest: usize) -> Result<MmrProof, MmrError> {
+    pub fn open_at(&self, pos: usize, forest: Forest) -> Result<MmrProof, MmrError> {
         // find the target tree responsible for the MMR position
         let tree_bit =
-            leaf_to_corresponding_tree(pos, forest).ok_or(MmrError::PositionNotFound(pos))?;
+            forest.leaf_to_corresponding_tree(pos).ok_or(MmrError::PositionNotFound(pos))?;
 
         // isolate the trees before the target
-        let forest_before = forest & high_bitmask(tree_bit + 1);
-        let index_offset = nodes_in_forest(forest_before);
+        let forest_before = forest.trees_larger_than(tree_bit);
+        let index_offset = forest_before.num_nodes();
 
         // update the value position from global to the target tree
-        let relative_pos = pos - forest_before;
+        let relative_pos = pos - forest_before.num_leaves();
 
         // collect the path and the final index of the target value
         let (_, path) = self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset);
@@ -125,15 +128,17 @@ impl Mmr {
     /// has position 0, the second position 1, and so on.
     pub fn get(&self, pos: usize) -> Result<RpoDigest, MmrError> {
         // find the target tree responsible for the MMR position
-        let tree_bit =
-            leaf_to_corresponding_tree(pos, self.forest).ok_or(MmrError::PositionNotFound(pos))?;
+        let tree_bit = self
+            .forest
+            .leaf_to_corresponding_tree(pos)
+            .ok_or(MmrError::PositionNotFound(pos))?;
 
         // isolate the trees before the target
-        let forest_before = self.forest & high_bitmask(tree_bit + 1);
-        let index_offset = nodes_in_forest(forest_before);
+        let forest_before = self.forest.trees_larger_than(tree_bit);
+        let index_offset = forest_before.num_nodes();
 
         // update the value position from global to the target tree
-        let relative_pos = pos - forest_before;
+        let relative_pos = pos - forest_before.num_leaves();
 
         // collect the path and the final index of the target value
         let (value, _) = self.collect_merkle_path_and_value(tree_bit, relative_pos, index_offset);
@@ -152,15 +157,15 @@ impl Mmr {
         let mut left_offset = self.nodes.len().saturating_sub(2);
         let mut right = el;
         let mut left_tree = 1;
-        while self.forest & left_tree != 0 {
+        while !(self.forest & Forest::with_leaves(left_tree)).is_empty() {
             right = Rpo256::merge(&[self.nodes[left_offset], right]);
             self.nodes.push(right);
 
-            left_offset = left_offset.saturating_sub(nodes_in_forest(left_tree));
+            left_offset = left_offset.saturating_sub(Forest::with_leaves(left_tree).num_nodes());
             left_tree <<= 1;
         }
 
-        self.forest += 1;
+        self.forest = self.forest.with_new_leaf();
     }
 
     /// Returns the current peaks of the MMR.
@@ -172,7 +177,7 @@ impl Mmr {
     ///
     /// # Errors
     /// Returns an error if the specified `forest` value is not valid for this MMR.
-    pub fn peaks_at(&self, forest: usize) -> Result<MmrPeaks, MmrError> {
+    pub fn peaks_at(&self, forest: Forest) -> Result<MmrPeaks, MmrError> {
         if forest > self.forest {
             return Err(MmrError::InvalidPeaks(format!(
                 "requested forest {forest} exceeds current forest {}",
@@ -182,7 +187,7 @@ impl Mmr {
 
         let peaks: Vec<RpoDigest> = TrueBitPositionIterator::new(forest)
             .rev()
-            .map(|bit| nodes_in_forest(1 << bit))
+            .map(|tree| tree.num_nodes())
             .scan(0, |offset, el| {
                 *offset += el;
                 Some(*offset)
@@ -200,7 +205,7 @@ impl Mmr {
     ///
     /// The result is a packed sequence of the authentication elements required to update the trees
     /// that have been merged together, followed by the new peaks of the [Mmr].
-    pub fn get_delta(&self, from_forest: usize, to_forest: usize) -> Result<MmrDelta, MmrError> {
+    pub fn get_delta(&self, from_forest: Forest, to_forest: Forest) -> Result<MmrDelta, MmrError> {
         if to_forest > self.forest || from_forest > to_forest {
             return Err(MmrError::InvalidPeaks(format!(
                 "to_forest {to_forest} exceeds the current forest {} or from_forest {from_forest} exceeds to_forest",
@@ -216,20 +221,20 @@ impl Mmr {
 
         // Find the largest tree in this [Mmr] which is new to `from_forest`.
         let candidate_trees = to_forest ^ from_forest;
-        let mut new_high = 1 << candidate_trees.ilog2();
+        let mut new_high = candidate_trees.largest_tree();
 
         // Collect authentication nodes used for tree merges
         // ----------------------------------------------------------------------------------------
 
         // Find the trees from `from_forest` that have been merged into `new_high`.
-        let mut merges = from_forest & (new_high - 1);
+        let mut merges = from_forest & new_high.all_smaller_trees();
 
         // Find the peaks that are common to `from_forest` and this [Mmr]
         let common_trees = from_forest ^ merges;
 
-        if merges != 0 {
+        if !merges.is_empty() {
             // Skip the smallest trees unknown to `from_forest`.
-            let mut target = 1 << merges.trailing_zeros();
+            let mut target = merges.smallest_tree();
 
             // Collect siblings required to computed the merged tree's peak
             while target < new_high {
@@ -239,22 +244,22 @@ impl Mmr {
                 // - target: tree from which to load the sibling. On the first iteration this is a
                 //   value known by the partial mmr, on subsequent iterations this value is to be
                 //   computed from the known peaks and provided authentication nodes.
-                let known = nodes_in_forest(common_trees | merges | target);
-                let sibling = nodes_in_forest(target);
+                let known = (common_trees | merges | target).num_nodes();
+                let sibling = target.num_nodes();
                 result.push(self.nodes[known + sibling - 1]);
 
                 // Update the target and account for tree merges
                 target <<= 1;
-                while merges & target != 0 {
+                while !(merges & target).is_empty() {
                     target <<= 1;
                 }
                 // Remove the merges done so far
-                merges ^= merges & (target - 1);
+                merges ^= merges & target.all_smaller_trees();
             }
         } else {
             // The new high tree may not be the result of any merges, if it is smaller than all the
             // trees of `from_forest`.
-            new_high = 0;
+            new_high = Forest::empty();
         }
 
         // Collect the new [Mmr] peaks
@@ -262,10 +267,10 @@ impl Mmr {
 
         let mut new_peaks = to_forest ^ common_trees ^ new_high;
         let old_peaks = to_forest ^ new_peaks;
-        let mut offset = nodes_in_forest(old_peaks);
-        while new_peaks != 0 {
-            let target = 1 << new_peaks.ilog2();
-            offset += nodes_in_forest(target);
+        let mut offset = old_peaks.num_nodes();
+        while !new_peaks.is_empty() {
+            let target = new_peaks.largest_tree();
+            offset += target.num_nodes();
             result.push(self.nodes[offset - 1]);
             new_peaks ^= target;
         }
@@ -305,8 +310,8 @@ impl Mmr {
         let mut path = Vec::with_capacity(tree_depth);
 
         // The tree walk below goes from the root to the leaf, compute the root index to start
-        let mut forest_target = 1usize << tree_bit;
-        let mut index = nodes_in_forest(forest_target) - 1;
+        let mut forest_target: usize = 1usize << tree_bit;
+        let mut index = Forest::with_leaves(forest_target).num_nodes() - 1;
 
         // Loop until the leaf is reached
         while forest_target > 1 {
@@ -315,7 +320,7 @@ impl Mmr {
 
             // compute the indices of the right and left subtrees based on the post-order
             let right_offset = index - 1;
-            let left_offset = right_offset - nodes_in_forest(forest_target);
+            let left_offset = right_offset - Forest::with_leaves(forest_target).num_nodes();
 
             let left_or_right = relative_pos & forest_target;
             let sibling = if left_or_right != 0 {
@@ -383,7 +388,7 @@ impl Iterator for MmrNodes<'_> {
         debug_assert!(self.last_right.count_ones() <= 1, "last_right tracks zero or one element");
 
         // only parent nodes are emitted, remove the single node tree from the forest
-        let target = self.mmr.forest & (usize::MAX << 1);
+        let target = self.mmr.forest.odd_leaf_removed().num_leaves();
 
         if self.forest < target {
             if self.last_right == 0 {
@@ -405,7 +410,7 @@ impl Iterator for MmrNodes<'_> {
 
             // compute the number of nodes in the right tree, this is the offset to the
             // previous left parent
-            let right_nodes = nodes_in_forest(self.last_right);
+            let right_nodes = Forest::with_leaves(self.last_right).num_nodes();
             // the next parent position is one above the position of the pair
             let parent = self.last_right << 1;
 
@@ -435,12 +440,4 @@ impl Iterator for MmrNodes<'_> {
             None
         }
     }
-}
-
-// UTILITIES
-// ===============================================================================================
-
-/// Return a bitmask for the bits including and above the given position.
-pub(crate) const fn high_bitmask(bit: u32) -> usize {
-    if bit > usize::BITS - 1 { 0 } else { usize::MAX << bit }
 }
