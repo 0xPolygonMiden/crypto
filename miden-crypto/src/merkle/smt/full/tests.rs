@@ -661,12 +661,10 @@ fn test_empty_smt_leaf_serialization() {
 
 #[test]
 fn test_single_smt_leaf_serialization() {
-    let single_leaf = SmtLeaf::new_single(RpoDigest::from([10_u32, 11_u32, 12_u32, 13_u32]), [
-        1_u32.into(),
-        2_u32.into(),
-        3_u32.into(),
-        4_u32.into(),
-    ]);
+    let single_leaf = SmtLeaf::new_single(
+        RpoDigest::from([10_u32, 11_u32, 12_u32, 13_u32]),
+        [1_u32.into(), 2_u32.into(), 3_u32.into(), 4_u32.into()],
+    );
 
     let mut serialized = single_leaf.to_bytes();
     // extend buffer with random bytes
@@ -679,18 +677,14 @@ fn test_single_smt_leaf_serialization() {
 #[test]
 fn test_multiple_smt_leaf_serialization_success() {
     let multiple_leaf = SmtLeaf::new_multiple(vec![
-        (RpoDigest::from([10_u32, 11_u32, 12_u32, 13_u32]), [
-            1_u32.into(),
-            2_u32.into(),
-            3_u32.into(),
-            4_u32.into(),
-        ]),
-        (RpoDigest::from([100_u32, 101_u32, 102_u32, 13_u32]), [
-            11_u32.into(),
-            12_u32.into(),
-            13_u32.into(),
-            14_u32.into(),
-        ]),
+        (
+            RpoDigest::from([10_u32, 11_u32, 12_u32, 13_u32]),
+            [1_u32.into(), 2_u32.into(), 3_u32.into(), 4_u32.into()],
+        ),
+        (
+            RpoDigest::from([100_u32, 101_u32, 102_u32, 13_u32]),
+            [11_u32.into(), 12_u32.into(), 13_u32.into(), 14_u32.into()],
+        ),
     ])
     .unwrap();
 

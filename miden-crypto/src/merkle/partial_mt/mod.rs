@@ -200,10 +200,13 @@ impl PartialMerkleTree {
     pub fn to_paths(&self) -> Vec<(NodeIndex, ValuePath)> {
         let mut paths = Vec::new();
         self.leaves.iter().for_each(|&leaf| {
-            paths.push((leaf, ValuePath {
-                value: self.get_node(leaf).expect("Failed to get leaf node"),
-                path: self.get_path(leaf).expect("Failed to get path"),
-            }));
+            paths.push((
+                leaf,
+                ValuePath {
+                    value: self.get_node(leaf).expect("Failed to get leaf node"),
+                    path: self.get_path(leaf).expect("Failed to get path"),
+                },
+            ));
         });
         paths
     }

@@ -215,10 +215,13 @@ fn get_paths() {
     let expected_paths: Vec<(NodeIndex, ValuePath)> = leaves
         .iter()
         .map(|&leaf| {
-            (leaf, ValuePath {
-                value: mt.get_node(leaf).unwrap(),
-                path: mt.get_path(leaf).unwrap(),
-            })
+            (
+                leaf,
+                ValuePath {
+                    value: mt.get_node(leaf).unwrap(),
+                    path: mt.get_path(leaf).unwrap(),
+                },
+            )
         })
         .collect();
 
