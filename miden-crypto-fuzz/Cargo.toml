@@ -9,7 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-miden-crypto = { path = "..", features = ["concurrent"] }
+miden-crypto = { path = "../miden-crypto", features = ["concurrent"] }
 rand = { version = "0.9", default-features = false }
 
 [[bin]]
