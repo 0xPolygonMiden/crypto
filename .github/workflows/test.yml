@@ -17,7 +17,7 @@ jobs:
       matrix:
         toolchain: [stable, nightly]
         os: [ubuntu]
-        args: [default, no-std]
+        args: [default, smt-hashmaps, no-std]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@main
@@ -26,3 +26,20 @@ jobs:
         run: |
           rustup update --no-self-update ${{matrix.toolchain}}
           make test-${{matrix.args}}
+
+  test-smt-concurrent:
+    name: test-smt-concurrent ${{ matrix.toolchain }}
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'next') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable, nightly]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@main
+      - uses: taiki-e/install-action@nextest
+      - name: Perform concurrent SMT tests
+        run: |
+          rustup update --no-self-update ${{matrix.toolchain}}
+          make test-smt-concurrent

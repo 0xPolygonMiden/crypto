@@ -46,14 +46,20 @@ doc: ## Generate and check documentation
 test-default: ## Run tests with default features
 	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile default --release --all-features
 
+.PHONY: test-smt-hashmaps
+test-smt-hashmaps: ## Run tests with `smt_hashmaps` feature enabled
+	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile default --release --features smt_hashmaps
 
 .PHONY: test-no-std
 test-no-std: ## Run tests with `no-default-features` (std)
 	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile default --release --no-default-features
 
+.PHONY: test-smt-concurrent
+test-smt-concurrent: ## Run only concurrent SMT tests
+	$(DEBUG_OVERFLOW_INFO) cargo nextest run --profile smt-concurrent --release --all-features
 
 .PHONY: test
-test: test-default test-no-std ## Run all tests
+test: test-default test-smt-hashmaps test-no-std ## Run all tests except concurrent SMT tests
 
 # --- checking ------------------------------------------------------------------------------------
 
@@ -83,8 +89,14 @@ build-sve: ## Build with sve support
 
 .PHONY: bench
 bench: ## Run crypto benchmarks
-	cargo bench
+	cargo bench --features concurrent
 
 .PHONY: bench-smt-concurrent
 bench-smt-concurrent: ## Run SMT benchmarks with concurrent feature
-	cargo run --release --features executable -- --size 1000000
+	cargo run --release --features concurrent,executable -- --size 1000000
+
+# --- fuzzing --------------------------------------------------------------------------------
+
+.PHONY: fuzz-smt
+fuzz-smt: ## Run fuzzing for SMT
+	cargo +nightly fuzz run smt --release --fuzz-dir miden-crypto-fuzz -- -max_len=10485760

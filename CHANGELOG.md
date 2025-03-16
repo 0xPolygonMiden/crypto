@@ -1,3 +1,19 @@
+## 0.14.0 (2025-03-15)
+
+- Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
+- Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).
+- Removed duplicated check in RpoFalcon512 verification (#368).
+- [BREAKING] Updated Winterfell dependency to v0.12 (#374).
+- Added debug-only duplicate column check in `build_subtree` (#378).
+- Filter out empty values in concurrent version of `Smt::with_entries` to fix a panic (#383).
+- Added property-based testing (proptest) and fuzzing for `Smt::with_entries` and `Smt::compute_mutations` (#385).
+- Sort keys in a leaf in the concurrent implementation of `Smt::with_entries`, ensuring consistency with the sequential version (#385).
+- Skip unchanged leaves in the concurrent implementation of `Smt::compute_mutations` (#385).
+- Add range checks to `ntru_gen` for Falcon DSA (#391).
+- Optimized duplicate key detection in `Smt::with_entries_concurrent` (#395).
+- [BREAKING] Moved `rand` to version `0.9` removing the `try_fill_bytes` method (#398).
+- [BREAKING] Increment minimum supported Rust version to 1.85 (#399).
+
 ## 0.13.3 (2025-02-18)
 
 - Implement `PartialSmt` (#372, #381).
@@ -16,11 +32,12 @@
 - Fixed a bug in the implementation of `draw_integers` for `RpoRandomCoin` (#343).
 - [BREAKING] Refactor error messages and use `thiserror` to derive errors (#344).
 - [BREAKING] Updated Winterfell dependency to v0.11 (#346).
-
+- Added support for hashmaps in `Smt` and `SimpleSmt` which gives up to 10x boost in some operations (#363).
 
 ## 0.12.0 (2024-10-30)
 
 - [BREAKING] Updated Winterfell dependency to v0.10 (#338).
+- Added parallel implementation of `Smt::with_entries()` with significantly better performance when the `concurrent` feature is enabled (#341).
 
 ## 0.11.0 (2024-10-17)
 

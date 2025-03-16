@@ -1,0 +1,20 @@
+[package]
+name = "miden-crypto-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+miden-crypto = { path = "../miden-crypto", features = ["concurrent"] }
+rand = { version = "0.9", default-features = false }
+
+[[bin]]
+name = "smt"
+path = "fuzz_targets/smt.rs"
+test = false
+doc = false
+bench = false
