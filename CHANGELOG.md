@@ -1,8 +1,11 @@
-## 0.14.0 (TBD)
+## 0.15.0 (TBD)
 
-- Removed duplicated check in RpoFalcon512 verification (#368).
+
+## 0.14.0 (2025-03-15)
+
 - Added parallel implementation of `Smt::compute_mutations` with better performance (#365).
 - Implemented parallel leaf hashing in `Smt::process_sorted_pairs_to_leaves` (#365).
+- Removed duplicated check in RpoFalcon512 verification (#368).
 - [BREAKING] Updated Winterfell dependency to v0.12 (#374).
 - Added debug-only duplicate column check in `build_subtree` (#378).
 - Filter out empty values in concurrent version of `Smt::with_entries` to fix a panic (#383).

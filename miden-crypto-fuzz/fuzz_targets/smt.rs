@@ -11,8 +11,8 @@ struct FuzzInput {
 
 impl FuzzInput {
     fn from_bytes(data: &[u8]) -> Self {
-        let mut rng = rand::thread_rng();
-        let split_percentage = rng.gen_range(20..80); // Randomly choose between 20% and 80%
+        let mut rng = rand::rng();
+        let split_percentage = rng.random_range(20..80); // Randomly choose between 20% and 80%
 
         let split_index = (data.len() * split_percentage) / 100;
         let (construction_data, update_data) = data.split_at(split_index);

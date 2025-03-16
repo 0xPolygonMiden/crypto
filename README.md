@@ -10,17 +10,17 @@ This crate contains cryptographic primitives used in Polygon Miden.
 
 ## Hash
 
-[Hash module](./src/hash) provides a set of cryptographic hash functions which are used by the Miden VM and the Miden rollup. Currently, these functions are:
+[Hash module](./miden-crypto/src/hash) provides a set of cryptographic hash functions which are used by the Miden VM and the Miden rollup. Currently, these functions are:
 
 - [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) hash function with 256-bit, 192-bit, or 160-bit output. The 192-bit and 160-bit outputs are obtained by truncating the 256-bit output of the standard BLAKE3.
 - [RPO](https://eprint.iacr.org/2022/1577) hash function with 256-bit output. This hash function is an algebraic hash function suitable for recursive STARKs.
 - [RPX](https://eprint.iacr.org/2023/1045) hash function with 256-bit output. Similar to RPO, this hash function is suitable for recursive STARKs but it is about 2x faster as compared to RPO.
 
-For performance benchmarks of these hash functions and their comparison to other popular hash functions please see [here](./benches/).
+For performance benchmarks of these hash functions and their comparison to other popular hash functions please see [here](./miden-crypto/benches/).
 
 ## Merkle
 
-[Merkle module](./src/merkle/) provides a set of data structures related to Merkle trees. All these data structures are implemented using the RPO hash function described above. The data structures are:
+[Merkle module](./miden-crypto/src/merkle/) provides a set of data structures related to Merkle trees. All these data structures are implemented using the RPO hash function described above. The data structures are:
 
 - `MerkleStore`: a collection of Merkle trees of different heights designed to efficiently store trees with common subtrees. When instantiated with `RecordingMap`, a Merkle store records all accesses to the original data.
 - `MerkleTree`: a regular fully-balanced binary Merkle tree. The depth of this tree can be at most 64.
@@ -34,7 +34,7 @@ The module also contains additional supporting components such as `NodeIndex`, `
 
 ## Signatures
 
-[DSA module](./src/dsa) provides a set of digital signature schemes supported by default in the Miden VM. Currently, these schemes are:
+[DSA module](./miden-crypto/src/dsa) provides a set of digital signature schemes supported by default in the Miden VM. Currently, these schemes are:
 
 - `RPO Falcon512`: a variant of the [Falcon](https://falcon-sign.info/) signature scheme. This variant differs from the standard in that instead of using SHAKE256 hash function in the _hash-to-point_ algorithm we use RPO256. This makes the signature more efficient to verify in Miden VM.
 
@@ -42,7 +42,7 @@ For the above signatures, key generation, signing, and signature verification ar
 
 ## Pseudo-Random Element Generator
 
-[Pseudo random element generator module](./src/rand/) provides a set of traits and data structures that facilitate generating pseudo-random elements in the context of Miden VM and Miden rollup. The module currently includes:
+[Pseudo random element generator module](./miden-crypto/src/rand/) provides a set of traits and data structures that facilitate generating pseudo-random elements in the context of Miden VM and Miden rollup. The module currently includes:
 
 - `FeltRng`: a trait for generating random field elements and random 4 field elements.
 - `RpoRandomCoin`: a struct implementing `FeltRng` as well as the [`RandomCoin`](https://github.com/facebook/winterfell/blob/main/crypto/src/random/mod.rs) trait using RPO hash function.
