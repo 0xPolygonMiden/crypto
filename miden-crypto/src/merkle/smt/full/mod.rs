@@ -159,8 +159,22 @@ impl Smt {
     }
 
     /// Returns the number of non-empty leaves in this tree.
+    ///
+    /// Note that this may return a different value from [Self::num_entries()] as a single leaf may
+    /// contain more than one key-value pair.
     pub fn num_leaves(&self) -> usize {
         self.leaves.len()
+    }
+
+    /// Returns the number of key-value pairs with non-default values in this tree.
+    ///
+    /// Note that this may return a different value from [Self::num_leaves()] as a single leaf may
+    /// contain more than one key-value pair.
+    ///
+    /// Also note that this is currently an expensive operation is counting the number of entries
+    /// requires iterating over all leaves of the tree.
+    pub fn num_entries(&self) -> usize {
+        self.entries().count()
     }
 
     /// Returns the leaf to which `key` maps

@@ -497,14 +497,12 @@ fn test_bit_position_iterator() {
     assert_eq!(TrueBitPositionIterator::new(3).collect::<Vec<u32>>(), vec![0, 1],);
     assert_eq!(TrueBitPositionIterator::new(3).rev().collect::<Vec<u32>>(), vec![1, 0],);
 
-    assert_eq!(
-        TrueBitPositionIterator::new(0b11010101).collect::<Vec<u32>>(),
-        vec![0, 2, 4, 6, 7],
-    );
-    assert_eq!(
-        TrueBitPositionIterator::new(0b11010101).rev().collect::<Vec<u32>>(),
-        vec![7, 6, 4, 2, 0],
-    );
+    assert_eq!(TrueBitPositionIterator::new(0b11010101).collect::<Vec<u32>>(), vec![
+        0, 2, 4, 6, 7
+    ],);
+    assert_eq!(TrueBitPositionIterator::new(0b11010101).rev().collect::<Vec<u32>>(), vec![
+        7, 6, 4, 2, 0
+    ],);
 }
 
 #[test]
