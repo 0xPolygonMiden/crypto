@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
 use core::iter;
 
+use winter_utils::{Deserializable, DeserializationError, Serializable};
+
 use super::{EmptySubtreeRoots, MerklePath, RpoDigest, SMT_MAX_DEPTH};
 
 /// A different representation of [`MerklePath`] designed for memory efficiency for Merkle paths
@@ -202,6 +204,29 @@ impl DoubleEndedIterator for SparseMerkleIter {
             },
             None => None,
         }
+    }
+}
+
+// SERIALIZATION
+// ================================================================================================
+
+impl Serializable for SparseMerklePath {
+    fn write_into<W: winter_utils::ByteWriter>(&self, target: &mut W) {
+        target.write_u8(self.depth());
+        target.write_u64(self.empty_nodes);
+        target.write_many(&self.nodes);
+    }
+}
+
+impl Deserializable for SparseMerklePath {
+    fn read_from<R: winter_utils::ByteReader>(
+        source: &mut R,
+    ) -> Result<Self, DeserializationError> {
+        let depth = source.read_u8()?;
+        let empty_nodes = source.read_u64()?;
+        let count = depth as u32 - empty_nodes.count_ones();
+        let nodes = source.read_many::<RpoDigest>(count as usize)?;
+        Ok(Self { empty_nodes, nodes })
     }
 }
 
