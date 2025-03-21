@@ -126,6 +126,30 @@ impl SparseMerklePath {
     }
 }
 
+// CONVERSIONS
+// ================================================================================================
+
+impl From<SparseMerklePath> for MerklePath {
+    fn from(sparse_path: SparseMerklePath) -> Self {
+        sparse_path.into_path()
+    }
+}
+
+/// # Panics
+///
+/// This conversion fails and panics if the path length is greater than [`SMT_MAX_DEPTH`].
+impl From<MerklePath> for SparseMerklePath {
+    fn from(path: MerklePath) -> Self {
+        SparseMerklePath::from_path(path).unwrap()
+    }
+}
+
+impl From<SparseMerklePath> for Vec<RpoDigest> {
+    fn from(path: SparseMerklePath) -> Self {
+        path.into_path().into()
+    }
+}
+
 // ITERATORS
 // ================================================================================================
 
