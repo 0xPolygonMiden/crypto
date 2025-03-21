@@ -89,6 +89,39 @@ impl SparseMerklePath {
     pub fn depth(&self) -> u8 {
         (self.nodes.len() + self.empty_nodes.count_ones() as usize) as u8
     }
+
+    /// Get a specific node in this path at a given depth.
+    ///
+    /// # Panics
+    /// With debug assertions enabled, this function panics if `node_depth` is greater than
+    /// `tree_depth` (as it is impossible to have a node of greater depth than the tree it is
+    /// contained in).
+    pub fn get(&self, node_depth: u8) -> Option<RpoDigest> {
+        if node_depth > self.depth() {
+            return None;
+        }
+
+        let empty_bit = u64::wrapping_shl(1, node_depth.into());
+        let is_empty = (self.empty_nodes & empty_bit) != 0;
+
+        if is_empty {
+            return Some(*EmptySubtreeRoots::entry(self.depth(), node_depth));
+        }
+
+        // Our index needs to account for all the empty nodes that aren't in `self.nodes`.
+        let nonempty_index: usize = {
+            // TODO: this could also be u64::unbounded_shl(1, node_depth + 1).wrapping_sub(1).
+            // We should check if that has any performance benefits over using 128-bit integers.
+            let mask: u64 = ((1u128 << (node_depth + 1)) - 1u128).try_into().unwrap();
+
+            let empty_before = u64::count_ones(self.empty_nodes & mask);
+            u64::checked_sub(node_depth as u64, empty_before as u64)
+                .unwrap()
+                .try_into()
+                .unwrap()
+        };
+        Some(self.nodes[nonempty_index])
+    }
 }
 
 #[cfg(test)]
@@ -101,6 +134,19 @@ mod tests {
         hash::rpo::RpoDigest,
         merkle::{SMT_DEPTH, Smt, smt::SparseMerkleTree},
     };
+
+    fn make_smt(pair_count: u64) -> Smt {
+        let entries: Vec<(RpoDigest, Word)> = (0..pair_count)
+            .map(|n| {
+                let leaf_index = ((n as f64 / pair_count as f64) * 255.0) as u64;
+                let key = RpoDigest::new([ONE, ONE, Felt::new(n), Felt::new(leaf_index)]);
+                let value = [ONE, ONE, ONE, ONE];
+                (key, value)
+            })
+            .collect();
+
+        Smt::with_entries(entries).unwrap()
+    }
 
     #[test]
     fn roundtrip() {
@@ -123,6 +169,23 @@ mod tests {
             let test_path = sparse_path.into_path();
 
             assert_eq!(control_path, test_path);
+        }
+    }
+
+    #[test]
+    fn random_access() {
+        let tree = make_smt(8192);
+
+        for (i, (key, _value)) in tree.entries().enumerate() {
+            let control_path = tree.path(key);
+            let sparse_path = SparseMerklePath::from_path(control_path.clone()).unwrap();
+            assert_eq!(control_path.depth(), sparse_path.depth());
+            assert_eq!(sparse_path.depth(), SMT_DEPTH);
+
+            for (depth, control_node) in control_path.iter().enumerate() {
+                let test_node = sparse_path.get(depth as u8).unwrap();
+                assert_eq!(*control_node, test_node, "at depth {depth} for entry {i}");
+            }
         }
     }
 }
