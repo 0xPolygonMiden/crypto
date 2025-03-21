@@ -4,7 +4,7 @@ use clap::Parser;
 use miden_crypto::{
     EMPTY_WORD, Felt, ONE, Word,
     hash::rpo::{Rpo256, RpoDigest},
-    merkle::{MerkleError, Smt},
+    merkle::{LargeSmt, MerkleError, Smt},
 };
 use rand::{Rng, prelude::IteratorRandom, rng};
 use rand_utils::rand_value;
@@ -43,27 +43,27 @@ pub fn benchmark_smt() {
         entries.push((key, value));
     }
 
-    let mut tree = construction(entries.clone(), tree_size).unwrap();
+    let tree = construction(entries.clone(), tree_size).unwrap();
     insertion(&mut tree.clone(), insertions).unwrap();
-    batched_insertion(&mut tree.clone(), insertions).unwrap();
-    batched_update(&mut tree.clone(), entries, updates).unwrap();
-    proof_generation(&mut tree).unwrap();
+    //batched_insertion(&mut tree.clone(), insertions).unwrap();
+    //batched_update(&mut tree.clone(), entries, updates).unwrap();
+    //proof_generation(&mut tree).unwrap();
 }
 
 /// Runs the construction benchmark for [`Smt`], returning the constructed tree.
-pub fn construction(entries: Vec<(RpoDigest, Word)>, size: usize) -> Result<Smt, MerkleError> {
+pub fn construction(entries: Vec<(RpoDigest, Word)>, size: usize) -> Result<LargeSmt, MerkleError> {
     println!("Running a construction benchmark:");
     let now = Instant::now();
-    let tree = Smt::with_entries(entries)?;
+    let tree = LargeSmt::with_entries(entries)?;
     let elapsed = now.elapsed().as_secs_f32();
     println!("Constructed an SMT with {size} key-value pairs in {elapsed:.1} seconds");
-    println!("Number of leaf nodes: {}\n", tree.leaves().count());
+    println!("Number of leaf nodes: {}\n", tree.num_leaves());
 
     Ok(tree)
 }
 
 /// Runs the insertion benchmark for the [`Smt`].
-pub fn insertion(tree: &mut Smt, insertions: usize) -> Result<(), MerkleError> {
+pub fn insertion(tree: &mut LargeSmt, insertions: usize) -> Result<(), MerkleError> {
     println!("Running an insertion benchmark:");
 
     let size = tree.num_leaves();
@@ -88,7 +88,7 @@ pub fn insertion(tree: &mut Smt, insertions: usize) -> Result<(), MerkleError> {
     Ok(())
 }
 
-pub fn batched_insertion(tree: &mut Smt, insertions: usize) -> Result<(), MerkleError> {
+pub fn batched_insertion(tree: &mut LargeSmt, insertions: usize) -> Result<(), MerkleError> {
     println!("Running a batched insertion benchmark:");
 
     let size = tree.num_leaves();

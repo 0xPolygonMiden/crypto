@@ -1,28 +1,16 @@
-use alloc::{string::ToString, vec::Vec};
+use alloc::vec::Vec;
+use std::{fs, path::Path};
+
+use heed::{Database, EnvFlags, EnvOpenOptions, byteorder::BigEndian, types::*};
+use rayon::prelude::*;
 
 use super::{
-    EMPTY_WORD, EmptySubtreeRoots, Felt, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex,
-    MerkleError, MerklePath, MutationSet, NodeIndex, Rpo256, RpoDigest, SparseMerkleTree, Word,
+    EMPTY_WORD, EmptySubtreeRoots, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex, Leaves,
+    MerkleError, MerklePath, MutationSet, NodeIndex, RpoDigest, SMT_DEPTH, Smt, SmtLeaf, SmtProof,
+    SparseMerkleTree, Word,
+    concurrent::{PairComputations, SUBTREE_DEPTH, SubtreeLeaf, SubtreeLeavesIter, build_subtree},
 };
-
-mod error;
-pub use error::{SmtLeafError, SmtProofError};
-
-mod leaf;
-pub use leaf::SmtLeaf;
-
-mod proof;
-pub use proof::SmtProof;
-use winter_utils::{ByteReader, ByteWriter, Deserializable, DeserializationError, Serializable};
-
-mod large;
-pub use large::LargeSmt;
-
-// Concurrent implementation
-#[cfg(feature = "concurrent")]
-mod concurrent;
-#[cfg(feature = "internal")]
-pub use concurrent::{SubtreeLeaf, build_subtree_for_bench};
+use crate::merkle::smt::UnorderedMap;
 
 #[cfg(test)]
 mod tests;
@@ -30,12 +18,15 @@ mod tests;
 // CONSTANTS
 // ================================================================================================
 
-pub const SMT_DEPTH: u8 = 64;
+const IN_MEMORY_DEPTH: u8 = 24;
 
-// SMT
+// TYPES
 // ================================================================================================
 
-type Leaves = super::Leaves<SmtLeaf>;
+type NodeIndexKey = (u8, u64);
+
+// LargeSmt
+// ================================================================================================
 
 /// Sparse Merkle tree mapping 256-bit keys to 256-bit values. Both keys and values are represented
 /// by 4 field elements.
@@ -46,16 +37,19 @@ type Leaves = super::Leaves<SmtLeaf>;
 /// A leaf is either empty, or holds one or more key-value pairs. An empty leaf hashes to the empty
 /// word. Otherwise, a leaf hashes to the hash of its key-value pairs, ordered by key first, value
 /// second.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct Smt {
+#[derive(Debug, Clone)]
+pub struct LargeSmt {
     root: RpoDigest,
-    // pub(super) for use in PartialSmt.
-    pub(super) leaves: Leaves,
-    inner_nodes: InnerNodes,
+
+    env: heed::Env,
+
+    db_inner: Database<SerdeBincode<NodeIndexKey>, SerdeBincode<InnerNode>>,
+    db_leaves: Database<U64<BigEndian>, SerdeBincode<SmtLeaf>>,
+    in_memory_nodes: Vec<Option<InnerNode>>,
+    in_memory_count: usize,
 }
 
-impl Smt {
+impl LargeSmt {
     // CONSTANTS
     // --------------------------------------------------------------------------------------------
     /// The default value used to compute the hash of empty leaves
@@ -67,13 +61,41 @@ impl Smt {
     /// Returns a new [Smt].
     ///
     /// All leaves in the returned tree are set to [Self::EMPTY_VALUE].
-    pub fn new() -> Self {
-        let root = *EmptySubtreeRoots::entry(SMT_DEPTH, 0);
+    pub fn new(path: &Path) -> Self {
+        let env = unsafe {
+            EnvOpenOptions::new()
+                .map_size(1_099_511_627_776) // 1 TB in bytes
+                .flags(EnvFlags::NO_SYNC) // Disable sync to disk
+                .max_dbs(2)
+                .open(std::path::Path::new(path))
+                .expect("Failed to open env")
+        };
+
+        let mut wtxn = env.write_txn().unwrap();
+
+        let db_inner = env
+            .create_database::<SerdeBincode<NodeIndexKey>, SerdeBincode<InnerNode>>(
+                &mut wtxn,
+                Some("inner_nodes"),
+            )
+            .unwrap();
+
+        let db_leaves = env
+            .create_database::<U64<BigEndian>, SerdeBincode<SmtLeaf>>(&mut wtxn, Some("leaves"))
+            .unwrap();
+
+        wtxn.commit().unwrap();
+
+        let num_nodes = (1 << (IN_MEMORY_DEPTH + 1)) - 1;
+        let in_memory_nodes = vec![None; num_nodes];
 
         Self {
-            root,
-            inner_nodes: Default::default(),
-            leaves: Default::default(),
+            root: *EmptySubtreeRoots::entry(SMT_DEPTH, 0),
+            env,
+            db_inner,
+            db_leaves,
+            in_memory_nodes,
+            in_memory_count: 0,
         }
     }
 
@@ -89,49 +111,14 @@ impl Smt {
     pub fn with_entries(
         entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
-        #[cfg(feature = "concurrent")]
-        {
-            Self::with_entries_concurrent(entries)
+        let entries: Vec<(RpoDigest, Word)> = entries.into_iter().collect();
+
+        if entries.is_empty() {
+            return Ok(Self::default());
         }
-        #[cfg(not(feature = "concurrent"))]
-        {
-            Self::with_entries_sequential(entries)
-        }
-    }
 
-    /// Returns a new [Smt] instantiated with leaves set as specified by the provided entries.
-    ///
-    /// This sequential implementation processes entries one at a time to build the tree.
-    /// All leaves omitted from the entries list are set to [Self::EMPTY_VALUE].
-    ///
-    /// # Errors
-    /// Returns an error if the provided entries contain multiple values for the same key.
-    #[cfg(any(not(feature = "concurrent"), fuzzing, test))]
-    fn with_entries_sequential(
-        entries: impl IntoIterator<Item = (RpoDigest, Word)>,
-    ) -> Result<Self, MerkleError> {
-        use alloc::collections::BTreeSet;
-
-        // create an empty tree
-        let mut tree = Self::new();
-
-        // This being a sparse data structure, the EMPTY_WORD is not assigned to the `BTreeMap`, so
-        // entries with the empty value need additional tracking.
-        let mut key_set_to_zero = BTreeSet::new();
-
-        for (key, value) in entries {
-            let old_value = tree.insert(key, value);
-
-            if old_value != EMPTY_WORD || key_set_to_zero.contains(&key) {
-                return Err(MerkleError::DuplicateValuesForIndex(
-                    LeafIndex::<SMT_DEPTH>::from(key).value(),
-                ));
-            }
-
-            if value == EMPTY_WORD {
-                key_set_to_zero.insert(key);
-            };
-        }
+        let mut tree = LargeSmt::default();
+        tree.build_subtrees(entries)?;
         Ok(tree)
     }
 
@@ -166,7 +153,8 @@ impl Smt {
     /// Note that this may return a different value from [Self::num_entries()] as a single leaf may
     /// contain more than one key-value pair.
     pub fn num_leaves(&self) -> usize {
-        self.leaves.len()
+        let txn = self.env.read_txn().unwrap();
+        self.db_leaves.len(&txn).unwrap_or(0) as usize
     }
 
     /// Returns the number of key-value pairs with non-default values in this tree.
@@ -177,7 +165,9 @@ impl Smt {
     /// Also note that this is currently an expensive operation is counting the number of entries
     /// requires iterating over all leaves of the tree.
     pub fn num_entries(&self) -> usize {
-        self.entries().count()
+        //self.entries().count()
+        // TODO: implement, currently counts all leaves
+        self.num_leaves()
     }
 
     /// Returns the leaf to which `key` maps
@@ -198,7 +188,7 @@ impl Smt {
 
     /// Returns a boolean value indicating whether the SMT is empty.
     pub fn is_empty(&self) -> bool {
-        debug_assert_eq!(self.leaves.is_empty(), self.root == Self::EMPTY_ROOT);
+        debug_assert_eq!(self.num_leaves() == 0, self.root == Self::EMPTY_ROOT);
         self.root == Self::EMPTY_ROOT
     }
 
@@ -207,23 +197,29 @@ impl Smt {
 
     /// Returns an iterator over the leaves of this [Smt].
     pub fn leaves(&self) -> impl Iterator<Item = (LeafIndex<SMT_DEPTH>, &SmtLeaf)> {
-        self.leaves
-            .iter()
-            .map(|(leaf_index, leaf)| (LeafIndex::new_max_depth(*leaf_index), leaf))
+        /*self.leaves
+        .iter()
+        .map(|(leaf_index, leaf)| (LeafIndex::new_max_depth(*leaf_index), leaf))*/
+        // TODO: implement
+        vec![].into_iter()
     }
 
     /// Returns an iterator over the key-value pairs of this [Smt].
     pub fn entries(&self) -> impl Iterator<Item = &(RpoDigest, Word)> {
-        self.leaves().flat_map(|(_, leaf)| leaf.entries())
+        //self.leaves().flat_map(|(_, leaf)| leaf.entries())
+        // TODO: implement
+        vec![].into_iter()
     }
 
     /// Returns an iterator over the inner nodes of this [Smt].
     pub fn inner_nodes(&self) -> impl Iterator<Item = InnerNodeInfo> + '_ {
-        self.inner_nodes.values().map(|e| InnerNodeInfo {
-            value: e.hash(),
-            left: e.left,
-            right: e.right,
-        })
+        //self.inner_nodes.values().map(|e| InnerNodeInfo {
+        //    value: e.hash(),
+        //    left: e.left,
+        //    right: e.right,
+        //})
+        // TODO: implement
+        vec![].into_iter()
     }
 
     // STATE MUTATORS
@@ -261,15 +257,22 @@ impl Smt {
     /// ```
     pub fn compute_mutations(
         &self,
-        kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
+        _kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
-        #[cfg(feature = "concurrent")]
+        /*#[cfg(feature = "concurrent")]
         {
-            self.compute_mutations_concurrent(kv_pairs)
+            self.compute_mutations_concurrent(kmakev_pairs)
         }
         #[cfg(not(feature = "concurrent"))]
         {
             <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
+        }*/
+        // TODO: implement
+        MutationSet {
+            old_root: self.root(),
+            new_root: self.root(),
+            node_mutations: Default::default(),
+            new_pairs: Default::default(),
         }
     }
 
@@ -307,6 +310,53 @@ impl Smt {
     // HELPERS
     // --------------------------------------------------------------------------------------------
 
+    fn build_subtrees(&mut self, mut entries: Vec<(RpoDigest, Word)>) -> Result<(), MerkleError> {
+        entries.par_sort_unstable_by_key(|item| {
+            let index = Self::key_to_leaf_index(&item.0);
+            index.value()
+        });
+        self.build_subtrees_from_sorted_entries(entries)?;
+        Ok(())
+    }
+
+    fn build_subtrees_from_sorted_entries(
+        &mut self,
+        entries: Vec<(RpoDigest, Word)>,
+    ) -> Result<(), MerkleError> {
+        let PairComputations {
+            leaves: mut leaf_subtrees,
+            nodes: initial_leaves,
+        } = Smt::sorted_pairs_to_leaves(entries)?;
+        // If there are no leaves, we can return early
+
+        // Store the leaves in the database
+        self.store_leaves_to_db_batch(&initial_leaves);
+
+        if initial_leaves.is_empty() {
+            return Ok(());
+        }
+        for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+            let (nodes, mut subtree_roots): (Vec<UnorderedMap<_, _>>, Vec<SubtreeLeaf>) =
+                leaf_subtrees
+                    .into_par_iter()
+                    .map(|subtree| {
+                        debug_assert!(subtree.is_sorted());
+                        debug_assert!(!subtree.is_empty());
+                        let (nodes, subtree_root) =
+                            build_subtree(subtree, SMT_DEPTH, current_depth);
+                        (nodes, subtree_root)
+                    })
+                    .unzip();
+            leaf_subtrees = SubtreeLeavesIter::from_leaves(&mut subtree_roots).collect();
+            debug_assert!(!leaf_subtrees.is_empty());
+
+            // Insert the inner nodes into the tree
+            self.insert_inner_nodes_batch(nodes.into_iter().flatten());
+        }
+        self.root = self.get_inner_node(NodeIndex::root()).hash();
+        Ok(())
+    }
+
     /// Inserts `value` at leaf index pointed to by `key`. `value` is guaranteed to not be the empty
     /// value, such that this is indeed an insertion.
     fn perform_insert(&mut self, key: RpoDigest, value: Word) -> Option<Word> {
@@ -314,11 +364,14 @@ impl Smt {
 
         let leaf_index: LeafIndex<SMT_DEPTH> = Self::key_to_leaf_index(&key);
 
-        match self.leaves.get_mut(&leaf_index.value()) {
-            Some(leaf) => leaf.insert(key, value),
+        match self.get_leaf_from_db(&leaf_index) {
+            Some(mut leaf) => {
+                leaf.insert(key, value);
+                self.store_leaf_to_db(leaf_index, &leaf);
+                Some(value)
+            },
             None => {
-                self.leaves.insert(leaf_index.value(), SmtLeaf::Single((key, value)));
-
+                self.store_leaf_to_db(leaf_index, &SmtLeaf::Single((key, value)));
                 None
             },
         }
@@ -328,10 +381,12 @@ impl Smt {
     fn perform_remove(&mut self, key: RpoDigest) -> Option<Word> {
         let leaf_index: LeafIndex<SMT_DEPTH> = Self::key_to_leaf_index(&key);
 
-        if let Some(leaf) = self.leaves.get_mut(&leaf_index.value()) {
+        if let Some(mut leaf) = self.get_leaf_from_db(&leaf_index) {
             let (old_value, is_empty) = leaf.remove(key);
             if is_empty {
-                self.leaves.remove(&leaf_index.value());
+                self.remove_leaf_from_db(leaf_index);
+            } else {
+                self.store_leaf_to_db(leaf_index, &leaf);
             }
             old_value
         } else {
@@ -339,9 +394,55 @@ impl Smt {
             None
         }
     }
+
+    fn insert_inner_nodes_batch(
+        &mut self,
+        nodes: impl IntoIterator<Item = (NodeIndex, InnerNode)>,
+    ) {
+        let mut txn = self.env.write_txn().unwrap();
+        for (index, node) in nodes {
+            if index.depth() <= IN_MEMORY_DEPTH {
+                let memory_index = to_memory_index(&index);
+                self.in_memory_nodes[memory_index] = Some(node);
+                self.in_memory_count += 1;
+            } else {
+                self.db_inner.put(&mut txn, &to_db_key(&index), &node).unwrap();
+            }
+        }
+        txn.commit().unwrap();
+    }
+
+    fn get_leaf_from_db(&self, index: &LeafIndex<SMT_DEPTH>) -> Option<SmtLeaf> {
+        let txn = self.env.read_txn().unwrap();
+        self.db_leaves.get(&txn, &index.value()).ok().flatten()
+    }
+
+    fn store_leaf_to_db(&mut self, index: LeafIndex<SMT_DEPTH>, leaf: &SmtLeaf) -> Option<SmtLeaf> {
+        let mut txn = self.env.write_txn().unwrap();
+        let old = self.db_leaves.get(&txn, &index.value()).unwrap();
+        self.db_leaves.put(&mut txn, &index.value(), leaf).unwrap();
+        txn.commit().unwrap();
+        old
+    }
+
+    fn store_leaves_to_db_batch(&mut self, leaves: &Leaves) {
+        let mut txn = self.env.write_txn().unwrap();
+        for (index, leaf) in leaves {
+            self.db_leaves.put(&mut txn, index, leaf).unwrap();
+        }
+        txn.commit().unwrap();
+    }
+
+    fn remove_leaf_from_db(&mut self, index: LeafIndex<SMT_DEPTH>) -> Option<SmtLeaf> {
+        let mut txn = self.env.write_txn().unwrap();
+        let leaf = self.db_leaves.get(&txn, &index.value()).unwrap();
+        self.db_leaves.delete(&mut txn, &index.value()).unwrap();
+        txn.commit().unwrap();
+        leaf
+    }
 }
 
-impl SparseMerkleTree<SMT_DEPTH> for Smt {
+impl SparseMerkleTree<SMT_DEPTH> for LargeSmt {
     type Key = RpoDigest;
     type Value = Word;
     type Leaf = SmtLeaf;
@@ -359,8 +460,14 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
             let root_node = inner_nodes.get(&NodeIndex::root()).unwrap();
             assert_eq!(root_node.hash(), root);
         }
+        let path = Path::new("large_smt.db");
+        fs::create_dir_all(path).expect("Failed to create database directory");
+        let mut smt = Self::new(path);
+        smt.insert_inner_nodes_batch(inner_nodes);
+        smt.store_leaves_to_db_batch(&leaves);
+        smt.set_root(root);
 
-        Ok(Self { root, inner_nodes, leaves })
+        Ok(smt)
     }
 
     fn root(&self) -> RpoDigest {
@@ -372,18 +479,55 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     }
 
     fn get_inner_node(&self, index: NodeIndex) -> InnerNode {
-        self.inner_nodes
-            .get(&index)
-            .cloned()
+        if index.depth() <= IN_MEMORY_DEPTH {
+            let memory_index = to_memory_index(&index);
+            return self.in_memory_nodes[memory_index]
+                .clone()
+                .unwrap_or_else(|| EmptySubtreeRoots::get_inner_node(SMT_DEPTH, index.depth()));
+        }
+
+        let txn = self.env.read_txn().unwrap();
+        self.db_inner
+            .get(&txn, &to_db_key(&index))
+            .ok()
+            .flatten()
             .unwrap_or_else(|| EmptySubtreeRoots::get_inner_node(SMT_DEPTH, index.depth()))
     }
 
     fn insert_inner_node(&mut self, index: NodeIndex, inner_node: InnerNode) -> Option<InnerNode> {
-        self.inner_nodes.insert(index, inner_node)
+        if index.depth() <= IN_MEMORY_DEPTH {
+            let i = to_memory_index(&index);
+            let old = self.in_memory_nodes[i].replace(inner_node.clone());
+            if old.is_none() {
+                self.in_memory_count += 1;
+            }
+            return old;
+        }
+
+        let db_key = to_db_key(&index);
+        let mut txn = self.env.write_txn().unwrap();
+        let old = self.db_inner.get(&txn, &db_key).unwrap();
+        self.db_inner.put(&mut txn, &db_key, &inner_node).unwrap();
+        txn.commit().unwrap();
+        old
     }
 
     fn remove_inner_node(&mut self, index: NodeIndex) -> Option<InnerNode> {
-        self.inner_nodes.remove(&index)
+        if index.depth() <= IN_MEMORY_DEPTH {
+            let memory_index = to_memory_index(&index);
+            let old = self.in_memory_nodes.remove(memory_index);
+            if old.is_some() {
+                self.in_memory_count -= 1;
+            }
+            return old;
+        }
+
+        let db_key = to_db_key(&index);
+        let mut txn = self.env.write_txn().unwrap();
+        let node = self.db_inner.get(&txn, &db_key).unwrap();
+        self.db_inner.delete(&mut txn, &db_key).unwrap();
+        txn.commit().unwrap();
+        node
     }
 
     fn insert_value(&mut self, key: Self::Key, value: Self::Value) -> Option<Self::Value> {
@@ -396,9 +540,8 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     }
 
     fn get_value(&self, key: &Self::Key) -> Self::Value {
-        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
-
-        match self.leaves.get(&leaf_pos) {
+        let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key);
+        match self.get_leaf_from_db(&leaf_pos) {
             Some(leaf) => leaf.get_value(key).unwrap_or_default(),
             None => EMPTY_WORD,
         }
@@ -407,7 +550,9 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     fn get_leaf(&self, key: &RpoDigest) -> Self::Leaf {
         let leaf_pos = LeafIndex::<SMT_DEPTH>::from(*key).value();
 
-        match self.leaves.get(&leaf_pos) {
+        let txn = self.env.read_txn().unwrap();
+        let leaf = self.db_leaves.get(&txn, &leaf_pos).ok().flatten();
+        match leaf {
             Some(leaf) => leaf.clone(),
             None => SmtLeaf::new_empty(key.into()),
         }
@@ -449,119 +594,30 @@ impl SparseMerkleTree<SMT_DEPTH> for Smt {
     }
 }
 
-impl Default for Smt {
+impl PartialEq for LargeSmt {
+    fn eq(&self, other: &Self) -> bool {
+        self.root == other.root
+            && self.num_leaves() == other.num_leaves()
+            && self.num_entries() == other.num_entries()
+    }
+}
+
+impl Eq for LargeSmt {}
+
+impl Default for LargeSmt {
     fn default() -> Self {
-        Self::new()
+        let path = Path::new("large_smt.db");
+        fs::create_dir_all(path).expect("Failed to create database directory");
+        Self::new(path)
     }
 }
 
-// CONVERSIONS
-// ================================================================================================
-
-impl From<Word> for LeafIndex<SMT_DEPTH> {
-    fn from(value: Word) -> Self {
-        // We use the most significant `Felt` of a `Word` as the leaf index.
-        Self::new_max_depth(value[3].as_int())
-    }
+fn to_db_key(index: &NodeIndex) -> (u8, u64) {
+    (index.depth(), index.value())
 }
 
-impl From<RpoDigest> for LeafIndex<SMT_DEPTH> {
-    fn from(value: RpoDigest) -> Self {
-        Word::from(value).into()
-    }
-}
-
-impl From<&RpoDigest> for LeafIndex<SMT_DEPTH> {
-    fn from(value: &RpoDigest) -> Self {
-        Word::from(value).into()
-    }
-}
-
-// SERIALIZATION
-// ================================================================================================
-
-impl Serializable for Smt {
-    fn write_into<W: ByteWriter>(&self, target: &mut W) {
-        // Write the number of filled leaves for this Smt
-        target.write_usize(self.entries().count());
-
-        // Write each (key, value) pair
-        for (key, value) in self.entries() {
-            target.write(key);
-            target.write(value);
-        }
-    }
-
-    fn get_size_hint(&self) -> usize {
-        let entries_count = self.entries().count();
-
-        // Each entry is the size of a digest plus a word.
-        entries_count.get_size_hint()
-            + entries_count * (RpoDigest::SERIALIZED_SIZE + EMPTY_WORD.get_size_hint())
-    }
-}
-
-impl Deserializable for Smt {
-    fn read_from<R: ByteReader>(source: &mut R) -> Result<Self, DeserializationError> {
-        // Read the number of filled leaves for this Smt
-        let num_filled_leaves = source.read_usize()?;
-        let mut entries = Vec::with_capacity(num_filled_leaves);
-
-        for _ in 0..num_filled_leaves {
-            let key = source.read()?;
-            let value = source.read()?;
-            entries.push((key, value));
-        }
-
-        Self::with_entries(entries)
-            .map_err(|err| DeserializationError::InvalidValue(err.to_string()))
-    }
-}
-
-// FUZZING
-// ================================================================================================
-
-#[cfg(fuzzing)]
-impl Smt {
-    pub fn fuzz_with_entries_sequential(
-        entries: impl IntoIterator<Item = (RpoDigest, Word)>,
-    ) -> Result<Smt, MerkleError> {
-        Self::with_entries_sequential(entries)
-    }
-
-    pub fn fuzz_compute_mutations_sequential(
-        &self,
-        kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
-    ) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
-        <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
-    }
-}
-
-// TESTS
-// ================================================================================================
-
-#[test]
-fn test_smt_serialization_deserialization() {
-    // Smt for default types (empty map)
-    let smt_default = Smt::default();
-    let bytes = smt_default.to_bytes();
-    assert_eq!(smt_default, Smt::read_from_bytes(&bytes).unwrap());
-    assert_eq!(bytes.len(), smt_default.get_size_hint());
-
-    // Smt with values
-    let smt_leaves_2: [(RpoDigest, Word); 2] = [
-        (
-            RpoDigest::new([Felt::new(101), Felt::new(102), Felt::new(103), Felt::new(104)]),
-            [Felt::new(1_u64), Felt::new(2_u64), Felt::new(3_u64), Felt::new(4_u64)],
-        ),
-        (
-            RpoDigest::new([Felt::new(105), Felt::new(106), Felt::new(107), Felt::new(108)]),
-            [Felt::new(5_u64), Felt::new(6_u64), Felt::new(7_u64), Felt::new(8_u64)],
-        ),
-    ];
-    let smt = Smt::with_entries(smt_leaves_2).unwrap();
-
-    let bytes = smt.to_bytes();
-    assert_eq!(smt, Smt::read_from_bytes(&bytes).unwrap());
-    assert_eq!(bytes.len(), smt.get_size_hint());
+fn to_memory_index(index: &NodeIndex) -> usize {
+    debug_assert!(index.depth() <= IN_MEMORY_DEPTH);
+    debug_assert!(index.value() < (1 << index.depth()));
+    ((1usize << index.depth()) - 1) + index.value() as usize
 }
