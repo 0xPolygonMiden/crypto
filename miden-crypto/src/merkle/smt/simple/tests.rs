@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use core::iter;
 
 use assert_matches::assert_matches;
 
@@ -237,9 +238,16 @@ fn small_tree_opening_is_consistent() {
     ];
 
     for (key, path) in cases {
-        let opening = tree.open(&LeafIndex::<3>::new(key).unwrap());
+        let index = LeafIndex::<3>::new(key).unwrap();
+        let opening = tree.open(&index);
 
         assert_eq!(path, *opening.path);
+
+        // Also check that the sparse versions work the same way.
+        let sparse_path = tree.get_path(&index);
+        for (path_node, sparse_path_node) in iter::zip(path, sparse_path.path) {
+            assert_eq!(path_node, sparse_path_node);
+        }
     }
 }
 

@@ -1,10 +1,11 @@
-use alloc::collections::BTreeSet;
+use alloc::{collections::BTreeSet, vec::Vec};
 
 use super::{
     super::ValuePath, EMPTY_WORD, EmptySubtreeRoots, InnerNode, InnerNodeInfo, InnerNodes,
     LeafIndex, MerkleError, MerklePath, MutationSet, NodeIndex, RpoDigest, SMT_MAX_DEPTH,
     SMT_MIN_DEPTH, SparseMerkleTree, Word,
 };
+use crate::merkle::{SparseMerklePath, sparse_path::SparseValuePath};
 
 #[cfg(test)]
 mod tests;
@@ -171,6 +172,40 @@ impl<const DEPTH: u8> SimpleSmt<DEPTH> {
     /// path to the leaf, as well as the leaf itself.
     pub fn open(&self, key: &LeafIndex<DEPTH>) -> ValuePath {
         <Self as SparseMerkleTree<DEPTH>>::open(self, key)
+    }
+
+    /// Returns a path (but not an opening) to the leaf associated with `key`.
+    ///
+    /// Unlike [`SimpleSmt::open()`], this returns a [SparseValuePath] which has a more efficient
+    /// memory representation optimized for paths containing empty nodes. See [SparseMerklePath]
+    /// for more information.
+    pub fn get_path(&self, key: &LeafIndex<DEPTH>) -> SparseValuePath {
+        let value: RpoDigest = self.get_value(key).into();
+
+        // This is a partial re-implementation of `SparseMerklePath::from_sized_iter()`, which
+        // constructs in place instead of cloning and immediately dropping the entire vec returned
+        // by `self.open()`.
+
+        let mut nodes: Vec<RpoDigest> = Default::default();
+        let mut index = NodeIndex::from(*key);
+        let mut empty_nodes: u64 = 0;
+
+        for _ in 0..DEPTH {
+            let is_right = index.is_value_odd();
+            index.move_up();
+
+            match self.inner_nodes.get(&index) {
+                Some(InnerNode { left, right }) => {
+                    let value = if is_right { left } else { right };
+                    nodes.push(*value);
+                },
+                None => empty_nodes |= u64::checked_shl(1, index.depth().into()).unwrap(),
+            }
+        }
+
+        let path = SparseMerklePath::from_raw_parts(empty_nodes, nodes);
+
+        SparseValuePath { value, path }
     }
 
     /// Returns a boolean value indicating whether the SMT is empty.

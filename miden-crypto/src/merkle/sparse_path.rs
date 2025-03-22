@@ -3,7 +3,7 @@ use core::iter;
 
 use winter_utils::{Deserializable, DeserializationError, Serializable};
 
-use super::{EmptySubtreeRoots, MerklePath, RpoDigest, SMT_MAX_DEPTH};
+use super::{EmptySubtreeRoots, MerklePath, RpoDigest, SMT_MAX_DEPTH, Word};
 
 /// A different representation of [`MerklePath`] designed for memory efficiency for Merkle paths
 /// with empty nodes.
@@ -85,6 +85,18 @@ impl SparseMerklePath {
         debug_assert!(self.nodes.is_empty());
 
         MerklePath::from(nodes)
+    }
+
+    /// Creates a [SparseMerklePath] directly from a bitmask representing empty nodes, and a vec
+    /// containing all non-empty nodes.
+    pub fn from_raw_parts(empty_nodes: u64, nodes: Vec<RpoDigest>) -> Self {
+        Self { empty_nodes, nodes }
+    }
+
+    /// Decomposes a [SparseMerklePath] into its raw components: `(empty_nodes, nodes)`.
+    pub fn into_raw_parts(self) -> (u64, Vec<RpoDigest>) {
+        let SparseMerklePath { empty_nodes, nodes } = self;
+        (empty_nodes, nodes)
     }
 
     /// Returns the total depth of this path, i.e., the number of nodes this path represents.
@@ -228,6 +240,33 @@ impl DoubleEndedIterator for SparseMerkleIter {
             },
             None => None,
         }
+    }
+}
+
+// SPARSE MERKLE PATH CONTAINERS
+// ================================================================================================
+/// A container for a [crate::Word] value and its [SparseMerklePath] opening.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SparseValuePath {
+    /// The node value opening for `path`.
+    pub value: RpoDigest,
+    /// The path from `value` to `root` (exclusive), using an efficient memory representation for
+    /// empty nodes.
+    pub path: SparseMerklePath,
+}
+
+impl SparseValuePath {
+    /// Convenience function to construct a [SparseValuePath].
+    ///
+    /// `value` is the value `path` leads to, in the tree.
+    pub fn new(value: RpoDigest, path: SparseMerklePath) -> Self {
+        Self { value, path }
+    }
+}
+
+impl From<(SparseMerklePath, Word)> for SparseValuePath {
+    fn from((path, value): (SparseMerklePath, Word)) -> Self {
+        SparseValuePath::new(value.into(), path)
     }
 }
 
