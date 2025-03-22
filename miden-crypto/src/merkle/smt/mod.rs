@@ -79,28 +79,32 @@ pub(crate) trait SparseMerkleTree<const DEPTH: u8> {
     // PROVIDED METHODS
     // ---------------------------------------------------------------------------------------------
 
-    /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
-    /// path to the leaf, as well as the leaf itself.
-    fn open(&self, key: &Self::Key) -> Self::Opening {
-        let leaf = self.get_leaf(key);
-
+    /// Returns a [MerklePath] to the specified key.
+    ///
+    /// Mostly this is an implementation detail of [`Self::open()`].
+    fn path(&self, key: &Self::Key) -> MerklePath {
         let mut index: NodeIndex = {
             let leaf_index: LeafIndex<DEPTH> = Self::key_to_leaf_index(key);
             leaf_index.into()
         };
 
-        let merkle_path = {
-            let mut path = Vec::with_capacity(index.depth() as usize);
-            for _ in 0..index.depth() {
-                let is_right = index.is_value_odd();
-                index.move_up();
-                let InnerNode { left, right } = self.get_inner_node(index);
-                let value = if is_right { left } else { right };
-                path.push(value);
-            }
+        let mut path = Vec::with_capacity(index.depth() as usize);
+        for _ in 0..index.depth() {
+            let is_right = index.is_value_odd();
+            index.move_up();
+            let InnerNode { left, right } = self.get_inner_node(index);
+            let value = if is_right { left } else { right };
+            path.push(value);
+        }
 
-            MerklePath::new(path)
-        };
+        MerklePath::new(path)
+    }
+
+    /// Returns an opening of the leaf associated with `key`. Conceptually, an opening is a Merkle
+    /// path to the leaf, as well as the leaf itself.
+    fn open(&self, key: &Self::Key) -> Self::Opening {
+        let leaf = self.get_leaf(key);
+        let merkle_path = self.path(key);
 
         Self::path_and_leaf_to_opening(merkle_path, leaf)
     }
