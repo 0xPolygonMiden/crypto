@@ -19,13 +19,16 @@ fn generate_entries(pair_count: u64) -> Vec<(RpoDigest, Word)> {
 /// Tests that `get_value()` works as expected
 #[test]
 fn test_smt_get_value() {
+    use std::path::Path;
+    let path = Path::new("test_smt");
+
     let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
     let key_2: RpoDigest = RpoDigest::from([2_u32, 2_u32, 2_u32, 2_u32]);
 
     let value_1 = [ONE; WORD_SIZE];
     let value_2 = [2_u32.into(); WORD_SIZE];
 
-    let smt = LargeSmt::with_entries([(key_1, value_1), (key_2, value_2)]).unwrap();
+    let smt = LargeSmt::with_entries(path, [(key_1, value_1), (key_2, value_2)]).unwrap();
 
     let returned_value_1 = smt.get_value(&key_1);
     let returned_value_2 = smt.get_value(&key_2);
@@ -41,8 +44,12 @@ fn test_smt_get_value() {
 
 #[test]
 fn test_smt_and_large_smt_are_equivalent() {
+    use std::path::Path;
+
     let entries = generate_entries(1000);
     let smt = Smt::with_entries(entries.clone()).unwrap();
-    let large_smt = LargeSmt::with_entries(entries).unwrap();
+
+    let path = Path::new("test_smt");
+    let large_smt = LargeSmt::with_entries(path, entries).unwrap();
     assert_eq!(smt.root(), large_smt.root());
 }

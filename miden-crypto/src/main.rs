@@ -1,4 +1,6 @@
 use std::time::Instant;
+use std::path::Path;
+use std::fs;
 
 use clap::Parser;
 use miden_crypto::{
@@ -54,7 +56,14 @@ pub fn benchmark_smt() {
 pub fn construction(entries: Vec<(RpoDigest, Word)>, size: usize) -> Result<LargeSmt, MerkleError> {
     println!("Running a construction benchmark:");
     let now = Instant::now();
-    let tree = LargeSmt::with_entries(entries)?;
+    let path = Path::new("bench_large_smt");
+    // delete the folder if it exists
+    if path.exists() {
+        std::fs::remove_dir_all(path).unwrap();
+    }
+    fs::create_dir_all(path).expect("Failed to create database directory");
+
+    let tree = LargeSmt::with_entries(path, entries)?;
     let elapsed = now.elapsed().as_secs_f32();
     println!("Constructed an SMT with {size} key-value pairs in {elapsed:.1} seconds");
     println!("Number of leaf nodes: {}\n", tree.num_leaves());

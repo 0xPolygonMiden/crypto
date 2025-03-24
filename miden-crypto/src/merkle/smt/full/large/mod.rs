@@ -109,7 +109,7 @@ impl LargeSmt {
     /// # Errors
     /// Returns an error if the provided entries contain multiple values for the same key.
     pub fn with_entries(
-        entries: impl IntoIterator<Item = (RpoDigest, Word)>,
+        path: &Path, entries: impl IntoIterator<Item = (RpoDigest, Word)>,
     ) -> Result<Self, MerkleError> {
         let entries: Vec<(RpoDigest, Word)> = entries.into_iter().collect();
 
@@ -117,7 +117,7 @@ impl LargeSmt {
             return Ok(Self::default());
         }
 
-        let mut tree = LargeSmt::default();
+        let mut tree = LargeSmt::new(path);
         tree.build_subtrees(entries)?;
         Ok(tree)
     }
