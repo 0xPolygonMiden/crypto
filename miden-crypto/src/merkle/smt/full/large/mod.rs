@@ -1,16 +1,20 @@
 use alloc::vec::Vec;
+use core::mem;
+
 use std::{fs, path::Path};
 
 use heed::{Database, EnvFlags, EnvOpenOptions, byteorder::BigEndian, types::*};
 use rayon::prelude::*;
 
+use num::Integer;
+
 use super::{
     EMPTY_WORD, EmptySubtreeRoots, InnerNode, InnerNodeInfo, InnerNodes, LeafIndex, Leaves,
     MerkleError, MerklePath, MutationSet, NodeIndex, RpoDigest, SMT_DEPTH, Smt, SmtLeaf, SmtProof,
     SparseMerkleTree, Word,
-    concurrent::{PairComputations, SUBTREE_DEPTH, SubtreeLeaf, SubtreeLeavesIter, build_subtree},
+    concurrent::{fetch_sibling_pair, MutatedSubtreeLeaves, PairComputations, SUBTREE_DEPTH, SubtreeLeaf, SubtreeLeavesIter, build_subtree, process_sorted_pairs_to_leaves},
 };
-use crate::merkle::smt::UnorderedMap;
+use crate::merkle::smt::{NodeMutation, NodeMutations, UnorderedMap};
 
 #[cfg(test)]
 mod tests;
@@ -257,23 +261,67 @@ impl LargeSmt {
     /// ```
     pub fn compute_mutations(
         &self,
-        _kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
-    ) -> MutationSet<SMT_DEPTH, RpoDigest, Word> {
-        /*#[cfg(feature = "concurrent")]
-        {
-            self.compute_mutations_concurrent(kmakev_pairs)
+        kv_pairs: impl IntoIterator<Item = (RpoDigest, Word)>,
+    ) -> MutationSet<SMT_DEPTH, RpoDigest, Word>
+    where
+        Self: Sized + Sync,
+    {
+        // Collect and sort key-value pairs by their corresponding leaf index
+        let mut sorted_kv_pairs: Vec<_> = kv_pairs.into_iter().collect();
+        sorted_kv_pairs.par_sort_unstable_by_key(|(key, _)| Self::key_to_leaf_index(key).value());
+
+        // Convert sorted pairs into mutated leaves and capture any new pairs
+        let (mut subtree_leaves, new_pairs) =
+            self.sorted_pairs_to_mutated_subtree_leaves(sorted_kv_pairs);
+
+        // If no mutations, return an empty mutation set
+        if subtree_leaves.is_empty() {
+            return MutationSet {
+                old_root: self.root(),
+                new_root: self.root(),
+                node_mutations: NodeMutations::default(),
+                new_pairs,
+            };
         }
-        #[cfg(not(feature = "concurrent"))]
-        {
-            <Self as SparseMerkleTree<SMT_DEPTH>>::compute_mutations(self, kv_pairs)
-        }*/
-        // TODO: implement
-        MutationSet {
+
+        let mut node_mutations = NodeMutations::default();
+
+        // Process each depth level in reverse, stepping by the subtree depth
+        for depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+            // Parallel processing of each subtree to generate mutations and roots
+            let (mutations_per_subtree, mut subtree_roots): (Vec<_>, Vec<_>) = subtree_leaves
+                .into_par_iter()
+                .map(|subtree| {
+                    debug_assert!(subtree.is_sorted() && !subtree.is_empty());
+                    self.build_subtree_mutations(subtree, SMT_DEPTH, depth)
+                })
+                .unzip();
+
+            // Prepare leaves for the next depth level
+            subtree_leaves = SubtreeLeavesIter::from_leaves(&mut subtree_roots).collect();
+
+            // Aggregate all node mutations
+            node_mutations.extend(mutations_per_subtree.into_iter().flatten());
+
+            debug_assert!(!subtree_leaves.is_empty());
+        }
+
+        let new_root = subtree_leaves[0][0].hash;
+
+        // Create mutation set
+        let mutation_set = MutationSet {
             old_root: self.root(),
-            new_root: self.root(),
-            node_mutations: Default::default(),
-            new_pairs: Default::default(),
-        }
+            new_root,
+            node_mutations,
+            new_pairs,
+        };
+
+        // There should be mutations and new pairs at this point
+        debug_assert!(
+            !mutation_set.node_mutations().is_empty() && !mutation_set.new_pairs().is_empty()
+        );
+
+        mutation_set
     }
 
     /// Applies the prospective mutations computed with [`Smt::compute_mutations()`] to this tree.
@@ -323,6 +371,7 @@ impl LargeSmt {
         &mut self,
         entries: Vec<(RpoDigest, Word)>,
     ) -> Result<(), MerkleError> {
+        use std::println;
         let PairComputations {
             leaves: mut leaf_subtrees,
             nodes: initial_leaves,
@@ -335,7 +384,10 @@ impl LargeSmt {
         if initial_leaves.is_empty() {
             return Ok(());
         }
-        for current_depth in (SUBTREE_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+        let env = &self.env;
+        let db_inner = &self.db_inner;
+        for current_depth in (IN_MEMORY_DEPTH..=SMT_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+            println!("Current depth: {}", current_depth);
             let (nodes, mut subtree_roots): (Vec<UnorderedMap<_, _>>, Vec<SubtreeLeaf>) =
                 leaf_subtrees
                     .into_par_iter()
@@ -351,11 +403,152 @@ impl LargeSmt {
             debug_assert!(!leaf_subtrees.is_empty());
 
             // Insert the inner nodes into the tree
-            self.insert_inner_nodes_batch(nodes.into_iter().flatten());
+            let start = std::time::Instant::now();
+            let all_nodes: Vec<(NodeIndex, InnerNode)> = nodes.into_iter().flatten().collect();
+            for chunk in all_nodes.chunks(10000000) {
+                let mut txn = env.write_txn().unwrap();
+                for (index, node) in chunk {
+                    db_inner.put(&mut txn, &to_db_key(&index), &node).unwrap();
+                }
+                txn.commit().unwrap();
+            }
+            let elapsed = start.elapsed();
+            println!("Time taken to insert inner nodes: {:?}", elapsed);
+        }
+        for current_depth in (SUBTREE_DEPTH..=IN_MEMORY_DEPTH).step_by(SUBTREE_DEPTH as usize).rev() {
+            println!("Current depth: {}", current_depth);
+            let (nodes, mut subtree_roots): (Vec<UnorderedMap<_, _>>, Vec<SubtreeLeaf>) =
+                leaf_subtrees
+                    .into_par_iter()
+                    .map(|subtree| {
+                        debug_assert!(subtree.is_sorted());
+                        debug_assert!(!subtree.is_empty());
+                        let (nodes, subtree_root) =
+                            build_subtree(subtree, SMT_DEPTH, current_depth);
+                        (nodes, subtree_root)
+                    })
+                    .unzip();
+            leaf_subtrees = SubtreeLeavesIter::from_leaves(&mut subtree_roots).collect();
+            debug_assert!(!leaf_subtrees.is_empty());
+
+            // Insert the inner nodes into the tree
+            self.insert_inner_nodes_batch_to_memory(nodes.into_iter().flatten());
         }
         self.root = self.get_inner_node(NodeIndex::root()).hash();
         Ok(())
     }
+
+    // MUTATIONS
+    // --------------------------------------------------------------------------------------------
+
+    /// Computes leaves from a set of key-value pairs and current leaf values.
+    /// Derived from `sorted_pairs_to_leaves`
+    fn sorted_pairs_to_mutated_subtree_leaves(
+        &self,
+        pairs: Vec<(RpoDigest, Word)>,
+    ) -> (MutatedSubtreeLeaves, UnorderedMap<RpoDigest, Word>) {
+        // Map to track new key-value pairs for mutated leaves
+        let mut new_pairs = UnorderedMap::new();
+
+        let accumulator = process_sorted_pairs_to_leaves(pairs, |leaf_pairs| {
+            let mut leaf = self.get_leaf(&leaf_pairs[0].0);
+
+            let mut leaf_changed = false;
+            for (key, value) in leaf_pairs {
+                // Check if the value has changed
+                let old_value = new_pairs.get(&key).cloned().unwrap_or_else(|| {
+                    // Safe to unwrap: `leaf_pairs` contains keys all belonging to this leaf.
+                    // `SmtLeaf::get_value()` only returns `None` if the key does not belong to the
+                    // leaf, which cannot happen due to the sorting/grouping
+                    // logic in `process_sorted_pairs_to_leaves()`.
+                    leaf.get_value(&key).unwrap()
+                });
+
+                if value != old_value {
+                    // Update the leaf and track the new key-value pair
+                    leaf = self.construct_prospective_leaf(leaf, &key, &value);
+                    new_pairs.insert(key, value);
+                    leaf_changed = true;
+                }
+            }
+
+            if leaf_changed {
+                // Only return the leaf if it actually changed
+                Ok(Some(leaf))
+            } else {
+                // Return None if leaf hasn't changed
+                Ok(None)
+            }
+        });
+        // The closure is the only possible source of errors.
+        // Since it never returns an error - only `Ok(Some(_))` or `Ok(None)` - we can safely assume
+        // `accumulator` is always `Ok(_)`.
+        (
+            accumulator.expect("process_sorted_pairs_to_leaves never fails").leaves,
+            new_pairs,
+        )
+    }
+
+    /// Computes the node mutations and the root of a subtree
+    fn build_subtree_mutations(
+        &self,
+        mut leaves: Vec<SubtreeLeaf>,
+        tree_depth: u8,
+        bottom_depth: u8,
+    ) -> (NodeMutations, SubtreeLeaf)
+    where
+        Self: Sized,
+    {
+        debug_assert!(bottom_depth <= tree_depth);
+        debug_assert!(Integer::is_multiple_of(&bottom_depth, &SUBTREE_DEPTH));
+        debug_assert!(leaves.len() <= usize::pow(2, SUBTREE_DEPTH as u32));
+
+        let subtree_root_depth = bottom_depth - SUBTREE_DEPTH;
+        let mut node_mutations: NodeMutations = Default::default();
+        let mut next_leaves: Vec<SubtreeLeaf> = Vec::with_capacity(leaves.len() / 2);
+
+        for current_depth in (subtree_root_depth..bottom_depth).rev() {
+            debug_assert!(current_depth <= bottom_depth);
+
+            let next_depth = current_depth + 1;
+            let mut iter = leaves.drain(..).peekable();
+
+            while let Some(first_leaf) = iter.next() {
+                // This constructs a valid index because next_depth will never exceed the depth of
+                // the tree.
+                let parent_index = NodeIndex::new_unchecked(next_depth, first_leaf.col).parent();
+                let parent_node = self.get_inner_node(parent_index);
+                let combined_node = fetch_sibling_pair(&mut iter, first_leaf, parent_node);
+                let combined_hash = combined_node.hash();
+
+                let &empty_hash = EmptySubtreeRoots::entry(tree_depth, current_depth);
+
+                // Add the parent node even if it is empty for proper upward updates
+                next_leaves.push(SubtreeLeaf {
+                    col: parent_index.value(),
+                    hash: combined_hash,
+                });
+
+                node_mutations.insert(
+                    parent_index,
+                    if combined_hash != empty_hash {
+                        NodeMutation::Addition(combined_node)
+                    } else {
+                        NodeMutation::Removal
+                    },
+                );
+            }
+            drop(iter);
+            leaves = mem::take(&mut next_leaves);
+        }
+
+        debug_assert_eq!(leaves.len(), 1);
+        let root_leaf = leaves.pop().unwrap();
+        (node_mutations, root_leaf)
+    }
+
+    // STORAGE
+    // --------------------------------------------------------------------------------------------
 
     /// Inserts `value` at leaf index pointed to by `key`. `value` is guaranteed to not be the empty
     /// value, such that this is indeed an insertion.
@@ -410,6 +603,17 @@ impl LargeSmt {
             }
         }
         txn.commit().unwrap();
+    }
+
+    fn insert_inner_nodes_batch_to_memory(
+        &mut self,
+        nodes: impl IntoIterator<Item = (NodeIndex, InnerNode)>,
+    ) {
+        for (index, node) in nodes {
+            let memory_index = to_memory_index(&index);
+            self.in_memory_nodes[memory_index] = Some(node);
+            self.in_memory_count += 1;
+        }
     }
 
     fn get_leaf_from_db(&self, index: &LeafIndex<SMT_DEPTH>) -> Option<SmtLeaf> {

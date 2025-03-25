@@ -13,7 +13,7 @@ use crate::merkle::smt::{NodeMutation, NodeMutations, UnorderedMap};
 #[cfg(test)]
 mod tests;
 
-type MutatedSubtreeLeaves = Vec<Vec<SubtreeLeaf>>;
+pub(crate) type MutatedSubtreeLeaves = Vec<Vec<SubtreeLeaf>>;
 
 // CONCURRENT IMPLEMENTATIONS
 // ================================================================================================
@@ -440,7 +440,7 @@ impl Iterator for SubtreeLeavesIter<'_> {
 ///
 /// # Panics
 /// This function will panic in debug mode if the input `pairs` are not sorted by column index.
-fn process_sorted_pairs_to_leaves<F>(
+pub(crate) fn process_sorted_pairs_to_leaves<F>(
     pairs: Vec<(RpoDigest, Word)>,
     mut process_leaf: F,
 ) -> Result<PairComputations<u64, SmtLeaf>, MerkleError>
@@ -644,7 +644,7 @@ pub(crate) fn build_subtree(
 ///   or copied from the `parent_node`.
 ///
 /// Returns the `InnerNode` containing the hashes of the sibling pair.
-fn fetch_sibling_pair(
+pub(crate) fn fetch_sibling_pair(
     iter: &mut core::iter::Peekable<alloc::vec::Drain<SubtreeLeaf>>,
     first_leaf: SubtreeLeaf,
     parent_node: InnerNode,

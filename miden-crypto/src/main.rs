@@ -6,7 +6,7 @@ use clap::Parser;
 use miden_crypto::{
     EMPTY_WORD, Felt, ONE, Word,
     hash::rpo::{Rpo256, RpoDigest},
-    merkle::{LargeSmt, MerkleError, Smt},
+    merkle::{LargeSmt, MerkleError},
 };
 use rand::{Rng, prelude::IteratorRandom, rng};
 use rand_utils::rand_value;
@@ -47,8 +47,8 @@ pub fn benchmark_smt() {
 
     let tree = construction(entries.clone(), tree_size).unwrap();
     insertion(&mut tree.clone(), insertions).unwrap();
-    //batched_insertion(&mut tree.clone(), insertions).unwrap();
-    //batched_update(&mut tree.clone(), entries, updates).unwrap();
+    batched_insertion(&mut tree.clone(), insertions).unwrap();
+    batched_update(&mut tree.clone(), entries, updates).unwrap();
     //proof_generation(&mut tree).unwrap();
 }
 
@@ -141,7 +141,7 @@ pub fn batched_insertion(tree: &mut LargeSmt, insertions: usize) -> Result<(), M
 }
 
 pub fn batched_update(
-    tree: &mut Smt,
+    tree: &mut LargeSmt,
     entries: Vec<(RpoDigest, Word)>,
     updates: usize,
 ) -> Result<(), MerkleError> {
@@ -200,7 +200,7 @@ pub fn batched_update(
 }
 
 /// Runs the proof generation benchmark for the [`Smt`].
-pub fn proof_generation(tree: &mut Smt) -> Result<(), MerkleError> {
+pub fn proof_generation(tree: &mut LargeSmt) -> Result<(), MerkleError> {
     const NUM_PROOFS: usize = 100;
 
     println!("Running a proof generation benchmark:");
