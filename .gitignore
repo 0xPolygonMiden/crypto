@@ -14,3 +14,4 @@ cmake-build-*
 # Proptest
 tests.txt
 *.mdb
+bench_large_smt
