@@ -11,7 +11,7 @@ use super::{
 use crate::merkle::smt::{NodeMutation, NodeMutations, UnorderedMap};
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub(crate) type MutatedSubtreeLeaves = Vec<Vec<SubtreeLeaf>>;
 
@@ -326,7 +326,7 @@ impl Smt {
 pub(crate) const SUBTREE_DEPTH: u8 = 8;
 
 /// A depth-8 subtree contains 256 "columns" that can possibly be occupied.
-const COLS_PER_SUBTREE: u64 = u64::pow(2, SUBTREE_DEPTH as u32);
+pub(crate) const COLS_PER_SUBTREE: u64 = u64::pow(2, SUBTREE_DEPTH as u32);
 
 /// Helper struct for organizing the data we care about when computing Merkle subtrees.
 ///

@@ -1,34 +1,39 @@
-use alloc::vec::Vec;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use super::{EMPTY_WORD, LargeSmt, RpoDigest, Smt};
-use crate::{Felt, ONE, WORD_SIZE, Word};
+use crate::{
+    ONE, WORD_SIZE,
+    merkle::smt::full::concurrent::{
+        COLS_PER_SUBTREE,
+        tests::{generate_entries, generate_updates},
+    },
+};
 // LargeSMT
 // --------------------------------------------------------------------------------------------
 
-fn generate_entries(pair_count: u64) -> Vec<(RpoDigest, Word)> {
-    (0..pair_count)
-        .map(|i| {
-            let leaf_index = ((i as f64 / pair_count as f64) * (pair_count as f64)) as u64;
-            let key = RpoDigest::new([ONE, ONE, Felt::new(i), Felt::new(leaf_index)]);
-            let value = [ONE, ONE, ONE, Felt::new(i)];
-            (key, value)
-        })
-        .collect()
+fn setup_db_path() -> PathBuf {
+    let path = Path::new("test_smt");
+    if path.exists() {
+        std::fs::remove_dir_all(path).unwrap();
+    }
+    fs::create_dir_all(path).expect("Failed to create database directory");
+    path.to_path_buf()
 }
 
 /// Tests that `get_value()` works as expected
 #[test]
 fn test_smt_get_value() {
-    use std::path::Path;
-    let path = Path::new("test_smt");
-
     let key_1: RpoDigest = RpoDigest::from([ONE, ONE, ONE, ONE]);
     let key_2: RpoDigest = RpoDigest::from([2_u32, 2_u32, 2_u32, 2_u32]);
 
     let value_1 = [ONE; WORD_SIZE];
     let value_2 = [2_u32.into(); WORD_SIZE];
 
-    let smt = LargeSmt::with_entries(path, [(key_1, value_1), (key_2, value_2)]).unwrap();
+    let path = setup_db_path();
+    let smt = LargeSmt::with_entries(&path, [(key_1, value_1), (key_2, value_2)]).unwrap();
 
     let returned_value_1 = smt.get_value(&key_1);
     let returned_value_2 = smt.get_value(&key_2);
@@ -44,12 +49,29 @@ fn test_smt_get_value() {
 
 #[test]
 fn test_smt_and_large_smt_are_equivalent() {
-    use std::path::Path;
-
     let entries = generate_entries(1000);
     let smt = Smt::with_entries(entries.clone()).unwrap();
 
-    let path = Path::new("test_smt");
-    let large_smt = LargeSmt::with_entries(path, entries).unwrap();
+    let path = setup_db_path();
+    let large_smt = LargeSmt::with_entries(&path, entries).unwrap();
     assert_eq!(smt.root(), large_smt.root());
+}
+
+#[test]
+fn test_compute_mutations() {
+    const PAIR_COUNT: u64 = COLS_PER_SUBTREE * 64;
+    let entries = generate_entries(PAIR_COUNT);
+
+    let tree = Smt::with_entries(entries.clone()).unwrap();
+
+    let path = setup_db_path();
+    let large_tree = LargeSmt::with_entries(&path, entries.clone()).unwrap();
+
+    let updates = generate_updates(entries, 1000);
+    let control = tree.compute_mutations(updates.clone());
+    let mutations = large_tree.compute_mutations(updates);
+    assert_eq!(mutations.root(), control.root());
+    assert_eq!(mutations.old_root(), control.old_root());
+    assert_eq!(mutations.node_mutations(), control.node_mutations());
+    assert_eq!(mutations.new_pairs(), control.new_pairs());
 }

@@ -1,6 +1,4 @@
-use std::time::Instant;
-use std::path::Path;
-use std::fs;
+use std::{fs, path::Path, time::Instant};
 
 use clap::Parser;
 use miden_crypto::{
@@ -49,7 +47,7 @@ pub fn benchmark_smt() {
     insertion(&mut tree.clone(), insertions).unwrap();
     batched_insertion(&mut tree.clone(), insertions).unwrap();
     batched_update(&mut tree.clone(), entries, updates).unwrap();
-    //proof_generation(&mut tree).unwrap();
+    proof_generation(&mut tree.clone()).unwrap();
 }
 
 /// Runs the construction benchmark for [`Smt`], returning the constructed tree.

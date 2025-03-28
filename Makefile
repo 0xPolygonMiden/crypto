@@ -60,7 +60,7 @@ test-smt-concurrent: ## Run only concurrent SMT tests
 
 .PHONY: test-large-smt
 test-large-smt: ## Run only concurrent SMT tests
-	$(DEBUG_OVERFLOW_INFO) cargo nextest run --success-output immediate  --profile large-smt --release --all-features
+	$(DEBUG_OVERFLOW_INFO) cargo nextest run --success-output immediate  --profile large-smt --release --all-features --test-threads=1
 
 .PHONY: test
 test: test-default test-smt-hashmaps test-no-std ## Run all tests except concurrent SMT tests
